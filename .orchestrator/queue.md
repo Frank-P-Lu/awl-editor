@@ -350,116 +350,6 @@ theme-specific composition remains a live taste review.
 
 ---
 
-### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 602 and 604 (one seam: render laws and the
-colour conversion their mutations run through).
-
-⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
-
-`render::tests::overlay_hover_stability_law::a_deliberate_world_crossing_can_move_a_stationary_
-pixels_hit_test_row` went red on the `linux` arm ONLY during one gate run, was **absent from
-that arm's own `failures:` list**, was green on `mac` and `menubar-full` in the same run, and
-was green on all three arms in the next. The lane could not reproduce it targeted and
-recorded it as unexplained rather than asserting it benign, which is the right call.
-
-Why it is worth a look rather than a shrug: it is a `render::` law reaching the shared test
-GPU, which is exactly the order-sensitive class CLAUDE.md names. One device is one object
-population and one set of wgpu-hal counters, and a test that merely borrows a handle mutates
-them; the documented signature of an unguarded reach is a law that **passes alone, passes
-unfiltered, and fails only under a filter** — never failing CI and always failing a developer.
-Its disappearance from the arm's own failures list is itself a finding: a red that the
-receipt's own summary did not carry.
-
-**Ruled out 2026-09-07: this is NOT the hosted-mac wedge.** CI's tolerated `mac (render::tests)`
-arm was checked in case the two were one phenomenon. They are not: that arm reports `562
-passed; 588 failed` with passes and failures INTERLEAVED to the last second, which is ordinary
-virtualised-Metal pixel divergence across about half the render suite, not a device loss and
-not a single flaking law. 595's subject failed once on the LINUX arm of a local gate, passed
-on the other two arms of the same run, and passed on all three next run. Different axis,
-different shape.
-
-Build: establish whether this law (and its neighbours in that file) take
-`crate::testlock::serial()` and hold it for the LIFETIME OF THE RESOURCES rather than the
-call — a `TextPipeline` dropped at the closing brace still moves the counters, so a lock a
-helper takes and returns discharges nothing. Then either fix the enrolment or explain the
-one-off. Laws: whatever is found, prove it by making the failure deterministic before
-declaring it fixed.
-
----
-
-### 596 — two small truths about the personal dictionary that its own docs get wrong (found by 568/569's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 597 and 598.
-
-⬜ READY — trivial, filed so they are not lost between a merge and a board compression.
-
-(a) `REFERENCE.md` says the dictionary file "is read at startup only". It is also re-read when
-the dictionary variant switches (`set_dictionary` → `load_user_dictionary`). A generated
-reference stating a wrong answer with a roster behind it is the documented hazard — the fix is
-the sentence, and the check is asking the property on both sides of the condition.
-
-(b) `remove_word_from_dictionary_file` joins with `\n`, so a CRLF-edited word list is converted
-to LF by a removal. Unreachable on awl's shipped platforms and therefore not urgent, but it
-contradicts the file-preservation promise the same function otherwise keeps, and the rope's
-whole CRLF discipline is "load normalizes, save restores".
-
----
-
-### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 598. Its case (a) is a product decision
-(refuse, or widen the edit beyond the selection); the lane picks the calmer default, lands it,
-and names it for the user rather than parking the item.
-
-⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
-them. All three PRE-DATE 586/587 and none was introduced by it.
-
-(a) A document backtick immediately OUTSIDE the selection — `` x`y ``, select `y` — has no
-valid output without editing text the user did not select. The honest answers are a refusal
-or a widened edit, and which one is a product decision, not an implementation detail.
-
-(b) `` **`y`** `` — a payload that is entirely a code span — cannot be recognised by any span
-oracle, because awl emits no prose span when no `Event::Text` survives inside. So the toggle
-cannot tell "already bold" from "not bold" here. The fix is a different oracle, not a
-different threshold.
-
-(c) `==` cannot contain a backtick at all: `push_highlight_spans` sees one text event.
-
-Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
-on a surviving text event. Laws: each case asserted through the real parser, and each proven
-non-vacuous by restoring today's behaviour and watching it go red.
-
----
-
-### 598 — a summoned surface now swallows ⌘Q and ⌘S, and the picker card always did (found by 585's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 597. **This one carries a product
-question too**, contrary to a summary that listed only 603: should a summoned surface block
-Quit and Save at all? Per this board's standing preference the lane LANDS the obvious default —
-a summoned surface does not swallow ⌘Q or ⌘S — states the revert cost, and awaits the user's
-feedback rather than parking it. Whatever is chosen must apply to the card and the panel by
-construction, or they drift again.
-
-⬜ READY — small, but it is a question about intent rather than a bug with an obvious answer.
-
-585 gave the find/replace panel the same action-level gate the picker card has always had, so
-the panel now consumes every Edit-menu verb while it is up. It also consumes **⌘Q and ⌘S**,
-because that is what the card does and making the panel disagree would have been a SECOND
-policy — the lane inherited the existing contract rather than inventing a third one, which was
-the right call for its own round and is the wrong place to settle this.
-
-The question this exposes: **should a summoned surface block Quit and Save at all?** A picker
-that swallows ⌘Q is plausibly a pre-existing bug that nobody noticed because nobody tried it
-with a picker up. Reverting is one `matches!` carve-out in `search::keys::intercept_action`,
-and whatever is decided applies to BOTH surfaces or the two drift apart again.
-
-Laws: whichever way it goes, the card and the panel must agree by construction rather than by
-coincidence — one owner, swept over the surface roster, so a third summoned surface cannot
-pick a third answer.
-
----
-
 ### 600 — `--all-worktrees`: guard it, delete it, or leave the safety a habit? (awaiting the user, 2026-09-07)
 
 🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
@@ -485,32 +375,6 @@ arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten li
 turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
 the mode is second-best and does not touch the larger `incremental` number (item 612). The
 status quo, where the safety is a habit, is worst.
-
----
-
-
-### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 604. Sequenced FIRST in that lane:
-until the alpha question is settled, every contrast/presence mutation in the other two has to
-route around it.
-
-⬜ READY — small, and it is a product fact rather than a test artifact.
-
-While mutation-proving 570, the lane faded a mark by setting `Srgb { a: 8, .. }` and the law
-stayed GREEN. The law was not at fault: **`Srgb::to_glyphon()` calls `Color::rgb`, which drops
-the alpha channel entirely**, so the fade never reached the renderer at all. The mutation was
-re-done as a colour blend toward the ground and fired correctly.
-
-Why this is worth an item rather than a note: every caller that sets an alpha on a text colour
-is silently getting an opaque one, and nothing says so. Either alpha is meaningful for glyph
-colour — in which case this is a bug and the conversion should carry it — or it is not, in
-which case the type should not accept a value it discards. **Establish which before changing
-anything**, since a roster of callers may be relying on today's behaviour without knowing it.
-
-Laws: whichever way it goes, a colour whose alpha is set must either reach the renderer with
-that alpha or fail to compile. Prove non-vacuity by rendering two colours differing only in
-alpha and requiring the frames to differ (or the code not to build).
 
 ---
 
@@ -540,55 +404,6 @@ derived from `shows_read_only_prose` rather than named, and the advertise/refuse
 be law-pinned so a surface cannot advertise what it will not do.
 
 ---
-
-### 604 — three band consumers 572 fixed but did not grade, and one inflation site it did not sweep (named by 572's own lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 602.
-
-⬜ READY — small, and it exists because the lane said plainly where its own sweep stopped
-rather than letting the enrolment guard imply a completeness it did not have.
-
-572 made one owner of the caret-band scale, so every consumer got the fix. Its grading law
-`every_caret_band_consumer_grew_by_the_size_rung_alone` grades **five** of them — selection
-band, find-match wash, code pill, strike fraction, spell gap. The **nit underline** and the
-**x-ray table-row band** read the same owner, are fixed by it, and are graded by nothing and
-explained by nothing; the item's own text named "spell/nit underlines" and "table x-ray rows".
-The link underline is honestly pinned as structurally absent from a heading row (pulldown
-stamps a heading's link text `Heading`, not `LinkText`) with an assertion saying so — that one
-is answered, not missing.
-
-The 8-call-site enrolment guard forces NEW consumers into the sweep. It does not retroactively
-enrol these two, which is exactly the gap a call-site count cannot see.
-
-Also unswept: the **thematic-break `ornament_scale` row**. Its module doc argues the room is
-dropped on reveal, and that argument is asserted rather than law-tested — item 571 fixed the
-reveal, and nothing pins the selection band and underlines on that row.
-
-And one enrolment that is derived but not pinned to a number: the mono-world band law asserts
-only `graded > 0` rather than an exact cell count, the single enrolment in that file without
-one. A sweep that silently shrinks to one world would pass it.
-
-Laws: grade the two ungraded consumers on the same axis as the other five; sweep the
-thematic-break row against every caret-adjacent treatment the way 572 swept the heading rung;
-give the mono law an exact count derived from its own filtered roster.
-
-## A lane-facing note: three lanes lost a gate cycle to the same law
-
-`roster_claim_law::no_source_comment_types_the_world_roster_size` reddened **three separate
-lanes** in one session — 570's (`pull_quote_pair.rs` typed "twenty worlds" in the module doc of
-a file whose whole subject is deriving enrolment from the roster), 558's ("nineteen/twenty
-worlds" in comments), and 572's (two sites, one of them a failure message reading "thirteen of
-the twenty worlds"). In 572's case the previous lane's commit was **already red** against a law
-that has been on `main` since 2026-08-26 and is an ancestor of that commit.
-
-The law is right and is doing its job. The cost is discovery: it is a unit test a **filtered**
-`cargo test` never reaches, so a lane meets it only at the full gate, after the work is done —
-and writing "the twenty worlds" in prose is the natural way to describe a sweep. Every lane
-that hit it was writing a comment ABOUT deriving enrolment from the roster.
-
-**So a brief that asks a lane to sweep the world roster should say this outright:** describe
-the roster by asking it, never by typing its size, in comments and failure messages alike. That
-costs a sentence and saves a gate cycle, and gate cycles on this host are ~15 minutes each.
 
 ### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
 
@@ -716,6 +531,8 @@ going red.
 Build: derive the oracle's value from the floor it is meant to sit above, or assert the
 relationship so the coupling fails loudly instead of silently. Law: the oracle's value must
 exceed the healthy floor by a stated margin, and the law fails if the floor is raised past it.
+
+---
 
 ### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
 
@@ -902,8 +719,6 @@ quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the use
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
 tier.
 
----
-
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
@@ -922,6 +737,35 @@ Related and cheaper: this session also spent several turns listing questions the
 ALREADY answered through the other session — 603, 568, 570's placement, 576's gestures and
 572's four taste calls were all decided in `35177829` while this one was mid-wave. Read the
 board's own Owed section before telling the user what they owe you.
+
+## NOT GATED — two orchestrators are merging to main at once
+
+Local `main` carries two merges with **no receipt describing this tree**: 597/598/596 and
+602/595/604. Both lanes' own branch receipts are green, taken with HEAD verified unmoved
+(`8719465d` health=pass:266s unit_tests=4974; `3436e35f` health=pass:250s unit_tests=4969),
+and `code-health.sh` passes on the merged tree. **A branch receipt is not an exact-main
+receipt** and a health pass is not a suite.
+
+The obstruction is not the code. A second orchestrator session works this board and merges to
+main concurrently. An exact-main gate from this session returned:
+
+```
+native-gate: HEAD changed while the suite ran (start=47b6af0d end=0b295b84); no receipt issued
+```
+
+HEAD moved **twice inside one run** — the suite is right to discard itself, and the cost is
+that neither session can earn an exact-main receipt while the other commits, at roughly
+fifteen minutes a throw.
+
+**This needs a protocol, and it is the user's call because both sessions are theirs.** The
+options, in the orchestrator's order of preference: one session owns `main` and the other
+hands over branches; or the sessions take turns explicitly, with whoever is gating saying so
+while the other holds board writes and merges; or exact-main receipts are abandoned in favour
+of per-branch ones, which is weakest because the tree they share is the thing a receipt is
+for.
+
+**Until it is settled: nothing is pushed from this session.** The same root cause produced the
+605/606 numbering collision recorded above.
 
 ## Owed to the user — landed work awaiting a live eye
 
