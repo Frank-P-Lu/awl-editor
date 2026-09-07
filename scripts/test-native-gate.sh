@@ -518,6 +518,82 @@ fi
 
 echo "test-native-gate: an exhausted budget retires every descendant, not just the process it launched"
 
+# ── …and STOPS at the caller's process group ─────────────────────────────────
+# code-health.sh runs this file, and both inherit the process group of whatever
+# shell launched them — an agent's tool shell, with every other command that
+# shell is running. The law above requires the budget to reach the gate's own
+# descendants. This one requires it to reach no further, because the failure at
+# that end leaves nothing to read: the shell dies mid-run, its turn ends with no
+# output and no error, and the gate it launched keeps going with nobody waiting
+# on it. A widened `gate_kill_groups` is the one edit that can cause it.
+#
+# THREE LAYERS, and the middle one is what makes the law reportable at all. A
+# bystander in the group under test cannot report its own death, and neither
+# can a script sharing that group. So the stand-in caller is a subshell with a
+# process group of its OWN: it plants the bystander, runs the probe as a plain
+# child exactly as a shell does, and leaves a verdict this script reads from
+# outside that group. A widened kill takes the stand-in and its bystander
+# together; the reader survives to name it.
+caller_group_verdict="$WORK/caller-group-verdict"
+: >"$caller_group_verdict"
+set -m
+(
+  set +m
+  sleep 900 &
+  bystander=$!
+  printf 'planted=%s\n' "$bystander" >>"$caller_group_verdict"
+  probe caller-group AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30
+  printf 'probe_status=%s\n' "$probe_status" >>"$caller_group_verdict"
+  if kill -0 "$bystander" 2>/dev/null; then
+    printf 'bystander=survived\n' >>"$caller_group_verdict"
+  else
+    printf 'bystander=reaped\n' >>"$caller_group_verdict"
+  fi
+  kill -KILL "$bystander" 2>/dev/null || true
+) &
+caller_group_stand_in=$!
+set +m
+# ENROLMENT, read off the live process table while the stand-in is still
+# running rather than assumed from `set -m`: a stand-in sharing THIS script's
+# group could not have survived a widened kill, so the law would be
+# structurally unable to report the defect it names. Read from HERE, because
+# `$$` inside a subshell is still the parent's pid and Bash 3.2 — what macOS
+# ships, and what this file runs under — has no `BASHPID` to ask instead.
+own_group="$(ps -o pgid= -p $$ | tr -d ' ')"
+stand_in_group="$(ps -o pgid= -p "$caller_group_stand_in" | tr -d ' ')"
+set +e
+wait "$caller_group_stand_in"
+caller_group_status=$?
+set -e
+
+[[ -n "$stand_in_group" && "$stand_in_group" != "$own_group" ]] || {
+  echo "test-native-gate: the caller-group stand-in ran in this script's own group (stand_in=${stand_in_group:-unreadable}, self=$own_group) — it could not have outlived a widened kill, so this law would prove nothing" >&2
+  exit 1
+}
+# PRESENCE, twice: a bystander that was never planted survives for free, and so
+# does one whose probe never armed a budget and therefore killed no group at all.
+grep -q '^planted=' "$caller_group_verdict" || {
+  echo "test-native-gate: no bystander was planted beside the gate, so this law proves nothing" >&2
+  exit 1
+}
+# The stand-in's own fate is read FIRST, because a widened kill takes it before
+# it can write any later verdict line — and every downstream assertion would
+# then blame a missing line rather than the reap that removed it.
+(( caller_group_status == 0 )) || {
+  echo "test-native-gate: a group kill reached the CALLER's process group — the stand-in caller did not survive the gate it launched (exit $caller_group_status). This is how a lane's shell dies mid-run with nothing to read: $(tr '\n' ' ' <"$caller_group_verdict")" >&2
+  exit 1
+}
+grep -Fxq 'probe_status=1' "$caller_group_verdict" || {
+  echo "test-native-gate: the caller-group probe did not end on its budget ($(sed -n 's/^probe_status=//p' "$caller_group_verdict")) — no group kill ran, so a survivor means nothing" >&2
+  exit 1
+}
+grep -Fxq 'bystander=survived' "$caller_group_verdict" || {
+  echo "test-native-gate: a group kill reached the CALLER's process group — the bystander planted beside the gate was reaped: $(tr '\n' ' ' <"$caller_group_verdict")" >&2
+  exit 1
+}
+
+echo "test-native-gate: the group kill stops at the gate's own phases — a shell that launches code-health keeps its other children"
+
 # ── The budget is anchored to the caller's clock, not only to the gate's ─────
 # The runner's death clock starts at job step 1; this script's starts whenever
 # the earlier steps happen to have finished. On 2026-08-02 the same 2400 s

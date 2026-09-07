@@ -254,12 +254,30 @@ lost a sibling's source to `git add -u`.
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
 `worker-build.sh` invokes it before every concurrent worker command; the
 canonical native gate invokes the same owner for the root merge train. Above
-its 32 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
+its 27 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
 locks, rechecks, and asks the sole deletion owner, `scripts/sweep.sh 1`, to
 prune THIS worktree's own `target/` and no other — the preflight fires on every
 concurrent worker command and `cargo sweep` takes no lock, so a fleet-wide
 traversal from here deletes fingerprints out from under a sibling lane's live
 compile. A post-sweep 24 GiB minimum is an early, truthful failure.
+
+⚠️ **THAT RECOVERY ARM RECLAIMS ALMOST NOTHING, MEASURED, AND THE FLOORS NOW SAY SO.**
+The healthy floor was 32 GiB while the sweep still traversed the fleet; it is now
+derived — `MINIMUM_BYTES` plus `SWEEP_YIELD_BYTES`, the measured ceiling of one
+worktree's `sweep.sh 1`, which is **3 GiB**. Two facts bound it and neither is
+tunable: `cargo sweep --time` keeps every artifact whose fingerprint was used
+inside the window, and the one worktree this door may prune is the one that is
+building right now; and cargo-sweep never touches `target/debug/incremental`,
+measured at **61-69%** of every `target/` on this fleet. Sampled 2026-09-07 across
+worktrees spanning 1.2-25.4 GiB and one to fourteen days old, `--time 1` reclaimed
+**nothing at all**, and so did every threshold up to 60 days; the largest sweepable
+pool anywhere was 2.8 GiB of deps and fingerprints in a lane that had just rebuilt.
+So the practical rule is that **below 24 GiB the preflight refuses, full stop** —
+recovery rescues a run only in the narrow window where the caller itself has gone
+a day idle with its deps intact, which an active lane never has. Every receipt now
+prints `sweep_yield_bytes=` and `reclaimed_bytes=`, so the next tuning pass reads
+numbers off a run instead of remembering. `scripts/test-disk-preflight.sh` pins the
+derivation and runs in `code-health.sh`.
 The serializer is a kernel advisory lock held through inherited file descriptor
 9. The lock file may persist, but its contents carry no authority; the kernel
 releases ownership when a process exits or is killed.
@@ -913,19 +931,37 @@ times it fires.**
 - **Classify suspicious failures before blaming code.** Retry incremental
   failures with `CARGO_INCREMENTAL=0`. For `SIGKILL` with no test failure,
   check memory and rerun the gate alone.
-- ‼ **RUNNING `code-health.sh` FROM AN AGENT'S OWN BASH SHELL KILLS THAT SHELL, AND
-  LEAVES ITS GATE ORPHANED AND STILL RUNNING.** `code-health.sh` invokes
-  `test-native-gate.sh`, whose group-kill probe signals whole PROCESS GROUPS — and an
-  agent's tool shell shares a group with the gate it launched, so the probe reaps the
-  caller. Measured 2026-09-06: a lane's first attempt died at **exit 144** mid-probe while
-  its gate kept running unattached, and the orchestrator later found TWO full gates
-  competing for the one arbiter slot, one of them nobody was waiting on. The shell that
-  dies takes the lane's turn with it, so this reads as an unexplained silent lane. Isolate
-  it: `set -m` in **bash** (zsh rejects it in that context) plus a disowned subshell. And
-  when a lane reports an orphaned gate, the orchestrator's job is to kill the process
-  GROUP (`kill -TERM -<pgid>`) — the arbiter's EXIT trap clears the marker on TERM, so the
-  slot frees cleanly — rather than leaving a redundant gate to starve the receipt that
-  actually covers the merge candidate.
+- ‼ **`code-health.sh` DOES NOT REAP ITS CALLER'S PROCESS GROUP — THAT MECHANISM WAS
+  MEASURED AND IS FALSE, AND IT IS NOW PINNED SO NOBODY HAS TO RE-DERIVE IT.** The
+  tripwire that stood here said `test-native-gate.sh`'s group-kill probe signals the
+  group an agent's tool shell shares with it. Measured 2026-09-07 by instrumenting the
+  one group-directed `kill` in the tree (`native-gate.sh`'s `gate_kill_groups`) through a
+  full `code-health.sh` run: **554 group signals across 220 distinct process groups,
+  ZERO of them the caller's and zero of them any gate's own** — every target is a phase
+  group `gate_launch` created under `set -m`. A `code-health.sh` launched from a plain
+  bash shell with a `sleep` planted beside it exits 0 and leaves both the sleeper and the
+  shell alive. `scripts/test-native-gate.sh` now plants that sleeper on every health run,
+  in a stand-in caller with a process group of its own, and requires it to survive; a
+  widened group kill turns it red by name.
+
+  **What actually fits the 2026-09-06 evidence is the CLOCK.** `code-health.sh` takes
+  ~240 s on this host and `test-native-gate.sh` alone measured **189 s** of that, so a
+  lane running it in the foreground under the tool's default timeout is killed partway —
+  "mid-probe", with its own harness reaping the command's group, while a gate it had
+  already backgrounded keeps running unattached. **And `exit 144` is the agent
+  harness's own code for "this task's shell was killed" — it is not a signal number,
+  and nothing in this repo emits it.** Reproduced twice on 2026-09-07, once by accident
+  and once deliberately: a background task shell sent SIGTERM comes back as `exit 144`.
+  So when a lane reports 144, read its TIMEOUT, not this repo's scripts. That is the
+  whole observed shape, and it
+  explains why `set -m` plus a disowned subshell "worked": it detaches from the group the
+  timeout killer targets. **So the fix is to give `code-health.sh` an explicit long
+  timeout like any other gate** — the subshell dodge merely hides the deadline, and a lane
+  that uses it can no longer read the exit status it was waiting for. When a lane does
+  report an orphaned gate, the orchestrator's job is still to kill the process GROUP
+  (`kill -TERM -<pgid>`) — the arbiter's EXIT trap clears the marker on TERM, so the slot
+  frees cleanly — rather than leaving a redundant gate to starve the receipt that actually
+  covers the merge candidate.
 
 - **Terminate only owned processes.** Never kill `awl` by name; stop only the
   exact PID this run created. Identify them with `pgrep -f` plus `ps -ww`:

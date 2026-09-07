@@ -3,11 +3,33 @@
 # target itself: scripts/sweep.sh 1 remains the only cleanup owner.
 set -euo pipefail
 
-# A current worktree target is about 6.3 GiB. Four worker lanes need headroom
-# before they all begin compiling, so this is a fleet floor, not Cargo's own
-# per-worktree estimate.
-readonly HEALTHY_BYTES=$((32 * 1024 * 1024 * 1024))
+# MINIMUM_BYTES is a CAPACITY floor and owes nothing to the recovery below it:
+# four worker lanes need room before they all begin compiling, and a lane's
+# target/ measured a mean of 4.8 GiB and a worst case of 10.0 GiB across this
+# fleet. It is unchanged.
+#
+# SWEEP_YIELD_BYTES is what the recovery arm can actually give back, MEASURED
+# rather than assumed, and it is small for two reasons no tuning changes.
+# sweep.sh prunes the CALLING worktree and nothing else, and `cargo sweep
+# --time` keeps every artifact whose fingerprint was used inside the window —
+# so the one worktree this script may prune is the one worktree guaranteed to
+# have used its artifacts minutes ago. And cargo-sweep never touches
+# target/debug/incremental, which measured 61-69% of every target/ sampled
+# here. Sampled across worktrees spanning 1.2-25.4 GiB and one to fourteen days
+# old, `--time 1` reclaimed nothing at all, and neither did any threshold up to
+# 60 days; the largest sweepable pool anywhere on the fleet was 2.8 GiB of deps
+# and fingerprints in a lane that had just rebuilt. 3 GiB is that ceiling, not
+# an expectation.
+#
+# So the band is DERIVED: begin recovering exactly one sweep's worth of
+# headroom above the floor this script refuses at. The previous 8 GiB band was
+# tuned against a sweep that traversed the whole fleet, and a band wider than
+# the yield buys only a serialized lock and two du(1) traversals per worker
+# command in exchange for a recovery that cannot arrive. scripts/
+# test-disk-preflight.sh pins the derivation.
 readonly MINIMUM_BYTES=$((24 * 1024 * 1024 * 1024))
+readonly SWEEP_YIELD_BYTES=$((3 * 1024 * 1024 * 1024))
+readonly HEALTHY_BYTES=$((MINIMUM_BYTES + SWEEP_YIELD_BYTES))
 # CI gets one disposable checkout rather than a local four-lane build fleet.
 # Keep its explicit capacity floor well above the tiny volumes that make Cargo
 # error messages misleading, without demanding the local reserve.
@@ -30,15 +52,19 @@ available_bytes() {
   df -Pk "$ROOT" | awk 'NR == 2 { printf "%.0f\n", $4 * 1024 }'
 }
 
+# Every receipt states the policy it ran under, including what the recovery arm
+# was expected to yield and what it actually did. A floor tuned from memory is
+# how the 8 GiB band outlived the fleet-wide sweep it was sized for; the next
+# person to tune these reads the numbers off a run instead.
 receipt() {
-  printf 'disk-preflight caller=%s status=%s policy=%s serializer=flock free_bytes=%s healthy_bytes=%s minimum_bytes=%s\n' \
-    "$CALLER" "$1" "$2" "$3" "$4" "$5"
+  printf 'disk-preflight caller=%s status=%s policy=%s serializer=flock free_bytes=%s healthy_bytes=%s minimum_bytes=%s sweep_yield_bytes=%s reclaimed_bytes=%s\n' \
+    "$CALLER" "$1" "$2" "$3" "$4" "$5" "$6" "$7"
 }
 
 fail_insufficient() {
-  local free_bytes="$1" recovery="$2" minimum_bytes="$3" healthy_bytes="$4" policy="$5"
-  printf 'disk-preflight: insufficient space after %s; policy=%s free_bytes=%s minimum_bytes=%s healthy_bytes=%s\n' \
-    "$recovery" "$policy" "$free_bytes" "$minimum_bytes" "$healthy_bytes" >&2
+  local free_bytes="$1" recovery="$2" minimum_bytes="$3" healthy_bytes="$4" policy="$5" reclaimed_bytes="$6"
+  printf 'disk-preflight: insufficient space after %s; policy=%s free_bytes=%s minimum_bytes=%s healthy_bytes=%s reclaimed_bytes=%s\n' \
+    "$recovery" "$policy" "$free_bytes" "$minimum_bytes" "$healthy_bytes" "$reclaimed_bytes" >&2
   exit 1
 }
 
@@ -72,14 +98,14 @@ free_bytes="$(available_bytes)"
 # install cargo-sweep. Do not make CI's capacity a host-cleanup policy.
 if [[ -n "${CI:-}" ]]; then
   if (( free_bytes < CI_MINIMUM_BYTES )); then
-    fail_insufficient "$free_bytes" "ci-no-sweep" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES" ci
+    fail_insufficient "$free_bytes" "ci-no-sweep" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES" ci none
   fi
-  receipt ci-capacity ci "$free_bytes" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES"
+  receipt ci-capacity ci "$free_bytes" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES" 0 none
   exit 0
 fi
 
 if (( free_bytes >= HEALTHY_BYTES )) && (( SERIALIZER_HELD == 0 )); then
-  receipt healthy fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
+  receipt healthy fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES" "$SWEEP_YIELD_BYTES" none
   exit 0
 fi
 
@@ -107,13 +133,15 @@ test_hook AWL_DISK_PREFLIGHT_AFTER_SERIALIZER_COMMAND "$$"
 # DISK_PREFLIGHT_RECHECK
 free_bytes="$(available_bytes)"
 if (( free_bytes >= HEALTHY_BYTES )); then
-  receipt reused-recovery fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
+  receipt reused-recovery fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES" "$SWEEP_YIELD_BYTES" none
   exit 0
 fi
 
+free_before_sweep="$free_bytes"
 run_sweep
 free_bytes="$(available_bytes)"
+reclaimed_bytes=$(( free_bytes - free_before_sweep ))
 if (( free_bytes < MINIMUM_BYTES )); then
-  fail_insufficient "$free_bytes" "sweep-1d" "$MINIMUM_BYTES" "$HEALTHY_BYTES" fleet
+  fail_insufficient "$free_bytes" "sweep-1d" "$MINIMUM_BYTES" "$HEALTHY_BYTES" fleet "$reclaimed_bytes"
 fi
-receipt recovered fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
+receipt recovered fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES" "$SWEEP_YIELD_BYTES" "$reclaimed_bytes"
