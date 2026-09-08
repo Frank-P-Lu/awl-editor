@@ -301,47 +301,6 @@ be law-pinned so a surface cannot advertise what it will not do.
 
 ---
 
-### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, worktree `.claude/worktrees/item-605-617`; landed together with 617 as the board directs.
-
-⬜ READY — a user-reported bug, so audit its neighbourhood: the active-row plate shares the
-estimate and the same drift.
-
-Reported with a screenshot: in a right-aligned stack over a proportional face, hovering a
-15-character name lit a plate a full plate-width to the LEFT of the ×, and the active-row
-plate ran past the × on the same side. Cause, read out of the tree: `close_hover_plate_rect`
-and `close_zone` (`render/chrome/gutter_stack.rs`) derive the ink's left edge as
-`right − (chars + 2) × label_char_w`, with `label_char_w = CHAR_WIDTH × LABEL` — the fixed
-nominal advance in `render.rs`, never the shaped label's width. Right alignment pins the real
-right edge, so in a proportional face the estimate overshoots left by the per-glyph shortfall
-summed over the name; the drift grows with name length and with how narrow the face runs.
-`plate_rects` uses the same estimate. Because the hover plate and the hit-test are
-deliberately ONE rect, this is a hit bug, not a cosmetic one: on a long name a click on the ×
-glyph itself lands in Switch, and the lit box off to the left is the place that would close.
-
-Why the law missed it: `the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone`
-(`render/tests/gutter_stack_pixels.rs`) sweeps two name lengths in Saltpan only, and pads the
-mark lane 6px to tolerate "estimate/shaping slop on a proportional face" — the face axis was
-never swept, and the pad was set under the slop it was meant to expose.
-
-**Scope change (user, 2026-09-08, see 617):** the hover PLATE is being retired — the × will flip colour instead — so this item owns the ZONE and the active-row plate only. The hit-test still needs the shaped edge; a click on the × glyph must close. Sequence 617 after this, or land both in one lane.
-
-Fix: ONE owner reads the ink's left edge off the shaped `gutter_buffer`'s layout run (the
-row's first glyph x, or right edge minus `line_w`), consumed by the zone, the hover plate, the
-active plate and the hit-test alike; the char-count estimate survives only for the BUDGET
-(`avail_chars`), where a count is the right question. Laws: enrol the whole world roster
-(derived from `THEMES`, not a named world) × both name lengths; assert the zone's left edge
-against the ×'s real first-glyph x within an antialiasing tolerance; retire the 6px pad, or
-justify it against a measured maximum; prove non-vacuity by restoring the estimate under one
-proportional face and watching the law go red. Name the world in the failure message.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier. Read docs/render.md (rowlayout) and this file's test-lock tripwire before touching the
-pixel law — it renders on the shared device.
-
----
-
 ### 607 — follow gestures: middle-click under both Linux flavors, and the gestures rebindable (user decision, 2026-09-07)
 
 ⬜ DECIDED, READY. Two calls 576 left one line from the user, both now taken the other way.
@@ -445,34 +404,6 @@ tier.
 Laws: over a selection that grows one cell at a time, the pixels of every cell OUTSIDE the band are byte-identical frame to frame (sweep the roster, not one world); the band itself still paints whole rows. Prove non-vacuity by re-introducing the transient and watching the law go red. The feel is live-only; deliver a motion capture (`--screenshot-motion`) and flag the live look as owed.
 
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
-
----
-
-### 617 — the × hover box goes; the mark flips colour instead (user decision, 2026-09-08)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, same lane as 605.
-
-⬜ DECIDED, READY — sequenced after 605, or landed in the same lane.
-
-The user kept the hand cursor (559's open question, now closed) and rejected the hover plate: "the box that shows up when you hover the × is kind of offensive; get rid of the box and just flip the colour of the ×." So on hover the × swaps to a second palette colour and no rect is drawn. The hit zone stays exactly where 605 puts it (shaped ink edge); only the paint changes. Pick the flipped colour from the world's existing roster through one owner rather than a new constant per world — the caret accent is the obvious candidate, and DESIGN.md's one-accent rule is the reason to prefer it. The user asked "we have enough colours in the palette to do this, right?" — answer that in the lane's report with the pair actually used, per world, and a contrast figure against the ground.
-
-Laws: hovered × ink differs from resting × ink on every world (presence floor on both); no plate pixels paint on hover (the plate law from 558/559 inverts, not deletes); the active-row plate is untouched. Retire the plate-geometry laws that only 605's hover plate needed.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; vision smoke over five worlds asking "which × is hovered?".
-
----
-
-### 619 — the no-document screen says which folder is open (user report, 2026-09-08)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-619`, worktree `.claude/worktrees/item-619`.
-
-⬜ READY. The user opened a folder of markdown files and saw the same blank screen as before, and read it as "nothing happened" — the folder HAD opened (the picker lists it), but the screen gave no sign. That is a real gap in the first-run/no-document state, not a bug in opening. Read the current state out of the tree first: `app/lifecycle.rs` builds the title through `window_title_no_document`, and `firstrun::is_first_run` decides the welcome; find what the empty document surface paints when `root` is set but `file` is not (the empty-state notice law in `render/plan/tests.rs` is the seam).
-
-What to build: when a root is set and no file is open, the empty surface names the folder (its last path segment, home-relative) and the one action that follows — the Go-to-file chord rendered through `keytoken`, so the glyph is right per convention. Same owner for the title bar's no-document text. Keep it to one dim line in the composition, not a panel. Nothing changes when neither root nor file is set.
-
-Laws: sidecar reports the folder name in the empty state when a root is set (drive it with `--root`); the line is absent with no root; the chord glyph matches the active convention; pixel presence floor on the line in both grounds. Capture against a seeded `--root`, never the ambient one (public repo; see Conventions).
-
-Routing: worker Sonnet high; vision smoke: "what folder is open?" over three worlds.
 
 ---
 
