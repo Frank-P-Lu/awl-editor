@@ -839,14 +839,6 @@ capture), and 584's VoiceOver listening test. Stated plainly because the ceiling
 584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
 through. They cannot prove the OS received it, or that VoiceOver announces it.
 
-**558 — the lone file's plate (merged `6c888d5c`). LIVE LOOK NOT OBTAINED.** The display was
-locked at both ends of that lane's round, so it ran headless captures only and claimed no live
-evidence. The plate is capture-verified in Mulga at RGB 126,140,103 over a 2447-pixel bbox,
-matching the candidate you chose from. What a capture cannot tell you is whether the newly
-plated lone file reads as calm or as busy in ordinary use — that is the whole reason 444, 469
-and 515 left it bare, and it is the one thing worth a live glance now that the decision has
-gone the other way.
-
 **553 — folder-wide search (merged `277c3717`, follow-ups `e076ddd8`/`104fb174`).** The match
 highlight's real-pixel legibility is live-only and unverified. Also flagged, not hidden:
 grouping does not use the lens-strip header mechanism (a deliberate scope call); a CRLF
