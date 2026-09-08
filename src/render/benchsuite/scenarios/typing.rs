@@ -206,7 +206,8 @@ impl LiveTimings {
         self.destination_join_bytes = self.destination_join_bytes.max(o.destination_join_bytes);
         self.squiggle_scan_ms += o.squiggle_scan_ms;
         self.squiggle_scan_misspellings += o.squiggle_scan_misspellings;
-        self.squiggle_scan_misses += u64::from(o.squiggle_scan_misspellings > 0 || o.squiggle_scan_ms > 0.0);
+        self.squiggle_scan_misses +=
+            u64::from(o.squiggle_scan_misspellings > 0 || o.squiggle_scan_ms > 0.0);
     }
 
     fn validate(
@@ -327,7 +328,10 @@ impl LiveTimings {
             ("ornament_scan_misses", self.ornament_scan_misses),
             ("destination_join_calls", self.destination_join_calls),
             ("destination_join_bytes", self.destination_join_bytes),
-            ("squiggle_scan_misspellings", self.squiggle_scan_misspellings),
+            (
+                "squiggle_scan_misspellings",
+                self.squiggle_scan_misspellings,
+            ),
             ("squiggle_scan_misses", self.squiggle_scan_misses),
         ]
     }

@@ -17,9 +17,9 @@ impl TextPipeline {
             .join("\n");
         let out = crate::markdown::destination_ranges(&doc_text, &self.md_spans);
         if let Some(at) = join_at {
-            self.owner_scan
-                .destination_join_ms
-                .set(self.owner_scan.destination_join_ms.get() + at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan.destination_join_ms.set(
+                self.owner_scan.destination_join_ms.get() + at.elapsed().as_secs_f64() * 1000.0,
+            );
             self.owner_scan
                 .destination_join_calls
                 .set(self.owner_scan.destination_join_calls.get() + 1);
@@ -331,7 +331,11 @@ impl TextPipeline {
                 if !destination_ranges.is_empty() {
                     spans.retain(|&(s, e)| {
                         !crate::nits::span_in_prose_ranges(
-                            text, line_start, s, e, &destination_ranges,
+                            text,
+                            line_start,
+                            s,
+                            e,
+                            &destination_ranges,
                         )
                     });
                 }

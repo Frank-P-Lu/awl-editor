@@ -323,7 +323,10 @@ impl NitProjection {
         }
         // First activation, a state mismatch defensive fallback, or nothing
         // has reshaped through this cache yet: seed every line once.
-        self.slots = lines.iter().map(|line| crate::nits::line_nits(line)).collect();
+        self.slots = lines
+            .iter()
+            .map(|line| crate::nits::line_nits(line))
+            .collect();
         self.eligible = true;
         lines.len() as u64
     }

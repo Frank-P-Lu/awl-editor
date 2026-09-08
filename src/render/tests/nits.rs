@@ -2025,7 +2025,10 @@ fn nit_projection_reseeds_clean_across_an_unrelated_buffer_swap() {
         .iter()
         .filter(|(line, ..)| *line != 0)
         .count();
-    assert_eq!(got_a, expected_a, "sanity: document A itself must read correctly");
+    assert_eq!(
+        got_a, expected_a,
+        "sanity: document A itself must read correctly"
+    );
 
     // Document B: an entirely different manuscript — no shared line with A at
     // any position, different length, different nits (two, on lines 1 and 3;
