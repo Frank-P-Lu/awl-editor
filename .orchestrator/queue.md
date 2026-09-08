@@ -244,6 +244,8 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`; MERGED then REVERTED 2026-09-08, back with three named failures (see the merge-train revert commit for the reproduction).
+
 🟢 MERGED as `4a1bb1f5` (header was stale; corrected 2026-09-08). Original brief kept below for 589's coordination.
 
 **Authoritative reference.** `references/find-replace-chrome.png` is the crop
@@ -269,6 +271,42 @@ find-only/replace and case states across world compositions, widths and DPI
 1/2; assert bounds, shortcut/action correspondence and pixel legibility. Add
 mutation-proven laws and the five-shot vision smoke. Theme identity remains
 data through shared renderers, not one universal screenshot skin.
+
+---
+
+### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07; MERGED then REVERTED 2026-09-08)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
+The branch is intact and the work is good; it comes back with one defect, not a rejection.
+
+⬜ The merge train reverted it. `git bisect` between the last green receipt and HEAD names
+`3a4c0ac5` — 592's own commit — as the first bad one, and it reproduces deterministically,
+alone, single-threaded:
+
+```
+AWL_MENU_BAR_FORCE=on cargo test --bin awl -- --exact --test-threads 1 \
+  render::tests::range_rail::the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels
+```
+```
+Bombora (selected=true): the TRACK must paint something distinct from its ground
+```
+
+The law scans the rail's own row and samples its GROUND 14px past the rail's right end. Every
+sample along the rail then matched that ground exactly, so no track ink was found at all. The
+suspicion — for the lane to confirm or refute, NOT to inherit — is that clamping the content
+pane to 72 chars moves what sits 14px past the rail: either the sample is no longer on the
+card, or the rail's painted extent no longer matches the extent `overlay_range_scale` reports.
+The second would be the same class of bug 591 was reverted for in the same wave.
+
+**Why this is worth more than the fix.** 592's lane verified its ceiling LIVE, at five window
+widths from 1200 to 3600, and watched the pane hold flat at 881.28px. That was real work and
+it still missed this, because all five ran on this host's ambient menu-bar branch, which on
+macOS is OFF. The `menubar-full` arm exists precisely because a macOS host never runs the
+branch every Linux host and every CI run always take. A check runs in one configuration, and
+the configuration is the hypothesis.
+
+Keep everything else: merging the two drifted placard predicates into one owner
+(`placard_style_applies`) is better than the item asked for and should come back with the fix.
 
 ---
 
@@ -622,6 +660,29 @@ this ground's geometry and inherits the same sign-off.
 ---
 
 ## Green train — the exact-main receipts
+
+**Seventh train, `984a9975`** — covers 608, 600, 577, 611, 618, 590, 609, 606, 605+617 and
+619, HEAD verified unmoved across the run.
+
+```
+native-gate-receipt commit=984a9975 health=pass:345s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5007 unit_shards=6 integration_targets=18
+```
+
+⚠️ **NOT PUSHED, and not for any reason in the tree.** GitHub refuses the push because 577's
+merge touches `.github/workflows/ci.yml` and this session's token carries no `workflow` scope.
+That is a credential scope on the user's own account: `gh auth refresh -h github.com -s
+workflow`. Nearly fifty commits wait behind it.
+
+Two items were REVERTED out of this train rather than shipped: 591 (a sidecar publishing a
+card rim 560 units from where it draws, plus a summoned-layer bypass in mouse.rs) and 592 (a
+menu-bar-axis regression in the range rail). Both branches are intact and both are back with
+their lanes. **Both were merged un-gated** because this orchestrator told every lane to skip
+the full gate so the train could hold the capacity=1 arbiter. That protocol bought arbiter
+time and cost two defects reaching main and two gate cycles removing them. It is not obviously
+a bad trade at eleven lanes, but it is a trade, and it should be made deliberately rather than
+inherited.
+
 
 **Sixth train, `8f7c628f`** — covers 596, 597, 598, 602, 595 and 604, HEAD verified unmoved
 across the run. `health=pass:280s unit_tests=4979`, web-smoke OK. **CI run 34173463828 was
