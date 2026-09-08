@@ -266,6 +266,8 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-590`, worktree `.claude/worktrees/item-590`.
+
 ⬜ READY — queue only; coordinate shared chrome with 589.
 
 **Decision.** Replace the empty imitation list in Insert Link with an obvious
@@ -294,6 +296,8 @@ as requiring the user's live eye, not as proven by image generation.
 ---
 
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`.
 
 ⬜ READY — queue only; coordinate with 589 and the focus-routing repair 585.
 
@@ -325,6 +329,8 @@ data through shared renderers, not one universal screenshot skin.
 
 ### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
+
 ⬜ READY — queue only; coordinate shared chrome with 589.
 
 **Approved direction.** The user strongly prefers the new Settings layout:
@@ -353,6 +359,8 @@ theme-specific composition remains a live taste review.
 ---
 
 ### 600 — `--all-worktrees`: guard it (user decision, 2026-09-08)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-600b`, worktree `.claude/worktrees/item-600b`.
 
 ⬜ DECIDED, READY: **guard it.** The user chose the recommendation below in one word. Build the refusal — `--all-worktrees` exits non-zero, naming the pid or the process, while the native-gate arbiter marker names a live pid or any `cargo`/`rustc` runs — and a law that a live marker makes the flag refuse. Nothing else in this item is open.
 
@@ -728,6 +736,8 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; vision smoke over fi
 ---
 
 ### 618 — Gumtree's dash ornament about 15% smaller (user taste call on 561, 2026-09-08)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-618`, worktree `.claude/worktrees/item-618`.
 
 ⬜ DECIDED, READY. The user saw 561 live in Gumtree: the snake reads proportionate but "a tad too tall — make it 15% smaller, maybe." Gumtree's `ornament_scale` is `4.648` in `theme/worlds.rs`; the target is about `3.95`. **Tripwire from 561, still true:** star and underscore share that one dial with dash, so a plain scale change shrinks all three. Decide in the lane whether the three should move together (simplest; check star and underscore in Gumtree after) or dash gets its own factor — prefer the shared move unless a capture shows the other two going too small, and say which in the report. Update the equalisation law in `theme::tests::ornament` so it does not re-equalise the value back up. Deliver before/after captures of `---`, `***` and `___` in Gumtree at the default geometry.
 
