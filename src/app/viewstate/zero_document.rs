@@ -19,6 +19,8 @@ impl App {
         view.overlay_query = ov.map(|o| o.query.text().to_string()).unwrap_or_default();
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
         view.overlay_query_selection = ov.and_then(|o| o.query.selection_range());
+        view.overlay_query_placeholder =
+            ov.and_then(|o| o.kind.field_placeholder().map(str::to_string));
         view.overlay_title = ov
             .filter(|o| o.kind.draws_title_prefix())
             .map(|o| o.kind.title().to_string())

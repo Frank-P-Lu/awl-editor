@@ -2570,6 +2570,8 @@ pub struct TextPipeline {
     /// line behave as a search field? `false` parks its caret.
     overlay_query_field: bool,
     overlay_query_selection: Option<(usize, usize)>,
+    /// Mirror of [`ViewState::overlay_query_placeholder`].
+    overlay_query_placeholder: Option<String>,
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,

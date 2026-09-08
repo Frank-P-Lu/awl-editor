@@ -504,6 +504,7 @@ impl TextPipeline {
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
             overlay_query_selection: None,
+            overlay_query_placeholder: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),

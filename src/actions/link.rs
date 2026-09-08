@@ -416,6 +416,35 @@ mod tests {
         assert!(ov.link_edit.is_some());
     }
 
+    /// MUTATION TRAP: `OverlayState::new_link_edit` mirrors the prefill into
+    /// `query` at CONSTRUCTION (`s.link_edit_mirror()`, called once before the
+    /// state is returned) — not only on the first keystroke's own mirror call.
+    /// Every other test in this module types at least one character before
+    /// reading `query` back, which would still pass with that construction-time
+    /// call deleted; this one reads `query` on the very first frame, with zero
+    /// keys pressed after Cmd-K, so it fails on the bug it names: an
+    /// edit-an-existing-link press that shows a BLANK field until the user
+    /// types or moves the caret, even though the URL is already known.
+    #[test]
+    fn insert_link_on_an_existing_link_prefills_the_field_before_any_keystroke() {
+        let text = "see [hello](https://x.test) now";
+        let cursor = text.find("hello").unwrap() + 1; // caret inside the link text
+        let journey = drive_open(text, None, cursor);
+        let ov = journey.card().expect("overlay must open");
+        assert!(
+            matches!(
+                ov.link_edit.as_ref().unwrap().mode,
+                LinkEditMode::Existing { .. }
+            ),
+            "caret inside an existing link must plan Edit mode"
+        );
+        assert_eq!(
+            ov.query.text(),
+            "https://x.test",
+            "the existing link's URL must reach the FIELD line before any typing"
+        );
+    }
+
     #[test]
     fn insert_link_is_a_calm_no_op_on_a_non_markdown_buffer() {
         let mut buffer = Buffer::from_str("fn main() {}");
