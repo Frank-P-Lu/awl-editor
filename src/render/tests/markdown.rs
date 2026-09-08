@@ -306,8 +306,8 @@ fn every_approved_ornament_trio_reaches_the_real_rule_pipeline() {
 
 #[test]
 fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
-    // Pin the world explicitly (Tawny's own plain •/◦/▪ triple is what this test
-    // is about, independent of whichever world happens to be the launch DEFAULT)
+    // Pin the world explicitly (Tawny's own Autumn triple is what this test is
+    // about, independent of whichever world happens to be the launch DEFAULT)
     // and hold the theme lock, since this reads the process-global active theme.
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
@@ -322,16 +322,17 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     // to the level-1 glyph (was a two-level wrap pre-item-15).
     let text = "- top\n  * mid\n    + deep\n      - deeper\n";
 
-    // Tawny → the plain `•`/`◦`/`▪` triple, cycling every THREE levels. CARET
-    // OFF every list line (on the trailing blank line 4): each bullet draws its
-    // depth glyph • ◦ ▪ • and its raw marker is concealed (transparent ink).
+    // Tawny → its own Autumn triple (🍁 maple / 🍃 fluttering / 🍂 fallen leaf),
+    // cycling every THREE levels. CARET OFF every list line (on the trailing
+    // blank line 4): each bullet draws its depth glyph and its raw marker is
+    // concealed (transparent ink).
     let mut off = view(text, 4, 0);
     off.is_markdown = true;
     p.set_view(&off);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['•', '◦', '▪', '•'],
-        "depth 0/1/2/3 => • ◦ ▪ • (triple cycles every 3) regardless of the -,*,+ typed: {:?}",
+        vec!['🍁', '🍃', '🍂', '🍁'],
+        "depth 0/1/2/3 => 🍁 🍃 🍂 🍁 (triple cycles every 3) regardless of the -,*,+ typed: {:?}",
         p.bullet_glyphs()
     );
     for li in 0..4 {
@@ -343,14 +344,14 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
 
     // CARET ON the second bullet (line 1, depth 1): its raw `*` REVEALS
     // (editable) and no glyph draws for it; the other three keep their
-    // depth-0/2/3 glyphs (•, ▪, •).
+    // depth-0/2/3 glyphs (🍁, 🍂, 🍁).
     let mut on = view(text, 1, 3);
     on.is_markdown = true;
     p.set_view(&on);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['•', '▪', '•'],
-        "caret on the depth-1 bullet suppresses only its ◦ (lines 0/2/3 keep •/▪/•): {:?}",
+        vec!['🍁', '🍂', '🍁'],
+        "caret on the depth-1 bullet suppresses only its 🍃 (lines 0/2/3 keep 🍁/🍂/🍁): {:?}",
         p.bullet_glyphs()
     );
     assert!(
@@ -608,14 +609,13 @@ fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
 }
 
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
-/// [`theme::Theme::bullets`] triple (drawn in its ornament face) — a technical
-/// world keeps `•`/`◦`/`▪`, a literary serif draws its characterful triple, and
-/// Bombora the manicule at level 1 alone. Reveal-on-cursor is unchanged
-/// (off-caret only). Proves the glyph is theme-DATA, not a fixed geometric
-/// triple hardcoded in the renderer — AND that the per-level rotation composes
-/// with the per-world pick: `.0`/`.1` below are the
-/// EXACT pre-item-15 pair for every world (Bombora/Mopoke's fixes included),
-/// with `.2` the new third rung.
+/// [`theme::Theme::bullets`] triple (drawn in its ornament face) — every world
+/// but one (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`) now draws a
+/// characterful triple derived from the exact ornament set it already wears
+/// for `---`/`***`/`___`. Reveal-on-cursor is unchanged (off-caret only).
+/// Proves the glyph is theme-DATA, not a fixed geometric triple hardcoded in
+/// the renderer — AND that the per-level rotation composes with the
+/// per-world pick.
 #[test]
 fn bullet_glyphs_swap_per_world() {
     // set_active_by_name mutates the theme global; bullet_marks folds page
@@ -630,11 +630,11 @@ fn bullet_glyphs_swap_per_world() {
     // (line 3).
     let text = "- top\n  - sub\n    - deep\n";
     let cases = [
-        ("Tawny", ('•', '◦', '▪')),   // geometric world: plain, byte-identical
-        ("Bombora", ('☞', '❧', '❦')), // the manicule showpiece (level 1 only) + hedera + fleuron
-        ("Gumtree", ('❧', '☙', '❦')), // Junicode botanical hederas
-        ("Bilby", ('❧', '❦', '☙')),   // Garamond Renaissance fleurons
-        ("Mopoke", ('\u{E670}', '\u{EF92}', '\u{E67D}')), // damask rosette → open sibling → foliate sprig (queue item 30)
+        ("Tawny", ('🍁', '🍃', '🍂')), // Autumn: maple / fluttering / fallen leaf
+        ("Bombora", ('\u{F814}', '\u{F827}', '\u{F81C}')), // Arabesque: white / black pair heads + scroll
+        ("Gumtree", ('\u{F591}', '🐟', '🐌')),             // Riverbank: snake head / fish / snail
+        ("Bilby", ('🌸', '🌼', '🌷')), // Hanami: cherry blossom / blossom / tulip
+        ("Mopoke", ('🌝', '🌛', '🌚')), // Moonfaces: full / first-quarter / new moon with face
     ];
     for (world, (g0, g1, g2)) in cases {
         theme::set_active_by_name(world).unwrap();
@@ -666,10 +666,11 @@ fn bullet_glyphs_swap_per_world() {
 /// [`theme::Theme::bullets`] triple resolve to a REAL glyph in that world's
 /// [`theme::Theme::bullet_face`] — the font-DB half of the structural
 /// `theme::tests::every_world_has_a_bullet_pair` law, mirroring
-/// `ornament_glyphs_resolve_in_each_worlds_assigned_face` for the section trio.
-/// This is what proves the manicule ☞ actually lives in EB Garamond and every
-/// Junicode/Garamond hedera/fleuron (levels 1/2 AND the item-15 level-3
-/// addition) in its bundled ornament face.
+/// `ornament_glyphs_resolve_in_each_worlds_assigned_face` for the section
+/// trio. Since every world's bullet triple now draws from the same Nishiki
+/// register as its own section-break trio, this is largely the same coverage
+/// proof over the same face — kept as its own test because `bullet_face` and
+/// `ornament_face` remain two separate fields a future world could diverge on.
 #[test]
 fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
     let _g = crate::testlock::serial();

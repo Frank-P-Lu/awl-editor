@@ -145,11 +145,11 @@ pub use model::{
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.
 pub use ornament::{
-    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, FoldMark,
-    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
-    ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC,
-    ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister, Ornaments, RESERVE_ORNAMENT_SETS,
-    ReserveOrnamentSet, fold_mark_for, ornament_register,
+    BULLET_SCALE_GARAMOND, BULLET_SCALE_HANAMI, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN,
+    BULLETS_PLAIN, FoldMark, LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND,
+    ORNAMENT_JUNICODE, ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON,
+    ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister,
+    Ornaments, RESERVE_ORNAMENT_SETS, ReserveOrnamentSet, fold_mark_for, ornament_register,
 };
 #[allow(unused_imports)] // the individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
