@@ -75,6 +75,12 @@ const EXPECTED: &[(&str, usize)] = &[
     ("capture/policy.rs", 1),
     ("capture/oracle.rs", 1),
     ("config/model.rs", 1),
+    // A `[keys] follow = "…"` entry the pointer-chord grammar cannot spell:
+    // the line is named, the platform default is kept, and the reader is told
+    // — the same shape a bad KEY chord already gets, on the same config-load
+    // path as `config/model.rs`'s own note above. Startup config parsing, not
+    // live-app chatter, so it does not belong on the notice seam.
+    ("keymap/follow.rs", 1),
     ("keymap/state.rs", 4),
     ("main.rs", 2),
     // `--help`'s big usage dump, plus `--list-worlds`: a
