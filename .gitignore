@@ -58,3 +58,7 @@ __pycache__/
 # never either pathname's mere existence.
 /.orchestrator/native-gate.marker
 /.orchestrator/native-gate.marker.lock
+
+# scripts/verify_cache.py's per-check records and locks — local, disposable
+# cached evidence, never a substitute for a committed receipt.
+/.verify-cache/
