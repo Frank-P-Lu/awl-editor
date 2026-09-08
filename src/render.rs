@@ -2759,18 +2759,13 @@ pub struct TextPipeline {
     /// [`ViewState::gutter_files`].
     gutter_files: Vec<crate::workingset::StackRow>,
     /// The working-set row/zone under the live pointer. `None` on every
-    /// headless frame (no pointer driver), so the close-mark reveal it drives
-    /// is live-pointer-only and unreachable from any capture door.
+    /// headless frame (no pointer driver), so the close-mark hover flip it
+    /// drives is live-pointer-only and unreachable from any capture door.
     gutter_stack_hover: Option<chrome::GutterStackHit>,
     /// The soft plate under the gutter block's ACTIVE FILE — a working-set row's,
     /// or the lone identity line's. Empty whenever the gutter is not drawn, so
     /// such a frame issues no extra draw (`SelectionPipeline::draw` early-returns).
     gutter_stack_plate: crate::selection::SelectionPipeline,
-    /// The soft square behind the × under the live pointer, drawn only
-    /// inside a row's close ZONE — the same rect
-    /// [`chrome::gutter_stack::close_hover_plate_rect`] hands the hit-test.
-    /// Empty outside that one hover state, so an ordinary frame draws none.
-    gutter_close_hover_plate: crate::selection::SelectionPipeline,
     /// A live row-DRAG's own drop-slot indicator: the drawn row index to
     /// insert BEFORE (`gutter_files.len()` means "at the very end"). `None`
     /// off a drag entirely — mirrors [`Self::gutter_stack_hover`]'s own

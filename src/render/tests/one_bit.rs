@@ -1201,7 +1201,7 @@ fn wagtail_stack_active_row_label_reads_legible_on_its_own_plate() {
         // pixel blended against the black margin beyond the plate, satisfying
         // the legibility floor for free even under the reinstated bug).
         let plate = p
-            .gutter_stack_plate_rect(H)
+            .gutter_stack_plate_rect(&device, &queue, W, H)
             .unwrap_or_else(|| panic!("{}: the active row has no plate", world.name));
         let [px, py, pw, ph] = plate;
         assert!(
