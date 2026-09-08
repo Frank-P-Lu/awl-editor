@@ -132,7 +132,8 @@ fn rim_enrollment_excludes_unrelated_edges_and_rejects_absent_rims() {
     row[240..380].fill(60.0);
     assert_eq!(rim_near(&row, 240.0), 239);
     assert_eq!(rim_near(&row, 380.0), 379);
-    assert!(std::panic::catch_unwind(|| rim_near(&row, 300.0)).is_err());
+    std::panic::catch_unwind(|| rim_near(&row, 300.0))
+        .expect_err("a reported edge without a visible rim must fail");
 }
 
 /// The card's real edges, measured off the PNG in a narrow neighborhood of
