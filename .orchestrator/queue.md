@@ -195,42 +195,6 @@ do not settle taste or live motion. This board-only decision claims no receipt.
 
 ---
 
-### 627 — spellcheck squiggles taper into rounded ends (user approval, 2026-09-08)
-
-🟢 READY — queued only.
-
-User report: enlarged Kite spellcheck underlines beneath two short words look
-abruptly chopped at both ends. Approved direction: gently taper each endpoint
-into a small rounded cap, retaining the existing wave amplitude, wavelength,
-phase, middle thickness, baseline gap and per-world color. The generated preview
-illustrates endpoint softness; it is not authority to change typography, palette,
-wave proportions or the background. No blur or opacity fade.
-
-Build: use the shared underline renderer and theme data, not a Kite-specific arm.
-A starting thickness envelope for a span of length L is d = min(x, L-x),
-u = clamp(d/t, 0, 1), w = w_tip + (w_middle-w_tip)*(3*u*u-2*u*u*u).
-Start t around a quarter wavelength and bound it for short spans (at most L/2);
-use a small nonzero rounded tip and appropriate antialiasing. The sine-wave
-centerline stays unchanged. Treat these as tuning guidance, not a requirement
-to approximate distance incorrectly on steep wave sections. Ensure geometry
-bounds accommodate caps without recreating the original clipping edge. Define
-endpoint handling for wrapped fragments and viewport clipping deliberately:
-viewport clipping must not manufacture decorative ends in the middle of a word.
-Keep the shared zero-amplitude nit underline behavior unchanged unless an explicit
-separate design decision requires otherwise. Preserve cached, visible-range work.
-
-Done/Verify: actual awl captures show natural starts/ends and unchanged middle
-waves; compare normal reading size and an enlarged crop. Sweep one-character,
-shorter-than-one-wave and long spans, wrap boundaries, clipping, zoom, 1x/2x DPI,
-and the roster's underline metrics/colors. Assert cap/taper presence and central
-stroke retention using rendered-pixel comparisons; the law must fail when the
-hard cut is restored and when the whole underline is faded away. Include a
-five-shot affordance vision smoke, relevant targeted laws and normal native/wasm
-gates for implementation. Final tuning remains a live taste check; report the
-revert cost when landing for judgment. This board-only decision claims no receipt.
-
----
-
 ### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
 
 🟡 IN PROGRESS — Codex (codex), branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
@@ -487,16 +451,6 @@ Read DESIGN.md, docs/render.md and docs/harness-reach.md. Audit the actual
 surface × composition × placement roster, narrow/wide and DPI 1/2; assert
 geometry/state and pixel legibility, add mutation-proven laws and the standing
 five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
-
----
-
-### 616 — table selection: neighbouring cells flicker while the band settles (user report, 2026-09-08)
-
-⬜ READY. The user confirmed 551's whole-row band is what they want, and reported one defect on it in their own words: "the neighbouring cells kind of flicker, I don't like that." Cells beside the selected run change appearance transiently while the selection moves. Read the cause out of the tree before fixing — 551 landed in `f740749c` (`render/rects.rs`, `render/geometry.rs`, law in `render/tests/table_selection_band_law.rs`) with a follow-up in `db90497e`; find what animates or re-paints on the untouched cells (a band ease, the table x-ray's grid float, or a cache invalidation that re-shapes the row). **The user's fallback, stated plainly: if the flicker cannot be cut out on its own, remove the animation on the table band altogether.** A calm still band beats a lively one that flickers.
-
-Laws: over a selection that grows one cell at a time, the pixels of every cell OUTSIDE the band are byte-identical frame to frame (sweep the roster, not one world); the band itself still paints whole rows. Prove non-vacuity by re-introducing the transient and watching the law go red. The feel is live-only; deliver a motion capture (`--screenshot-motion`) and flag the live look as owed.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
 
 ---
 
