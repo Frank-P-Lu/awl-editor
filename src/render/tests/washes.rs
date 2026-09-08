@@ -211,6 +211,65 @@ fn search_matches_share_one_visible_row_gather() {
     );
 }
 
+#[test]
+fn search_match_geometry_is_differentially_exact_and_work_is_bounded() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping search_match_geometry_is_differentially_exact_and_work_is_bounded: no wgpu adapter"
+        );
+        return;
+    };
+    let text = "é the river moves calmly. ".repeat(180);
+    let needle = "the";
+    let matches: Vec<_> = text
+        .match_indices(needle)
+        .map(|(byte, _)| {
+            let start = text[..byte].chars().count();
+            ((0, start), (0, start + needle.chars().count()))
+        })
+        .collect();
+    for width in [360.0, 600.0] {
+        for scroll in [ScrollPos::default(), ScrollPos::at_row(9)] {
+            for count in [0, 1, matches.len()] {
+                p.set_size(width, 800.0);
+                let mut v = view(&text, 0, 0);
+                v.search_active = true;
+                v.search_matches = matches[..count].to_vec();
+                v.scroll = scroll;
+                p.set_view(&v);
+                p.reset_visible_row_gathers();
+                p.reset_search_rect_work();
+                let actual = p.search_match_rects();
+                let gathers = p.visible_row_gathers();
+                let visits = p.search_rect_work();
+                let reference: Vec<_> = v
+                    .search_matches
+                    .iter()
+                    .flat_map(|&(a, b)| p.range_rects(a, b))
+                    .collect();
+                assert_eq!(
+                    actual, reference,
+                    "width={width} scroll={scroll:?} count={count}"
+                );
+                assert_eq!(
+                    gathers,
+                    usize::from(count > 0),
+                    "width={width} scroll={scroll:?} count={count}"
+                );
+                if count == 0 {
+                    assert_eq!(visits, 0, "empty search must not visit rows");
+                } else if count > 1 {
+                    assert!(
+                        visits < count,
+                        "width={width} scroll={scroll:?}: visits {visits} must be below matches {count}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// SYNTAX WASH CACHE + GEOMETRY: a code buffer's PROSE comment and STRING
 /// spans produce wash quads; commented-out code (CommentCode) produces NONE;
 /// a cursor move / scroll keeps the proto cache WARM (version unchanged, no

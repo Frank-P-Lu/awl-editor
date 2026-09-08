@@ -1725,7 +1725,19 @@ impl TextPipeline {
             // top + x boundaries, so a selection that spans a wrap boundary follows
             // the text down to the next row. Rows outside the visible band are
             // culled (they would rasterize nothing) — byte-identical on-screen.
-            for (ri, row) in rows.iter().enumerate() {
+            // A dense search can put many short matches on one enormously wrapped
+            // line. Rows are ordered by their non-overlapping source columns, so
+            // visit only the contiguous rows whose column spans can intersect this
+            // range, rather than scanning every wrapped row for every match.
+            let first_row = rows.partition_point(|row| row.end_col < sel_start);
+            let past_last_row = rows.partition_point(|row| row.start_col <= sel_end);
+            if first_row >= past_last_row {
+                continue;
+            }
+            for (offset, row) in rows[first_row..past_last_row].iter().enumerate() {
+                let ri = first_row + offset;
+                #[cfg(test)]
+                self.search_rect_work.set(self.search_rect_work.get() + 1);
                 let line_top = doc_top + row.line_top;
                 if !self.proto_visible(line_top, row.line_height) {
                     continue; // off-screen row: the quad would rasterize nothing
@@ -1793,6 +1805,16 @@ impl TextPipeline {
             r.extend(self.range_rects_from_rows((a, b), &rows_by_line));
         }
         r
+    }
+
+    #[cfg(test)]
+    pub(super) fn reset_search_rect_work(&self) {
+        self.search_rect_work.set(0);
+    }
+
+    #[cfg(test)]
+    pub(super) fn search_rect_work(&self) -> usize {
+        self.search_rect_work.get()
     }
 
     pub(super) fn search_no_matches(&self) -> bool {

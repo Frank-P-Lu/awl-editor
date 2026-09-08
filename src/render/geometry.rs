@@ -962,6 +962,9 @@ impl TextPipeline {
         &self,
         lines: &std::collections::BTreeSet<usize>,
     ) -> std::collections::HashMap<usize, Vec<VisualRow>> {
+        #[cfg(test)]
+        self.visible_row_gathers
+            .set(self.visible_row_gathers.get() + 1);
         let mut out = self
             .row_geom
             .rows_for_lines(&self.buffer, &self.metrics, lines);
@@ -978,6 +981,16 @@ impl TextPipeline {
             out.insert(line, vec![self.synthetic_visual_row(line, &line_text)]);
         }
         out
+    }
+
+    #[cfg(test)]
+    pub(super) fn reset_visible_row_gathers(&self) {
+        self.visible_row_gathers.set(0);
+    }
+
+    #[cfg(test)]
+    pub(super) fn visible_row_gathers(&self) -> usize {
+        self.visible_row_gathers.get()
     }
 
     /// The synthetic single [`VisualRow`] for an EMPTY / glyphless logical line —

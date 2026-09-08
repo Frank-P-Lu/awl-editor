@@ -2279,6 +2279,10 @@ pub struct TextPipeline {
     /// pipeline's `row_top_px` / `row_height_px` / `total_doc_height` /
     /// `total_visual_rows` delegate here.
     row_geom: rowgeom::RowGeom,
+    #[cfg(test)]
+    search_rect_work: std::cell::Cell<usize>,
+    #[cfg(test)]
+    visible_row_gathers: std::cell::Cell<usize>,
     /// TARGET-LINE-LOCAL caret glyph record — the cursor line's shaped
     /// glyph clusters `(start_byte, end_byte, CacheKey)`, read from that line's OWN
     /// `layout_opt()` rather than by filtering the whole document's `layout_runs()`.

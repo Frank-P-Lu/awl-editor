@@ -360,6 +360,10 @@ impl TextPipeline {
             last_conceal_cursor_line: None,
             last_conceal_selection: None,
             row_geom: rowgeom::RowGeom::new(),
+            #[cfg(test)]
+            search_rect_work: std::cell::Cell::new(0),
+            #[cfg(test)]
+            visible_row_gathers: std::cell::Cell::new(0),
             caret_line_glyphs: std::cell::RefCell::new(None),
             ornament_cache: rects::OrnamentCache::new(),
             table_report: std::cell::RefCell::new(Vec::new()),
