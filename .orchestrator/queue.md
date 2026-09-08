@@ -654,6 +654,8 @@ tier.
 
 ### 611 — "Open in Awl" from the Finder: declare document types and accept the open-documents event (user request, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-611`, worktree `.claude/worktrees/item-611`.
+
 ⬜ READY — engineering, two halves, both required; the second is the one that is easy to
 skip and then nothing opens.
 
