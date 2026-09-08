@@ -1,8 +1,8 @@
-//! **SELECT WITHIN THE TRANSCRIPT** (item 603's decision, following 581).
+//! **SELECT WITHIN THE TRANSCRIPT.**
 //!
 //! While History, Conflict or Credits substitutes a transcript for the pixels,
 //! `sync_document` already answers every other reader-facing question about
-//! that transcript rather than the hidden buffer (581). One door was left open
+//! that transcript rather than the hidden buffer. One door was left open
 //! on purpose: `SemanticRequest::SetTextSelection` still mapped its grapheme
 //! offsets against the REAL buffer unconditionally, so an assistive technology
 //! "selecting" a line of a transcript silently moved the invisible document's
@@ -125,28 +125,14 @@ fn document_selection(app: &App) -> Option<SemanticSelection> {
     })
 }
 
-/// **THE LAW.** For every member of the derived read-only-prose family, a
-/// `SetTextSelection` request on the document node moves the published
-/// TRANSCRIPT selection to exactly what was asked, and the hidden buffer's own
-/// text, version, cursor and anchor are exactly what they were.
-///
-/// The PRESENCE COMPANION (CLAUDE.md) is not optional: with no overlay up, the
-/// very same request really does move the real buffer's cursor and anchor —
-/// otherwise every refusal below could be a request that stopped moving
-/// anything at all.
+/// **THE PRESENCE COMPANION** (CLAUDE.md): with no overlay up, the very same
+/// request really does move the real buffer's cursor and anchor — otherwise
+/// every refusal the family sweep below asserts could be a request that had
+/// stopped moving anything at all, on any subject.
 #[test]
-fn set_text_selection_moves_the_transcript_never_the_hidden_buffer() {
+fn set_text_selection_moves_the_real_buffer_with_no_card_up() {
     let _g = crate::testlock::serial();
 
-    let enrolled = family();
-    assert!(
-        !enrolled.is_empty(),
-        "the read-only prose family enrolled NOTHING — derived from \
-         `OverlayState::shows_read_only_prose` over `OverlayKind::ALL`, the sweep \
-         below would pass over an empty set"
-    );
-
-    // PRESENCE: with no overlay up, the same request moves the real buffer.
     let mut plain = app_with_real_buffer();
     plain.attach_assistive_technology_for_test();
     let text_before = plain.document.buffer().text();
@@ -169,91 +155,116 @@ fn set_text_selection_moves_the_transcript_never_the_hidden_buffer() {
         plain.document.buffer().anchor_char(),
         Some(2),
         "with no card up the request must move the REAL buffer's anchor — \
-         otherwise the refusals below prove nothing"
+         otherwise the family sweep proves nothing"
     );
     assert_eq!(
         plain.document.buffer().cursor_char(),
         5,
         "with no card up the request must move the REAL buffer's cursor"
     );
+}
 
-    for kind in &enrolled {
-        // History's Differences view needs a REAL recorded snapshot to diff
-        // against; every other kind is fine with the plain hermetic buffer.
-        // The guard has to outlive the app's later `refresh_accessibility`
-        // calls below, which is why it is bound here rather than dropped
-        // immediately.
-        let (mut app, _history_guard) = if *kind == OverlayKind::History {
-            let (app, guard) = app_with_real_buffer_and_history();
-            (app, Some(guard))
-        } else {
-            (app_with_real_buffer(), None)
-        };
-        app.workspace_state
-            .install_overlay_for_test(representative(*kind));
-        assert!(
-            app.presents_read_only_prose(),
-            "{kind:?} enrolled in the family but the App does not read it as one"
-        );
-        app.attach_assistive_technology_for_test();
-        assert!(
-            app.frame
-                .accessibility_projection()
-                .expect("a real attach sequence must park a projection")
-                .showing_transcript(),
-            "{kind:?}: the seeded tree must be built from the transcript, or this \
-             law's own gate never engages and every assertion below is vacuous"
-        );
+/// One member of the family: a `SetTextSelection` request over `kind` moves
+/// the published TRANSCRIPT selection to exactly what was asked, and the
+/// hidden buffer's own text, version, cursor and anchor are exactly what they
+/// were.
+fn assert_selection_moves_only_the_transcript(kind: OverlayKind) {
+    // History's Differences view needs a REAL recorded snapshot to diff
+    // against; every other kind is fine with the plain hermetic buffer. The
+    // guard has to outlive the app's later `refresh_accessibility` calls
+    // below, which is why it is bound here rather than dropped immediately.
+    let (mut app, _history_guard) = if kind == OverlayKind::History {
+        let (app, guard) = app_with_real_buffer_and_history();
+        (app, Some(guard))
+    } else {
+        (app_with_real_buffer(), None)
+    };
+    app.workspace_state
+        .install_overlay_for_test(representative(kind));
+    assert!(
+        app.presents_read_only_prose(),
+        "{kind:?} enrolled in the family but the App does not read it as one"
+    );
+    app.attach_assistive_technology_for_test();
+    assert!(
+        app.frame
+            .accessibility_projection()
+            .expect("a real attach sequence must park a projection")
+            .showing_transcript(),
+        "{kind:?}: the seeded tree must be built from the transcript, or this \
+         law's own gate never engages and every assertion below is vacuous"
+    );
 
-        let buffer_text_before = app.document.buffer().text();
-        let buffer_version_before = app.document.buffer().version();
-        let buffer_cursor_before = app.document.buffer().cursor_char();
-        let buffer_anchor_before = app.document.buffer().anchor_char();
+    let buffer_text_before = app.document.buffer().text();
+    let buffer_version_before = app.document.buffer().version();
+    let buffer_cursor_before = app.document.buffer().cursor_char();
+    let buffer_anchor_before = app.document.buffer().anchor_char();
 
-        assert!(
-            app.apply_semantic_request(SemanticRequest::SetTextSelection {
-                id: DOCUMENT_ID.to_string(),
-                anchor: 0,
-                focus: 1,
-            }),
-            "{kind:?}: SetTextSelection is advertised on a read-only document but \
-             was refused — an advertised action nothing routes is worse than one \
-             that is not advertised at all"
-        );
+    assert!(
+        app.apply_semantic_request(SemanticRequest::SetTextSelection {
+            id: DOCUMENT_ID.to_string(),
+            anchor: 0,
+            focus: 1,
+        }),
+        "{kind:?}: SetTextSelection is advertised on a read-only document but \
+         was refused — an advertised action nothing routes is worse than one \
+         that is not advertised at all"
+    );
 
-        assert_eq!(
-            app.document.buffer().text(),
-            buffer_text_before,
-            "{kind:?}: a selection into the transcript moved the hidden buffer's text"
-        );
-        assert_eq!(
-            app.document.buffer().version(),
-            buffer_version_before,
-            "{kind:?}: the hidden buffer took an undo step for a transcript selection"
-        );
-        assert_eq!(
-            app.document.buffer().cursor_char(),
-            buffer_cursor_before,
-            "{kind:?}: the hidden buffer's cursor moved — this is exactly 581's \
-             leak, one field over from the run text"
-        );
-        assert_eq!(
-            app.document.buffer().anchor_char(),
-            buffer_anchor_before,
-            "{kind:?}: the hidden buffer's anchor moved"
-        );
+    assert_eq!(
+        app.document.buffer().text(),
+        buffer_text_before,
+        "{kind:?}: a selection into the transcript moved the hidden buffer's text"
+    );
+    assert_eq!(
+        app.document.buffer().version(),
+        buffer_version_before,
+        "{kind:?}: the hidden buffer took an undo step for a transcript selection"
+    );
+    assert_eq!(
+        app.document.buffer().cursor_char(),
+        buffer_cursor_before,
+        "{kind:?}: the hidden buffer's cursor moved — a reader-facing \
+         question answered about invisible text, one field over from the \
+         run text itself"
+    );
+    assert_eq!(
+        app.document.buffer().anchor_char(),
+        buffer_anchor_before,
+        "{kind:?}: the hidden buffer's anchor moved"
+    );
 
-        app.refresh_accessibility();
-        assert_eq!(
-            document_selection(&app),
-            Some(SemanticSelection {
-                anchor: 0,
-                focus: 1
-            }),
-            "{kind:?}: the published selection must be the transcript's own \
-             offsets, exactly what was requested — \"it should select what you \
-             selected\""
-        );
+    app.refresh_accessibility();
+    assert_eq!(
+        document_selection(&app),
+        Some(SemanticSelection {
+            anchor: 0,
+            focus: 1
+        }),
+        "{kind:?}: the published selection must be the transcript's own \
+         offsets, exactly what was requested — \"it should select what you \
+         selected\""
+    );
+}
+
+/// **THE LAW.** For every member of the derived read-only-prose family, a
+/// `SetTextSelection` request on the document node moves the published
+/// TRANSCRIPT selection to exactly what was asked, and the hidden buffer's own
+/// text, version, cursor and anchor are exactly what they were.
+#[test]
+fn set_text_selection_moves_the_transcript_never_the_hidden_buffer() {
+    let _g = crate::testlock::serial();
+
+    let enrolled = family();
+    assert!(
+        !enrolled.is_empty(),
+        "the read-only prose family enrolled NOTHING — derived from \
+         `OverlayState::shows_read_only_prose` over `OverlayKind::ALL`, the sweep \
+         below would pass over an empty set"
+    );
+
+    for kind in enrolled {
+        assert_selection_moves_only_the_transcript(kind);
     }
 }
 
