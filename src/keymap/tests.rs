@@ -1742,6 +1742,39 @@ fn keys_override_reclaims_ctrl_k_for_insert_link_on_linux_over_the_builtin_keep(
     );
 }
 
+/// The no-document start surface's folder line shows a Go-to chord
+/// through `keytoken::key_token_label`, which reports `Ctrl+O` on
+/// `Convention::Linux` regardless of keymap flavor (`resolved_native_truthful`
+/// applies no `keep`/flavor suppression to it) — a promise that only holds if
+/// Ctrl-O still actually DISPATCHES to `OpenGoto` under both flavors. `o` is
+/// deliberately absent from `LINUX_DISPLACED_LETTERS`/`linux_builtin_keep`, so
+/// neither flavor is entitled to claim it for an emacs meaning; this proves
+/// that structurally rather than by reading the roster, so a future letter
+/// added to either list would fail this test rather than silently making the
+/// label lie.
+#[test]
+fn go_to_ctrl_o_fires_under_either_linux_keymap_flavor() {
+    let native_keep = crate::config::Config::empty().effective_linux_keep();
+    let mut native = KeymapState::new_with_convention(Convention::Linux);
+    native.apply_linux_keep(&native_keep);
+    assert_eq!(
+        native.resolve(&ch("o"), &ctrl()),
+        Action::OpenGoto,
+        "native flavor"
+    );
+
+    let mut emacs_config = crate::config::Config::empty();
+    emacs_config.keymap = Some("emacs".to_string());
+    let emacs_keep = emacs_config.effective_linux_keep();
+    let mut emacs = KeymapState::new_with_convention(Convention::Linux);
+    emacs.apply_linux_keep(&emacs_keep);
+    assert_eq!(
+        emacs.resolve(&ch("o"), &ctrl()),
+        Action::OpenGoto,
+        "emacs flavor"
+    );
+}
+
 #[test]
 fn linux_convention_resolves_untranslated_native_chords() {
     let mut km = KeymapState::new_with_convention(Convention::Linux);

@@ -6,6 +6,19 @@ pub struct ViewState {
     /// explicit post-close start state: the world remains, while page, prose,
     /// caret, outline, and filesystem identity are absent.
     pub document_active: bool,
+    /// The open folder's own name (its last path segment — never a full path,
+    /// so this can never leak more of the filesystem than a single component)
+    /// for the no-document START SURFACE's dim line. The no-document window
+    /// title names the SAME folder through the SAME owner —
+    /// `ProjectLocation::no_document_folder_name` — but as its own direct
+    /// call (`files::window_title_no_document`'s own parameter), not through
+    /// this field; the shared owner is what keeps the title and the surface
+    /// from disagreeing, not a shared field. `None` when there is nothing
+    /// worth naming (ignored while a document is active); every render-level
+    /// fixture that does not opt in leaves this at its inert `base()`
+    /// default, so the start surface draws its original two rows,
+    /// byte-identical.
+    pub start_folder: Option<String>,
     pub text: String,
     pub cursor_line: usize,
     pub cursor_col: usize,
@@ -336,6 +349,7 @@ impl ViewState {
     pub fn base() -> Self {
         ViewState {
             document_active: true,
+            start_folder: None,
             text: String::new(),
             cursor_line: 0,
             cursor_col: 0,

@@ -157,6 +157,9 @@ impl App {
         let ov = self.workspace_state.overlay();
         let mut view = ViewState {
             document_active: true,
+            // The no-document start surface's own concern; irrelevant with a
+            // real document on screen.
+            start_folder: None,
             text,
             cursor_line,
             cursor_col,
