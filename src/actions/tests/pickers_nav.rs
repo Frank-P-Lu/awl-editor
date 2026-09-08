@@ -1834,14 +1834,15 @@ fn theme_move_previews_live() {
     crate::theme::set_active(0);
 }
 
-/// A DELIBERATE keyboard crossing RE-ANCHORS the theme picker's card into
-/// the destination world's own rail (choosing a world drops you inside it). The
-/// keyboard-nav path routes through `preview_move` (preview + `reanchor`), so after
-/// each `NextLine` the overlay's frozen `align` re-stamps to the newly-active world's
-/// `card_anchor`. Swept across the whole roster so the crossing genuinely spans
-/// left / center / right rails, proving the wiring (not just the owner).
+/// A DELIBERATE keyboard crossing does NOT move the theme picker's own card —
+/// its chrome pins to the world active at summon (`crate::render::pin_picker_chrome`)
+/// for the whole life of the summon, even though the keyboard-nav path routes
+/// through `preview_move` and each `NextLine` makes a DIFFERENT world (with its
+/// own, different rail) live. Swept across the whole roster so the crossing
+/// genuinely spans left / center / right rails, proving the freeze holds
+/// against every one of them, not just a world that happens to share Tawny's.
 #[test]
-fn theme_keyboard_crossing_reanchors_to_destination_world() {
+fn theme_keyboard_crossing_never_relocates_the_card() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None); // world data drives the anchor
@@ -1850,53 +1851,49 @@ fn theme_keyboard_crossing_reanchors_to_destination_world() {
     let mut accept = None;
 
     // At summon the frozen alignment == the opening world's own rail.
+    let summoned = overlay.card().unwrap().align;
     assert_eq!(
-        overlay.card().unwrap().align,
+        summoned,
         crate::theme::active().render_caps.card_anchor,
         "the card freezes the opening world's rail at summon"
     );
 
-    let mut seen: Vec<crate::theme::CardAnchor> = Vec::new();
+    let mut crossed: Vec<crate::theme::CardAnchor> = Vec::new();
     for _ in 0..crate::theme::THEMES.len().saturating_sub(1) {
         drive(&mut overlay, &mut accept, &Action::NextLine);
         let world = crate::theme::active();
-        // Each keyboard crossing snaps the card into the destination world's rail.
+        // The world crossed live…
+        crossed.push(world.render_caps.card_anchor);
+        // …but the card's OWN frozen alignment never moves off the summoned rail.
         assert_eq!(
             overlay.card().unwrap().align,
-            world.render_caps.card_anchor,
-            "a keyboard crossing re-anchors the card into {}'s rail",
+            summoned,
+            "a keyboard crossing into {} must NOT relocate the card",
             world.name
         );
-        if !seen.contains(&world.render_caps.card_anchor) {
-            seen.push(world.render_caps.card_anchor);
-        }
     }
-    // The sweep genuinely spanned all three rails.
+    // The sweep genuinely spanned all three rails — proving the fixture is
+    // non-vacuous (it really did cross into worlds whose OWN rail differs).
     assert!(
-        seen.contains(&crate::theme::CardAnchor::TopLeft),
-        "spanned a LEFT rail"
+        crossed.contains(&crate::theme::CardAnchor::TopLeft),
+        "spanned a LEFT-rail world"
     );
     assert!(
-        seen.contains(&crate::theme::CardAnchor::TopCenter),
-        "spanned a CENTER rail"
-    );
-    assert!(
-        seen.contains(&crate::theme::CardAnchor::TopRight),
-        "spanned a RIGHT rail"
+        crossed.contains(&crate::theme::CardAnchor::TopRight),
+        "spanned a RIGHT-rail world"
     );
 
     crate::theme::set_active(0);
     crate::render::set_card_anchor_test_override(None);
 }
 
-/// The PASSIVE-HOVER exception: a hover re-tints the world (the live
-/// preview) but must NOT re-anchor the card (no spatial chase under a wandering
-/// pointer — the item-45 freeze still holds). The mouse hover path runs the BARE
-/// `preview_overlay` (not `preview_move`), so the frozen `align` is untouched even
-/// though a world with a DIFFERENT rail becomes active — then a deliberate move
-/// snaps it (the contrast).
+/// A PASSIVE hover re-tints the world (the live preview) but does not move
+/// the card — and neither, now, does a DELIBERATE keyboard move: both
+/// crossing kinds hold the summoned rail for the picker's whole life. The
+/// mouse hover path runs the BARE `preview_overlay` (not `preview_move`), so
+/// this proves the freeze holds off EITHER door.
 #[test]
-fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
+fn theme_hover_and_keyboard_crossings_alike_never_reanchor_the_card() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None);
@@ -1920,7 +1917,7 @@ fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
     let pos = ov.items.iter().position(|&i| i == target_ci).unwrap();
 
     // A PASSIVE hover: re-highlight + the exact BARE `preview_overlay` the mouse
-    // hover path runs (no re-anchor).
+    // hover path runs.
     ov.selected = pos;
     crate::actions::preview_overlay(ov);
     assert_ne!(
@@ -1931,16 +1928,17 @@ fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
     assert_eq!(
         overlay.card().unwrap().align,
         frozen,
-        "a passive hover must NOT re-anchor the card (item 52 — no spatial chase)"
+        "a passive hover must not move the card"
     );
 
-    // THE CONTRAST — a deliberate keyboard move from here DOES re-anchor.
+    // THE (now non-)CONTRAST — a deliberate keyboard move from here ALSO does
+    // not move the card, proving the freeze holds through both crossing kinds.
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::PreviousLine);
     assert_eq!(
         overlay.card().unwrap().align,
-        crate::theme::active().render_caps.card_anchor,
-        "a deliberate keyboard move re-anchors (the contrast to hover)"
+        frozen,
+        "a deliberate keyboard move must not move the card either"
     );
 
     crate::theme::set_active(0);

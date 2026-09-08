@@ -46,7 +46,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) {
-        let style = theme::active().render_caps.location_style;
+        let style = crate::render::effective_location_style();
         let active_index =
             crate::render::rotated_location::active_location_index(&self.overlay_lens);
         let (label_style, label, placement) = match style {
@@ -257,7 +257,7 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
     ) -> Option<(f32, [f32; 2], f32, f32)> {
-        let theme::LocationStyle::RotatedRail(style) = theme::active().render_caps.location_style
+        let theme::LocationStyle::RotatedRail(style) = crate::render::effective_location_style()
         else {
             return None;
         };

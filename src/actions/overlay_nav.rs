@@ -1086,9 +1086,15 @@ pub(crate) fn preview_overlay(ov: &OverlayState) {
     }
 }
 
+/// The DELIBERATE-move door onto the live audition (keyboard nav, wheel,
+/// page/jump moves) — named apart from the bare `preview_overlay` a passive
+/// pointer hover calls, so a future deliberate-only effect has a home that
+/// is not the hover path. The theme picker's own chrome is pinned for the
+/// life of its summon (`crate::render::pin_picker_chrome`) regardless of how
+/// the selection moved, so this currently does nothing beyond the preview
+/// itself.
 pub(crate) fn preview_move(ov: &mut OverlayState) {
     preview_overlay(ov);
-    ov.reanchor();
 }
 
 /// The effect a per-row DESTRUCTIVE accept arms, or `None` when this card has
