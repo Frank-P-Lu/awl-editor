@@ -510,8 +510,33 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             };
             // The strongest ink anywhere along the track's y IS the thumb; the
             // weakest non-ground ink is the track.
+            //
+            // TRACK_EDGE_INSET keeps that "weakest" search off the track
+            // rect's own two ends. A rect whose edge lands off the pixel grid
+            // — which `x0`/`x1` almost always do, being derived from font
+            // metrics rather than chosen to land on an integer — paints a
+            // partial-coverage, antialiased pixel right at that edge that
+            // fades toward the ground BY CONSTRUCTION, same as any rect's
+            // rounded seam. Scanning `x0..=x1` inclusive makes that feather
+            // pixel a candidate for "the track", and because it is the
+            // pixel closest to ground by design, it is also almost always
+            // the WEAKEST one found — so this law was really asserting a
+            // floor on antialiasing coverage, not on the track's own paint,
+            // for as long as it has existed. It travelled close enough to
+            // clear the `>= 4` floor by luck on every previously-swept
+            // geometry; the widened MAX_PANE_CHARS cap moved `x1`'s
+            // fractional part enough, on Bombora's selected track under the
+            // forced menu-bar branch, to drop that single edge pixel's
+            // coverage below the floor with the real track fill (a
+            // comfortable ΔE 29 from the same ground, confirmed by direct
+            // pixel dump) untouched a few pixels inward. Verified stable:
+            // the measured minimum-positive delta stops moving at inset 2
+            // and stays flat through inset 6, on both the forced-on and
+            // forced-off menu-bar branch — the fill starts exactly there.
+            const TRACK_EDGE_INSET: i64 = 2;
             let mut thumb = (0i64, [0u8; 4]);
             let mut track = (i64::MAX, [0u8; 4]);
+            let (track_lo, track_hi) = (x0 as i64 + TRACK_EDGE_INSET, x1 as i64 - TRACK_EDGE_INSET);
             let mut x = x0 as i64;
             while x <= x1 as i64 {
                 let c = at(x, row_y);
@@ -519,7 +544,7 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
                 if d > thumb.0 {
                     thumb = (d, c);
                 }
-                if d > 0 && d < track.0 {
+                if (track_lo..=track_hi).contains(&x) && d > 0 && d < track.0 {
                     track = (d, c);
                 }
                 x += 1;
