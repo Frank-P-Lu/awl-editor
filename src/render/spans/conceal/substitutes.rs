@@ -49,6 +49,12 @@ pub(in crate::render) struct SubstituteAdvances {
     /// bound on the shaped run (digits do not kern apart in any bundled face —
     /// asserted, not assumed, by `footnote_slot_covers_the_shaped_number`).
     digits: [f32; 10],
+    /// Per traditional-ladder MARK (`markdown::FOOTNOTE_LADDER_MARKS`, same
+    /// order), that single glyph's advance at the footnote superscript size.
+    /// A doubled mark's slot is `reps` copies of this, the exact digit-summing
+    /// upper bound above applied to a repeated glyph instead of repeated
+    /// digits (asserted by `footnote_slot_covers_the_shaped_ladder_mark`).
+    ladder_marks: [f32; 6],
     footnote_gap: f32,
 }
 
@@ -75,14 +81,34 @@ impl SubstituteAdvances {
         }
         let mut digits = [0.0; 10];
         for (d, slot) in digits.iter_mut().enumerate() {
-            let (_, width) =
-                shape_footnote_number(font_system, metrics, family, d, theme::muted().to_glyphon());
+            let (_, width) = shape_footnote_mark_text(
+                font_system,
+                metrics,
+                family,
+                &d.to_string(),
+                theme::muted().to_glyphon(),
+            );
+            *slot = width;
+        }
+        let mut ladder_marks = [0.0; 6];
+        for (mark, slot) in crate::markdown::FOOTNOTE_LADDER_MARKS
+            .iter()
+            .zip(ladder_marks.iter_mut())
+        {
+            let (_, width) = shape_footnote_mark_text(
+                font_system,
+                metrics,
+                family,
+                &mark.to_string(),
+                theme::muted().to_glyphon(),
+            );
             *slot = width;
         }
         Self {
             smart_punct,
             smart_punct_forcing,
             digits,
+            ladder_marks,
             footnote_gap: metrics.line_height * FOOTNOTE_NUMBER_GAP,
         }
     }
@@ -104,30 +130,62 @@ impl SubstituteAdvances {
         self.advance(crate::markdown::SmartPunctKind::Ellipsis)
     }
 
-    /// Width reserved for one painted footnote `number`: its own digits' real
-    /// advances plus one calm gap before the prose that follows.
+    /// Width reserved for one painted footnote `number`: either its own
+    /// digits' real advances (numeric display, the default) or its
+    /// traditional-ladder mark's real advance repeated per the doubling rule
+    /// (`crate::markdown::footnote_ladder_on`) — either way plus one calm gap
+    /// before the prose that follows.
     pub(in crate::render) fn footnote_slot(self, number: usize) -> f32 {
-        let mut n = number;
-        let mut sum = self.digits[n % 10];
-        n /= 10;
-        while n > 0 {
-            sum += self.digits[n % 10];
+        let sum = if crate::markdown::footnote_ladder_on() {
+            let index = number.saturating_sub(1);
+            let reps = index / crate::markdown::FOOTNOTE_LADDER_MARKS.len() + 1;
+            let width = self.ladder_marks[index % crate::markdown::FOOTNOTE_LADDER_MARKS.len()];
+            width * reps as f32
+        } else {
+            let mut n = number;
+            let mut sum = self.digits[n % 10];
             n /= 10;
-        }
+            while n > 0 {
+                sum += self.digits[n % 10];
+                n /= 10;
+            }
+            sum
+        };
         sum + self.footnote_gap
     }
 }
 
-/// Shape one footnote number exactly as it will be painted: the document's
-/// settled face at the superscript size, over the caller's ink. THE one door —
-/// the reserved-slot measurement above and the ornament that paints the ink
-/// both come through here, so a later size or family tweak cannot move one
-/// without the other.
+/// Shape one footnote `number`'s display text exactly as it will be painted:
+/// the document's settled face at the superscript size, over the caller's
+/// ink, choosing between the plain number and the traditional ladder mark
+/// the SAME way [`SubstituteAdvances::footnote_slot`] does
+/// (`crate::markdown::footnote_ladder_on`) — so the ink and the room made for
+/// it can never diverge in EITHER dimension: size/family (the shared shaping
+/// door below) or which display mode is active (this shared branch).
 pub(in crate::render) fn shape_footnote_number(
     font_system: &mut FontSystem,
     metrics: Metrics,
     family: &'static str,
     number: usize,
+    color: glyphon::Color,
+) -> (GlyphBuffer, f32) {
+    let text = if crate::markdown::footnote_ladder_on() {
+        crate::markdown::footnote_ladder_mark(number)
+    } else {
+        number.to_string()
+    };
+    shape_footnote_mark_text(font_system, metrics, family, &text, color)
+}
+
+/// THE one shaping door a painted footnote mark's ink and its reserved slot
+/// both come through, over arbitrary display TEXT (a plain number, one
+/// ladder mark, or a doubled run of one) — so a later size or family tweak
+/// cannot move one without the other.
+fn shape_footnote_mark_text(
+    font_system: &mut FontSystem,
+    metrics: Metrics,
+    family: &'static str,
+    text: &str,
     color: glyphon::Color,
 ) -> (GlyphBuffer, f32) {
     let glyph_metrics = GlyphMetrics::new(
@@ -141,13 +199,7 @@ pub(in crate::render) fn shape_footnote_number(
         Some(metrics.line_height * 4.0),
         Some(metrics.line_height),
     );
-    buffer.set_text(
-        font_system,
-        &number.to_string(),
-        &attrs,
-        Shaping::Advanced,
-        None,
-    );
+    buffer.set_text(font_system, text, &attrs, Shaping::Advanced, None);
     buffer.shape_until_scroll(font_system, false);
     let width = buffer
         .layout_runs()

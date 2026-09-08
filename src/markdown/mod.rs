@@ -104,6 +104,57 @@ pub fn set_inline_images_on(on: bool) {
     INLINE_IMAGES_ON.set(on);
 }
 
+/// Whether painted footnote marks wear the TRADITIONAL REFERENCE LADDER
+/// (`* † ‡ § ‖ ¶`, doubling when exhausted: `** †† ‡‡ …`) instead of the plain
+/// first-appearance NUMBER. DEFAULT OFF — numeric stays the shipped default;
+/// the file's own `[^label]` source and export are unaffected either way,
+/// exactly like smart punctuation: this is a paint-time substitution over the
+/// same first-reference-order `number` every `FootnoteReference`/
+/// `FootnoteDefinition` already carries (`markdown::footnotes`), never a
+/// second numbering scheme. Both a reference and its definition read the
+/// SAME `number` through the SAME painted-mark path
+/// (`render::layers::ornaments::footnotes::FootnoteNumbers`), so the
+/// definition list wearing the same mark as its references is a consequence
+/// of sharing the one door, not a second rule to keep in sync.
+/// The value this flag carries on a fresh install, before any config or
+/// settings write — the ONE owner of that fact, read both by the static
+/// below and by the generated reference (`settings::toggle_default`).
+pub(crate) const FOOTNOTE_LADDER_DEFAULT: bool = false;
+static FOOTNOTE_LADDER_ON: Toggle = Toggle::new(FOOTNOTE_LADDER_DEFAULT);
+
+/// True when painted footnote marks use the traditional ladder rather than
+/// plain numbers (read by [`super::render::spans::conceal::substitutes`] to
+/// choose the shaped mark text, and by the ornament that paints it).
+pub fn footnote_ladder_on() -> bool {
+    FOOTNOTE_LADDER_ON.on()
+}
+
+/// Set the footnote-ladder display on/off explicitly — the config sticky-pref
+/// launch-apply (mirrors [`set_wysiwyg_on`]).
+pub fn set_footnote_ladder_on(on: bool) {
+    FOOTNOTE_LADDER_ON.set(on);
+}
+
+/// The traditional footnote reference ladder, in the canonical print-shop
+/// order: asterisk, dagger, double dagger, section, double vertical line,
+/// pilcrow. Every glyph is in the bundled `Awl Marks` roster
+/// (`assets/fonts/AwlMarks.roster.tsv`, tagged `reference-537`) — the
+/// never-tofu law this display option must not violate.
+pub(crate) const FOOTNOTE_LADDER_MARKS: [char; 6] =
+    ['*', '\u{2020}', '\u{2021}', '\u{00A7}', '\u{2016}', '\u{00B6}'];
+
+/// The traditional-ladder mark text for footnote display `number` (1-based,
+/// first-reference order — the SAME `number` the plain-numeric display
+/// already uses; see `markdown::footnotes`). Cycles the six-mark roster
+/// above, DOUBLING once exhausted per print tradition: 7 is `**`, 8 is `††`,
+/// 13 is `***`, and so on.
+pub(crate) fn footnote_ladder_mark(number: usize) -> String {
+    let index = number.saturating_sub(1);
+    let reps = index / FOOTNOTE_LADDER_MARKS.len() + 1;
+    let mark = FOOTNOTE_LADDER_MARKS[index % FOOTNOTE_LADDER_MARKS.len()];
+    mark.to_string().repeat(reps)
+}
+
 mod conceal;
 mod follow;
 mod footnotes;
