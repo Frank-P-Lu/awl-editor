@@ -295,10 +295,12 @@ same shape, and its outward tail is a second live-only layer on top.** Three
 distinct claims, three different tiers, and a Verify clause must not ask the
 wrong one for the wrong thing:
 
-1. **Which mouse chord follows, per convention and flavor** — pure
-   (`keymap::platform::active_follow_gestures` / `follows_link`), swept over the
-   whole `Convention x KeymapFlavor x button x modifier` grid in
-   `keymap/tests.rs`. No capture door is involved or needed.
+1. **Which mouse chord follows, per convention (and per `[keys] follow`
+   override)** — pure (`keymap::platform::active_follow_gestures` /
+   `follows_link`), swept over the whole `Convention x button x modifier`
+   grid — the roster is no longer flavor-gated (middle-click follows under
+   Linux `native` and `emacs` alike) — plus the override's own parse/replace
+   contract, in `keymap/tests.rs`. No capture door is involved or needed.
 2. **What a followable span resolves to, and which typed effect carries it** —
    pure (`markdown::follow::followable_at`, `actions::follow::follow_effect`),
    enrolled from the underline grammar's own predicate
