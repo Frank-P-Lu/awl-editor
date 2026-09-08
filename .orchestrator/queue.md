@@ -712,8 +712,26 @@ It went red once, during a gate run while the orchestrator was deleting fifteen 
 `target/` trees and the host was at load 100 with 9 GiB of swap in use. That is the trigger,
 not the cause — a law anchored at the manifest directory would not have noticed.
 
-Build: anchor the walk at `CARGO_MANIFEST_DIR`; make the expect name the directory it was
-reading. Then sweep every other law that opens a path relative to cwd and fix the same way.
+**The sweep is already done — this is the census, so the lane spends its round fixing rather
+than finding.** Four sites assume the crate root is the working directory, and two of them say
+so in a comment without ever asserting it, which is the tell:
+
+| site | shape |
+|---|---|
+| `src/app/semantic/tests/mod.rs:111` | `PathBuf::from("src")` — the walk that fired |
+| `src/app/semantic/tests/mod.rs:165` | `read_to_string("src/render/chrome/hud.rs")` — same file, same defect |
+| `src/app_icon/tests.rs:24` | `fn root() -> PathBuf { PathBuf::from(".") }`, commented *"Tests run with CWD == the crate root"* |
+| `src/icon_manifest.rs:295` | the same comment, *"Tests run with CWD == the crate root."* |
+
+The correct pattern is already in this tree and needs no invention:
+`src/module_map_law.rs:82` uses `PathBuf::from(env!("CARGO_MANIFEST_DIR"))`, which is fixed at
+COMPILE time and therefore cannot be moved by a runner, a shard, or a shell. `println_audit`,
+`macos_identity_law`, `embedded_docs_law` and `roster_claim_law` all read the same way.
+
+Build: anchor all four at `CARGO_MANIFEST_DIR`; make the expect name the directory it was
+actually reading rather than always saying "src". Delete the two comments — an assumption
+stated in prose and asserted nowhere is the thing being retired, and leaving the comment
+beside a fixed call site would preserve the wrong idea.
 Law: the walk resolves identically from a different working directory — assert it by running
 the check function with the process cwd changed, so the law fails if someone reintroduces a
 relative root.
