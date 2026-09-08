@@ -391,43 +391,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 632 — the theme picker loses its card backing while previewing a world (found by 628's prototype, 2026-09-09)
-
-⬜ READY — a user-facing legibility failure, reproduced on UNMODIFIED `theme_picker.rs`, found
-incidentally by a lane doing something else.
-
-Open the theme picker on one world, then arrow to preview another (uncommitted). The card's
-opaque/frosted backing is lost entirely for the duration of the preview: the document text
-behind bleeds straight through the row text and the picker becomes unreadable. Captured at
-`gallery/item-628-shared-chrome/theme_kite_preview_wagtail.png` on the `item-628` branch —
-Kite open, previewing Wagtail.
-
-Nothing in 628's diff touches the theme picker; this is the shipped behaviour.
-
-Note what it is NOT. Item 609 pinned the picker's own chrome — list style, row pitch, chrome
-face, corners — to the world it was summoned in, so the LIST no longer recomposes per preview.
-The backing is a separate treatment and it was not part of that pin, so 609's fix and this
-defect coexist happily. A reader will assume 609 covered this; it did not.
-
-This is also direct evidence for what 628's own Phase 2 asks — freeze position, width and
-border geometry throughout preview. 628's lane deliberately did not attempt it, correctly: a
-frozen-chrome snapshot taken on open is architecture, not a constant tune.
-
-Build: the backing joins whatever 609's pin already freezes, through the same seam rather than
-a second freezing mechanism — the pin exists and a parallel one would be the drift 628 is
-trying to remove. Law: across the THEMES roster, previewing any world from any other leaves
-the card's backing opaque, asserted by pixel arithmetic over the row text's own ground rather
-than by the sidecar (the sidecar once reported `selected_index: 2` while the row rendered
-fully invisible, which is this exact failure mode one surface over). Pair the opacity floor
-with a PRESENCE floor so a backing that faded to nothing cannot pass.
-
-Prove non-vacuity by restoring the current behaviour and watching the law go red, with the
-mutation confirmed compiled.
-
-Routing: worker Sonnet high.
-
----
-
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
