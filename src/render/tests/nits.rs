@@ -1813,3 +1813,121 @@ fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
     crate::nits::set_nits_on(true);
     crate::markdown::set_wysiwyg_on(true);
 }
+
+/// QUEUE ITEM 629 — [`rects::NitProjection`]'s retained per-line spans must
+/// match a FRESH `crate::nits::line_nits` recompute of the CURRENT text, at
+/// every step of an edit sequence swept across the shapes its band-splice
+/// math has to get right: a same-line append, a same-line mid-edit, a
+/// UNICODE (multi-byte) insertion, a STRUCTURAL line insertion and a
+/// STRUCTURAL line deletion (the two cases that shift the retained SUFFIX
+/// slots to a new index), and an UNDO-shaped shrink back toward an earlier
+/// state. Pure unit-level: no `TextPipeline`, no GPU adapter, and the oracle
+/// (`crate::nits::line_nits`) shares no code with the thing under test — so
+/// this cannot pass by both sides reading the same wrong cache. `band`
+/// reimplements exactly the prefix/suffix walk `TextPipeline::unchanged_band`
+/// uses to produce the `(prefix, old_end, new_end)` `set_text` hands the
+/// projection, so the fixture drives it the same way production does.
+/// Non-vacuous: every state carries at least one real nit (a double space),
+/// so a broken splice that drops, duplicates, or misplaces one is a direct
+/// per-line assertion failure, never a silently-empty pass.
+#[test]
+fn nit_projection_matches_independent_recompute_across_edit_shapes() {
+    fn band(old: &[&str], new: &[&str]) -> (usize, usize, usize) {
+        let mut prefix = 0;
+        while prefix < old.len() && prefix < new.len() && old[prefix] == new[prefix] {
+            prefix += 1;
+        }
+        let mut suffix = 0;
+        while suffix < old.len() - prefix
+            && suffix < new.len() - prefix
+            && old[old.len() - 1 - suffix] == new[new.len() - 1 - suffix]
+        {
+            suffix += 1;
+        }
+        (prefix, old.len() - suffix, new.len() - suffix)
+    }
+
+    let states: [&[&str]; 7] = [
+        &["one  two", "anchor", "three four"],
+        &["one   two", "anchor", "three four"],
+        &["one   two", "anchor", "three  four"],
+        &["one   two", "anchor", "three  four", "café  au lait"],
+        &["one   two", "anchor", "café  au lait"],
+        &["one   two", "anchor"],
+        &["one  two", "anchor"],
+    ];
+
+    let mut proj = rects::NitProjection::new();
+    let mut prev: Vec<&str> = Vec::new();
+    for (step, &lines) in states.iter().enumerate() {
+        let change = (!prev.is_empty()).then(|| band(&prev, lines));
+        proj.refresh(true, lines, change);
+        for (li, &line) in lines.iter().enumerate() {
+            assert_eq!(
+                proj.spans_for(li),
+                crate::nits::line_nits(line).as_slice(),
+                "step {step} line {li} ({line:?}): the retained span diverged from a \
+                 fresh line_nits() recompute of the current text"
+            );
+        }
+        prev = lines.to_vec();
+    }
+}
+
+/// The SAME edit sequence as
+/// [`nit_projection_matches_independent_recompute_across_edit_shapes`], driven
+/// this time through a real `TextPipeline` end to end — proving `set_text`
+/// wires `md_spans`/`syn_lang`/the changed-line band to the projection
+/// correctly, not just that the projection's own splice math is sound in
+/// isolation. The oracle is `crate::nits::document_nits` (a pure, independent
+/// function sharing no code with the render-side caching), restricted to
+/// non-cursor lines since reveal-on-cursor suppresses the caret's own line.
+#[test]
+fn nit_underlines_count_matches_document_nits_oracle_across_edit_shapes() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_underlines_count_matches_document_nits_oracle_across_edit_shapes: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Cursor parked on "anchor" — present at line 1 in every state below and
+    // never itself carrying a nit — so reveal-on-cursor never suppresses the
+    // spans this law is checking.
+    let states: [&str; 7] = [
+        "one  two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree  four\n",
+        "one   two\nanchor\nthree  four\ncafé  au lait\n",
+        "one   two\nanchor\ncafé  au lait\n",
+        "one   two\nanchor\n",
+        "one  two\nanchor\n",
+    ];
+
+    let mut reshapes_seen = p.reshape_count;
+    for (step, text) in states.iter().enumerate() {
+        let mut v = view(text, 1, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+        assert!(
+            p.reshape_count > reshapes_seen,
+            "step {step} ({text:?}) must reshape — the text changed"
+        );
+        reshapes_seen = p.reshape_count;
+
+        let got = p.nit_underlines().len();
+        let expected = crate::nits::document_nits(text)
+            .iter()
+            .filter(|(line, ..)| *line != 1)
+            .count();
+        assert_eq!(
+            got, expected,
+            "step {step} ({text:?}): nit count diverged from the independent \
+             document_nits oracle (excluding the cursor's own line)"
+        );
+    }
+    crate::nits::set_nits_on(true);
+}

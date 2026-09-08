@@ -2465,6 +2465,12 @@ pub struct TextPipeline {
     /// full-document join they can each trigger (`destination_ranges`), and the
     /// spell-squiggle proto rebuild. Reset once per [`Self::prepare`] call.
     owner_scan: rects::OwnerScanWork,
+    /// Retained per-line writing-nit spans, refreshed once per reshape in
+    /// [`Self::set_text`] from that reshape's own `TextChange` band — never
+    /// read lazily from `prepare`, so two reshapes landing before the next
+    /// drawn frame both still patch the cache instead of losing one to a
+    /// coalesced redraw. See [`rects::NitProjection`].
+    nit_projection: rects::NitProjection,
     /// `Some` while a [`ShapeReach::Presentable`] reshape owes an off-screen tail;
     /// the value is the last settled whole-document height. A preview burst keeps
     /// it stable while the live row table is intentionally truncated, so each
