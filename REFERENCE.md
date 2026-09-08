@@ -294,6 +294,7 @@ An absent key takes the default below. A command-line flag overrides the file; t
 | `keymap` | native \| emacs | `native` |
 | `date_format` | ddmmyy \| mmddyy \| iso \| yyyymmdd \| dmonthyyyy | `ddmmyy` |
 | `keys` | table of chord lists | — |
+| `follow` | list of mouse gestures | — |
 | `linux_keep_emacs` | list of chords | — |
 
 ### Numeric bands

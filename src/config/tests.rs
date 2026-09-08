@@ -163,6 +163,57 @@ fn load_reads_two_binding_list_capped_at_two() {
     });
 }
 
+/// LAW: `[keys] follow` loads into `Config::follow`, NOT into the generic
+/// `Config::keys` list — "follow" is not a command-palette action name, so a
+/// generic `[keys]` reader would report it as unknown (`KeymapState::
+/// apply_overrides`'s "unknown action" note firing on every launch). Also
+/// proves the no-2-cap claim: a follow line naming three gestures survives
+/// whole, unlike an ordinary `[keys]` command list (capped at 2 above).
+#[test]
+fn load_diverts_follow_out_of_the_generic_keys_table() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(
+        &p,
+        "[keys]\nswitch_theme = \"C-t\"\nfollow = [\"C-click\", \"middle-click\", \"right-click\"]\n",
+    ));
+    crate::fs::with_fs(fs, || {
+        let cfg = Config::load(p.clone());
+        assert_eq!(
+            cfg.follow,
+            vec![
+                "C-click".to_string(),
+                "middle-click".to_string(),
+                "right-click".to_string(),
+            ],
+            "a 3-entry follow line must survive whole (no 2-slot cap)"
+        );
+        assert!(
+            cfg.keys.iter().all(|(name, _)| name != "follow"),
+            "follow must not also land in the generic keys table: {:?}",
+            cfg.keys
+        );
+        assert_eq!(
+            cfg.keys,
+            vec![("switch_theme".to_string(), vec!["C-t".to_string()])],
+            "the ordinary switch_theme entry must be unaffected"
+        );
+    });
+}
+
+/// A single-string `follow = "…"` loads as a one-element list, matching the
+/// same string-or-list shape every other `[keys]` value already accepts.
+#[test]
+fn load_reads_a_single_string_follow_line() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "[keys]\nfollow = \"C-click\"\n"));
+    crate::fs::with_fs(fs, || {
+        let cfg = Config::load(p.clone());
+        assert_eq!(cfg.follow, vec!["C-click".to_string()]);
+    });
+}
+
 #[test]
 fn precedence_flag_beats_config_beats_default() {
     // The resolution rule the wiring uses: flag.or(config). A CLI flag wins;

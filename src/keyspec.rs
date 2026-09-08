@@ -149,16 +149,19 @@ const WORD_MODS: &[(&str, ModifiersState)] = &[
     ("shift-", ModifiersState::SHIFT),
 ];
 
-pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
+/// Strip leading modifier prefixes shared by [`parse_chord`] and
+/// [`parse_pointer_chord`] — the SAME two spellings, greedily and
+/// order-independently (modifiers are just bitflags): the terse single-letter
+/// "<m>-" form (`C-`, `M-`, `S-`, `s-`) AND the macOS-friendly WORD form
+/// (`Cmd-`, `Option-`, ...). The word form is tried first so `Cmd-S` reads as
+/// Super+`S` rather than as the literal letters. A bare "-" (or a 1-char
+/// remainder) is never consumed as a prefix, so the trailing TOKEN always
+/// survives — a key for [`parse_chord`], a `click`/`middle-click`/`right-click`
+/// word for [`parse_pointer_chord`]. Only the trailing token's own grammar
+/// differs between the two callers; the modifier vocabulary is one owner.
+fn strip_modifier_prefixes(chord: &str) -> (ModifiersState, &str) {
     let mut rest = chord;
     let mut state = ModifiersState::empty();
-
-    // Strip leading modifier prefixes. TWO spellings are accepted, greedily and
-    // order-independently (modifiers are just bitflags): the terse single-letter
-    // "<m>-" form (`C-`, `M-`, `S-`, `s-`) AND the macOS-friendly WORD form
-    // (`Cmd-`, `Option-`, ...). The word form is tried first so `Cmd-S` reads as
-    // Super+`S` rather than as the literal letters. A bare "-" (or a 1-char
-    // remainder) is never consumed as a prefix, so the literal key always survives.
     loop {
         if let Some((pfx, flag)) = WORD_MODS.iter().find(|(pfx, _)| {
             rest.len() > pfx.len()
@@ -187,6 +190,11 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
         }
         break;
     }
+    (state, rest)
+}
+
+pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
+    let (state, rest) = strip_modifier_prefixes(chord);
 
     if rest.is_empty() {
         bail!("empty key in chord {chord:?}");
@@ -194,6 +202,61 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
 
     let key = parse_key_token(rest, chord)?;
     Ok((key, Modifiers::from(state)))
+}
+
+/// THE MOUSE CHORD GRAMMAR (a deliberate SIBLING to [`parse_chord`], never a
+/// branch inside it): `[keys] follow = "…"` rebinds the follow gesture roster
+/// (`keymap::platform::active_follow_gestures`) through this parser, which
+/// spells exactly three trailing tokens — `click` (the primary button),
+/// `middle-click`, `right-click` — behind the SAME modifier prefixes a key
+/// chord accepts ([`strip_modifier_prefixes`], terse `C-`/`M-`/`S-`/`s-` or
+/// the word form `Cmd-`/`Option-`/…). Kept structurally separate from
+/// [`parse_chord`]/[`canonical_binding`] on purpose: the Linux keep-list is
+/// composed and compared through THOSE two, so a mouse chord having no
+/// spelling there is what keeps it forever uncollidable with the `C-c`/`C-x`
+/// rules (`keymap::tests::the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide`).
+/// Case-insensitive on the trailing word, matching every other token this
+/// grammar's sibling already treats case-insensitively.
+pub fn parse_pointer_chord(spec: &str) -> Result<(crate::keymap::PointerButton, ModifiersState)> {
+    let (state, rest) = strip_modifier_prefixes(spec);
+    let button = match rest.to_ascii_lowercase().as_str() {
+        "click" => crate::keymap::PointerButton::Primary,
+        "middle-click" => crate::keymap::PointerButton::Middle,
+        "right-click" => crate::keymap::PointerButton::Secondary,
+        _ => bail!(
+            "unrecognized pointer gesture {rest:?} in {spec:?} \
+             (expected click, middle-click, or right-click)"
+        ),
+    };
+    Ok((button, state))
+}
+
+/// Render a parsed pointer chord back to its CANONICAL spelling — the terse
+/// modifier letters [`format_chord`] already uses, then the button word. The
+/// one owner every override-derived [`crate::keymap::platform::FollowGesture`]
+/// label reads (`Box::leak`, the SAME one-time-per-config-load cost
+/// `commands::COMMANDS`'s own splice already pays), so a user's `C-click` and
+/// `Ctrl-Click` compose to the same reported label without a second table.
+pub fn format_pointer_chord(button: crate::keymap::PointerButton, mods: ModifiersState) -> String {
+    let mut s = String::new();
+    if mods.contains(ModifiersState::CONTROL) {
+        s.push_str("C-");
+    }
+    if mods.contains(ModifiersState::ALT) {
+        s.push_str("M-");
+    }
+    if mods.contains(ModifiersState::SHIFT) {
+        s.push_str("S-");
+    }
+    if mods.contains(ModifiersState::SUPER) {
+        s.push_str("s-");
+    }
+    s.push_str(match button {
+        crate::keymap::PointerButton::Primary => "Click",
+        crate::keymap::PointerButton::Middle => "Middle-Click",
+        crate::keymap::PointerButton::Secondary => "Right-Click",
+    });
+    s
 }
 
 pub fn format_chord(key: &Key, mods: ModifiersState) -> String {

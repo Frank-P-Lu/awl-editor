@@ -295,27 +295,36 @@ pub(crate) const LINUX_EMACS_CLASSIC_SEED: &[(&str, Action)] = &[
     ("C-x h", Action::SelectAll),
 ];
 
-/// Is the Linux emacs LAYER active — the one gate both seeded rosters below
-/// share, so the key layers and the pointer gesture can never enrol on
-/// different answers to the same question. `Convention::Mac` is structurally
-/// inert (Option keeps typing accented characters there, and ⌘ already carries
+/// Is the Linux emacs LAYER active — the one gate the KEY seed table below
+/// reads (both [`super::state::KeymapState::seed_defaults`] and the
+/// label-truth query share it). `Convention::Mac` is structurally inert
+/// (Option keeps typing accented characters there, and ⌘ already carries
 /// every native chord); the `native` flavor seeds nothing anywhere.
+///
+/// **Middle-click follow no longer shares this gate** (user decision,
+/// widening it off the emacs flavor): it collided with nothing under
+/// `native`, so [`active_follow_gestures`] offers it on EITHER flavor —
+/// `the_pointer_gesture_layer_no_longer_shares_the_key_seed_gate` names the
+/// two axes decoupled rather than leaving the old shared-gate claim to rot.
 pub(crate) fn linux_emacs_layer(convention: Convention, flavor: KeymapFlavor) -> bool {
     convention == Convention::Linux && flavor == KeymapFlavor::Emacs
 }
 
 /// A MOUSE chord that follows a followable span. Deliberately its own type
-/// rather than a `&str` in the seed tables above: the `[keys]` grammar and
-/// every seed table are KEY chords, parsed by `keyspec::parse_chord` into a
-/// `(Key, ModifiersState)` pair, and a mouse button has no spelling there. That
-/// separation is also why the Linux keep-list cannot collide with any gesture
-/// here — `Config::effective_linux_keep` composes, and `linux_keeps_chord`
-/// compares, only strings that parse as key chords.
+/// rather than a `&str` in the seed tables above: the `[keys]` grammar for
+/// COMMAND rebinds and every seed table are KEY chords, parsed by
+/// `keyspec::parse_chord` into a `(Key, ModifiersState)` pair, and a mouse
+/// button has no spelling there. That separation is also why the Linux
+/// keep-list cannot collide with any gesture here — `Config::effective_linux_keep`
+/// composes, and `linux_keeps_chord` compares, only strings that parse as key
+/// chords. A follow gesture DOES have its own rebinding grammar
+/// (`keyspec::parse_pointer_chord`, a deliberate sibling of `parse_chord`,
+/// never a branch inside it) — see [`active_follow_gestures`]'s doc for the
+/// override this type's `label` is generated for when a config line is valid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FollowGesture {
-    /// Which physical button. `false` = the primary (left) button, `true` =
-    /// the middle button; kept as a plain enum rather than winit's own so the
-    /// roster stays a pure core fact the label surfaces can read.
+    /// Which physical button. Kept as a plain enum rather than winit's own so
+    /// the roster stays a pure core fact the label surfaces can read.
     pub button: PointerButton,
     /// The modifiers that must be held, EXACTLY — a gesture with extra
     /// modifiers down is not this gesture.
@@ -323,8 +332,10 @@ pub struct FollowGesture {
     /// How the gesture is NAMED to a reader — carried ON the roster rather
     /// than composed at each surface, so the first label surface to want it
     /// reads [`active_follow_gestures`] the way every label surface already
-    /// reads [`active_seed_tables`] through [`seeded_chords_for`]. Today its
-    /// readers are the roster laws, which name what enrolled by this spelling.
+    /// reads [`active_seed_tables`] through [`seeded_chords_for`]. A built-in
+    /// default's label is a literal; an override's label is rendered once by
+    /// `keyspec::format_pointer_chord` and leaked to `'static` (the same
+    /// one-time-per-config-load cost `commands::COMMANDS`'s own splice pays).
     pub label: &'static str,
 }
 
@@ -332,6 +343,16 @@ pub struct FollowGesture {
 pub enum PointerButton {
     Primary,
     Middle,
+    /// The right/secondary button. Spellable in the rebind grammar
+    /// (`right-click`, per the decided grammar roster) so a `[keys] follow`
+    /// line naming it parses and shows in the roster — but no default
+    /// gesture uses it, and dispatch does not route a right press through
+    /// [`follows_link`] at all: `app::input::mouse_button::on_mouse_input`
+    /// claims every right press for the context-menu card before the follow
+    /// predicate is ever asked. A `follow = "right-click"` override is
+    /// therefore a named, left gap (documented in docs/config.md), not a
+    /// silently broken promise.
+    Secondary,
 }
 
 /// macOS: ⌘-click, the decided Mac gesture and the platform convention in every
@@ -353,51 +374,94 @@ const LINUX_FOLLOW: &[FollowGesture] = &[FollowGesture {
     label: "Ctrl-Click",
 }];
 
-/// Linux `keymap = "emacs"` only — middle-click (mouse-2), seeded exactly like
-/// the Meta and `C-x` layers above and through the same [`linux_emacs_layer`]
-/// gate. Inert on Mac and under the `native` flavor. Free to claim: awl
+/// Linux, BOTH flavors (widened by user decision off its original
+/// `keymap = "emacs"`-only gate: middle-click collided with nothing under
+/// `native`, and the flavor gate existed only to keep the platform convention
+/// plain) — middle-click (mouse-2). Free to claim on either flavor: awl
 /// implements no X11 primary-selection paste, so nothing else wants mouse-2.
-const LINUX_EMACS_FOLLOW: &[FollowGesture] = &[FollowGesture {
+const LINUX_MIDDLE_FOLLOW: &[FollowGesture] = &[FollowGesture {
     button: PointerButton::Middle,
     mods: ModifiersState::empty(),
     label: "Middle-Click",
 }];
 
 /// THE FOLLOW GESTURE'S ONE SELECTION POINT — every mouse chord that follows a
-/// followable span under `convention`+`flavor`, in the same shape
-/// [`active_seed_tables`] returns its key layers. Both dispatch (the pointer
-/// press) and every label surface read THIS, so a flavor change moves them
-/// together.
+/// followable span under `convention`, given any `[keys] follow` override
+/// already loaded off `Config` (raw config strings, never pre-parsed — this
+/// function owns the ONE parse). Both dispatch (the pointer press,
+/// `app::input::mouse_button::press_follow_gesture`) and every label surface
+/// read THIS, so an override and the built-in default can never drift apart.
 ///
-/// FIXED, not `[keys]`-rebindable: the rebinding grammar spells key chords
-/// only, so making a mouse chord rebindable would mean a second chord grammar
-/// for one gesture. The trade is recorded here rather than left implicit.
+/// `overrides` REPLACES the convention's default roster wholesale when it
+/// parses to at least one valid gesture — unlike an ordinary `[keys]`
+/// command rebind (additive: both the configured chord AND the default still
+/// fire), because the follow roster is a small fixed SET, not a per-command
+/// native/emacs pair, so "add to it" has no natural meaning. An entry that
+/// [`crate::keyspec::parse_pointer_chord`] cannot spell is reported to
+/// stderr NAMING the `[keys] follow` line and dropped — the same shape a bad
+/// key chord already gets (`KeymapState::apply_overrides`'s own "keeping
+/// default" note) — while any other valid entry in the line still takes
+/// over; an override with NO valid entry at all leaves the built-in default
+/// in force, exactly as if `overrides` were empty.
+///
+/// No longer flavor-gated (the decided widening above made Linux's roster
+/// flavor-INDEPENDENT), so this function does not take one — see
+/// `linux_emacs_layer`'s doc for what still does.
 pub(crate) fn active_follow_gestures(
     convention: Convention,
-    flavor: KeymapFlavor,
-) -> &'static [&'static [FollowGesture]] {
+    overrides: &[String],
+) -> Vec<FollowGesture> {
+    parse_follow_overrides(overrides).unwrap_or_else(|| default_follow_gestures(convention))
+}
+
+fn default_follow_gestures(convention: Convention) -> Vec<FollowGesture> {
     match convention {
-        Convention::Mac => &[MAC_FOLLOW],
-        Convention::Linux if linux_emacs_layer(convention, flavor) => {
-            &[LINUX_FOLLOW, LINUX_EMACS_FOLLOW]
-        }
-        Convention::Linux => &[LINUX_FOLLOW],
+        Convention::Mac => MAC_FOLLOW.to_vec(),
+        Convention::Linux => LINUX_FOLLOW
+            .iter()
+            .chain(LINUX_MIDDLE_FOLLOW)
+            .copied()
+            .collect(),
     }
 }
 
+/// Parse a `[keys] follow` line into the roster it becomes; `None` when
+/// `overrides` is empty or every entry fails to parse (the built-in default
+/// keeps firing in either case — see [`active_follow_gestures`]'s doc for the
+/// full per-entry contract).
+fn parse_follow_overrides(overrides: &[String]) -> Option<Vec<FollowGesture>> {
+    let mut out = Vec::new();
+    for spec in overrides {
+        match crate::keyspec::parse_pointer_chord(spec) {
+            Ok((button, mods)) => {
+                let label: &'static str =
+                    Box::leak(crate::keyspec::format_pointer_chord(button, mods).into_boxed_str());
+                out.push(FollowGesture {
+                    button,
+                    mods,
+                    label,
+                });
+            }
+            Err(e) => {
+                eprintln!("config [keys]: follow = {spec:?}: {e}; keeping default");
+            }
+        }
+    }
+    (!out.is_empty()).then_some(out)
+}
+
 /// Does pressing `button` with exactly `mods` held FOLLOW, under
-/// `convention`+`flavor`? The one predicate both the press path and the
-/// hover-cursor affordance ask, so the pointing hand and the click can never
-/// disagree about which chord follows.
+/// `convention` and any `[keys] follow` override? The one predicate both the
+/// press path and the hover-cursor affordance ask, so the pointing hand and
+/// the click can never disagree about which chord follows.
 pub(crate) fn follows_link(
     convention: Convention,
-    flavor: KeymapFlavor,
+    overrides: &[String],
     button: PointerButton,
     mods: ModifiersState,
 ) -> bool {
-    active_follow_gestures(convention, flavor)
+    active_follow_gestures(convention, overrides)
         .iter()
-        .flat_map(|table| table.iter())
         .any(|g| g.button == button && g.mods == mods)
 }
 

@@ -68,6 +68,16 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #     [keys]
 #     insert_link = \"C-k\"
 #
+# [keys] follow : rebinds the mouse gesture that follows a link — a click spec
+#   (\"click\", \"middle-click\", \"right-click\"), behind the SAME modifier
+#   prefixes above (\"C-click\", \"Cmd-click\", ...). Unlike an ordinary [keys]
+#   rebind, this REPLACES the platform default outright rather than adding to
+#   it, and takes as many gestures as you like (no 2-slot cap):
+#     [keys]
+#     follow = \"C-click\"
+#   A gesture the grammar can't spell is ignored (default kept) with a note
+#   naming the line, same as any other bad chord.
+#
 # linux_keep_emacs : a shorter Linux-only door to the SAME collision fix above —
 #   list the bare chords you want to KEEP their emacs meaning, and ONLY that
 #   chord's native collision is suppressed (its native command stays reachable

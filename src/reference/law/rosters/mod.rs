@@ -62,6 +62,7 @@ fn every_config_field_is_documented() {
         keymap,
         date_format,
         keys,
+        follow,
         linux_keep_emacs,
         path,
     );
