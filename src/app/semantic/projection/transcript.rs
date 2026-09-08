@@ -48,6 +48,11 @@ impl SemanticProjection {
         // contract `seed`'s own comment states.
         self.changed.clear();
         self.last_transcript = Some(transcript.to_string());
+        // A fresh seed shows a subject nobody has selected into yet — the
+        // reader's own offsets from whatever the tree held before (the
+        // buffer's inert zero, or a different transcript entirely) name
+        // nothing here.
+        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
     }
 
     /// The transcript's twin of [`Self::sync_runs`]. Returns whether the run
@@ -71,6 +76,13 @@ impl SemanticProjection {
         self.resolved = None;
         self.stats.children_republished += 1;
         self.last_transcript = Some(transcript.to_string());
+        // THE SUBJECT CHANGED (a different history row, a different conflict
+        // view) without a full reseed — `built_from_transcript` stays `true`
+        // across it, so `Self::invalidate` never runs and never resets this
+        // for us. A stale offset into the OLD prose is not a position in the
+        // new one, so it is reset here, on the one path that actually replaces
+        // the text this selection names.
+        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
         true
     }
 

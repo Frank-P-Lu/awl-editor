@@ -93,6 +93,18 @@ pub(crate) struct SemanticProjection {
     /// showing republishes nothing — the transcript's own twin of `content_rev`,
     /// which has no meaning here because a transcript carries no `RunTable`.
     last_transcript: Option<String>,
+    /// **THE READER'S OWN SELECTION INTO THE CURRENTLY SHOWN TRANSCRIPT** —
+    /// document-wide grapheme offsets, exactly the units `sync_document`
+    /// publishes and `SetTextSelection` requests arrive in. This is the
+    /// substituted surface's twin of the buffer's real cursor/anchor, and it
+    /// is the SOURCE OF TRUTH for it: unlike `resolved` (a cache of a fact the
+    /// buffer already knows), nothing else in the app tracks where a reader
+    /// has selected inside prose that was never typed into a rope. Reset to
+    /// zero exactly when the transcript's own identity moves — a new subject,
+    /// a new view, or a crossing back to the buffer — so a stale offset from
+    /// one row's transcript is never read as a position in a different one's
+    /// (`Self::seed_transcript`, `Self::sync_transcript`, `Self::invalidate`).
+    transcript_selection: SemanticSelection,
 }
 
 impl Default for SemanticProjection {
@@ -121,6 +133,7 @@ impl SemanticProjection {
             stats: ProjectionStats::default(),
             built_from_transcript: false,
             last_transcript: None,
+            transcript_selection: SemanticSelection { anchor: 0, focus: 0 },
         }
     }
 
@@ -154,6 +167,40 @@ impl SemanticProjection {
         self.seeded
     }
 
+    /// Is the CURRENTLY SEEDED tree a substituted transcript, or the real
+    /// buffer? The published twin of `sync_document`'s `transcript_mode`
+    /// parameter, asked from outside a refresh — an `apply_semantic_request`
+    /// arm that arrives between refreshes needs to know which selection a
+    /// `SetTextSelection` must move, against exactly what is currently on the
+    /// tree rather than whatever the live `App` would answer this instant (the
+    /// two can differ for one frame across a crossing, and the request was
+    /// decoded against the published snapshot, not a fresh one).
+    pub(crate) fn showing_transcript(&self) -> bool {
+        self.built_from_transcript
+    }
+
+    /// Move the reader's own selection WITHIN the currently shown transcript —
+    /// document-wide grapheme offsets, the same units [`Self::sync_document`]
+    /// publishes and a decoded `SetTextSelection` request arrives in
+    /// (`crate::semantic::native::delocate` sums grapheme counts across
+    /// published runs, transcript or buffer alike, so no unit conversion
+    /// happens at this seam). Clamped to the transcript's own total length —
+    /// an assistive technology's own bookkeeping about a tree it no longer
+    /// holds must not be trusted past what is actually published.
+    ///
+    /// Callable only meaningfully while [`Self::showing_transcript`] is
+    /// `true`; the value it writes is simply overwritten wholesale the next
+    /// time the transcript's identity moves (`Self::seed_transcript`,
+    /// `Self::sync_transcript`), so a stray call while the buffer is showing
+    /// costs nothing and reads back nothing.
+    pub(crate) fn set_transcript_selection(&mut self, anchor: usize, focus: usize) {
+        let total: usize = self.slots.iter().map(|slot| slot.graphemes).sum();
+        self.transcript_selection = SemanticSelection {
+            anchor: anchor.min(total),
+            focus: focus.min(total),
+        };
+    }
+
     /// Forget everything and rebuild from scratch on the next refresh — used
     /// when a screen reader lets go, so a later reattach cannot be handed a
     /// diff against a tree the new platform adapter never saw.
@@ -161,6 +208,7 @@ impl SemanticProjection {
         self.seeded = false;
         self.resolved = None;
         self.last_transcript = None;
+        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
     }
 
     /// Bring the retained snapshot up to date. The narrow view is the whole
@@ -262,10 +310,16 @@ impl SemanticProjection {
     /// SUBSTITUTED PROSE**, not the buffer, whenever it is `true`, so the
     /// buffer's own cursor/anchor name a position in text nobody on this tree
     /// can see — reporting it would be exactly the leak this fold exists to
-    /// close, one field over from the run text itself. Zero is inert on both
-    /// sides of the substitution boundary, and matches the caret layer, which
-    /// draws no caret at all over a comparison transcript
-    /// (`TextPipeline::document_is_a_transcript`).
+    /// close, one field over from the run text itself. The caret layer draws
+    /// no caret at all over a comparison transcript
+    /// (`TextPipeline::document_is_a_transcript`) — this selection is for a
+    /// reader only, never for the pixels.
+    ///
+    /// The selection reported here is [`Self::transcript_selection`], not the
+    /// buffer's: a reading surface answers a `SetTextSelection` request about
+    /// the text it showed, and that answer has to persist across ordinary
+    /// refreshes with no request in between (a caret blink, a resize) the same
+    /// way the buffer's own selection does.
     fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool, transcript_mode: bool) {
         let buffer = view.buffer().expect("document projection has a buffer");
         let name = buffer
@@ -275,10 +329,7 @@ impl SemanticProjection {
             .unwrap_or_else(|| "Untitled document".to_string());
         let focused = matches!(view.layer(), workspace::Layer::Editor);
         let selection = if transcript_mode {
-            SemanticSelection {
-                anchor: 0,
-                focus: 0,
-            }
+            self.transcript_selection
         } else {
             self.selection(buffer)
         };

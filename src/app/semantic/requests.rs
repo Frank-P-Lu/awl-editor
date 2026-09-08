@@ -18,6 +18,23 @@ impl App {
             SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
             SemanticRequest::Click { id } => self.click_semantic_node(&id),
             SemanticRequest::SetTextSelection { id, anchor, focus } if id == DOCUMENT_ID => {
+                // ITEM 603's DECISION: while the document node is showing a
+                // substituted transcript (History/Conflict/Credits), a
+                // selection asked for selects THAT text, never the hidden
+                // buffer underneath it — checked against the projection that
+                // is actually published right now, the same snapshot the
+                // request was decoded against, rather than re-asking the live
+                // `App` (which can disagree for one frame across a crossing).
+                // The buffer's cursor/anchor are never touched from this arm:
+                // that is exactly the leak `sync_document` closed for every
+                // OTHER reader-facing question, one door further in.
+                if let Some(projection) = self.frame.accessibility_projection_mut()
+                    && projection.showing_transcript()
+                {
+                    projection.set_transcript_selection(anchor, focus);
+                    self.request_frame();
+                    return true;
+                }
                 if !self.document.has_active() {
                     return false;
                 }
