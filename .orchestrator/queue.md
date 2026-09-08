@@ -649,7 +649,11 @@ contract, widened to answer the question it currently ducks:
 
 A kanji-only Japanese title stays Japanese (no simplified-only character in it); a Chinese
 note written wholly in shared characters is the one miss, and no real paragraph of simplified
-Chinese manages it. The character tables are GENERATED from Unicode's Unihan data and checked
+Chinese manages it. **The known miss is a MIXED note** — Japanese and Chinese paragraphs in one
+file — which resolves Japanese as a whole (kana wins the document) and leaves its Chinese
+paragraph in today's patchwork; a tag cannot rescue it either, being one answer per file.
+Per-paragraph scoping is the fix for that shape and is deliberately NOT in this item (rare,
+and adjacent lines flipping face is its own taste round). The character tables are GENERATED from Unicode's Unihan data and checked
 in (`script::han_class` or a sibling) — never derived from which font happens to be bundled,
 so the rule cannot move when a subset does. A tagged document is unchanged: the tag still
 wins, and the Tag command now writes what the evidence tier already concluded.
