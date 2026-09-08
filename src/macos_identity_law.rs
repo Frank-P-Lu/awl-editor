@@ -231,6 +231,9 @@ fn bash_parses(path: &Path) -> bool {
 #[cfg(target_os = "macos")]
 #[test]
 fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
+    // `fs::write_atomic` below reaches `fs::active()`, a process-global the
+    // FsGuard swaps out from under other threads.
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!(
         "awl-doctypes-law-{}-{}",
         std::process::id(),
@@ -239,10 +242,13 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
             .unwrap()
             .as_nanos()
     ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("scratch dir");
+    // An RAII guard, not an end-of-function remove: this test shells out to
+    // PlistBuddy and plutil and asserts on their output, so it has many ways
+    // to fail before reaching its own cleanup. Drop runs on the unwinding
+    // path too.
+    let dir = crate::testscratch::ScratchDir::new(dir);
     let fake_bin = dir.join("fake-awl");
-    std::fs::write(&fake_bin, b"#!/bin/sh\n").expect("write fake binary");
+    crate::fs::write_atomic(&fake_bin, b"#!/bin/sh\n").expect("write fake binary");
     let out_dir = dir.join("dist");
 
     let status = std::process::Command::new(root().join("scripts/package-macos.sh"))
@@ -317,5 +323,4 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
         }
     }
 
-    let _ = std::fs::remove_dir_all(&dir);
 }

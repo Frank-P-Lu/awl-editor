@@ -137,6 +137,19 @@ mod tests {
     /// (the pattern below scans for), so they can never appear in `hits`.
     const ALLOWED_RAW_ATOMIC_BOOL: &[(&str, &str)] = &[
         (
+            "mac_open_documents.rs",
+            "READY is not a sticky preference but a one-shot publication latch, \
+            and its ORDERING is load-bearing in a way `Toggle` cannot express. \
+            It is stored with `Release` after the cold-launch queue is drained \
+            and loaded with `Acquire` before a URL is posted directly, so the \
+            latch is what publishes the drained queue's contents to the posting \
+            path. `Toggle`'s accessors are deliberately `Relaxed` (see this \
+            module's doc), so routing this through it would silently drop the \
+            happens-before edge -- a correctness regression wearing the shape of \
+            a cleanup. It is also written exactly once, from the main thread, \
+            during startup, and never from a test",
+        ),
+        (
             "render/blur/suppress.rs",
             "SUPPRESSED cannot exist in a ship build at all: `mod suppress` is \
             `cfg(test)` and `frost_mode`'s branch on it carries the same attribute, \
