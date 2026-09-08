@@ -3,6 +3,7 @@
 use super::*;
 
 type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
+type TextRange = ((usize, usize), (usize, usize));
 
 /// [`TextPipeline::wash_rects`]'s triple: comment-span, string-span, and
 /// syntax-highlight-span wash rects, in that order.
@@ -1599,10 +1600,7 @@ impl TextPipeline {
     /// frame. Search uses this once for its whole match roster; selection passes
     /// one range. Keeping the visible-band decision here makes their clipping
     /// semantics identical while avoiding one whole-row gather per match.
-    fn visible_lines_for_ranges(
-        &self,
-        ranges: &[((usize, usize), (usize, usize))],
-    ) -> std::collections::BTreeSet<usize> {
+    fn visible_lines_for_ranges(&self, ranges: &[TextRange]) -> std::collections::BTreeSet<usize> {
         let m = &self.metrics;
         let doc_top = self.doc_top();
         // VISIBLE-BAND CULL (mirrors the wash / squiggle / nit proto builders). A
@@ -1643,7 +1641,7 @@ impl TextPipeline {
     /// conceal, wrap, eol-pad and content-clip behaviour.
     fn range_rects_from_rows(
         &self,
-        ((l0, c0), (l1, c1)): ((usize, usize), (usize, usize)),
+        ((l0, c0), (l1, c1)): TextRange,
         rows_by_line: &std::collections::HashMap<usize, Vec<VisualRow>>,
     ) -> Vec<[f32; 4]> {
         let m = &self.metrics;
@@ -1778,11 +1776,18 @@ impl TextPipeline {
     /// match, in document order). The CURRENT match gets no distinct color: the
     /// real amber caret already sits on it.
     pub(super) fn search_match_rects(&self) -> Vec<[f32; 4]> {
+        if self.search_matches.is_empty() {
+            return Vec::new();
+        }
         let lines = self.visible_lines_for_ranges(&self.search_matches);
         // One full shaped-row partition walk for ALL visible matches. Calling
         // `range_rects` per match repeats this O(document) gather and turns a
         // dense search in one wrapped paragraph into a stall.
-        let rows_by_line = self.visual_rows_for_lines(&lines);
+        let rows_by_line = if lines.is_empty() {
+            std::collections::HashMap::new()
+        } else {
+            self.visual_rows_for_lines(&lines)
+        };
         let mut r = Vec::new();
         for &(a, b) in &self.search_matches {
             r.extend(self.range_rects_from_rows((a, b), &rows_by_line));
