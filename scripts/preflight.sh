@@ -26,10 +26,24 @@ fi
 preflight_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$preflight_root"
 
+# Test-only escape hatches, same shape as native-gate.sh's
+# AWL_NATIVE_GATE_PROBE_HEALTH_COMMAND: scripts/test-preflight.sh stubs both
+# steps so it can exercise ordering and failure-propagation without compiling
+# clippy or the test binary (which would also recurse into this very script,
+# since the real health command IS scripts/code-health.sh).
+preflight_health_command=("$preflight_root/scripts/code-health.sh")
+if [[ -n "${AWL_PREFLIGHT_PROBE_HEALTH_COMMAND:-}" ]]; then
+  read -r -a preflight_health_command <<<"$AWL_PREFLIGHT_PROBE_HEALTH_COMMAND"
+fi
+preflight_audit_command=(cargo test --bin awl -- println_audit view_policy)
+if [[ -n "${AWL_PREFLIGHT_PROBE_AUDIT_COMMAND:-}" ]]; then
+  read -r -a preflight_audit_command <<<"$AWL_PREFLIGHT_PROBE_AUDIT_COMMAND"
+fi
+
 preflight_start=$(date +%s)
 
 echo "== preflight 1/2: format, lint, and source audits (scripts/code-health.sh) =="
-scripts/code-health.sh
+"${preflight_health_command[@]}"
 
 echo
 echo "== preflight 2/2: benchmark-output and view-construction ownership audits =="
@@ -40,11 +54,12 @@ echo "== preflight 2/2: benchmark-output and view-construction ownership audits 
 # crate::testlock hold, so they are safe and fast to isolate from the rest of
 # the suite. The filter selects only these two modules — everything else in
 # the binary, GPU tests included, is left untouched and unbuilt-for-execution.
-cargo test --bin awl -- println_audit view_policy
+"${preflight_audit_command[@]}"
 
 preflight_elapsed=$(( $(date +%s) - preflight_start ))
 echo
-printf 'preflight: PASSED in %ss — targeted evidence only (format, lint, source\n' "$preflight_elapsed"
-printf '  audits, benchmark-output + view-construction ownership). No GPU test ran,\n'
-printf '  no menu-bar axis, no wasm. Run scripts/native-gate.sh (+ scripts/web-smoke.sh)\n'
-printf '  for a full receipt before claiming the native/wasm suite passed.\n'
+printf 'preflight: PASSED in %ss — targeted evidence only, NOT a full receipt (format,\n' "$preflight_elapsed"
+printf '  lint, source audits, benchmark-output + view-construction ownership). No GPU\n'
+printf '  test ran, no menu-bar axis, no wasm. Run scripts/native-gate.sh (+\n'
+printf '  scripts/web-smoke.sh) for a full receipt before claiming the native/wasm\n'
+printf '  suite passed.\n'
