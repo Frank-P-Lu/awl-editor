@@ -191,7 +191,7 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
 fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
     let _guard = crate::testlock::serial();
     let from_manifest_root = ungated_frame_side_callers();
-    let elsewhere = std::env::temp_dir();
+    let elsewhere = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let _cwd = crate::fs::CwdGuard::enter(&elsewhere);
     let from_elsewhere = ungated_frame_side_callers();
     assert_eq!(

@@ -221,12 +221,12 @@ pub fn set_cjk_priority(langs: &[Lang]) {
 }
 
 /// Settings-row Auto/Explicit flag; [`CJK_PRIORITY`] itself is always concrete.
-static CJK_PRIORITY_AUTO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+static CJK_PRIORITY_AUTO: crate::toggle::Toggle = crate::toggle::Toggle::new(true);
 pub fn cjk_priority_is_auto() -> bool {
-    CJK_PRIORITY_AUTO.load(std::sync::atomic::Ordering::Relaxed)
+    CJK_PRIORITY_AUTO.on()
 }
 pub fn set_cjk_priority_auto(auto: bool) {
-    CJK_PRIORITY_AUTO.store(auto, std::sync::atomic::Ordering::Relaxed);
+    CJK_PRIORITY_AUTO.set(auto);
 }
 
 /// PROMOTE `lang` to the FRONT of the CURRENT live ladder, keeping the

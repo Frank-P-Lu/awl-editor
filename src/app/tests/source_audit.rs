@@ -157,7 +157,8 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // that same file after a forget, to prove the rewrite kept the
         // hand-edited comments. `new_hermetic`'s private internal fs hides both
         // halves of that, so the fake has to stay the caller's.
-        ("app/files/tests.rs", 25),
+        // Auto/Explicit CJK persistence inspects config.toml in the caller-owned fake.
+        ("app/files/tests.rs", 26),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
