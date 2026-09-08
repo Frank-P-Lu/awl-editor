@@ -945,6 +945,120 @@ fn a_footnote_slot_covers_its_own_shaped_number_in_every_world() {
     p.sync_theme();
 }
 
+/// The numbers to grade in LADDER mode: one per base mark (1-6), then past
+/// the doubling boundary into a second (7-12) and third (13, 19) pass around
+/// the same six-mark roster — the never-tofu axis this item's brief names:
+/// every mark AND every doubled run must shape to real ink, in every world,
+/// from the bundled `Awl Marks` face rather than the world's own display
+/// face (several of which lack `† ‡ ‖ ¶` — the exact gap the roster's
+/// `reference-537` tags exist to close).
+const FOOTNOTE_LADDER_NUMBERS: [usize; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 13, 19];
+
+/// **A FOOTNOTE'S LADDER SLOT COVERS ITS OWN SHAPED MARK, IN EVERY WORLD, AT
+/// EVERY RUNG OF THE ROSTER AND EVERY DOUBLING DEPTH.** The ladder-mode
+/// sibling of [`a_footnote_slot_covers_its_own_shaped_number_in_every_world`]
+/// above — same covering claim, same non-vacuity discipline (PRESENCE: a
+/// zero-width mark would satisfy the covering claim about nothing), applied
+/// to `crate::markdown::footnote_ladder_on()` instead of the default numeric
+/// path. Every world is graded regardless of its OWN display face's glyph
+/// coverage, because the mark is shaped from [`crate::render::SYMBOL_FAMILY`]
+/// (`Awl Marks`), not from `p.shaped_font` — the routing decision this test
+/// would catch a regression of (route it back through `p.shaped_font` and at
+/// least one world's face lacks the glyph, dropping `width` to whatever that
+/// face's own fallback/notdef substitutes).
+#[test]
+fn a_footnote_slot_covers_its_own_shaped_ladder_mark_in_every_world() {
+    let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    crate::markdown::set_footnote_ladder_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping a_footnote_slot_covers_its_own_shaped_ladder_mark_in_every_world: none"
+        );
+        return;
+    };
+    let mut graded = 0usize;
+    for t in theme::THEMES.iter() {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        let metrics = p.metrics;
+        let family = p.shaped_font;
+        for number in FOOTNOTE_LADDER_NUMBERS {
+            let slot = p.substitute_advances.footnote_slot(number);
+            let (_, width) = crate::render::spans::shape_footnote_number(
+                &mut p.font_system,
+                metrics,
+                family,
+                number,
+                theme::muted().to_glyphon(),
+            );
+            let mark = crate::markdown::footnote_ladder_mark(number);
+            assert!(
+                width > 1.0,
+                "{}: ladder mark {mark:?} (n={number}) must shape to real ink ({width}px) or \
+                 the covering claim below is about nothing — check it did not silently tofu",
+                t.name
+            );
+            assert!(
+                slot >= width - 0.01,
+                "{}: ladder mark {mark:?} (n={number}) shapes {width}px but reserves only \
+                 {slot}px — the painted mark overruns into the prose that follows it",
+                t.name
+            );
+            graded += 1;
+        }
+    }
+    assert_eq!(
+        graded,
+        theme::THEMES.len() * FOOTNOTE_LADDER_NUMBERS.len(),
+        "every world x ladder-rung cell is graded"
+    );
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// The END-TO-END ladder half: a document with thirteen footnotes — past the
+/// doubling boundary, so a real DOUBLED mark (`**`) actually paints — driven
+/// through a real `prepare` on every world, so the `debug_assert!` inside
+/// `FootnoteNumbers::append_areas` is reached with ladder-mode ink. Mirrors
+/// `a_ten_footnote_document_paints_every_number_inside_its_slot` below.
+#[test]
+fn a_thirteen_footnote_ladder_document_paints_every_mark_inside_its_slot() {
+    let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    crate::markdown::set_wysiwyg_on(true);
+    crate::markdown::set_footnote_ladder_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping a_thirteen_footnote_ladder_document_paints_every_mark_inside_its_slot: none");
+        return;
+    };
+    let mut doc = String::new();
+    for i in 1..=13 {
+        doc.push_str(&format!("para {i} with a note[^n{i}] in it\n\n"));
+    }
+    for i in 1..=13 {
+        doc.push_str(&format!("[^n{i}]: definition {i}\n"));
+    }
+    let caret_line = doc.lines().count().saturating_sub(1);
+    for t in theme::THEMES.iter() {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        p.set_view(&view_md(&doc, caret_line, 0));
+        let marks = p.footnote_marks();
+        assert!(
+            marks.iter().any(|(_, _, number, _)| *number >= 7),
+            "{}: the fixture must actually paint a DOUBLED ladder mark — past the six-mark \
+             roster's own boundary",
+            t.name
+        );
+        // The `debug_assert!` in `FootnoteNumbers::append_areas` IS the
+        // assertion; a slot too small for the real ink panics inside here.
+        p.prepare(&device, &queue, W, H).unwrap();
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
 /// The END-TO-END half: a real document with a two-digit footnote, driven
 /// through a real `prepare` on every world, so the `debug_assert!` inside
 /// `FootnoteNumbers::append_areas` is actually reached. That assert is the

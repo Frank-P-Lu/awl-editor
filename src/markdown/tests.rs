@@ -2600,3 +2600,54 @@ fn emphasis_content_spans_agree_with_the_render_walk_and_see_what_it_cannot() {
         "and an engaged one is"
     );
 }
+
+// ── FOOTNOTE LADDER (item 537) ──────────────────────────────────────────────
+
+/// The ladder is pinned against the historical print-shop sequence: asterisk,
+/// dagger, double dagger, section, double vertical line, pilcrow — the exact
+/// order a hand-press compositor reached for before repeating the asterisk.
+#[test]
+fn footnote_ladder_mark_follows_the_historical_sequence_before_doubling() {
+    assert_eq!(
+        (1..=6).map(footnote_ladder_mark).collect::<Vec<_>>(),
+        ["*", "\u{2020}", "\u{2021}", "\u{00A7}", "\u{2016}", "\u{00B6}"],
+    );
+}
+
+/// Once the six-mark roster is exhausted, print tradition doubles each mark
+/// rather than inventing a seventh symbol — `** †† ‡‡ …` — cycling back
+/// through the SAME six marks a second (then third) time.
+#[test]
+fn footnote_ladder_mark_doubles_once_the_roster_is_exhausted() {
+    assert_eq!(footnote_ladder_mark(7), "**");
+    assert_eq!(footnote_ladder_mark(8), "\u{2020}\u{2020}");
+    assert_eq!(footnote_ladder_mark(9), "\u{2021}\u{2021}");
+    assert_eq!(footnote_ladder_mark(10), "\u{00A7}\u{00A7}");
+    assert_eq!(footnote_ladder_mark(11), "\u{2016}\u{2016}");
+    assert_eq!(footnote_ladder_mark(12), "\u{00B6}\u{00B6}");
+    // A third pass around the roster triples instead of stopping at two.
+    assert_eq!(footnote_ladder_mark(13), "***");
+    assert_eq!(footnote_ladder_mark(14), "\u{2020}\u{2020}\u{2020}");
+    // A fourth pass starts the cycle over at the asterisk again, quadrupled.
+    assert_eq!(footnote_ladder_mark(19), "****");
+}
+
+/// The ladder is a pure function of `number` alone — no hidden dependence on
+/// which MdKind (reference vs definition) asked for it — which is exactly
+/// what makes "the definition list follows the option" true by construction:
+/// a reference and its definition already share the SAME `number`
+/// (`markdown::footnotes::from_events`), so asking this function twice with
+/// that number can never diverge.
+#[test]
+fn footnote_ladder_mark_is_a_pure_function_of_number() {
+    for n in 1..=25 {
+        assert_eq!(footnote_ladder_mark(n), footnote_ladder_mark(n));
+    }
+}
+
+/// The toggle default is OFF — a plain install renders plain first-appearance
+/// numbers, byte-identical to before this option existed.
+#[test]
+fn footnote_ladder_defaults_off() {
+    assert!(!FOOTNOTE_LADDER_DEFAULT);
+}

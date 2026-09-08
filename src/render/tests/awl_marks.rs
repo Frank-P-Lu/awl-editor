@@ -104,6 +104,26 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
     }
 }
 
+/// **THE PRODUCT CONSTANT MATCHES THE ROSTER'S OWN PROMISE.** The roster
+/// enrolls exactly `* † ‡ § ‖ ¶` under `reference-537` (the assertion above);
+/// this ties `crate::markdown::FOOTNOTE_LADDER_MARKS` — the actual six marks
+/// the footnote-ladder display option cycles through — to that same set, so a
+/// roster edit that drops or reorders one of the six (or a product edit that
+/// drifts from it) fails HERE rather than shipping a mark with no guaranteed
+/// coverage in the bundled face.
+#[test]
+fn footnote_ladder_marks_match_the_roster_reference_537_enrollment_exactly() {
+    let from_roster: BTreeSet<u32> = role_codepoints("reference-537");
+    let from_product: BTreeSet<u32> = crate::markdown::FOOTNOTE_LADDER_MARKS
+        .iter()
+        .map(|c| *c as u32)
+        .collect();
+    assert_eq!(
+        from_product, from_roster,
+        "markdown::FOOTNOTE_LADDER_MARKS must be exactly the roster's reference-537 set"
+    );
+}
+
 /// CMAP PRESENCE IS NOT GLYPH PRESENCE. A cmap may legally map a codepoint to
 /// glyph zero (`.notdef`), or to an empty/zero-sized glyph. Either shape keeps
 /// the key in the cmap while drawing tofu or nothing. Ask the derived face's
