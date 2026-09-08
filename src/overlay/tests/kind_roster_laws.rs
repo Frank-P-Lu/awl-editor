@@ -126,7 +126,11 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     }
     // Prompt surfaces and the pointer-anchored context menu orient without a
     // title prefix; every other kind draws one.
-    for k in [OverlayKind::Rename, OverlayKind::KeepName, OverlayKind::Context] {
+    for k in [
+        OverlayKind::Rename,
+        OverlayKind::KeepName,
+        OverlayKind::Context,
+    ] {
         assert!(
             !k.draws_title_prefix(),
             "{k:?} should not draw the title prefix"

@@ -165,7 +165,9 @@ fn dominant_ink(
 }
 
 fn chan_dist(a: [u8; 4], b: [u8; 4]) -> u8 {
-    a[0].abs_diff(b[0]).max(a[1].abs_diff(b[1])).max(a[2].abs_diff(b[2]))
+    a[0].abs_diff(b[0])
+        .max(a[1].abs_diff(b[1]))
+        .max(a[2].abs_diff(b[2]))
 }
 
 /// THE LAW: over every world in `THEMES` (derived from the roster, never a
