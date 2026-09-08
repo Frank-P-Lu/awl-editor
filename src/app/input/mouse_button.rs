@@ -54,10 +54,10 @@ impl App {
             }
             return;
         }
-        // A NON-PRIMARY button may still be a follow gesture — the Linux emacs
-        // flavor seeds middle-click (mouse-2) the same way it seeds the Meta
-        // and `C-x` key layers, through the one roster in `keymap::platform`.
-        // Inert everywhere else, so this is a no-op on Mac and under `native`.
+        // A NON-PRIMARY button may still be a follow gesture — Linux offers
+        // middle-click (mouse-2) on either keymap flavor, through the one
+        // roster in `keymap::platform` (a `[keys] follow` override can widen
+        // or replace it). Inert on Mac, where no gesture claims this button.
         if button == MouseButton::Middle {
             if state == ElementState::Pressed {
                 self.press_follow_gesture(crate::keymap::PointerButton::Middle);
@@ -111,8 +111,9 @@ impl App {
 
     /// THE POINTER DOOR onto the follow affordance, shared by every button that
     /// can carry one. Asks `keymap::follows_link` — the one selection point over
-    /// the per-convention/per-flavor gesture roster — whether THIS button with
-    /// THESE modifiers follows, and only then reaches the follow seam. Returns
+    /// the per-convention gesture roster, replaced wholesale by a `[keys]
+    /// follow` override when one parses — whether THIS button with THESE
+    /// modifiers follows, and only then reaches the follow seam. Returns
     /// whether the press was spent following, so the caller swallows it.
     ///
     /// The two guards are the ones the ⌘-click affordance has always carried:
@@ -124,7 +125,7 @@ impl App {
         }
         let follows = crate::keymap::follows_link(
             crate::convention::Convention::current(),
-            self.config.keymap_flavor(),
+            &self.config.follow,
             button,
             self.input.keyboard.mods.state(),
         );

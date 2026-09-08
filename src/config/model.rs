@@ -31,6 +31,16 @@ pub struct Config {
     pub keymap: Option<String>,
     pub date_format: Option<String>,
     pub keys: Vec<(String, Vec<String>)>,
+    /// `[keys] follow = "…"` — the mouse FOLLOW-GESTURE override, pulled out
+    /// of the generic `keys` table above rather than left in it: "follow" is
+    /// not a command-palette action name, so leaving it in `keys` would make
+    /// `KeymapState::apply_overrides` report it as an unknown action on every
+    /// load. Raw, unparsed strings — `keymap::platform::active_follow_gestures`
+    /// is the one owner that parses them (`keyspec::parse_pointer_chord`) and
+    /// decides whether they replace the built-in roster. Unlike `keys`, no
+    /// 2-slot cap: the follow roster is a small fixed SET, not a native/emacs
+    /// pair, so a line naming three gestures is not a mistake to truncate.
+    pub follow: Vec<String>,
     pub linux_keep_emacs: Vec<String>,
     pub path: PathBuf,
 }
@@ -68,6 +78,7 @@ impl Config {
             keymap: None,
             date_format: None,
             keys: Vec::new(),
+            follow: Vec::new(),
             linux_keep_emacs: Vec::new(),
             path: PathBuf::new(),
         }
@@ -246,6 +257,21 @@ impl Config {
         }
         if let Some(keys) = table.get("keys").and_then(|v| v.as_table()) {
             for (name, val) in keys {
+                // "follow" names the mouse gesture override, not a command —
+                // diverted to its own field (see `Config::follow`'s doc)
+                // BEFORE the 2-slot cap below, which is a command-rebind rule
+                // that doesn't apply to the follow roster.
+                if name == "follow" {
+                    cfg.follow = match val {
+                        toml::Value::String(s) => vec![s.clone()],
+                        toml::Value::Array(arr) => arr
+                            .iter()
+                            .filter_map(|v| v.as_str().map(str::to_string))
+                            .collect(),
+                        _ => continue,
+                    };
+                    continue;
+                }
                 let chords: Vec<String> = match val {
                     toml::Value::String(s) => vec![s.clone()],
                     toml::Value::Array(arr) => arr

@@ -201,6 +201,10 @@ const CONFIG_KEYS: &[ConfigKey] = &[
         ty: ConfigType::KeyTable,
     },
     ConfigKey {
+        key: "follow",
+        ty: ConfigType::List("mouse gestures"),
+    },
+    ConfigKey {
         key: "linux_keep_emacs",
         ty: ConfigType::List("chords"),
     },
@@ -228,7 +232,9 @@ pub(crate) const CONFIG_NON_KEYS: &[&str] = &["path"];
 pub(crate) fn config_default(key: &str) -> Cell {
     let empty = crate::config::Config::empty();
     match key {
-        "default_folder" | "workspace" | "cjk_priority" | "keys" | "linux_keep_emacs" => Cell::Dash,
+        "default_folder" | "workspace" | "cjk_priority" | "keys" | "follow" | "linux_keep_emacs" => {
+            Cell::Dash
+        }
         "theme" => Cell::code(crate::theme::THEMES[crate::theme::DEFAULT_THEME].name),
         "zoom" => range_default(&crate::range::ZOOM),
         "scroll_sensitivity" => range_default(&crate::range::SCROLL_SENSITIVITY),

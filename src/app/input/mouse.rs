@@ -865,7 +865,7 @@ impl App {
             && crate::context_menu::modified_link_hover(
                 crate::keymap::follows_link(
                     crate::convention::Convention::current(),
-                    self.config.keymap_flavor(),
+                    &self.config.follow,
                     crate::keymap::PointerButton::Primary,
                     self.input.keyboard.mods.state(),
                 ),
