@@ -70,6 +70,8 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-577`, worktree `.claude/worktrees/item-577`.
+
 `scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
 version is already on PATH, so a warm run pays 0s and this was invisible until item 566
 timed the first cold run in sixty: **4m25s**, the second-largest line in that job's
@@ -450,6 +452,8 @@ pixel law — it renders on the shared device.
 
 ### 606 — 570's closing 99 moves to B: after the last line's own text (user decision, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-606`, worktree `.claude/worktrees/item-606`.
+
 ⬜ DECIDED, READY. The user saw the A/B captures (Paperbark and Bowerbird, one-line and
 multi-line) and chose B. Per-world was asked and declined: where a closing mark sits is a
 typographic rule, not a world identity — one answer, twenty worlds. Reopen only if a live
@@ -544,6 +548,8 @@ production tier.
 ---
 
 ### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-609`, worktree `.claude/worktrees/item-609`.
 
 ⬜ DECIDED, READY — coordinate with 589 (shared transient chrome): this item is the one
 surface 589's "each world's authored composition" rule does NOT apply to, by decision.
@@ -730,6 +736,8 @@ Routing: worker Sonnet medium; one capture round, no audit beyond the law.
 ---
 
 ### 619 — the no-document screen says which folder is open (user report, 2026-09-08)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-619`, worktree `.claude/worktrees/item-619`.
 
 ⬜ READY. The user opened a folder of markdown files and saw the same blank screen as before, and read it as "nothing happened" — the folder HAD opened (the picker lists it), but the screen gave no sign. That is a real gap in the first-run/no-document state, not a bug in opening. Read the current state out of the tree first: `app/lifecycle.rs` builds the title through `window_title_no_document`, and `firstrun::is_first_run` decides the welcome; find what the empty document surface paints when `root` is set but `file` is not (the empty-state notice law in `render/plan/tests.rs` is the seam).
 
