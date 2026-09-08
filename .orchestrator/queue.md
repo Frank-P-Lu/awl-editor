@@ -8,7 +8,8 @@
 
 ### 626 — verify macOS document text through its range interface after 584 (user follow-up, 2026-09-08)
 
-🟢 READY — diagnosis first; not dispatched. Preserve the user's existing priority order
+🟢 READY — initial diagnosis performed directly; native OS probe blocked by missing
+accessibility permission, not by an observed product failure. Preserve the user's existing priority order
 for 624/625; this does not authorize interrupting that work.
 
 Evidence: a live CUA session saw an editable document node with its correct filename
@@ -16,7 +17,11 @@ but no Value although prose was visible; `selectText` could not find that prose.
 Find's accessible SetValue succeeded and its match description changed to “1 of 2
 matches”. The attempted document-switch probe did NOT complete: clipboard timeout
 and offscreen-element errors prevented opening the seeded fixture. The running
-binary's revision was not established. This is not a confirmed recurrence of 584,
+binary was subsequently identified through About as `dbd4d2f5c415`; git ancestry
+confirms it includes 584. A user-authorized read-only native AX probe was compiled
+and run against that process, but `AXIsProcessTrusted()` returned false and no
+document node was readable. No permission changes were made. Native range results
+remain unmeasured; absence of permission is not an accessibility product defect. This is not a confirmed recurrence of 584,
 and there was no VoiceOver listening test. Earlier conversational claims that the
 live symptom proved document accessibility broken were too strong.
 
