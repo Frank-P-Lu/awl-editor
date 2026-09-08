@@ -23,6 +23,7 @@ mod folds;
 #[cfg(not(target_arch = "wasm32"))]
 mod frames;
 mod goto_line_jump;
+mod han_evidence;
 mod i18n_fixtures;
 mod layout_oracle;
 mod metric_scale;

@@ -1259,6 +1259,70 @@ fn write_pref_persists_cjk_priority_as_a_toml_array() {
 }
 
 #[test]
+fn cjk_priority_accepts_the_literal_auto_string_as_none() {
+    // `cjk_priority = "auto"` is Auto — the SAME representation as leaving
+    // the key out entirely (`cjk_priority_or_default` and
+    // `apply_sticky_globals` both only ever see `None` either way).
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"auto\"\n").unwrap();
+        let loaded = Config::load(p.clone());
+        assert_eq!(loaded.cjk_priority, None);
+        assert_eq!(
+            loaded.cjk_priority_or_default(),
+            crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec()
+        );
+    });
+}
+
+#[test]
+fn cjk_priority_auto_string_is_case_insensitive() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"AUTO\"\n").unwrap();
+        assert_eq!(Config::load(p.clone()).cjk_priority, None);
+    });
+}
+
+#[test]
+fn cjk_priority_explicit_array_still_parses_alongside_auto_support() {
+    // Adding the `"auto"` string branch must not disturb the pre-existing
+    // array parse — probed on both sides of the condition.
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = [\"ko\", \"ja\"]\n").unwrap();
+        let loaded = Config::load(p.clone());
+        assert_eq!(
+            loaded.cjk_priority,
+            Some(vec![
+                crate::frontmatter::Lang::Ko,
+                crate::frontmatter::Lang::Ja,
+            ])
+        );
+    });
+}
+
+#[test]
+fn cjk_priority_unrecognized_string_is_inert() {
+    // Not "auto", not an array: unknown value, never a crash, never treated
+    // as Auto by accident — the field is simply left untouched (`None`,
+    // the empty-config default), matching "unknown keys inert, never crash."
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"klingon\"\n").unwrap();
+        assert_eq!(Config::load(p.clone()).cjk_priority, None);
+    });
+}
+
+#[test]
 fn write_pref_upserts_without_clobbering_keys_or_comments() {
     // The write-on-change sticky-pref path, exercised over the InMemoryFs seam.
     use std::sync::Arc;

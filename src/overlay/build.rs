@@ -91,10 +91,11 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         OverlayKind::Dictionary => {
             Some(OverlayState::new_dictionary(crate::spell::active_variant()))
         }
-        // CJK-priority language picker: the four languages + whichever currently
-        // sits at the FRONT of the live ladder (pre-selected; nothing previews
-        // on move, mirroring Dictionary).
+        // CJK-priority language picker: Auto + the four languages, whichever
+        // is currently active pre-selected (nothing previews on move,
+        // mirroring Dictionary).
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
+            crate::frontmatter::cjk_priority_is_auto(),
             crate::frontmatter::cjk_priority()
                 .first()
                 .copied()

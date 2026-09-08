@@ -41,7 +41,13 @@ impl App {
             "file_visibility" => self.config.file_visibility = Some(value == "true"),
             "keymap" => self.config.keymap = Some(value.trim_matches('"').to_string()),
             "date_format" => self.config.date_format = Some(value.trim_matches('"').to_string()),
-            "cjk_priority" => self.config.cjk_priority = Some(crate::frontmatter::cjk_priority()),
+            "cjk_priority" => {
+                self.config.cjk_priority = if crate::frontmatter::cjk_priority_is_auto() {
+                    None
+                } else {
+                    Some(crate::frontmatter::cjk_priority())
+                }
+            }
             _ => {}
         }
     }

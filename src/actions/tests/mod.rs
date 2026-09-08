@@ -308,6 +308,7 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
             crate::theme::active_index(),
         )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
+            crate::frontmatter::cjk_priority_is_auto(),
             crate::frontmatter::cjk_priority()
                 .first()
                 .copied()

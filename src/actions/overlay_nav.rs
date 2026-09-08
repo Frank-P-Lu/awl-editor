@@ -755,15 +755,27 @@ fn accept_process_value(ctx: &mut ActionCtx) -> Option<Effect> {
                 crate::spell::set_active_variant(variant);
                 Effect::OverlayAccept(Dictionary, variant.label().to_string())
             }),
-        CjkLang => ov
-            .selected_value()
-            .and_then(crate::frontmatter::Lang::from_label)
-            .map(|lang| {
-                crate::frontmatter::set_cjk_priority(&crate::frontmatter::promote_cjk_priority(
-                    lang,
-                ));
-                Effect::OverlayAccept(CjkLang, lang.code().to_string())
-            }),
+        // "Auto" is a row of its own, not a `Lang` — resolved by NAME first
+        // (mirrors the label-based Dictionary/CjkLang shape rather than
+        // Date/Keymap's corpus-index shape, since a plain-language row label
+        // is exactly what this picker commits by): reset the ladder to the
+        // built-in default and flip the live global back to Auto. Any other
+        // row resolves through `Lang::from_label` exactly as before.
+        CjkLang => ov.selected_value().and_then(|label| {
+            if label.eq_ignore_ascii_case("Auto") {
+                crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+                crate::frontmatter::set_cjk_priority_auto(true);
+                Some(Effect::OverlayAccept(CjkLang, "auto".to_string()))
+            } else {
+                crate::frontmatter::Lang::from_label(label).map(|lang| {
+                    crate::frontmatter::set_cjk_priority(
+                        &crate::frontmatter::promote_cjk_priority(lang),
+                    );
+                    crate::frontmatter::set_cjk_priority_auto(false);
+                    Effect::OverlayAccept(CjkLang, lang.code().to_string())
+                })
+            }
+        }),
         Date => ov
             .selected_corpus_index()
             .and_then(|index| crate::dateformat::DateFormat::ALL.get(index).copied())

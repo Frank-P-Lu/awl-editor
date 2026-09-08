@@ -752,6 +752,7 @@ impl TextPipeline {
         // `build_line_attrs` -> `add_script_spans`.
         let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
+        self.han_evidence = crate::script::cjk_evidence(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split without line terminators; cosmic-text stores endings separately.
         // Re-add the trailing empty line that `str::lines()` drops so an EOF caret
@@ -800,7 +801,8 @@ impl TextPipeline {
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let doc_lang = self.doc_lang;
-        let cjk_priority = &self.cjk_priority;
+        let cjk_priority =
+            crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let line_attrs_ctx = LineAttrsCtx {
             base: &attrs,
             base_font_size: base_fs,
@@ -809,7 +811,7 @@ impl TextPipeline {
             md_spans: &md_spans,
             syn_spans: &syn_spans,
             doc_lang,
-            cjk_priority,
+            cjk_priority: &cjk_priority,
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
@@ -936,7 +938,8 @@ impl TextPipeline {
         let attrs = self.doc_attrs();
         let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
-        let cjk_priority = self.cjk_priority.clone();
+        let cjk_priority =
+            crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
@@ -1049,7 +1052,8 @@ impl TextPipeline {
         let attrs = self.doc_attrs();
         let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
-        let cjk_priority = self.cjk_priority.clone();
+        let cjk_priority =
+            crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);

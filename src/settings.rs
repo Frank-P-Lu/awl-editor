@@ -459,13 +459,20 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::Spellcheck => on_off(crate::spell::spellcheck_on()).to_string(),
         SettingId::Dictionary => crate::spell::active_variant().label().to_string(),
         SettingId::WritingNits => on_off(crate::nits::nits_on()).to_string(),
-        // The FRONT of the live ambiguity ladder, in writer-words ("Japanese",
-        // never the raw BCP 47 code) — read live like Theme/Dictionary, not
-        // from `values` (see `SettingsValues::gather`'s doc).
-        SettingId::CjkReadsAs => crate::frontmatter::cjk_priority()
-            .first()
-            .map(|l| l.label().to_string())
-            .unwrap_or_else(|| "—".to_string()),
+        // "Auto" when the live global is in Auto mode; otherwise the FRONT of
+        // the live ambiguity ladder, in writer-words ("Japanese", never the
+        // raw BCP 47 code) — read live like Theme/Dictionary, not from
+        // `values` (see `SettingsValues::gather`'s doc).
+        SettingId::CjkReadsAs => {
+            if crate::frontmatter::cjk_priority_is_auto() {
+                "Auto".to_string()
+            } else {
+                crate::frontmatter::cjk_priority()
+                    .first()
+                    .map(|l| l.label().to_string())
+                    .unwrap_or_else(|| "—".to_string())
+            }
+        }
         SettingId::DefaultFolder => values.default_folder.clone(),
         SettingId::ProjectsFolder => values.workspace.clone(),
         SettingId::ProjectRoot => values.project_root.clone(),

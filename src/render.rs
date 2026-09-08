@@ -2822,6 +2822,18 @@ pub struct TextPipeline {
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
     doc_lang: Option<crate::frontmatter::Lang>,
+    /// The document-scoped Han-ambiguity EVIDENCE signal
+    /// ([`crate::script::cjk_evidence`]), cached exactly like [`Self::doc_lang`]
+    /// beside it: both are pure functions of the whole document TEXT, so both
+    /// are computed once in [`Self::set_text_incremental`] and reused by the
+    /// non-text-triggered reshape paths (`restyle_all_lines`,
+    /// `refresh_rule_conceal`) rather than re-scanning the document on every
+    /// zoom/caret pass. Folded into [`Self::cjk_priority`] at the point of use
+    /// via [`crate::script::effective_cjk_priority`] — never read directly by
+    /// the render ladder — so a config-only `cjk_priority` change (which does
+    /// NOT retag the text) still combines with the CURRENT evidence rather
+    /// than a stale one.
+    han_evidence: Option<crate::frontmatter::Lang>,
     script_fonts: text::ScriptFonts,
     /// Mirrored from [`ViewState::doc_source`]; read only by `figure_source`.
     doc_source: Option<DocSource>,
