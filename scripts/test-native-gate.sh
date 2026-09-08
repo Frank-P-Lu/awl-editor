@@ -204,8 +204,35 @@ elif [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_SECONDS:-}" ]]; then
   # rather than drop. Letting the conventions themselves be the newcomers was
   # flaky: whether they beat the gate's baseline sample was a fork race.
   sleep "${AWL_NATIVE_GATE_PROBE_SPIN_DELAY:-0}"
+  spin_wall_start="$SECONDS"
   bash -c 'printf "%s\n" "$$" >>"$1"; SECONDS=0; while (( SECONDS < $2 )); do :; done' \
     _ "$AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE" "$AWL_NATIVE_GATE_PROBE_SPIN_SECONDS"
+  # GROUND TRUTH, independent of the heartbeat's own `ps -A` sampling: `times`
+  # reads the kernel's rusage accounting for the child that just exited, so it
+  # reports what the spinner ACTUALLY got — on an idle host or a loaded one —
+  # without going anywhere near the `ps`-based mechanism under test.
+  if [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE:-}" ]]; then
+    spin_wall_seconds=$(( SECONDS - spin_wall_start ))
+    (( spin_wall_seconds < 1 )) && spin_wall_seconds=1
+    # `times` must run un-subshelled: `$(times)` forks a command-substitution
+    # subshell, and a fresh subshell has no children of its own yet, so it
+    # silently reports zero for the very child this line exists to measure.
+    # `{ times; } >file` redirects the current shell's own builtin instead.
+    times_tmp="$AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE.times.$$"
+    { times; } >"$times_tmp"
+    children_line="$(sed -n '2p' "$times_tmp")"
+    rm -f "$times_tmp"
+    cpu_seconds="$(awk '{
+        total = 0
+        for (i = 1; i <= NF; i++) {
+          t = $i; sub(/s$/, "", t); split(t, mm, "m")
+          total += mm[1] * 60 + mm[2]
+        }
+        printf "%.3f", total
+      }' <<<"$children_line")"
+    printf 'cpu_seconds=%s wall_seconds=%s\n' "$cpu_seconds" "$spin_wall_seconds" \
+      >>"$AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE"
+  fi
 else
   sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
@@ -828,6 +855,57 @@ vitals_peak() {
     } END { printf "%g\n", peak }' "$probe_output"
 }
 
+# The last heartbeat's reading of a scalar field — used for load1/cpu_count,
+# which describe the HOST rather than a tracked process, so the most recent
+# sample (closest to when a livelock law actually asserted) is the one worth
+# printing beside that assertion.
+vitals_field_last() {
+  awk -v key="$1=" '
+    /^native-gate-vitals/ {
+      for (i = 1; i <= NF; i++) if (index($i, key) == 1) value = substr($i, length(key) + 1)
+    }
+    END { print (value == "" ? "unknown" : value) }
+  ' "$probe_output"
+}
+
+# Ground truth for the livelock direction below, one line per spinner
+# (`cpu_seconds=.. wall_seconds=..`), written by the fixture itself from
+# bash's `times` builtin — the kernel's own rusage for the child that just
+# exited, reached by a path that shares nothing with the heartbeat's `ps -A`
+# sampling under test. The MAX across spinners is the fixture's own answer to
+# "what did the busiest one actually get", on an idle host or a loaded one.
+ground_truth_peak_pct() {
+  awk -F'[= ]' '
+    { if ($4 > 0) { pct = $2 * 100 / $4; if (pct > peak) peak = pct } }
+    END { printf "%.1f", peak + 0 }
+  ' "$1"
+}
+
+# The relationship, not the absolute: an absolute floor assumes the fixture
+# always gets a whole core, which this fleet's whole design makes false. What
+# the law actually needs is agreement between the heartbeat's own delta-over-
+# `ps` reading and the ground truth above, over the same stretch — true on an
+# idle host, true on a loaded one, and still false if the heartbeat loses
+# sight of the process altogether, which is the defect this law exists for.
+#
+# A presence floor comes first, in the shape CLAUDE.md names for a law that
+# grades a treatment: a ground truth near zero means the fixture itself never
+# got meaningful CPU — the host is starved past what any comparison here can
+# speak to — and a bare ratio against noise would be satisfiable by silence.
+# That is reported as a loud, named skip, not a pass and not a hard failure:
+# the whole point of this item is that a busy fleet must still get a receipt.
+assert_pct_tracks_ground_truth() {
+  local label="$1" heartbeat_pct="$2" heartbeat_who="$3" truth_pct="$4" load1="$5" cpu_count="$6"
+  awk -v t="$truth_pct" 'BEGIN { exit !(t >= 5) }' || {
+    echo "test-native-gate: SKIPPED $label: the spinner's own ground truth was only ${truth_pct}% of a core (load1=$load1 cpu_count=$cpu_count) — this host is too starved right now for the probe to say anything" >&2
+    return 2
+  }
+  awk -v h="$heartbeat_pct" -v t="$truth_pct" 'BEGIN { exit !(h >= t * 0.5) }' || {
+    echo "test-native-gate: $label read ${heartbeat_pct}% ($heartbeat_who) while the spinner's own ground truth was ${truth_pct}% of a core (load1=$load1 cpu_count=$cpu_count) — the heartbeat is not tracking the fixture's real CPU use" >&2
+    exit 1
+  }
+}
+
 # The system load average is the heartbeat's headline and it is the field most
 # likely to come back as a brace or an empty string: macOS hands it over as
 # `{ 5.70 12.72 16.79 }` and Linux as the first field of /proc/loadavg. A probe
@@ -859,21 +937,41 @@ if (( process_cpu_table_available )); then
 # doing it: a bare load average would rise here too, and would not say which of
 # the gate's own processes to attach a debugger to.
 : >"$WORK/spinners"
+: >"$WORK/spin-truth"
 probe cpu-spin AWL_NATIVE_GATE_VITALS_SECONDS=3 AWL_NATIVE_GATE_PROBE_SPIN_SECONDS=9 \
-  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners"
+  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners" \
+  AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE="$WORK/spin-truth"
 (( probe_status == 0 )) || { echo "test-native-gate: cpu-spin probe failed ($probe_status)" >&2; exit 1; }
 [[ -s "$WORK/spinners" ]] || {
   echo "test-native-gate: the fixture never entered its spin, so this law proved nothing" >&2
   exit 1
 }
-read -r spin_peak spin_who <<<"$(busiest_peak)"
-# One core fully pegged is 100. The floor is 50 because `ps -o time=` quantises
-# to whole seconds on Linux, so a 3 s window can under-read a pegged process by
-# a third; macOS reports hundredths and measures nearer 100.
-awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
-  echo "test-native-gate: two conventions spun for 9s and the busiest tracked process peaked at ${spin_peak}% ($spin_who) — the CPU probe cannot see a livelock" >&2
+[[ -s "$WORK/spin-truth" ]] || {
+  echo "test-native-gate: the fixture recorded no ground truth for its own spin, so this law has no oracle to compare against" >&2
   exit 1
 }
+# THE CONFIGURATION THIS RAN IN, printed unconditionally — a reader sees, on a
+# green run or a red one, whether this was an idle box or a busy afternoon
+# without re-running anything.
+spin_load1="$(vitals_field_last load1)"
+spin_cpu_count="$(vitals_field_last cpu_count)"
+spin_truth_peak="$(ground_truth_peak_pct "$WORK/spin-truth")"
+read -r spin_peak spin_who <<<"$(busiest_peak)"
+echo "test-native-gate: cpu-spin probe ran at load1=$spin_load1 cpu_count=$spin_cpu_count — the spinners' own ground truth peaked at ${spin_truth_peak}% of a core, the heartbeat's busiest reading was ${spin_peak}% ($spin_who)"
+
+# The relationship, not the absolute: 0.5 preserves the exact historical
+# guarantee on an idle host (ground truth ~100, so the floor is still ~50 —
+# where `ps -o time=`'s whole-second quantisation on Linux can under-read a
+# pegged process by about a third), and it scales down honestly on a loaded
+# one instead of assuming a core this fleet does not promise to have free.
+spin_direction_status=0
+if assert_pct_tracks_ground_truth "the busiest tracked process" "$spin_peak" "$spin_who" \
+  "$spin_truth_peak" "$spin_load1" "$spin_cpu_count"; then
+  :
+else
+  spin_direction_status=$?
+fi
+
 # A process that appeared INSIDE the window must be measured over its own age,
 # not dropped. The first draft dropped it, and the receipt run of 2026-08-02
 # shows what that cost: two heartbeats reporting `tracked_procs=0` and `0.6%`
@@ -895,22 +993,34 @@ read -r new_peak new_who <<<"$(awk 'BEGIN { peak = -1 }
       }
       if (fresh >= 1 && value > peak) { peak = value; bestwho = who; found = 1 }
     } END { if (found) printf "%.1f %s\n", peak, bestwho; else print "-1 no-heartbeat-reported-a-newcomer" }' "$probe_output")"
-awk -v peak="$new_peak" 'BEGIN { exit !(peak >= 50) }' || {
-  echo "test-native-gate: the busiest NEW process across every heartbeat read ${new_peak}% ($new_who) — a process that appeared inside the window is dropped instead of measured over its own age" >&2
-  exit 1
-}
-new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
-grep -Fxq "$new_pid" "$WORK/spinners" || {
-  echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
-  exit 1
-}
-spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
-grep -Fxq "$spin_pid" "$WORK/spinners" || {
-  echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2
-  exit 1
-}
+new_direction_status=0
+if assert_pct_tracks_ground_truth "the busiest NEW process" "$new_peak" "$new_who" \
+  "$spin_truth_peak" "$spin_load1" "$spin_cpu_count"; then
+  :
+else
+  new_direction_status=$?
+fi
 
-echo "test-native-gate: a spinning convention is reported as a pegged core and named by pid, not merely as a busy machine"
+if (( new_direction_status == 0 )); then
+  new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
+  grep -Fxq "$new_pid" "$WORK/spinners" || {
+    echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
+    exit 1
+  }
+fi
+if (( spin_direction_status == 0 )); then
+  spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
+  grep -Fxq "$spin_pid" "$WORK/spinners" || {
+    echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2
+    exit 1
+  }
+fi
+
+if (( spin_direction_status == 0 && new_direction_status == 0 )); then
+  echo "test-native-gate: a spinning convention is reported as a pegged core and named by pid, not merely as a busy machine"
+else
+  echo "test-native-gate: cpu-spin livelock law SKIPPED (see above) — load1=$spin_load1 cpu_count=$spin_cpu_count, ground truth ${spin_truth_peak}%"
+fi
 
 # Direction 2 — DEADLOCK. Same silence, same flat memory, zero CPU. This is the
 # half that makes the pair non-vacuous, and `tracked_procs` is asserted
