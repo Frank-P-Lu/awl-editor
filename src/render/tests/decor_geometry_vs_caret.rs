@@ -1029,7 +1029,9 @@ fn a_thirteen_footnote_ladder_document_paints_every_mark_inside_its_slot() {
     crate::markdown::set_wysiwyg_on(true);
     crate::markdown::set_footnote_ladder_on(true);
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping a_thirteen_footnote_ladder_document_paints_every_mark_inside_its_slot: none");
+        eprintln!(
+            "skipping a_thirteen_footnote_ladder_document_paints_every_mark_inside_its_slot: none"
+        );
         return;
     };
     let mut doc = String::new();

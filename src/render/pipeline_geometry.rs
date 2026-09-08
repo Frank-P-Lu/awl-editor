@@ -278,8 +278,10 @@ impl TextPipeline {
             self.footnote_ladder_latched != crate::markdown::footnote_ladder_on();
         self.footnote_ladder_latched = crate::markdown::footnote_ladder_on();
         let image_preview_dirty = std::mem::take(&mut self.image_preview_dirty);
-        let render_flag_changed =
-            wysiwyg_changed || inline_images_changed || footnote_ladder_changed || image_preview_dirty;
+        let render_flag_changed = wysiwyg_changed
+            || inline_images_changed
+            || footnote_ladder_changed
+            || image_preview_dirty;
         self.cjk_priority = view.cjk_priority.clone();
         // Shape the document text with any active preedit spliced in at the cursor.
         // This is the ONE place a reshape may happen; it is skipped when neither the

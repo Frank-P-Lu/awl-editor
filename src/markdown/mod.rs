@@ -140,8 +140,9 @@ pub fn set_footnote_ladder_on(on: bool) {
 /// pilcrow. Every glyph is in the bundled `Awl Marks` roster
 /// (`assets/fonts/AwlMarks.roster.tsv`, tagged `reference-537`) — the
 /// never-tofu law this display option must not violate.
-pub(crate) const FOOTNOTE_LADDER_MARKS: [char; 6] =
-    ['*', '\u{2020}', '\u{2021}', '\u{00A7}', '\u{2016}', '\u{00B6}'];
+pub(crate) const FOOTNOTE_LADDER_MARKS: [char; 6] = [
+    '*', '\u{2020}', '\u{2021}', '\u{00A7}', '\u{2016}', '\u{00B6}',
+];
 
 /// The traditional-ladder mark text for footnote display `number` (1-based,
 /// first-reference order — the SAME `number` the plain-numeric display

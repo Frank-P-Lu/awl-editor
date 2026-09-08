@@ -249,11 +249,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
     field!("code_ligatures", b_code_ligatures, a_code_ligatures);
     field!("wysiwyg", b_wysiwyg, a_wysiwyg);
     field!("inline_images", b_inline_images, a_inline_images);
-    field!(
-        "footnote_ladder",
-        b_footnote_ladder,
-        a_footnote_ladder
-    );
+    field!("footnote_ladder", b_footnote_ladder, a_footnote_ladder);
     field!(
         "whichkey_force_shown",
         b_whichkey_force_shown,

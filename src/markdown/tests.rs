@@ -2610,7 +2610,9 @@ fn emphasis_content_spans_agree_with_the_render_walk_and_see_what_it_cannot() {
 fn footnote_ladder_mark_follows_the_historical_sequence_before_doubling() {
     assert_eq!(
         (1..=6).map(footnote_ladder_mark).collect::<Vec<_>>(),
-        ["*", "\u{2020}", "\u{2021}", "\u{00A7}", "\u{2016}", "\u{00B6}"],
+        [
+            "*", "\u{2020}", "\u{2021}", "\u{00A7}", "\u{2016}", "\u{00B6}"
+        ],
     );
 }
 

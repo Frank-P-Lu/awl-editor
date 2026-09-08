@@ -151,7 +151,11 @@ fn footnote_definition_and_every_reference_occurrence_share_one_mark_per_number(
         crate::markdown::set_footnote_ladder_on(ladder);
         pipeline.set_view(&parked_view());
         let marks = pipeline.footnote_marks();
-        assert_eq!(marks.len(), 5, "ladder={ladder}: fixture geometry unchanged by the option");
+        assert_eq!(
+            marks.len(),
+            5,
+            "ladder={ladder}: fixture geometry unchanged by the option"
+        );
         let mut by_number: std::collections::BTreeMap<usize, Vec<f32>> = Default::default();
         for (_, _, number, slot) in &marks {
             by_number.entry(*number).or_default().push(*slot);
