@@ -9,6 +9,10 @@ verification scope and ordering; the orchestration guide owns dispatch mechanics
 1. Inspect the diff and identify the behavior, platforms, and source audits it touches.
 2. Run formatting, relevant source audits, compiler/lint checks, and targeted tests
    before expensive GPU sweeps. Register new benchmark modules and fixtures here.
+   `scripts/preflight.sh` composes exactly this step's existing check owners
+   (`scripts/code-health.sh` plus the benchmark-output/view-construction
+   ownership audits) into one standalone, GPU-free command; its pass is
+   targeted evidence, not a full receipt.
 3. Run the required outcome audits and release measurements once the candidate is
    stable. Measurements run without competing builds. Tests that skip their GPU
    subject are reported as skipped, never as evidence that the behavior passed.
@@ -42,9 +46,15 @@ A change to any of these invalidates the affected result. Unknown dependencies m
 rerun, not guessed independence. Changing a test invalidates that test's prior result;
 a bookkeeping repair cannot turn a failed full run into a passing receipt.
 
-Automatic dependency-aware receipt reuse is not implemented. Until it is, executable,
-test, asset, Cargo, shader, and CI changes require the final full gate. The current
-gate's commit-freeze rule still applies; never change its tree or HEAD mid-run.
+A conservative, explicit-registry reuse mechanism (`scripts/verify_cache.py`) exists
+for a small, named set of checks: it reuses a cached PASS only when every declared
+input — tracked source/tests/config, the command, the toolchain, the hardware class,
+and the check's own declared environment branches — hashes identical, never reuses a
+cached failure, and is not wired into the gate path. It does not amount to
+dependency-aware receipt reuse for the gate as a whole. Until a replacement proves
+equivalent coverage, executable, test, asset, Cargo, shader, and CI changes require the
+final full gate. The current gate's commit-freeze rule still applies; never change its
+tree or HEAD mid-run.
 
 After a successful gate, a prose-only policy or queue edit does not require rerunning
 Rust/GPU tests. Inspect the exact diff, check relevant links, and cite the original
