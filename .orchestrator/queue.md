@@ -504,46 +504,6 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ---
 
-### 612 — `target/debug/incremental` has no owner and no reclaimer, and it is the biggest disk lever here (measured by 600's lane, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-612-613`, worktree `.claude/worktrees/item-612-613`; one lane with 613.
-
-⬜ READY — the largest single disk fact on this host, and nothing in the fleet addresses it.
-
-`cargo sweep` cannot touch `target/debug/incremental` at any threshold — measured directly,
-124 KiB before and after a sweep that emptied `deps` and `.fingerprint`. That directory is
-**61–69% of every `target/` on this machine**: 16.5 of 25.4 GiB in the root checkout, 5.2 of
-7.5 and 6.1 of 10.0 in lanes.
-
-After a sweep it is **pure dead weight** — the `deps` it belonged to are gone, so it backs
-nothing. The fleet currently holds about 90 GiB in that state across 14 worktrees.
-
-Build: decide who owns it and on what rule. The obvious candidates are an age-based prune the
-preflight can actually perform, or `CARGO_INCREMENTAL=0` for lane builds (which trades rebuild
-speed for space and should be measured, not assumed). Whatever is chosen, the preflight's
-`SWEEP_YIELD_BYTES` is derived from what recovery can actually reclaim and must be re-derived
-if this door starts reclaiming too.
-
----
-
-### 613 — `test-native-gate.sh`'s free-oracle hardcodes 40 GiB, an undeclared coupling to the healthy floor (found by 600's lane, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-612-613`, same lane as 612.
-
-⬜ READY — small, and it is the "a check runs in one configuration" hazard in miniature.
-
-The probe's fake free-space oracle returns a hardcoded 40 GiB. That is above the healthy floor
-today (27 GiB, and 32 before), so the probes exercise the no-recovery path. **If anyone ever
-raises `HEALTHY_BYTES` past 40 GiB, every native-gate probe silently starts taking the preflight
-lock and running the sweep path** — changing what those laws test without a single one of them
-going red.
-
-Build: derive the oracle's value from the floor it is meant to sit above, or assert the
-relationship so the coupling fails loudly instead of silently. Law: the oracle's value must
-exceed the healthy floor by a stated margin, and the law fails if the floor is raised past it.
-
----
-
 ### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
 
 🟡 IN PROGRESS — Claude (this session), branch `item-608`, worktree `.claude/worktrees/item-608`.
