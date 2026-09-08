@@ -6,48 +6,6 @@
 
 ## Ready to build
 
-### 629 — remove remaining document-wide typing frame preparation (user request, 2026-09-08)
-
-🟢 READY — queued investigation findings; not dispatched. Measure the named owners
-before implementing. Coordinate with other render work; no world-switch redesign.
-
-Evidence: the combined release typing benchmark on the 50,029-word manuscript
-reports 8.194 ms median overall; its stage summaries report 3.588 ms in frame
-preparation, 2.656 ms in view synchronization, and 1.459 ms rendering. Stage summaries
-are separate statistics, not an additive latency decomposition. See
-`benches/typing-search.md` for workload and measurement boundaries.
-
-Two repeated-work mechanisms are confirmed in source; their individual time shares
-are hypotheses. `src/render/rects/underlines.rs::ensure_nit_protos` keys its cache by row
-geometry generation and reshape count, so ordinary edits trigger a scan of all lines.
-Its `destination_ranges` also joins the entire document when Markdown spans exist.
-Writing nits are enabled by default. `src/render/rects.rs::ensure_ornament_lists` invalidates
-on every reshape and walks all logical lines, with repeated full Markdown-span loops
-inside the line loop. Even the manuscript's chapter headings enroll that scan. Spell-squiggle prototypes
-also rebuild on geometry generation, but their cardinality is not yet reported;
-measure misspellings and affected lines before attributing a material cost there.
-
-Build: first add per-owner timing and actual-work counters to the existing
-`typing_live` benchmark through the production prepare path. The older `--bench-frame`
-manual stage replay is not sufficient evidence for this edit workload. Confirm nit
-on/off and equal-length heading/no-heading axes. Then retain semantic nit results
-independently of render geometry, update affected lines with exact scope invalidation,
-and index ornament spans by line or construct rather than multiplying lines by all
-spans. Prefer one owner of each rule. Preserve all enabled diagnostics and ornaments;
-do not hide, debounce, or defer them to make a timing improve.
-
-Done/Verify: same-revision release before/after with the six corpus tiers; count actual
-nit lines/bytes scanned and ornament span tests, including zero-result documents.
-Differential laws against full recomputation cover edit location, Unicode, undo/redo,
-line insertion/deletion, links/destinations, tables, frontmatter, code fences, toggles,
-and buffer identity swaps. Separate semantic invalidation from width/scroll geometry.
-Prove headline work laws fail under a compiling regression. Read `docs/render.md`,
-`docs/markdown.md`, and `docs/harness-reach.md`; render outcome audit and five-shot
-vision smoke, then native gate and wasm. Report measured gains, including a result
-that disproves either cost hypothesis, without promising another multiplier.
-
----
-
 ### 630 — bound document context and parsing work during prose edits (user request, 2026-09-08)
 
 🟢 READY — lower priority than 629; queued only, not dispatched. Profile before choosing
