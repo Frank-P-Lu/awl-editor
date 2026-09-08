@@ -23,7 +23,7 @@
 //! `render/pipeline_*` reaches it.
 
 use crate::render::TextPipeline;
-use crate::render::plan::{PanelGeometry, PanelRowRect};
+use crate::render::plan::{PanelControlRect, PanelGeometry, PanelRowRect};
 
 /// `search.panel`, or `"null"` while no panel is summoned.
 pub(super) fn panel_json(pipeline: &TextPipeline) -> String {
@@ -32,12 +32,16 @@ pub(super) fn panel_json(pipeline: &TextPipeline) -> String {
     };
     format!(
         "{{ \"card\": {}, \"text\": {{ \"left\": {}, \"top\": {} }}, \
-         \"rows\": [{}], \"case_toggle\": {} }}",
+         \"rows\": [{}], \"controls\": [{}] }}",
         card_json(&g),
         g.text_left,
         g.text_top,
         g.rows.iter().map(row_json).collect::<Vec<_>>().join(", "),
-        case_toggle_json(&g),
+        g.controls
+            .iter()
+            .map(control_json)
+            .collect::<Vec<_>>()
+            .join(", "),
     )
 }
 
@@ -47,7 +51,8 @@ fn card_json(g: &PanelGeometry) -> String {
 }
 
 /// One shaped row's band. `row` indexes the card's own shaped lines (0 = find,
-/// 1 = replace, 2 = the key-hint line), NOT a document row.
+/// 1 = replace when revealed, then the nav row and — once replace is revealed
+/// — the actions row), NOT a document row.
 fn row_json(row: &PanelRowRect) -> String {
     format!(
         "{{ \"row\": {}, \"top\": {}, \"h\": {} }}",
@@ -55,13 +60,13 @@ fn row_json(row: &PanelRowRect) -> String {
     )
 }
 
-/// The `Aa` case indicator's x-span, or `null` when the find row shaped fewer
-/// than the two glyphs it is read from. `null` rather than a zero-width span for
-/// the reason the neighbouring lane keys use it: "there is no target" and "the
-/// target is empty" are different facts, and a width of 0 states neither.
-fn case_toggle_json(g: &PanelGeometry) -> String {
-    g.case_toggle.map_or_else(
-        || "null".to_string(),
-        |(x0, x1)| format!("{{ \"x0\": {x0}, \"x1\": {x1} }}"),
+/// One named control box — a field, a nav step button, the match-case
+/// checkbox, or a Replace/Replace-all button — as the CLICK TARGET
+/// `panel_hit` resolves to the same name's `PanelHit` variant.
+fn control_json(c: &PanelControlRect) -> String {
+    let [x, y, w, h] = c.rect;
+    format!(
+        "{{ \"name\": \"{}\", \"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h} }}",
+        c.name
     )
 }

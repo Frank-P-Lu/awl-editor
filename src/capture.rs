@@ -55,9 +55,17 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          Verify clause asking "does the preview follow the selected
 ///          orphan's colour" had to guess the panel's pixel bounds from
 ///          scattered private layout constants instead of reading them.
+/// `/212` — `search.panel` loses `case_toggle` and gains `controls`: an
+///          array of every drawn field/button/checkbox box this frame
+///          (`{name, x, y, w, h}`), `name` one of `find_field`,
+///          `replace_field`, `nav_prev`, `nav_next`, `case_toggle`,
+///          `replace_button`, `replace_all_button` — present only for the
+///          ones the current row plan actually shaped. The bordered chrome
+///          round added real click targets the old single `case_toggle`
+///          span could not name.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 211;
+pub const SCHEMA_VERSION: u32 = 212;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

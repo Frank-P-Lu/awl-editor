@@ -94,6 +94,13 @@ pub enum Action {
     /// jumps focus into the replacement (consumed by the shared search-key seam,
     /// `crate::search::keys::intercept`, on both drivers). Tab switches fields.
     OpenReplace,
+    /// A CLICK on one of the summoned find/replace panel's own controls
+    /// (`app/input/mouse.rs::panel_click`'s only dispatch). Reaches
+    /// `apply_transition` like every other action-producing door; the panel's
+    /// own action gate (`search::keys::intercept_action`) is the one and only
+    /// place this is ever handled — routing a click through the shared core
+    /// instead of a second, mouse-only path into the search slot.
+    SearchPanel(crate::search::PanelControl),
     Cancel,
     OpenThemeMenu,
     OpenCommandPalette,
