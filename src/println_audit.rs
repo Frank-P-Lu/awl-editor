@@ -142,6 +142,8 @@ const EXPECTED: &[(&str, usize)] = &[
     ("render/caretbench.rs", 6),
     ("render/benchsuite/mod.rs", 12),
     ("render/benchsuite/report.rs", 9),
+    // Live typing stage reports are hidden benchmark protocol output.
+    ("render/benchsuite/scenarios/typing.rs", 2),
     // `--soak-gpu`'s bounded native-probe report is CLI product: result,
     // counters (incl. the per-cause `skipped_by_kind` breakdown), memory
     // summaries, recovery timings, and explicit defects. All print sites live
