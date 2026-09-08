@@ -857,8 +857,8 @@ reason = "Proves the folded field wraps continuously at its own hierarchy-repeat
 lint = "clippy::too_many_lines"
 file = "src/testlock/misc.rs"
 function = "leaked"
-message = "this function has too many lines (102/100)"
-reason = "The one exhaustive leak-detection sweep every sticky toggle/global must be pinned in; the warp-grid ambient-motion Toggle joins the other fields this function already checks."
+message = "this function has too many lines (105/100)"
+reason = "The one exhaustive leak-detection sweep every sticky toggle/global must be pinned in; before/after destructuring and the CJK automatic preference report stay with the other fields this function checks."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
