@@ -105,6 +105,25 @@ struct LiveTimings {
     geometry_lines_patched: u64,
     geometry_rows_patched: u64,
     geometry_index_probes: u64,
+    // Frame-preparation owner witnesses (queue item 629). `_ms` fields are
+    // wall-clock SUMS across every key (not medians — a per-owner miss is rare
+    // and lumpy, so a sum states the real cumulative cost over the run instead
+    // of hiding it in a mostly-zero median). The `_lines`/`_spans`/`_calls`
+    // counters are also sums, so "every key rescans the whole document" shows
+    // up as `lines_total == doc_lines * KEYS`, not as a single-key sample.
+    nit_scan_ms: f64,
+    nit_scan_lines: u64,
+    nit_scan_misses: u64,
+    ornament_scan_ms: f64,
+    ornament_scan_lines: u64,
+    ornament_scan_spans: u64,
+    ornament_scan_misses: u64,
+    destination_join_ms: f64,
+    destination_join_calls: u64,
+    destination_join_bytes: u64,
+    squiggle_scan_ms: f64,
+    squiggle_scan_misspellings: u64,
+    squiggle_scan_misses: u64,
 }
 
 impl LiveTimings {
@@ -133,6 +152,19 @@ impl LiveTimings {
             geometry_lines_patched: 0,
             geometry_rows_patched: 0,
             geometry_index_probes: 0,
+            nit_scan_ms: 0.0,
+            nit_scan_lines: 0,
+            nit_scan_misses: 0,
+            ornament_scan_ms: 0.0,
+            ornament_scan_lines: 0,
+            ornament_scan_spans: 0,
+            ornament_scan_misses: 0,
+            destination_join_ms: 0.0,
+            destination_join_calls: 0,
+            destination_join_bytes: 0,
+            squiggle_scan_ms: 0.0,
+            squiggle_scan_misspellings: 0,
+            squiggle_scan_misses: 0,
         }
     }
 
@@ -161,6 +193,20 @@ impl LiveTimings {
         self.geometry_index_probes += frame.text.geometry_index_probes;
         self.conceal.push(frame.conceal_ms);
         self.caret.push(frame.caret_ms);
+        let o = frame.owner_scan;
+        self.nit_scan_ms += o.nit_scan_ms;
+        self.nit_scan_lines += o.nit_scan_lines;
+        self.nit_scan_misses += u64::from(o.nit_scan_lines > 0);
+        self.ornament_scan_ms += o.ornament_scan_ms;
+        self.ornament_scan_lines += o.ornament_scan_lines;
+        self.ornament_scan_spans = self.ornament_scan_spans.max(o.ornament_scan_spans);
+        self.ornament_scan_misses += u64::from(o.ornament_scan_lines > 0);
+        self.destination_join_ms += o.destination_join_ms;
+        self.destination_join_calls += o.destination_join_calls;
+        self.destination_join_bytes = self.destination_join_bytes.max(o.destination_join_bytes);
+        self.squiggle_scan_ms += o.squiggle_scan_ms;
+        self.squiggle_scan_misspellings += o.squiggle_scan_misspellings;
+        self.squiggle_scan_misses += u64::from(o.squiggle_scan_misspellings > 0 || o.squiggle_scan_ms > 0.0);
     }
 
     fn validate(
@@ -237,6 +283,27 @@ impl LiveTimings {
             median_ms(&self.conceal),
             median_ms(&self.caret),
         );
+        // `destination_join_bytes` is a size, not a per-key rate, so it is
+        // reported once via `witnesses()` instead of on this per-key line.
+        println!(
+            "BENCH-OWNERS typing_live {name} nit_scan_ms={:.3}ms nit_scan_lines={} \
+             nit_scan_misses={} ornament_scan_ms={:.3}ms ornament_scan_lines={} \
+             ornament_scan_spans={} ornament_scan_misses={} destination_join_ms={:.3}ms \
+             destination_join_calls={} squiggle_scan_ms={:.3}ms squiggle_scan_misspellings={} \
+             squiggle_scan_misses={}",
+            self.nit_scan_ms,
+            self.nit_scan_lines,
+            self.nit_scan_misses,
+            self.ornament_scan_ms,
+            self.ornament_scan_lines,
+            self.ornament_scan_spans,
+            self.ornament_scan_misses,
+            self.destination_join_ms,
+            self.destination_join_calls,
+            self.squiggle_scan_ms,
+            self.squiggle_scan_misspellings,
+            self.squiggle_scan_misses,
+        );
     }
 
     fn witnesses(&self, cx: &Cx, reshapes: u64, changed: u64) -> Vec<(&'static str, u64)> {
@@ -253,6 +320,15 @@ impl LiveTimings {
             ("geometry_lines_patched", self.geometry_lines_patched),
             ("geometry_rows_patched", self.geometry_rows_patched),
             ("geometry_index_probes", self.geometry_index_probes),
+            ("nit_scan_lines", self.nit_scan_lines),
+            ("nit_scan_misses", self.nit_scan_misses),
+            ("ornament_scan_lines", self.ornament_scan_lines),
+            ("ornament_scan_spans", self.ornament_scan_spans),
+            ("ornament_scan_misses", self.ornament_scan_misses),
+            ("destination_join_calls", self.destination_join_calls),
+            ("destination_join_bytes", self.destination_join_bytes),
+            ("squiggle_scan_misspellings", self.squiggle_scan_misspellings),
+            ("squiggle_scan_misses", self.squiggle_scan_misses),
         ]
     }
 }

@@ -106,6 +106,13 @@ impl TextPipeline {
         self.last_text_sync_phases
     }
 
+    /// The frame-preparation owner witnesses from the most recent [`Self::prepare`]
+    /// call — zero fields when `text_sync_profile` is unset. See
+    /// [`rects::OwnerScanWork`]'s doc for what each field proves and why.
+    pub(super) fn owner_scan(&self) -> rects::OwnerScanSnapshot {
+        self.owner_scan.snapshot()
+    }
+
     fn cache_script_fonts(&mut self) -> ScriptFonts {
         let fonts = self.resolve_script_fonts();
         self.script_fonts = fonts;
@@ -340,6 +347,28 @@ impl TextPipeline {
         self.shaped_theme = theme::active_index();
         let old_width = self.buffer.size().0;
         let change = self.set_text_incremental(text);
+        // Refresh the retained per-line nit spans HERE, once per reshape, off
+        // this reshape's own exact changed-line band — never lazily from
+        // `prepare`, so a coalesced redraw that skips a frame after two
+        // reshapes still patches the cache for BOTH edits instead of losing
+        // the first one. `self.md_spans`/`self.syn_lang` and `self.buffer.lines`
+        // already reflect the NEW text (`set_text_incremental` set/spliced them
+        // above), so eligibility and line texts are read post-change here.
+        let nit_scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let nit_eligible = rects::nit_fast_path_eligible(&self.md_spans, self.syn_lang);
+        let nit_lines: Vec<&str> = self.buffer.lines.iter().map(|l| l.text()).collect();
+        let nit_retokenized = self.nit_projection.refresh(
+            nit_eligible,
+            &nit_lines,
+            Some((change.prefix, change.old_end, change.new_end)),
+        );
+        drop(nit_lines);
+        if let Some(at) = nit_scan_at {
+            self.owner_scan
+                .nit_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan.nit_scan_lines.set(nit_retokenized);
+        }
         let shape_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Grow the buffer's shaping HEIGHT so the WHOLE new document shapes (every
         // visual row appears in `layout_runs()`), which the visual-row scroll

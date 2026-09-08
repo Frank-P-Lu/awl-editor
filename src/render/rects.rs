@@ -110,6 +110,225 @@ pub(super) struct UnderlineCache {
     protos: std::cell::RefCell<Vec<UnderlineProto>>,
 }
 
+/// Release-benchmark instrumentation for the document-wide-typing-work
+/// investigation (queue item 629): witnesses for [`TextPipeline::ensure_nit_protos`],
+/// [`TextPipeline::ensure_ornament_lists`], [`TextPipeline::destination_ranges`]
+/// (called from both nit and spell-squiggle rebuilds, so its counters accumulate
+/// rather than overwrite), and [`TextPipeline::ensure_squiggle_protos`]. Every
+/// owner here is reached through `&self`, hence `Cell`. Populated only while
+/// [`TextPipeline::text_sync_profile`] is set — an ordinary editor run pays one
+/// bool check per timed owner and never allocates or reads a clock. Reset once
+/// per [`TextPipeline::prepare`] call so a call reached twice in one frame
+/// (`destination_ranges`) reports the true total, not the last call's slice.
+#[derive(Default)]
+pub(super) struct OwnerScanWork {
+    /// Written from `TextPipeline::set_text`, once per RESHAPE — BEFORE
+    /// `prepare`'s reset() runs — by [`NitProjection::refresh`], and
+    /// unconditionally OVERWRITTEN (never accumulated, never reset in between)
+    /// by `ensure_nit_protos`'s full path when the fast path is ineligible.
+    /// So this always reflects whichever nit work actually ran this frame,
+    /// regardless of which of the two owners did it.
+    pub(super) nit_scan_ms: std::cell::Cell<f64>,
+    /// Lines actually RE-TOKENIZED: on the fast path, only the reshape's own
+    /// changed band (0 on a pure geometry-only reshape with no text change);
+    /// on the full path, every logical line in the document.
+    pub(super) nit_scan_lines: std::cell::Cell<u64>,
+    pub(super) ornament_scan_ms: std::cell::Cell<f64>,
+    /// Logical lines walked by the last `ensure_ornament_lists` cache MISS.
+    pub(super) ornament_scan_lines: std::cell::Cell<u64>,
+    /// `md_spans.len()` at the time of that same miss — multiplied by
+    /// `ornament_scan_lines`, the floor on span comparisons the per-line loop
+    /// performs (two of its four passes over `md_spans` never short-circuit).
+    pub(super) ornament_scan_spans: std::cell::Cell<u64>,
+    pub(super) destination_join_ms: std::cell::Cell<f64>,
+    /// Number of times `destination_ranges` actually joined + parsed the whole
+    /// document this `prepare` (0 when `md_spans` is empty; up to 2 when both
+    /// the nit and spell-squiggle owners miss their caches on the same frame).
+    pub(super) destination_join_calls: std::cell::Cell<u64>,
+    /// Bytes of the joined document string on the LAST such call.
+    pub(super) destination_join_bytes: std::cell::Cell<u64>,
+    pub(super) squiggle_scan_ms: std::cell::Cell<f64>,
+    /// `self.misspelled.len()` on the last `ensure_squiggle_protos` cache MISS —
+    /// zero either on a hit or because the misspelled list was empty (the caller,
+    /// `spell_squiggles`, skips the ensure call entirely in that case).
+    pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
+}
+
+/// A plain-data snapshot of [`OwnerScanWork`], read once per timed sample so a
+/// caller outside this module (the `typing_live` benchmark) never touches a
+/// `Cell` directly.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct OwnerScanSnapshot {
+    pub(super) nit_scan_ms: f64,
+    pub(super) nit_scan_lines: u64,
+    pub(super) ornament_scan_ms: f64,
+    pub(super) ornament_scan_lines: u64,
+    pub(super) ornament_scan_spans: u64,
+    pub(super) destination_join_ms: f64,
+    pub(super) destination_join_calls: u64,
+    pub(super) destination_join_bytes: u64,
+    pub(super) squiggle_scan_ms: f64,
+    pub(super) squiggle_scan_misspellings: u64,
+}
+
+impl OwnerScanWork {
+    pub(super) fn snapshot(&self) -> OwnerScanSnapshot {
+        OwnerScanSnapshot {
+            nit_scan_ms: self.nit_scan_ms.get(),
+            nit_scan_lines: self.nit_scan_lines.get(),
+            ornament_scan_ms: self.ornament_scan_ms.get(),
+            ornament_scan_lines: self.ornament_scan_lines.get(),
+            ornament_scan_spans: self.ornament_scan_spans.get(),
+            destination_join_ms: self.destination_join_ms.get(),
+            destination_join_calls: self.destination_join_calls.get(),
+            destination_join_bytes: self.destination_join_bytes.get(),
+            squiggle_scan_ms: self.squiggle_scan_ms.get(),
+            squiggle_scan_misspellings: self.squiggle_scan_misspellings.get(),
+        }
+    }
+
+    /// Resets every OWNER except the nit-scan pair: those are written from
+    /// `TextPipeline::set_text` (once per RESHAPE, before `prepare` even
+    /// starts) and unconditionally overwritten — never accumulated — by
+    /// whichever of the fast or full nit path actually ran, so resetting them
+    /// here would erase what `set_text` just recorded before `ensure_nit_protos`
+    /// ever got a chance to confirm or replace it.
+    pub(super) fn reset(&self) {
+        self.ornament_scan_ms.set(0.0);
+        self.ornament_scan_lines.set(0);
+        self.ornament_scan_spans.set(0);
+        self.destination_join_ms.set(0.0);
+        self.destination_join_calls.set(0);
+        self.destination_join_bytes.set(0);
+        self.squiggle_scan_ms.set(0.0);
+        self.squiggle_scan_misspellings.set(0);
+    }
+}
+
+/// Whether `ensure_nit_protos`' retained per-line FAST PATH ([`NitProjection`])
+/// applies: the whole document must be plain prose, with none of the four
+/// inputs that otherwise force `ensure_nit_protos` to read DOCUMENT-WIDE
+/// context to score a single line — a table appearing anywhere changes which
+/// lines take the table-row nit variant; frontmatter anywhere shifts which
+/// lines are skipped; a markdown destination anywhere excludes matching spans
+/// wherever they land; and a recognized code language scopes every nit to the
+/// LEXER's prose ranges, which can cross logical lines. Any one of these
+/// present anywhere routes to the untouched full recompute every time —
+/// exactly today's algorithm, byte for byte, for every code buffer, every
+/// table, every frontmatter block, every doc with a link or image.
+pub(super) fn nit_fast_path_eligible(
+    md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
+    syn_lang: Option<crate::syntax::Lang>,
+) -> bool {
+    syn_lang.is_none()
+        && crate::markdown::frontmatter_end(md_spans).is_none()
+        && !md_spans.iter().any(|(_, k)| {
+            k.is_table_markup()
+                || matches!(
+                    k,
+                    crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Link)
+                        | crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Image
+                        )
+                )
+        })
+}
+
+/// Retained per-line WRITING-NIT spans (queue item 629's named mechanism):
+/// `ensure_nit_protos` used to re-tokenize EVERY logical line's own text on
+/// EVERY reshape, even though a raw nit span (before the frontmatter/table/
+/// prose/destination filters `ensure_nit_protos` applies afterward) is a pure
+/// function of that one line's text alone. This keeps that raw per-line
+/// result and reuses it for every line OUTSIDE the exact band a reshape
+/// touched — the identical `(prefix, old_end, new_end)` band the row-geometry
+/// patch's own `TextChange` already computes, so retention costs no extra
+/// document-wide comparison to find: [`TextPipeline::set_text`] hands it over
+/// the moment it has it.
+///
+/// Refreshed exactly once per RESHAPE (from `set_text`, not lazily from
+/// `prepare`), so two reshapes that land before the next drawn frame both
+/// still patch the cache — nothing is lost to a coalesced redraw the way a
+/// prepare-time refresh could lose an intermediate edit's band.
+///
+/// FAST PATH ONLY: active exactly when [`nit_fast_path_eligible`] holds.
+/// Falling out of eligibility (a table/frontmatter/link/code state appears)
+/// simply clears the cache; the very next `ensure_nit_protos` call takes the
+/// full path and finds `eligible() == false`, so it never consults this at
+/// all. Coming BACK into eligibility reseeds it from scratch on that same
+/// call (a full scan once, not a correctness risk) rather than trying to
+/// reconstruct history it never retained.
+#[derive(Default)]
+pub(super) struct NitProjection {
+    eligible: bool,
+    /// Per-line RAW spans (before any filter), in CURRENT line order.
+    slots: Vec<Vec<(usize, usize)>>,
+}
+
+impl NitProjection {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+
+    pub(super) fn eligible(&self) -> bool {
+        self.eligible
+    }
+
+    pub(super) fn line_count(&self) -> usize {
+        self.slots.len()
+    }
+
+    pub(super) fn spans_for(&self, line: usize) -> &[(usize, usize)] {
+        self.slots.get(line).map_or(&[], Vec::as_slice)
+    }
+
+    /// Bring the cache up to date with `lines` (the CURRENT document, one
+    /// entry per logical line). `change` is the exact changed-line band the
+    /// reshape that produced `lines` reported (`prefix`, old end, new end),
+    /// or `None` before this pipeline has ever reshaped. Returns the number
+    /// of lines actually re-tokenized (0 on a pure retain).
+    pub(super) fn refresh(
+        &mut self,
+        eligible: bool,
+        lines: &[&str],
+        change: Option<(usize, usize, usize)>,
+    ) -> u64 {
+        if !eligible {
+            self.eligible = false;
+            self.slots.clear();
+            return 0;
+        }
+        if let Some((prefix, old_end, new_end)) = change
+            && self.eligible
+            && prefix <= old_end
+            && new_end <= lines.len()
+        {
+            let old_len = old_end + (lines.len() - new_end);
+            if self.slots.len() == old_len {
+                // Splice: the SAME prefix/replace/suffix shape
+                // `splice_changed_lines` uses to retain glyphon's unaffected
+                // rows, for the identical reason — only the band's own TEXT
+                // could have changed; everything outside it is untouched byte
+                // for byte (`unchanged_band`'s own guarantee).
+                let mut next = Vec::with_capacity(lines.len());
+                next.extend_from_slice(&self.slots[..prefix]);
+                let mut retokenized = 0u64;
+                for &line in &lines[prefix..new_end] {
+                    next.push(crate::nits::line_nits(line));
+                    retokenized += 1;
+                }
+                next.extend_from_slice(&self.slots[old_end..]);
+                self.slots = next;
+                return retokenized;
+            }
+        }
+        // First activation, a state mismatch defensive fallback, or nothing
+        // has reshaped through this cache yet: seed every line once.
+        self.slots = lines.iter().map(|line| crate::nits::line_nits(line)).collect();
+        self.eligible = true;
+        lines.len() as u64
+    }
+}
+
 /// One cached underline span: the owning visual row's buffer-relative top +
 /// height (`VisualRow::line_top` / `line_height`) and the span's x boundaries
 /// relative to the text left edge (`row.xs[s]` / `row.xs[e]`, exactly the two
@@ -285,6 +504,15 @@ impl TextPipeline {
         if self.ornament_cache.version.get() == Some(self.reshape_count) {
             return;
         }
+        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        if self.text_sync_profile {
+            self.owner_scan
+                .ornament_scan_lines
+                .set(self.buffer.lines.len() as u64);
+            self.owner_scan
+                .ornament_scan_spans
+                .set(self.md_spans.len() as u64);
+        }
         let mut rules = Vec::new();
         let mut bullets = Vec::new();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
@@ -294,18 +522,45 @@ impl TextPipeline {
         let mut footnotes = Vec::new();
         let mut bare_url_tails: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
         let mut smart_punct_spans: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
+        // SWEEP-LINE span index: `md_spans` sorted by start, walked alongside
+        // the lines in byte order via an `active` set (spans whose range can
+        // still overlap the CURRENT or a later line). Each span enters
+        // `active` once (when its start comes into view) and leaves once
+        // (when its end falls behind the sweep), so the per-line work below
+        // is bounded by how many spans genuinely overlap nearby lines —
+        // O(lines + spans log spans) total — rather than the old O(lines ×
+        // spans): every one of the four passes below used to walk the WHOLE
+        // `md_spans` list for EVERY line, regardless of how far that span sat
+        // from the line in question.
+        let mut sorted_spans: Vec<&(std::ops::Range<usize>, crate::markdown::MdKind)> =
+            self.md_spans.iter().collect();
+        sorted_spans.sort_by_key(|(r, _)| r.start);
+        let mut next_span = 0usize;
+        let mut active: Vec<&(std::ops::Range<usize>, crate::markdown::MdKind)> = Vec::new();
+
         let mut start = 0usize;
         for (li, line) in self.buffer.lines.iter().enumerate() {
             let text = line.text();
             let end = start + text.len();
             if !self.md_spans.is_empty() {
-                for (r, k) in &self.md_spans {
+                // The loosest look-ahead any check below needs is the RULE
+                // check's `end + 1`; admitting spans that far ahead keeps
+                // every other (tighter) check correct too, since each still
+                // applies its OWN exact predicate against `active` below.
+                while next_span < sorted_spans.len() && sorted_spans[next_span].0.start < end + 1 {
+                    active.push(sorted_spans[next_span]);
+                    next_span += 1;
+                }
+                active.retain(|(r, _)| r.end > start);
+
+                for (r, k) in &active {
+                    if r.start < start || r.start >= end {
+                        continue; // overlapping this line, but didn't START here
+                    }
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::Fence,
                         )
-                        && r.start >= start
-                        && r.start < end
                         && let Some(lang) = crate::markdown::fence_line_lang(text)
                     {
                         fence_langs.push((li, lang));
@@ -314,38 +569,31 @@ impl TextPipeline {
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::BareUrl,
                         )
-                        && r.start >= start
-                        && r.start < end
                         && is_bare_url_tail(text, r.start - start)
                     {
-                        bare_url_tails.push((li, r.clone()));
+                        bare_url_tails.push((li, (*r).clone()));
                     }
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::SmartPunct,
                         )
-                        && r.start >= start
-                        && r.start < end
                     {
-                        smart_punct_spans.push((li, r.clone()));
+                        smart_punct_spans.push((li, (*r).clone()));
                     }
                     let number = match *k {
                         crate::markdown::MdKind::FootnoteReference(number)
                         | crate::markdown::MdKind::FootnoteDefinition(number) => Some(number),
                         _ => None,
                     };
-                    if let Some(number) = number
-                        && r.start >= start
-                        && r.start < end
-                    {
+                    if let Some(number) = number {
                         let byte = r.start - start;
                         let col = text[..byte].chars().count();
-                        footnotes.push((li, col, r.clone(), number));
+                        footnotes.push((li, col, (*r).clone(), number));
                     }
                 }
             }
             let is_quote = !self.md_spans.is_empty()
-                && self.md_spans.iter().any(|(r, k)| {
+                && active.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::ConcealMarkup(
                         crate::markdown::ConcealKind::Blockquote,
                     ) && r.start < end
@@ -356,14 +604,14 @@ impl TextPipeline {
             }
             prev_quote = is_quote;
             if !self.md_spans.is_empty() {
-                for (r, k) in &self.md_spans {
+                for (r, k) in &active {
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::Table,
                         )
                         && r.start == start
                     {
-                        tables.push((li, r.clone()));
+                        tables.push((li, (*r).clone()));
                     }
                 }
             }
@@ -371,7 +619,7 @@ impl TextPipeline {
             // per-frame `rule_lines` scan) — cursor-independent (the caret exclusion is
             // applied at read time so the cache survives a pure cursor move).
             if !self.md_spans.is_empty()
-                && self.md_spans.iter().any(|(r, k)| {
+                && active.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::Rule && r.start < end + 1 && r.end > start
                 })
             {
@@ -391,6 +639,11 @@ impl TextPipeline {
         *self.ornament_cache.bare_url_tails.borrow_mut() = bare_url_tails;
         *self.ornament_cache.smart_punct_spans.borrow_mut() = smart_punct_spans;
         self.ornament_cache.version.set(Some(self.reshape_count));
+        if let Some(at) = scan_at {
+            self.owner_scan
+                .ornament_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+        }
     }
 
     /// Buffer-relative -> absolute: the top y of logical `line`'s ornament (its first

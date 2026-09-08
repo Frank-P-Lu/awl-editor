@@ -10,6 +10,9 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        if self.text_sync_profile {
+            self.owner_scan.reset();
+        }
         // Keep wrapping aligned with the live column even when a page or theme
         // change bypasses the setters. Unchanged width does not trigger rewrapping.
         self.sync_wrap_width();

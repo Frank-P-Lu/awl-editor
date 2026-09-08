@@ -398,6 +398,8 @@ impl TextPipeline {
             last_text_sync_phases: text::TextSyncPhases::default(),
             last_conceal_sync_ms: 0.0,
             last_caret_target_ms: 0.0,
+            owner_scan: rects::OwnerScanWork::default(),
+            nit_projection: rects::NitProjection::new(),
             shape_tail_settled_height: None,
             search_active: false,
             search_matches: Vec::new(),

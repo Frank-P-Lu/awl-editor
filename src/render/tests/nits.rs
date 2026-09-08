@@ -1813,3 +1813,237 @@ fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
     crate::nits::set_nits_on(true);
     crate::markdown::set_wysiwyg_on(true);
 }
+
+/// QUEUE ITEM 629 — [`rects::NitProjection`]'s retained per-line spans must
+/// match a FRESH `crate::nits::line_nits` recompute of the CURRENT text, at
+/// every step of an edit sequence swept across the shapes its band-splice
+/// math has to get right: a same-line append, a same-line mid-edit, a
+/// UNICODE (multi-byte) insertion, a STRUCTURAL line insertion and a
+/// STRUCTURAL line deletion (the two cases that shift the retained SUFFIX
+/// slots to a new index), and an UNDO-shaped shrink back toward an earlier
+/// state. Pure unit-level: no `TextPipeline`, no GPU adapter, and the oracle
+/// (`crate::nits::line_nits`) shares no code with the thing under test — so
+/// this cannot pass by both sides reading the same wrong cache. `band`
+/// reimplements exactly the prefix/suffix walk `TextPipeline::unchanged_band`
+/// uses to produce the `(prefix, old_end, new_end)` `set_text` hands the
+/// projection, so the fixture drives it the same way production does.
+/// Non-vacuous: every state carries at least one real nit (a double space),
+/// so a broken splice that drops, duplicates, or misplaces one is a direct
+/// per-line assertion failure, never a silently-empty pass.
+#[test]
+fn nit_projection_matches_independent_recompute_across_edit_shapes() {
+    fn band(old: &[&str], new: &[&str]) -> (usize, usize, usize) {
+        let mut prefix = 0;
+        while prefix < old.len() && prefix < new.len() && old[prefix] == new[prefix] {
+            prefix += 1;
+        }
+        let mut suffix = 0;
+        while suffix < old.len() - prefix
+            && suffix < new.len() - prefix
+            && old[old.len() - 1 - suffix] == new[new.len() - 1 - suffix]
+        {
+            suffix += 1;
+        }
+        (prefix, old.len() - suffix, new.len() - suffix)
+    }
+
+    let states: [&[&str]; 7] = [
+        &["one  two", "anchor", "three four"],
+        &["one   two", "anchor", "three four"],
+        &["one   two", "anchor", "three  four"],
+        &["one   two", "anchor", "three  four", "café  au lait"],
+        &["one   two", "anchor", "café  au lait"],
+        &["one   two", "anchor"],
+        &["one  two", "anchor"],
+    ];
+
+    let mut proj = rects::NitProjection::new();
+    let mut prev: Vec<&str> = Vec::new();
+    for (step, &lines) in states.iter().enumerate() {
+        let change = (!prev.is_empty()).then(|| band(&prev, lines));
+        proj.refresh(true, lines, change);
+        for (li, &line) in lines.iter().enumerate() {
+            assert_eq!(
+                proj.spans_for(li),
+                crate::nits::line_nits(line).as_slice(),
+                "step {step} line {li} ({line:?}): the retained span diverged from a \
+                 fresh line_nits() recompute of the current text"
+            );
+        }
+        prev = lines.to_vec();
+    }
+}
+
+/// The SAME edit sequence as
+/// [`nit_projection_matches_independent_recompute_across_edit_shapes`], driven
+/// this time through a real `TextPipeline` end to end — proving `set_text`
+/// wires `md_spans`/`syn_lang`/the changed-line band to the projection
+/// correctly, not just that the projection's own splice math is sound in
+/// isolation. The oracle is `crate::nits::document_nits` (a pure, independent
+/// function sharing no code with the render-side caching), restricted to
+/// non-cursor lines since reveal-on-cursor suppresses the caret's own line.
+#[test]
+fn nit_underlines_count_matches_document_nits_oracle_across_edit_shapes() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_underlines_count_matches_document_nits_oracle_across_edit_shapes: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Cursor parked on "anchor" — present at line 1 in every state below and
+    // never itself carrying a nit — so reveal-on-cursor never suppresses the
+    // spans this law is checking.
+    let states: [&str; 7] = [
+        "one  two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree  four\n",
+        "one   two\nanchor\nthree  four\ncafé  au lait\n",
+        "one   two\nanchor\ncafé  au lait\n",
+        "one   two\nanchor\n",
+        "one  two\nanchor\n",
+    ];
+
+    let mut reshapes_seen = p.reshape_count;
+    for (step, text) in states.iter().enumerate() {
+        let mut v = view(text, 1, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+        assert!(
+            p.reshape_count > reshapes_seen,
+            "step {step} ({text:?}) must reshape — the text changed"
+        );
+        reshapes_seen = p.reshape_count;
+
+        let got = p.nit_underlines().len();
+        let expected = crate::nits::document_nits(text)
+            .iter()
+            .filter(|(line, ..)| *line != 1)
+            .count();
+        assert_eq!(
+            got, expected,
+            "step {step} ({text:?}): nit count diverged from the independent \
+             document_nits oracle (excluding the cursor's own line)"
+        );
+    }
+    crate::nits::set_nits_on(true);
+}
+
+/// QUEUE ITEM 629's third correctness question: [`rects::NitProjection`] is
+/// refreshed from [`TextPipeline::set_text`] — once per RESHAPE — rather than
+/// lazily from `ensure_nit_protos`/`prepare`, specifically so that TWO
+/// reshapes landing before the next drawn frame both still patch the cache.
+/// A lazy-from-prepare design would instead diff the CURRENT text against
+/// whatever the last `ensure_nit_protos` call had observed, which is the
+/// WRONG band the moment a frame is skipped between two edits — exactly what
+/// this drives: `set_view` is called TWICE, fixing line0's nit and adding a
+/// brand-new one on line2, with `nit_underlines()` never called in between —
+/// then the ONE read that follows both reshapes is checked against the
+/// independent `document_nits` oracle for the FINAL text. A cache that only
+/// patched the first edit (or diffed the two edits' texts against each other
+/// instead of each against its own true predecessor) would report a stale
+/// line0 nit, a missing line2 nit, or both.
+#[test]
+fn nit_projection_patches_across_two_reshapes_before_one_read() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_patches_across_two_reshapes_before_one_read: no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Step 0: plain prose, one nit on line0 ("one  two") only.
+    let text0 = "one  two\nanchor\nthree four\n";
+    let mut v0 = view(text0, 1, 0);
+    v0.is_markdown = true;
+
+    // Step 1: line0's nit is FIXED and a brand-new nit appears on line2
+    // ("three  four") — pushed right after step 0 with no read (no
+    // `nit_underlines()` call) in between.
+    let text1 = "one two\nanchor\nthree  four\n";
+    let mut v1 = view(text1, 1, 0);
+    v1.is_markdown = true;
+
+    let reshapes_start = p.reshape_count;
+    p.set_view(&v0);
+    p.set_view(&v1);
+    assert_eq!(
+        p.reshape_count,
+        reshapes_start + 2,
+        "both edits must reshape — an unread intermediate edit is not a no-op"
+    );
+
+    let got = p.nit_underlines().len();
+    let expected = crate::nits::document_nits(text1)
+        .iter()
+        .filter(|(line, ..)| *line != 1)
+        .count();
+    assert_eq!(
+        got, expected,
+        "the one read after two un-observed reshapes must reflect the LATEST text \
+         ({text1:?}: line0's nit fixed, line2's nit new), not a stale intermediate state"
+    );
+    crate::nits::set_nits_on(true);
+}
+
+/// QUEUE ITEM 629's second correctness question: a BUFFER SWAP reuses the
+/// same live `TextPipeline` (the real app holds exactly one, per
+/// `CLAUDE.md`'s cache-key-discipline tripwire), so [`rects::NitProjection`]
+/// must never carry a stale document's spans over into a totally unrelated
+/// one. Drives that literally: after a real read has settled the cache on
+/// document A, `set_view` pushes document B — sharing NOT ONE line with A
+/// (no common prefix, no common suffix), the shape `unchanged_band` hands
+/// back as `(0, old_len, new_len)`, i.e. "replace everything" — and the very
+/// next read is checked against the independent `document_nits` oracle for B
+/// alone. A projection that kept A's slots (wrong length or wrong content)
+/// or half-merged the two would diverge from the oracle immediately.
+#[test]
+fn nit_projection_reseeds_clean_across_an_unrelated_buffer_swap() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_reseeds_clean_across_an_unrelated_buffer_swap: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Document A: plain prose, cursor on line0 (never nitting), one real nit
+    // on line1. Read once so the cache is fully settled on A before the swap.
+    let doc_a = "steady opener\ntrail \nno issue here\n";
+    let mut va = view(doc_a, 0, 0);
+    va.is_markdown = true;
+    p.set_view(&va);
+    let got_a = p.nit_underlines().len();
+    let expected_a = crate::nits::document_nits(doc_a)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(got_a, expected_a, "sanity: document A itself must read correctly");
+
+    // Document B: an entirely different manuscript — no shared line with A at
+    // any position, different length, different nits (two, on lines 1 and 3;
+    // cursor parked on line0's sibling-free own line, which never nits).
+    let doc_b = "brand new manuscript begins\nfresh  start\nmiddle line clean\nlast   line\n";
+    let mut vb = view(doc_b, 0, 0);
+    vb.is_markdown = true;
+    p.set_view(&vb);
+
+    let got_b = p.nit_underlines().len();
+    let expected_b = crate::nits::document_nits(doc_b)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(
+        got_b, expected_b,
+        "the swapped-to document must read exactly its own nits, not a residue of the \
+         document it replaced"
+    );
+    crate::nits::set_nits_on(true);
+}

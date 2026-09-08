@@ -151,6 +151,10 @@ pub(super) struct FramePhases {
     pub(super) text: super::super::text::TextSyncPhases,
     pub(super) conceal_ms: f64,
     pub(super) caret_ms: f64,
+    /// Owner witnesses from INSIDE `prepare_ms` (queue item 629): the nit and
+    /// ornament document-wide rescans, the destination-range document join
+    /// either can trigger, and the spell-squiggle proto rebuild.
+    pub(super) owner_scan: super::super::rects::OwnerScanSnapshot,
 }
 
 impl<'a> Cx<'a> {
@@ -277,6 +281,7 @@ impl<'a> Cx<'a> {
         let (prepare_ms, render_ms) = self
             .frame_inner(true)?
             .expect("timed frame must return its stage split");
+        let owner_scan = self.p.owner_scan();
         Ok(FramePhases {
             set_view_ms,
             prepare_ms,
@@ -284,6 +289,7 @@ impl<'a> Cx<'a> {
             text,
             conceal_ms,
             caret_ms,
+            owner_scan,
         })
     }
 
