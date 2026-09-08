@@ -516,45 +516,6 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ---
 
-### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-608`, worktree `.claude/worktrees/item-608`.
-
-⬜ READY — small, reproduced headlessly, and the neighbourhood is already audited: the bullet
-ornament is the ONE painted-ornament family that never learned the selection reveal.
-
-Reported as "when selected, the 2nd-level indent changes shape": in a nested list, selecting
-across a child row shows two markers on it — the depth glyph where it always sits and, just
-below and left of it, the raw `-` the selection reveal restored. Reproduced in Bombora and
-Bowerbird with `--keys "C-n C-n S-Down S-Down"` over a four-line list; the marker lane's ink
-on the selected child row widens from the ornament's 7px to the full 25px of a depth-0 lane,
-and the zoom shows the glyph stacked over the dash. The depth-0 rows double too, but there the
-ornament sits on top of the dash and hides it, which is why the child row is the one a reader
-notices.
-
-Cause, read out of the tree: the line-attrs owner (`render/spans/layout.rs`) conceals the raw
-marker only when `conceal_off_cursor && !line_selected`, exactly as its comment promises — "on
-the caret's own line, or any selected line, the raw markup reveals and NO ORNAMENT IS DRAWN".
-The painter does not keep that promise: `bullet_marks` (`render/rects.rs`) skips `li ==
-self.cursor_line` and nothing else, while its siblings `rule_marks`, `footnote_marks` and
-`bare_url_marks` all filter through `selection_touch_bytes`/`selection_touches` as well. The
-selection reveal was widened to the legacy bullet CONCEAL and never to the bullet ORNAMENT.
-
-Fix: route `bullet_marks` through the same `selection_touch_bytes`/`selection_touches` owner
-the other three read — one filter, not a fourth reading of the overlap test — so the ornament
-set and the conceal set are the same set by construction. Laws: extend the existing bullet
-depth/reveal law so that a selection touching a bullet row (caret elsewhere) yields no glyph
-for that row in `bullet_glyphs()` while `bullet_marker_concealed` reads false for it; sweep
-depth 0 and depth 1 and a selection that touches the row without the caret's line moving
-(the `refresh_rule_conceal` skip-gate tripwire in docs/markdown.md); prove non-vacuity by
-restoring the caret-only skip and watching it go red. A pixel companion: the marker lane's
-ink on a selected child row is the dash's alone, no wider than the unselected caret-row lane.
-
-Routing: worker Sonnet medium (Claude) or `gpt-5.6-sol` medium; outcome audit at the
-production tier.
-
----
-
 ### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
 
 🟡 IN PROGRESS — Claude (this session), branch `item-609`, worktree `.claude/worktrees/item-609`.
@@ -756,6 +717,41 @@ What to build: when a root is set and no file is open, the empty surface names t
 Laws: sidecar reports the folder name in the empty state when a root is set (drive it with `--root`); the line is absent with no root; the chord glyph matches the active convention; pixel presence floor on the line in both grounds. Capture against a seeded `--root`, never the ambient one (public repo; see Conventions).
 
 Routing: worker Sonnet high; vision smoke: "what folder is open?" over three worlds.
+
+---
+
+### 620 — a law locates its subject by relative path, so it passes only from the crate root (found by 608's gate, 2026-09-08)
+
+⬜ READY — small, reproduced in one command, and it is the configuration principle in its
+purest form: the law is correct and the working directory it runs in is the untested
+hypothesis.
+
+`app::semantic::tests::semantic_snapshot_has_no_ungated_frame_side_caller`
+(`src/app/semantic/tests/mod.rs`) walks the tree from `PathBuf::from("src")` — a RELATIVE
+path — so it asserts over the crate only when the test process happens to start in the crate
+root. Run the same built binary from anywhere else and it panics `src is readable: NotFound`.
+Reproduced directly: green from the worktree, red from `/tmp`, same binary, same commit.
+
+Two defects, not one. **(a) The subject is located by cwd** rather than by
+`env!("CARGO_MANIFEST_DIR")`, which is fixed at compile time and is what every other
+source-walking law in this tree should be checked against too — sweep for siblings, because
+this one was found by accident. **(b) The failure misnames itself.** The
+`.expect("src is readable")` fires for EVERY directory the walk pops, so whichever directory
+actually failed, the message says "src". A law that cannot name what broke costs a reader the
+diagnosis it was written to give.
+
+It went red once, during a gate run while the orchestrator was deleting fifteen worktree
+`target/` trees and the host was at load 100 with 9 GiB of swap in use. That is the trigger,
+not the cause — a law anchored at the manifest directory would not have noticed.
+
+Build: anchor the walk at `CARGO_MANIFEST_DIR`; make the expect name the directory it was
+reading. Then sweep every other law that opens a path relative to cwd and fix the same way.
+Law: the walk resolves identically from a different working directory — assert it by running
+the check function with the process cwd changed, so the law fails if someone reintroduces a
+relative root.
+
+Routing: worker Sonnet medium; no audit tier needed — the fix is mechanical and the sweep is
+the valuable half.
 
 ---
 
