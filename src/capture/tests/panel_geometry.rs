@@ -44,6 +44,9 @@ struct Panel {
     text_left: f64,
     text_top: f64,
     rows: Vec<(u64, f64, f64)>,
+    /// The `case_toggle` control's `(x0, x1)`, read out of the `controls`
+    /// array by name — schema `/212` replaced the old single `case_toggle`
+    /// span with a roster of named boxes.
     toggle: (f64, f64),
 }
 
@@ -68,11 +71,18 @@ fn read_panel(png: &std::path::Path) -> Panel {
             )
         })
         .collect();
-    let toggle = &p["case_toggle"];
-    assert!(
-        toggle.is_object(),
-        "schema /203: a shaped find row must publish its `case_toggle`, got {toggle}"
-    );
+    let controls = p["controls"]
+        .as_array()
+        .expect("schema /212: `controls` is an array");
+    let toggle = controls
+        .iter()
+        .find(|c| c["name"] == "case_toggle")
+        .unwrap_or_else(|| {
+            panic!(
+                "schema /212: a shaped find row must publish its `case_toggle` control, \
+                 got {controls:?}"
+            )
+        });
     Panel {
         card: [
             c["x"].as_f64().expect("card x"),
@@ -84,8 +94,8 @@ fn read_panel(png: &std::path::Path) -> Panel {
         text_top: p["text"]["top"].as_f64().expect("text top"),
         rows,
         toggle: (
-            toggle["x0"].as_f64().expect("x0"),
-            toggle["x1"].as_f64().expect("x1"),
+            toggle["x"].as_f64().expect("x"),
+            toggle["x"].as_f64().expect("x") + toggle["w"].as_f64().expect("w"),
         ),
     }
 }
@@ -218,9 +228,9 @@ fn assert_card_matches_the_ink(name: &str, png: &std::path::Path, p: &Panel) {
 fn assert_internally_consistent(name: &str, p: &Panel) {
     let [cx, cy, cw, ch] = p.card;
     assert!(
-        p.rows.len() >= 3,
-        "{name}: the replace state shapes a field, a replacement and a hint row, \
-         got {}",
+        p.rows.len() >= 4,
+        "{name}: the replace state shapes a find field, a replace field, a nav \
+         row and an actions row, got {}",
         p.rows.len()
     );
     let pitch = p.rows[0].2;
@@ -314,18 +324,22 @@ fn published_panel_geometry_matches_the_drawn_card_at_both_capture_scales() {
     for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
         doubles(lo.2, hi.2, &format!("panel.rows[{i}].h (the row pitch)"));
     }
-    doubles(
-        a.toggle.1 - a.toggle.0,
-        b.toggle.1 - b.toggle.0,
-        "the Aa span's width (shaped advances)",
-    );
     // The card's own rect carries the unscaled 12px margin and pad, so it grows
     // by twice-plus-a-residual rather than exactly twice. What must hold — and
-    // what a logical-unit report breaks — is that it grows at all.
+    // what a logical-unit report breaks — is that it grows at all. The
+    // `case_toggle` control box joins this bucket too: its tight glyph span is
+    // outset by the SAME kind of unscaled device-px pad the card's own pad
+    // already is, so its total width grows with the scale factor but not
+    // exactly 2x.
     for (lo, hi, what) in [
         (a.card[0], b.card[0], "panel.card.x"),
         (a.card[2], b.card[2], "panel.card.w"),
         (a.card[3], b.card[3], "panel.card.h"),
+        (
+            a.toggle.1 - a.toggle.0,
+            b.toggle.1 - b.toggle.0,
+            "the case_toggle box's width",
+        ),
         (a.text_left, b.text_left, "panel.text.left"),
         (a.toggle.0, b.toggle.0, "the Aa span's x0"),
     ] {

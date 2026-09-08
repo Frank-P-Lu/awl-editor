@@ -111,6 +111,11 @@ impl TextPipeline {
         let overlay_buffers =
             Self::new_workspace_overlay_text_buffers(&mut font_system, metrics.glyph_metrics());
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
+        let panel_control_fill =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let panel_control_border =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let panel_rules = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_query_selection =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
@@ -311,6 +316,10 @@ impl TextPipeline {
             panel_bind_buffer: overlay_buffers.bindings,
             placard_buffer: overlay_buffers.placard,
             panel_caret,
+            panel_control_fill,
+            panel_control_border,
+            panel_rules,
+            panel_control_spans: Default::default(),
             panel_query_selection,
             caret_preview_pipeline,
             caret_preview_glyph_pipeline,
