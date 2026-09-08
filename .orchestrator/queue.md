@@ -854,6 +854,22 @@ Routing: worker Sonnet medium.
 
 ---
 
+## `item-620-622` carries one commit that is deliberately NOT merged
+
+`4ef97e0d` sets `src/render.rs`'s `file_size_mark` to 3077. On the merged tree that file is
+3111 lines, so merging it would fail `code-health` immediately. The mark on main was derived at
+merge time with `wc -l` against the MERGED file rather than taken from either side — and both
+sides were wrong, the lane's by 34 lines and the other branch's by more.
+
+Left unmerged on purpose, recorded here because an unmerged commit on a finished lane's branch
+otherwise reads as forgotten work. Nothing is lost: its only content is a number that was
+correct on its own branch and is not correct here.
+
+The general rule this is an instance of: **`code-health.toml` conflicts are resolved by
+measuring the merged file, never by picking a side.** Two lanes touching one source file always
+collide there, and in every collision this session BOTH counts were stale — sometimes the
+merged file was longer than either claimed, once (`render.rs` under 605+617) it was shorter.
+
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
