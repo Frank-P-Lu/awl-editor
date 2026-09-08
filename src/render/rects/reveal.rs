@@ -3,10 +3,13 @@
 //! than two more methods in `rects.rs`: that file is far past its size
 //! ceiling, and this is a self-contained rule with its own subject.
 //!
-//! Two readers ask it about a thematic break — the fleuron's own draw gate
+//! Readers ask it about a thematic break — the fleuron's own draw gate
 //! (`rule_lines`) and the nit underline's conceal check — and when they
 //! derived it separately they disagreed: a selection-revealed `---` drew its
-//! markup with the nit under it suppressed. `wysiwyg_reveals` is the same
+//! markup with the nit under it suppressed. `bullet_marks` reads the same
+//! owner for the sibling legacy construct (a selection-revealed bulleted
+//! list once kept drawing its depth glyph over the now-revealed raw `-`,
+//! the same disagreement one construct over). `wysiwyg_reveals` is the same
 //! rule at SPAN scope; this is its line-scoped form.
 
 use super::*;

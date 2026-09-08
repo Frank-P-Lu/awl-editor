@@ -511,11 +511,14 @@ impl TextPipeline {
             return Vec::new();
         }
         // CACHE + CULL (mirrors `rule_lines`): the bullet-line SET is cached by reshape
-        // version; each frame we walk only those, skip the caret's own line (reveal-on-
-        // cursor) and the OFF-SCREEN lines. Ascending order + identical membership on
-        // the visible rows => byte-identical to the old whole-document scan.
+        // version; each frame we walk only those, skip every REVEALED line (the
+        // caret's own, or one a selection touches — `line_is_revealed`, the same
+        // owner `rule_lines` reads) and the OFF-SCREEN lines. Ascending order +
+        // identical membership on the visible rows => byte-identical to the old
+        // whole-document scan.
         self.ensure_ornament_lists();
         let text_left = self.text_left();
+        let selection_touch = self.selection_touch();
         // Resolve each visible, non-caret unordered-bullet line to its
         // (line, top, indent, glyph), DEFERRING the marker x: an UNINDENTED bullet's
         // marker sits at column 0 (x == 0), needing no shaped-x lookup at all — the
@@ -528,8 +531,8 @@ impl TextPipeline {
         let mut items: Vec<(usize, f32, usize, char)> = Vec::new();
         let mut indented: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for &li in self.ornament_cache.bullet_lines.borrow().iter() {
-            if li == self.cursor_line {
-                continue; // reveal-on-cursor: the raw marker shows on the caret's line
+            if self.line_is_revealed(li, selection_touch.as_ref()) {
+                continue; // caret's own line, or a selection touching it: raw marker shows
             }
             if !self.line_ornament_visible(li) {
                 continue; // off-screen: the glyph would be clipped to nothing
