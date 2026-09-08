@@ -312,7 +312,7 @@ fn delete_back(
 /// it. A step that FAILS at the boundary does NOT advance — it returns the
 /// recoil direction (forward travels toward the end → bump UP; backward →
 /// DOWN), mirroring the blocked-motion recoil, and arms the two-press wrap.
-pub(crate) fn step(
+fn step(
     search: &mut Option<SearchState>,
     buffer: &mut Buffer,
     dir: Direction,
@@ -334,7 +334,7 @@ pub(crate) fn step(
 /// the Linux M-c door route through it (merge, don't align), so they can never
 /// disagree on the recompute + caret-follow. Also the effect the panel's "Aa"
 /// click drives (`App::panel_click`).
-pub(crate) fn toggle_case_and_jump(search: &mut Option<SearchState>, buffer: &mut Buffer) {
+fn toggle_case_and_jump(search: &mut Option<SearchState>, buffer: &mut Buffer) {
     let hay = buffer.text();
     if let Some(st) = search.as_mut() {
         st.toggle_case(&hay);
@@ -377,7 +377,7 @@ fn abort(search: &mut Option<SearchState>, buffer: &mut Buffer) {
 /// the search to the next match (the cursor follows). The panel stays open so a
 /// repeated Enter walks forward replacing. A no-op unless replace mode is active
 /// and there is a current match.
-pub(crate) fn replace_current(search: &mut Option<SearchState>, buffer: &mut Buffer) {
+fn replace_current(search: &mut Option<SearchState>, buffer: &mut Buffer) {
     let hay = buffer.text();
     let new_text = match search.as_mut() {
         Some(st) if st.is_replace_active() => st.replace_current_text(&hay),
@@ -393,7 +393,7 @@ pub(crate) fn replace_current(search: &mut Option<SearchState>, buffer: &mut Buf
 /// in one atomic, undoable edit, then re-anchor the (now usually empty) match
 /// set at the search origin. A no-op unless replace mode is active and the text
 /// actually changes.
-pub(crate) fn replace_all(search: &mut Option<SearchState>, buffer: &mut Buffer) {
+fn replace_all(search: &mut Option<SearchState>, buffer: &mut Buffer) {
     let hay = buffer.text();
     let (new_text, origin) = match search.as_ref() {
         Some(st) if st.is_replace_active() => (st.replace_all_text(&hay), st.origin()),

@@ -86,19 +86,6 @@ impl TextPipeline {
         self.panel_shadow.set_color(float_shadow_srgba());
         self.panel_border
             .set_color(theme::surface_selected().rgba_bytes());
-        // The find/replace panel's OWN inner chrome: a value step off the
-        // card (`base_200`, the SAME distinguishable-surface token the WYSIWYG
-        // fence/code-pill panels and the image placeholder already use) for
-        // every field/button/checkbox FILL, the SAME stroke token every other
-        // summoned card's border already carries (`surface_selected`, matching
-        // `panel_border`/`hud_border`/`wk_border` — merge, don't align) for
-        // their outline, and `muted` — the table rule's own hairline token —
-        // for the thin region separators.
-        self.panel_control_fill
-            .set_color(theme::base_200().rgba_bytes());
-        self.panel_control_border
-            .set_color(theme::surface_selected().rgba_bytes());
-        self.panel_rules.set_color(theme::muted().rgba_bytes());
         self.hud_shadow.set_color(float_shadow_srgba());
         self.hud_border
             .set_color(theme::surface_selected().rgba_bytes());

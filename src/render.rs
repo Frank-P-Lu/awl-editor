@@ -2061,28 +2061,6 @@ pub struct TextPipeline {
     pub panel_bind_buffer: GlyphBuffer,
     pub placard_buffer: GlyphBuffer,
     pub panel_caret: CaretPipeline,
-    /// The find/replace panel's own INNER chrome — bordered field/button/checkbox
-    /// boxes and the thin region separators, all local to this one summoned
-    /// card (never shared with the overlay's `panel_card`/`panel_shadow`/
-    /// `panel_border` trio, which belongs to the picker/list surfaces and is
-    /// parked empty whenever the search panel is the thing up). `panel_control_fill`
-    /// carries every box's FILL (one `prepare()` call, one shared corner/color),
-    /// `panel_control_border` the matching STROKE-only outline (padded out by
-    /// `FLOAT_BORDER_RING_PX`, mirroring the shared float-panel border), and
-    /// `panel_rules` the hairline separators between the fields / nav / actions
-    /// regions (corner forced to 0 each frame — a rounded hairline reads as a
-    /// pill, not a rule). See `chrome::panel::panel_controls_layout`, the one
-    /// owner every box/rule rect and the click-test below both read.
-    pub panel_control_fill: SelectionPipeline,
-    pub panel_control_border: SelectionPipeline,
-    pub panel_rules: SelectionPipeline,
-    /// The find/replace panel's own controls, as [`chrome::panel_shape_text`]
-    /// last shaped them — the byte-span cache `panel_hit` and the sidecar's
-    /// `panel_geometry` both resolve through `panel_controls_layout`, exactly
-    /// the way `panel_buffer`'s own shaped glyphs are read back by both of
-    /// them after the frame that shaped them. Defaults empty (every control
-    /// absent) so a pipeline that never opened the search panel reports none.
-    panel_control_spans: crate::render::chrome::PanelControlSpans,
     /// The RENAME MINIBUFFER's seeded-stem selection wash — a query-field
     /// selection band, the same rounded-quad primitive [`Self::overlay_rows`]
     /// draws for a selected ROW but its own instance, because the two carry

@@ -158,17 +158,15 @@ declines to draw at all.
 
 ### THE FIND/REPLACE PANEL'S CARD IS A SIDECAR FACT TOO
 
-`search.panel` (schema `/203`, `controls` since `/212`) publishes the summoned
-card's exterior rect, its inner text origin, one band per shaped row, and every
-bordered control's own click span (the find/replace fields, the nav prev/next
-buttons, the `Match case` checkbox, and — once revealed — the `Replace`/`Replace
-all` buttons) — `null` while the panel is down. Same door story: both write
-through the one sidecar writer.
+`search.panel` (schema `/203`) publishes the summoned card's exterior rect, its
+inner text origin, one band per shaped row, and the `Aa` toggle's own click span —
+`null` while the panel is down. Same door story: both write through the one
+sidecar writer.
 
 **What this changes for a Verify clause.** "A long query does not widen the card",
 "the replace row is clickable where it is drawn", "the panel yields to a shown menu
-bar" and "the `Replace all` button is where the pointer accepts it" are now
-arithmetic over the sidecar. Two facts a clause should know before asking for one:
+bar" and "the case toggle is where the pointer accepts it" are now arithmetic over
+the sidecar. Two facts a clause should know before asking for one:
 
 * the card's own `12`px outer margin and inner pad are UNSCALED, so `card.y` reads
   the same at `--capture-dpi 1` and `2` while the row pitch doubles — a clause that

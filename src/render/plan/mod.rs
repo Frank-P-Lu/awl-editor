@@ -70,7 +70,7 @@ mod workspace;
 /// `pub(in crate::render)`, so widening `mod plan` for the sidecar's sake did
 /// not widen the planner's own internals with it.
 pub(crate) use accessory_lane::{Lane, RailLane, RowLanes};
-pub(crate) use panel_report::{PanelControlRect, PanelGeometry, PanelRowRect};
+pub(crate) use panel_report::{PanelGeometry, PanelRowRect};
 pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
 pub(in crate::render) use fit_rows::{fit_item_rows, fit_sectioned_item_rows};

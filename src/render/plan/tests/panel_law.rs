@@ -44,20 +44,10 @@ use crate::render::tests::{headless_dqp, view};
 #[derive(Default)]
 struct Enrolled {
     rows: usize,
-    controls: usize,
+    toggles: usize,
     cells: usize,
     bars: std::collections::BTreeSet<bool>,
     row_counts: std::collections::BTreeSet<usize>,
-}
-
-/// One named control's rect, or a loud panic naming what was missing — every
-/// caller already knows whether its state should have shaped that control.
-fn control(label: &str, g: &PanelGeometry, name: &str) -> [f32; 4] {
-    g.controls
-        .iter()
-        .find(|c| c.name == name)
-        .unwrap_or_else(|| panic!("{label}: a shaped panel must publish {name:?}"))
-        .rect
 }
 
 /// A panel in one state, prepared for real on the shared device, plus the
@@ -105,23 +95,17 @@ fn prepared_at(
     Some((p, g))
 }
 
-/// Every control this state should have shaped, paired with the `PanelHit` a
-/// press inside it must resolve to — the NO-WILDCARD roster `grade_controls`
-/// sweeps, so a new `PanelHit` variant with no entry here fails loudly rather
-/// than silently going ungraded.
-fn expected_controls(replace: bool) -> Vec<(&'static str, PanelHit)> {
-    let mut want = vec![
-        ("find_field", PanelHit::Find),
-        ("nav_prev", PanelHit::NavPrev),
-        ("nav_next", PanelHit::NavNext),
-        ("case_toggle", PanelHit::CaseToggle),
-    ];
-    if replace {
-        want.push(("replace_field", PanelHit::Replace));
-        want.push(("replace_button", PanelHit::ReplaceButton));
-        want.push(("replace_all_button", PanelHit::ReplaceAllButton));
+/// The find row's total shaped advance and its last-two-glyph population — the
+/// INK side of the toggle-span grade. `line_w` is glyphon's own accumulated row
+/// width, not the per-glyph `x + w` the span is seated on, so the two agreeing is
+/// a real cross-check rather than the same number twice.
+fn find_row_ink(p: &TextPipeline) -> (f32, usize) {
+    for run in p.panel_buffer.layout_runs() {
+        if run.line_i == 0 {
+            return (run.line_w, run.glyphs.len());
+        }
     }
-    want
+    panic!("the find row must shape");
 }
 
 /// Every shaped row's `(index, line_top)` — the y glyphon actually laid each row
@@ -152,7 +136,7 @@ fn want_at(row: i64, replace: bool) -> PanelHit {
 fn grade(label: &str, p: &TextPipeline, g: &PanelGeometry, replace: bool, e: &mut Enrolled) {
     e.cells += 1;
     grade_card_and_rows(label, p, g, replace, e);
-    grade_controls(label, p, g, replace, e);
+    grade_case_toggle(label, p, g, e);
 }
 
 /// The card's four sides against the pointer, and every published band against
@@ -225,34 +209,24 @@ fn grade_card_and_rows(
         // probes moved to the edges. What pins the two owners together is the
         // TRANSITION — just inside a band is that row, and 1.5px past either edge
         // is already the neighbour.
-        //
-        // Restricted to rows 0/1 (find/replace): `want_at` assumes a bare
-        // `Elsewhere` for every other row, which held when the nav/actions rows
-        // carried only informational text. They now carry real controls (the
-        // nav buttons, the checkbox, Replace/Replace all), so a probe at the
-        // card's horizontal CENTRE on those rows may legitimately land on one —
-        // `grade_controls` graded below is the row-2+ transition proof instead,
-        // seated on each control's own published rect rather than a bare mid_x.
-        if band.row <= 1 {
-            let mid_x = cx + cw * 0.5;
-            for (dy, want) in [
-                (0.5, want_at(band.row as i64, replace)),
-                (band.h * 0.5, want_at(band.row as i64, replace)),
-                (band.h - 0.5, want_at(band.row as i64, replace)),
-                (-1.5, want_at(band.row as i64 - 1, replace)),
-                (band.h + 1.5, want_at(band.row as i64 + 1, replace)),
-            ] {
-                let py = band.top + dy;
-                assert_eq!(
-                    p.panel_hit(mid_x, py),
-                    Some(want),
-                    "{label}: a press at y {py} — the published band for row {} is \
-                     [{}, {}] — must resolve to {want:?}",
-                    band.row,
-                    band.top,
-                    band.top + band.h
-                );
-            }
+        let mid_x = cx + cw * 0.5;
+        for (dy, want) in [
+            (0.5, want_at(band.row as i64, replace)),
+            (band.h * 0.5, want_at(band.row as i64, replace)),
+            (band.h - 0.5, want_at(band.row as i64, replace)),
+            (-1.5, want_at(band.row as i64 - 1, replace)),
+            (band.h + 1.5, want_at(band.row as i64 + 1, replace)),
+        ] {
+            let py = band.top + dy;
+            assert_eq!(
+                p.panel_hit(mid_x, py),
+                Some(want),
+                "{label}: a press at y {py} — the published band for row {} is \
+                 [{}, {}] — must resolve to {want:?}",
+                band.row,
+                band.top,
+                band.top + band.h
+            );
         }
         let mid_y = band.top + band.h * 0.5;
         assert_eq!(
@@ -279,57 +253,60 @@ fn grade_card_and_rows(
     );
 }
 
-/// Every bordered control this state should have shaped: a real extent, ink
-/// actually present in its own byte span, a press at its centre resolving to
-/// its named `PanelHit`, and a press 1.5px past EACH of its four edges no
-/// longer resolving to that same variant — the EXTENT grade the retired `Aa`
-/// span law used, generalized to every control the reference chrome added.
-fn grade_controls(
-    label: &str,
-    p: &TextPipeline,
-    g: &PanelGeometry,
-    replace: bool,
-    e: &mut Enrolled,
-) {
-    for (name, want) in expected_controls(replace) {
-        let [x, y, w, h] = control(label, g, name);
-        e.controls += 1;
-        assert!(
-            w > 4.0 && h > 4.0,
-            "{label}: {name} publishes a {w}x{h} box — a click target needs a \
-             real extent, and every position check below is satisfied by a box \
-             of zero"
-        );
-        let (cx_, cy_) = (x + w * 0.5, y + h * 0.5);
-        assert_eq!(
-            p.panel_hit(cx_, cy_),
-            Some(want),
-            "{label}: {name}'s own published centre ({cx_}, {cy_}) must resolve \
-             to {want:?}"
-        );
-        // The EXTENT probe only applies to a control with a genuine
-        // NEIGHBOUR: `find_field`/`replace_field` are the ROW-LEVEL fallback
-        // (`panel_hit` resolves the WHOLE find/replace row to that field, not
-        // only its own drawn box — the row-level find<->replace transition is
-        // `grade_card_and_rows`'s job instead), so 1.5px past the box is still
-        // legitimately the same field.
-        if matches!(name, "find_field" | "replace_field") {
-            continue;
-        }
-        for (px, py) in [
-            (x - 1.5, cy_),
-            (x + w + 1.5, cy_),
-            (cx_, y - 1.5),
-            (cx_, y + h + 1.5),
-        ] {
-            assert_ne!(
-                p.panel_hit(px, py),
-                Some(want),
-                "{label}: {name}'s published box is [{x}, {y}, {w}, {h}] — 1.5px \
-                 past its own edge at ({px}, {py}) must no longer be {name}"
-            );
-        }
-    }
+/// The `Aa` click target: its right end against the find row's own accumulated
+/// ink width, and both ends against the pointer, inside and out.
+fn grade_case_toggle(label: &str, p: &TextPipeline, g: &PanelGeometry, e: &mut Enrolled) {
+    let (line_w, glyphs) = find_row_ink(p);
+    assert!(
+        glyphs >= 2,
+        "{label}: the find row must shape the two glyphs the toggle is seated on"
+    );
+    let (x0, x1) = g
+        .case_toggle
+        .unwrap_or_else(|| panic!("{label}: a shaped find row must publish its Aa span"));
+    e.toggles += 1;
+    // `Aa` is the LAST span on the find row, so the toggle's right edge is that
+    // row's own ink right edge — asserted against `line_w`, which glyphon
+    // accumulates rather than derives from the two glyph advances the span reads.
+    assert!(
+        (x1 - (g.text_left + line_w)).abs() < 0.51,
+        "{label}: the toggle ends at {x1} but the find row's ink ends at \
+         text_left {} + line_w {line_w} = {}",
+        g.text_left,
+        g.text_left + line_w
+    );
+    assert!(
+        x1 - x0 > 4.0,
+        "{label}: the toggle publishes a {}px span — a click target needs a real \
+         width, and every position check here is satisfied by a span of zero",
+        x1 - x0
+    );
+    let row0_mid = g.rows[0].top + g.rows[0].h * 0.5;
+    assert_eq!(
+        p.panel_hit(x0 + 0.5, row0_mid),
+        Some(PanelHit::CaseToggle),
+        "{label}: just inside the published toggle's left edge must toggle case"
+    );
+    assert_eq!(
+        p.panel_hit(x1 - 0.5, row0_mid),
+        Some(PanelHit::CaseToggle),
+        "{label}: just inside the published toggle's right edge must toggle case"
+    );
+    // THE EXTENT GRADE. A published span that had been uniformly shrunk still
+    // contains its own probes; what it cannot do is stop being the toggle where
+    // it says it stops.
+    assert_eq!(
+        p.panel_hit(x0 - 1.5, row0_mid),
+        Some(PanelHit::Find),
+        "{label}: 1.5px left of the published toggle must be the find field, not \
+         the toggle — a published span wider than the real one fails here"
+    );
+    assert_eq!(
+        p.panel_hit(x1 + 1.5, row0_mid),
+        Some(PanelHit::Find),
+        "{label}: 1.5px right of the published toggle must be the find field, not \
+         the toggle — a published span narrower than the real one fails here"
+    );
 }
 
 #[test]
@@ -372,18 +349,18 @@ fn published_panel_geometry_agrees_with_the_ink_and_the_pointer() {
 
     assert_eq!(e.bars.len(), 2, "both menu-bar arms must be swept");
     assert!(
-        e.row_counts.contains(&2) && e.row_counts.len() > 1,
+        e.row_counts.contains(&1) && e.row_counts.len() > 1,
         "the sweep must cross the row-count boundary (a plain find panel shapes \
-         two rows — find + nav — the replace state four), got {:?}",
+         one row, the replace state three), got {:?}",
         e.row_counts
     );
     assert!(
-        e.cells >= 12 && e.rows >= 24 && e.controls >= e.cells * 4,
-        "the sweep graded {} cells, {} row bands and {} control boxes — a green \
+        e.cells >= 12 && e.rows >= 20 && e.toggles == e.cells,
+        "the sweep graded {} cells, {} row bands and {} toggle spans — a green \
          run must be able to show what it enrolled",
         e.cells,
         e.rows,
-        e.controls
+        e.toggles
     );
 }
 
@@ -522,7 +499,7 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
          row 0 alone, got {focused_rows:?}"
     );
     assert!(
-        row_counts.contains(&2) && row_counts.len() > 1,
+        row_counts.contains(&1) && row_counts.len() > 1,
         "the sweep must cross the row-count boundary, got {row_counts:?}"
     );
     // THE DPI AXIS IS PROVED, NOT ASSUMED: if the pitch did not move, the second
@@ -621,16 +598,13 @@ fn a_shown_menu_bar_steps_the_whole_published_panel_by_one_delta() {
         off.text_left,
         on.text_left
     );
-    let a = control("bar off", &off, "case_toggle");
-    let b = control("bar on", &on, "case_toggle");
-    assert!(
-        (a[0] - b[0]).abs() < 0.01 && (a[2] - b[2]).abs() < 0.01,
-        "the Match-case checkbox moved horizontally with a vertical reserve: \
-         {a:?} -> {b:?}"
+    let (a, b) = (
+        off.case_toggle.expect("bar off publishes a toggle"),
+        on.case_toggle.expect("bar on publishes a toggle"),
     );
     assert!(
-        (b[1] - a[1] - delta).abs() < 0.01,
-        "the Match-case checkbox's y stepped {} while the card stepped {delta}",
-        b[1] - a[1]
+        (a.0 - b.0).abs() < 0.01 && (a.1 - b.1).abs() < 0.01,
+        "the Aa click target moved horizontally with a vertical reserve: \
+         {a:?} -> {b:?}"
     );
 }

@@ -499,53 +499,40 @@ impl App {
         self.request_frame();
     }
 
-    /// A LEFT-CLICK inside the summoned find/replace panel — every bordered
-    /// control the reference chrome calls for, each wired to the SAME
-    /// `search::keys` function its keyboard chord already drives (never a
-    /// second, click-only reimplementation): the `Match case` checkbox flips
-    /// case sensitivity and re-anchors the caret (mirroring ⌘⌥C/M-c); the
-    /// nav prev/next buttons step to the previous/next match (mirroring the
-    /// arrows / Cmd-F family); `Replace`/`Replace all` replace the current
-    /// match or every match (mirroring Enter / Cmd-Enter with the replace row
-    /// up); a press on the FIND row (off any control) focuses the query, a
-    /// press on the REPLACE row focuses the replacement — the amber caret then
-    /// rides the clicked field. A press ELSEWHERE inside the card (a
-    /// separator, the inter-row pad) is a calm no-op — swallowed, never
-    /// dismissing the search or moving the document cursor beneath the panel.
-    /// Returns `true` when the press landed on/in the panel and was handled;
-    /// `false` (off the card / panel down) lets the caller fall through to the
-    /// normal document press. The hit decision is the pure
-    /// `TextPipeline::panel_hit` (unit-tested); this only wires the field
-    /// state + redraw.
+    /// A LEFT-CLICK inside the summoned find/replace panel: CLICK-TO-SWITCH-FIELD
+    /// (plus the `Aa` case toggle). A press on the `Aa` cell flips case sensitivity
+    /// and re-anchors the caret; a press on the FIND row (off `Aa`) focuses the
+    /// query (`editing_replacement = false`); a press on the REPLACE row focuses
+    /// the replacement (`editing_replacement = true`) — the amber caret then rides
+    /// the clicked field (Batch-1 fixed the replace caret-x, so focusing via click
+    /// places it correctly). A press ELSEWHERE inside the card (the key-hint line,
+    /// inter-row gaps) is a calm no-op — swallowed, never dismissing the search or
+    /// moving the document cursor beneath the panel. Returns `true` when the press landed on/in the panel and
+    /// was handled; `false` (off the card / panel down) lets the caller fall
+    /// through to the normal document press. The find↔replace decision is the pure
+    /// `TextPipeline::panel_hit` (unit-tested); this only wires the field state +
+    /// redraw, mirroring the two focus doors `handle_search_key` already uses.
     pub(in crate::app) fn panel_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
-        let (search, _) = self.workspace_state.core_slots();
         match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
-                self.document.search_toggle_case(search);
-            }
-            Some(crate::render::PanelHit::NavPrev) => {
-                self.document
-                    .search_step(search, crate::search::Direction::Backward);
-            }
-            Some(crate::render::PanelHit::NavNext) => {
-                self.document
-                    .search_step(search, crate::search::Direction::Forward);
-            }
-            Some(crate::render::PanelHit::ReplaceButton) => {
-                self.document.search_replace_current(search);
-            }
-            Some(crate::render::PanelHit::ReplaceAllButton) => {
-                self.document.search_replace_all(search);
+                let hay = self.document.buffer().text();
+                let target = self.workspace_state.search_mut().map(|st| {
+                    st.toggle_case(&hay);
+                    st.current_match()
+                });
+                if let Some(Some(m)) = target {
+                    self.document.set_cursor(m.start);
+                }
             }
             Some(crate::render::PanelHit::Find) => {
-                if let Some(st) = search.as_mut() {
+                if let Some(st) = self.workspace_state.search_mut() {
                     st.focus_query();
                 }
             }
             Some(crate::render::PanelHit::Replace) => {
-                if let Some(st) = search.as_mut() {
+                if let Some(st) = self.workspace_state.search_mut() {
                     st.focus_replacement();
                 }
             }
@@ -835,13 +822,6 @@ impl App {
             .then(|| gpu.pipeline.panel_hit(px, py))
             .flatten();
         let over_case_toggle = matches!(panel_hit, Some(crate::render::PanelHit::CaseToggle));
-        let over_panel_button = matches!(
-            panel_hit,
-            Some(crate::render::PanelHit::NavPrev)
-                | Some(crate::render::PanelHit::NavNext)
-                | Some(crate::render::PanelHit::ReplaceButton)
-                | Some(crate::render::PanelHit::ReplaceAllButton)
-        );
         let over_panel_field = matches!(
             panel_hit,
             Some(crate::render::PanelHit::Find) | Some(crate::render::PanelHit::Replace)
@@ -885,7 +865,6 @@ impl App {
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,
-            over_panel_button,
             over_panel_field,
             over_panel,
             image_drag: self.input.pointer.image_resizing.map(|d| d.handle),

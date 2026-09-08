@@ -88,30 +88,18 @@ pub(crate) struct PanelRowRect {
     pub h: f32,
 }
 
-/// One named CONTROL rect — a field box, a nav step button, the match-case
-/// checkbox, or a Replace/Replace-all button. `name` is a stable identifier
-/// (`"find_field"`, `"nav_prev"`, `"case_toggle"`, …), never a display label,
-/// so a reader can match on it without depending on the world's own text.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct PanelControlRect {
-    pub name: &'static str,
-    pub rect: [f32; 4],
-}
-
 /// The whole summoned find/replace card, published. `card` is the exterior
 /// `[x, y, w, h]` the float primitive rims; `text_left`/`text_top` are the ink
-/// origin inside it; `rows` is one band per shaped row; `controls` is every
-/// drawn field/button/checkbox box this frame — present only for the ones the
-/// current row plan actually shaped (a plain find panel publishes no
-/// `replace_field`/`replace_button`/`replace_all_button`), each a CLICK
-/// TARGET seated on its own shaped glyphs rather than on a hardcoded pitch.
+/// origin inside it; `rows` is one band per shaped row; `case_toggle` is the `Aa`
+/// indicator's own x-span, which is a CLICK TARGET seated on its two shaped
+/// glyphs rather than on a hardcoded pitch.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PanelGeometry {
     pub card: [f32; 4],
     pub text_left: f32,
     pub text_top: f32,
     pub rows: Vec<PanelRowRect>,
-    pub controls: Vec<PanelControlRect>,
+    pub case_toggle: Option<(f32, f32)>,
 }
 
 impl TextPipeline {
@@ -172,26 +160,12 @@ impl TextPipeline {
                 PanelRowRect { row, top, h }
             })
             .collect();
-        let resolved = self.panel_controls_layout(&self.panel_control_spans, text_left, text_top);
-        let mut controls = Vec::new();
-        let mut push = |name: &'static str, r: Option<[f32; 4]>| {
-            if let Some(rect) = r {
-                controls.push(PanelControlRect { name, rect });
-            }
-        };
-        push("find_field", resolved.find_field);
-        push("replace_field", resolved.replace_field);
-        push("nav_prev", resolved.nav_prev);
-        push("nav_next", resolved.nav_next);
-        push("case_toggle", resolved.case_box);
-        push("replace_button", resolved.replace_button);
-        push("replace_all_button", resolved.replace_all_button);
         Some(PanelGeometry {
             card,
             text_left,
             text_top,
             rows,
-            controls,
+            case_toggle: self.panel_case_toggle_span(text_left),
         })
     }
 }

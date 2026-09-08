@@ -96,26 +96,9 @@ fn live_sync_theme_colors_retints_every_table_pipeline_across_all_worlds() {
 /// prepare-time-argument convention rather than a persistent `set_color`.
 fn sync_owned_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
     let mut tints = sync_owned_surface_tints(p);
-    tints.extend(sync_owned_panel_control_tints(p));
     tints.extend(sync_owned_overlay_tints(p));
     tints.extend(sync_owned_annotation_tints(p));
     tints
-}
-
-/// The find/replace panel's OWN bordered-chrome pipelines — split out of
-/// `sync_owned_surface_tints` to keep it under its own line ceiling.
-fn sync_owned_panel_control_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
-    vec![
-        (
-            "panel_control_fill",
-            p.panel_control_fill.test_color().to_vec(),
-        ),
-        (
-            "panel_control_border",
-            p.panel_control_border.test_color().to_vec(),
-        ),
-        ("panel_rules", p.panel_rules.test_color().to_vec()),
-    ]
 }
 
 fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {

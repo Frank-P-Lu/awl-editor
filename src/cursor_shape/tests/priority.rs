@@ -58,32 +58,6 @@ fn an_active_page_edge_drag_still_beats_the_case_toggle_hand() {
 }
 
 #[test]
-fn a_panel_button_cell_is_the_pointing_hand() {
-    assert_eq!(
-        cursor_icon_for(ctx_panel_button(false, false)),
-        CursorIcon::Pointer
-    );
-}
-
-#[test]
-fn a_panel_button_beats_the_plain_text_beneath_the_floating_panel() {
-    // Same rank as the case toggle: a hover on a nav/Replace/Replace-all
-    // button reads as the clickable hand, never the document I-beam under
-    // the card.
-    assert_eq!(
-        cursor_icon_for(ctx_panel_button(false, true)),
-        CursorIcon::Pointer
-    );
-}
-
-#[test]
-fn an_active_page_edge_drag_still_beats_the_panel_button_hand() {
-    let mut c = ctx_panel_button(false, false);
-    c.dragging_edge = true;
-    assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
-}
-
-#[test]
 fn a_panel_field_cell_is_the_i_beam_and_beats_the_column_beneath_it() {
     let mut c = ctx(false, false, false, false);
     c.over_panel_field = true;
