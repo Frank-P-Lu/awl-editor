@@ -1192,6 +1192,21 @@ per-`FontId` family roster, invariant in the ladder by construction. What a
 capture CAN prove is the READOUT — `--semantic-json --keys "Cmd-,"` shows the
 Settings row following `--config`. See `docs/harness-reach.md`.
 
+The `cjk_priority` SETTING gained a Han-ambiguity EVIDENCE tier ahead of it
+(`script::cjk_evidence` — kana/simplified-only/traditional-only/hangul
+detected straight from the document text, folded in via
+`script::effective_cjk_priority`) and Settings gained an **Auto** value for
+the setting itself (`frontmatter::cjk_priority_is_auto`, config
+`cjk_priority = "auto"`). The unreachability above is unchanged for the
+SETTING (still pinned/config-blind exactly as measured) — but the evidence
+tier is a different axis: it is a pure function of the buffer TEXT, computed
+inside `TextPipeline::set_text_incremental` with no `Config`/`ViewState`
+involvement at all, so an ORDINARY `--screenshot` (no `--config`, no
+`--screenshot-app`) exercises it fully. A bare-Han fixture carrying a
+simplified-only character now renders in the bundled Simplified-Chinese face
+even under the capture pipeline's pinned `ja`-first default, which is the
+regression this tier fixes made visible to the harness for the first time.
+
 Schema `/89` (timeline `/90`, held `/91`) adds a top-level **`buffers`** block
 for the MULTI-BUFFER CORE (N open buffers, exactly one active, switching
 preserves everything — see ARCHITECTURE.md): `{ "open": N, "active":

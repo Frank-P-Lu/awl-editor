@@ -205,12 +205,32 @@ impl Config {
             cfg.dictionary = Some(s.to_string());
         }
         apply_boolean_settings(&mut cfg, &table);
-        if let Some(arr) = table.get("cjk_priority").and_then(|v| v.as_array()) {
-            let langs: Vec<crate::frontmatter::Lang> = arr
-                .iter()
-                .filter_map(|v| v.as_str().and_then(crate::frontmatter::Lang::parse))
-                .collect();
-            cfg.cjk_priority = Some(langs);
+        // `cjk_priority` accepts EITHER an explicit ordered array (Explicit —
+        // Han evidence overrides steps 1-4 of the ladder regardless, but this
+        // list still decides step 5) OR the literal string `"auto"` (Auto —
+        // step 5 falls back to `DEFAULT_CJK_PRIORITY`; see `script::evidence`'s
+        // module doc for the five-step ladder this decides the LAST step of).
+        // An absent key and the literal `"auto"` string both leave
+        // `cfg.cjk_priority` at `None` — the ONE representation of Auto
+        // `cjk_priority_or_default` and `apply_sticky_globals` both read —
+        // so a hand-written `cjk_priority = "auto"` and simply deleting the
+        // line behave identically. Any OTHER string, or an array that filters
+        // to empty, is inert (unknown keys never crash; `cjk_priority_or_default`
+        // already treats an empty list as "no explicit ladder").
+        match table.get("cjk_priority") {
+            Some(v) if v.as_str().is_some_and(|s| s.eq_ignore_ascii_case("auto")) => {
+                cfg.cjk_priority = None;
+            }
+            Some(v) => {
+                if let Some(arr) = v.as_array() {
+                    let langs: Vec<crate::frontmatter::Lang> = arr
+                        .iter()
+                        .filter_map(|v| v.as_str().and_then(crate::frontmatter::Lang::parse))
+                        .collect();
+                    cfg.cjk_priority = Some(langs);
+                }
+            }
+            None => {}
         }
         if let Some(s) = table.get("keymap").and_then(|v| v.as_str()) {
             cfg.keymap = Some(s.to_string());

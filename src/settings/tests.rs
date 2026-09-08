@@ -453,9 +453,10 @@ fn date_format_row_is_a_picker_and_previews_today() {
 }
 
 /// The "Ambiguous CJK reads as" row is a Picker (opening
-/// `OverlayKind::CjkLang`), and its value cell shows the live ladder's
-/// FRONT language in WRITER WORDS ("Japanese"), never the raw BCP 47 code
-/// ("ja") — the whole point of the row growing up from `SettingKind::List`.
+/// `OverlayKind::CjkLang`), and its value cell shows "Auto" while the live
+/// Auto flag is set, else the live ladder's FRONT language in WRITER WORDS
+/// ("Japanese"), never the raw BCP 47 code ("ja") — the whole point of the
+/// row growing up from `SettingKind::List`.
 #[test]
 fn cjk_row_is_a_picker_with_a_writer_word_value_cell() {
     let _g = crate::testlock::serial();
@@ -467,6 +468,10 @@ fn cjk_row_is_a_picker_with_a_writer_word_value_cell() {
     );
 
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    crate::frontmatter::set_cjk_priority_auto(true);
+    assert_eq!(value_for(&row, &SettingsValues::default()), "Auto");
+
+    crate::frontmatter::set_cjk_priority_auto(false);
     assert_eq!(value_for(&row, &SettingsValues::default()), "Japanese");
 
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::promote_cjk_priority(
@@ -475,6 +480,7 @@ fn cjk_row_is_a_picker_with_a_writer_word_value_cell() {
     assert_eq!(value_for(&row, &SettingsValues::default()), "Korean");
 
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    crate::frontmatter::set_cjk_priority_auto(true);
 }
 
 /// "Full table" now means "full table minus Keymap on `Convention::Mac`" —

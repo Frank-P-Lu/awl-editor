@@ -390,6 +390,23 @@ step (c) at the pure seam (`script::resolve_font_id`,
 needs human confirmation. Threading the ladder into the capture pipeline would
 move this to tier 2, and is a real follow-up.
 
+**The DOCUMENT-scoped evidence tier sitting ahead of step (c)
+(`script::cjk_evidence`, folded in by `script::effective_cjk_priority`) is on
+the OTHER side of this exact boundary — tier 1, not tier 3.** It is a pure
+function of the buffer's own text, read straight from the `text: &str`
+`TextPipeline::set_text_incremental` already holds, with no `Config`/
+`ViewState` hop at all — so an ORDINARY `--screenshot` (no `--config`, no
+`--screenshot-app`) exercises it in full, including its interaction with the
+pinned `DEFAULT_CJK_PRIORITY` default the table above describes: an untagged,
+bare-Han fixture carrying a simplified-only character (e.g. 这) resolves the
+bundled Simplified-Chinese face in the PNG even though the pinned ladder is
+`ja`-first, and a mutation that removes the evidence fold (reverting to
+`cjk_priority.first()` alone) turns that same fixture back to the Japanese
+face — a real, capture-provable regression law
+(`capture::tests::i18n_fixtures`). What stays tier-3-only is exactly what the
+table above already says: an EXPLICIT, non-default `cjk_priority` setting
+still never reaches a rendered pixel through either capture door.
+
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
 `app/input/keys.rs`, `app/input/mouse.rs`, `app/input/drags.rs`, `app/menu.rs`,
 `app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter

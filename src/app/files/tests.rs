@@ -1154,11 +1154,13 @@ fn persist_cjk_priority_writes_the_whole_ordered_ladder_to_config() {
         config.path = PathBuf::from("/cfg/config.toml");
         let mut app = App::new(None, PathBuf::from("/w/proj"), None, None, config);
 
-        // The core already promoted Korean to the front (mirrors what
-        // `actions::overlay_nav`'s CjkLang accept branch does).
+        // The core already promoted Korean to the front and flipped Auto off
+        // (mirrors what `actions::overlay_nav`'s CjkLang accept branch does
+        // for an explicit language pick).
         crate::frontmatter::set_cjk_priority(&crate::frontmatter::promote_cjk_priority(
             crate::frontmatter::Lang::Ko,
         ));
+        crate::frontmatter::set_cjk_priority_auto(false);
         app.persist_cjk_priority();
 
         let want = vec![
@@ -1176,6 +1178,51 @@ fn persist_cjk_priority_writes_the_whole_ordered_ladder_to_config() {
         assert_eq!(reloaded.cjk_priority, Some(want), "persisted to disk");
 
         crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+        crate::frontmatter::set_cjk_priority_auto(true);
+    });
+}
+
+#[test]
+fn persist_cjk_priority_writes_auto_as_a_string_and_clears_the_config_field() {
+    // The picker's "Auto" row (mirrors the Explicit test above): the core
+    // resets the ladder to the built-in default and flips the live Auto flag
+    // back on; the persist step must write the literal `"auto"` RHS, never
+    // an array, and clear `self.config.cjk_priority` back to `None` so
+    // `cjk_priority_or_default` falls through to the built-in default again.
+    let _g = crate::testlock::serial();
+    let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/w/proj"));
+    crate::fs::with_fs(fake.clone(), || {
+        let mut config = Config::empty();
+        config.path = PathBuf::from("/cfg/config.toml");
+        // Start from an EXPLICIT ladder already on disk, so this proves Auto
+        // actually overwrites it rather than merely never having been set.
+        config.cjk_priority = Some(vec![
+            crate::frontmatter::Lang::Ko,
+            crate::frontmatter::Lang::ZhHant,
+            crate::frontmatter::Lang::Ja,
+            crate::frontmatter::Lang::ZhHans,
+        ]);
+        let mut app = App::new(None, PathBuf::from("/w/proj"), None, None, config);
+
+        crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+        crate::frontmatter::set_cjk_priority_auto(true);
+        app.persist_cjk_priority();
+
+        assert_eq!(
+            app.config.cjk_priority, None,
+            "Auto clears the in-memory explicit ladder"
+        );
+        let raw = fake
+            .read_to_string(&PathBuf::from("/cfg/config.toml"))
+            .unwrap();
+        assert!(
+            raw.lines().any(|l| l.trim() == "cjk_priority = \"auto\""),
+            "writes the literal auto string, not an array: {raw}"
+        );
+        let reloaded = Config::load(PathBuf::from("/cfg/config.toml"));
+        assert_eq!(reloaded.cjk_priority, None, "auto round-trips to None");
+
+        crate::frontmatter::set_cjk_priority_auto(true);
     });
 }
 

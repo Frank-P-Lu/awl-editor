@@ -160,12 +160,19 @@ impl Config {
         // CJK AMBIGUITY LADDER: seed the live process global (`frontmatter::
         // cjk_priority()`, read by the Settings menu's "Ambiguous CJK reads as"
         // row) from a configured list, normalized to a well-formed 4-member
-        // permutation. Absent config leaves the global at its own built-in
-        // default (`DEFAULT_CJK_PRIORITY`), so a plain launch (and a default
-        // `--screenshot`) is unaffected. The RENDER ladder is unaffected either
-        // way — it stays `self.cjk_priority_or_default()`, read fresh.
+        // permutation, AND flip the Auto flag beside it (`frontmatter::
+        // cjk_priority_is_auto`) to Explicit. Absent config — or the literal
+        // `cjk_priority = "auto"`, which parses to the SAME `None` (`Config::
+        // parse`'s doc) — leaves BOTH globals untouched, exactly like
+        // `dictionary` above: their own built-in defaults are already
+        // correct (`DEFAULT_CJK_PRIORITY`, Auto), so a plain launch (and a
+        // default `--screenshot`) is unaffected, and a config reload that
+        // drops the key doesn't silently undo an in-session picker choice.
+        // The RENDER ladder is unaffected by either global either way — it
+        // stays `self.cjk_priority_or_default()`, read fresh every reshape.
         if let Some(v) = &self.cjk_priority {
             crate::frontmatter::set_cjk_priority(v);
+            crate::frontmatter::set_cjk_priority_auto(false);
         }
     }
 }

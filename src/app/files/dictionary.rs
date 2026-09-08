@@ -15,15 +15,20 @@ impl App {
 
     /// Persist the now-active CJK ambiguity LADDER (write-on-change after the
     /// CJK-priority language picker commits) — mirrors `persist_dictionary`,
-    /// except the value is a whole ORDERED LIST rather than one scalar: the
-    /// core already promoted + set the live global
-    /// (`frontmatter::set_cjk_priority`), so this just formats it as a TOML
-    /// array RHS and writes it through the same format-preserving `write_pref`
-    /// (which only cares that `value` is an already-formatted RHS — an array
-    /// upserts exactly like a string/bool/number). The config file keeps the
-    /// FULL ordered list (not just the promoted front), so hand-editing and an
+    /// except the value can be EITHER the literal string `"auto"` or a whole
+    /// ORDERED LIST: the core already set the live globals
+    /// (`frontmatter::set_cjk_priority` + `set_cjk_priority_auto`), so this
+    /// just reads them back and formats the RHS, writing it through the same
+    /// format-preserving `write_pref` (which only cares that `value` is an
+    /// already-formatted RHS — a quoted string or an array both upsert like
+    /// any scalar). The config file keeps the FULL ordered list on an
+    /// Explicit pick (not just the promoted front), so hand-editing and an
     /// old config both keep working unchanged.
     pub(in crate::app) fn persist_cjk_priority(&mut self) {
+        if crate::frontmatter::cjk_priority_is_auto() {
+            self.persist_pref("cjk_priority", "\"auto\"");
+            return;
+        }
         let ladder = crate::frontmatter::cjk_priority();
         let quoted: Vec<String> = ladder.iter().map(|l| format!("\"{}\"", l.code())).collect();
         self.persist_pref("cjk_priority", &format!("[{}]", quoted.join(", ")));

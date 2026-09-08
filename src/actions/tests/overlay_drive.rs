@@ -402,6 +402,7 @@ fn command_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effe
             ),
         )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
+            crate::frontmatter::cjk_priority_is_auto(),
             crate::frontmatter::cjk_priority()
                 .first()
                 .copied()
@@ -829,6 +830,9 @@ fn settings_path_navigator_keeps_breadcrumb_across_descend() {
 fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     let _g = crate::testlock::serial();
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    // Explicit (not Auto), so the picker pre-selects "Japanese" below rather
+    // than the new leading "Auto" row.
+    crate::frontmatter::set_cjk_priority_auto(false);
 
     // "Ambiguous CJK reads as" is now a PICKER row (the List row grown up).
     let mut overlay = super::settings_journey();
@@ -901,6 +905,7 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
 
     // Cleanup for other tests.
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    crate::frontmatter::set_cjk_priority_auto(true);
 }
 
 #[test]

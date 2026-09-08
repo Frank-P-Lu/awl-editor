@@ -160,13 +160,19 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   code_ligatures : programming ligatures (-> => != >= :: |>) in CODE buffers on
 #                the pitch-safe monos (JetBrains Mono, Iosevka) — default on. Set
 #                false for ligature-free code. Prose fi/fl ligatures are always on.
-#   cjk_priority : the Han-ambiguity tiebreak ladder (default [\"ja\", \"zh-Hans\",
-#                \"zh-Hant\", \"ko\"]) — consulted ONLY when an untagged document's
-#                CJK content is bare Han (kanji/hanzi with no kana/hangul/bopomofo
-#                to disambiguate it); an unrecognized tag in the list is skipped.
-#                Used by the per-run render ladder, and by the palette's \"Tag
-#                document language\" command (the only door that writes a
-#                `---\\nlang: ..\\n---` block; opening a document never does).
+#   cjk_priority : the Han-ambiguity tiebreak ladder — consulted only as the
+#                LAST resort, after the document's own text is checked for
+#                decisive evidence (any kana -> Japanese, a GB2312-only or
+#                Big5-only character -> Simplified/Traditional Chinese, any
+#                hangul -> Korean); this setting decides only a note whose CJK
+#                is bare Han shared across scripts, with no such evidence.
+#                `\"auto\"` (the default; same as leaving the key out) falls
+#                back to [\"ja\", \"zh-Hans\", \"zh-Hant\", \"ko\"] at that last
+#                step. An explicit array picks your own order instead; an
+#                unrecognized tag in the list is skipped. Used by the per-run
+#                render ladder, and by the palette's \"Tag document language\"
+#                command (the only door that writes a `---\\nlang: ..\\n---`
+#                block; opening a document never does).
 #   session_restore : reopen the previous session on a plain relaunch — every
 #                open file, the active one, each file's cursor/scroll, and the
 #                native window frame (default on). OFF disables both writing
@@ -213,7 +219,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # popover = true
 # inline_images = true
 # code_ligatures = true
-# cjk_priority = [\"ja\", \"zh-Hans\", \"zh-Hant\", \"ko\"]
+# cjk_priority = \"auto\"
 # session_restore = true
 # outline = true
 # menu_bar = true

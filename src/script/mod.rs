@@ -1,6 +1,6 @@
 //! SCRIPT CLASSIFICATION — a pure Unicode-scalar-value classifier over the
 //! four non-Latin scripts the i18n round distinguishes (Kana / Hangul /
-//! Bopomofo / Han), and the two ladders built on top of it:
+//! Bopomofo / Han), and the ladders built on top of it:
 //!
 //!  - [`dominant_cjk`] scans a WHOLE document once for the doc-language
 //!    WRITE-BACK detector (`app/files/`'s untagged-doc-open path): an
@@ -8,18 +8,29 @@
 //!    always wins over a merely-present Han run; a Han-ONLY document is
 //!    ambiguous and falls to the config `cjk_priority` tiebreak
 //!    ([`doc_lang_for`]).
+//!  - [`evidence::cjk_evidence`] is the DOCUMENT-scoped Han-ambiguity evidence
+//!    tier ([`evidence`]'s module doc carries the full rule set): a Han-only
+//!    note that carries a GB2312-only or Big5-only character resolves to
+//!    Simplified/Traditional Chinese from the text itself, before the
+//!    `cjk_priority` setting is ever consulted.
 //!  - [`resolve_font_id`] is the per-RUN RENDER resolution ladder
 //!    (`render/spans.rs`'s per-script span generalization of the old
 //!    Japanese-only `add_cjk_spans`): (a) the document's own frontmatter
 //!    `lang:` tag, if compatible with this run's script; (b) else the run's
 //!    own unambiguous script mapping; (c) else (a Han run with no compatible
-//!    tag) the `cjk_priority` tiebreak; (d) else [`crate::theme::FontId::Latin`]
-//!    (the base default — the guaranteed floor; a CJK-classified run always
-//!    resolves by (c), so (d) is reached only for an already-Latin run, which
-//!    never calls this in practice).
+//!    tag) the `cjk_priority` tiebreak — where the CALLER folds the document's
+//!    evidence tier into that ladder first ([`evidence::effective_cjk_priority`]),
+//!    so this function itself never changes shape; (d) else
+//!    [`crate::theme::FontId::Latin`] (the base default — the guaranteed
+//!    floor; a CJK-classified run always resolves by (c), so (d) is reached
+//!    only for an already-Latin run, which never calls this in practice).
 //!
 //! Pure + deterministic (no clock, no I/O) — every function here is a plain
 //! `&str`/`char` -> value transform, unit-testable with no GPU/buffer/theme.
+
+mod evidence;
+
+pub use evidence::{cjk_evidence, effective_cjk_priority};
 
 use crate::frontmatter::Lang;
 use crate::theme::FontId;
