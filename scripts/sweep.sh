@@ -22,6 +22,18 @@
 # where the operator knows nothing is building. No automatic caller passes it,
 # and scripts/test-sweep.sh holds both halves of that line.
 #
+# THAT KNOWLEDGE IS NOW CHECKED, NOT ASSUMED. `--all-worktrees` refuses before
+# touching anything if either signal says the fleet is not idle: the
+# native-gate arbiter marker (`.orchestrator/native-gate.marker`, shared by
+# every worktree of this repo — see scripts/native-gate.sh) names a live pid,
+# or a `cargo`/`rustc` process is running anywhere on the host. Neither check
+# is scoped to a single worktree, deliberately: the marker and the process
+# table are both fleet-wide facts, and the traversal this flag authorizes is
+# fleet-wide too. Both checks are overridable (AWL_NATIVE_GATE_MARKER,
+# AWL_SWEEP_CARGO_PS_COMMAND) so scripts/test-sweep.sh can prove the guard
+# without a real gate or a real compile, and so it is not tripped by the real
+# lanes this host usually has running.
+#
 # `cargo sweep` is deliberately invoked WITHOUT `--recursive`, so it touches
 # only `<root>/target` and never descends into the worktrees kept under
 # `.claude/worktrees/`. That is a property of the tool, not of this script, so
@@ -66,9 +78,43 @@ if ! command -v cargo-sweep >/dev/null 2>&1; then
     exit 1
 fi
 
+# Refuses --all-worktrees while the fleet is verifiably not idle. Exits
+# non-zero, naming the pid or the process, before any traversal or deletion —
+# this runs first in the --all-worktrees branch, ahead of even the banner.
+refuse_all_worktrees_if_not_idle() {
+    local marker="${AWL_NATIVE_GATE_MARKER:-}" common_dir holder pid live
+
+    if [[ -z "$marker" ]]; then
+        if common_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
+            marker="$(cd "$common_dir/.." && pwd -P)/.orchestrator/native-gate.marker"
+        fi
+    fi
+    if [[ -n "$marker" && -f "$marker" ]]; then
+        holder="$(cat "$marker" 2>/dev/null || true)"
+        pid="${holder#*pid=}"
+        pid="${pid%% *}"
+        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            echo "sweep: refusing --all-worktrees — native-gate arbiter marker names live pid $pid ($holder)" >&2
+            exit 1
+        fi
+    fi
+
+    if [[ -n "${AWL_SWEEP_CARGO_PS_COMMAND:-}" ]]; then
+        live="$(${AWL_SWEEP_CARGO_PS_COMMAND} 2>/dev/null || true)"
+    else
+        live="$( { pgrep -x cargo; pgrep -x rustc; } 2>/dev/null || true)"
+    fi
+    if [[ -n "$live" ]]; then
+        echo "sweep: refusing --all-worktrees — cargo/rustc process(es) running: $(tr '\n' ' ' <<<"$live")" >&2
+        exit 1
+    fi
+}
+
 # macOS still ships Bash 3, so do not use an associative array here.
 unique_roots=()
 if [[ "$ALL_WORKTREES" -eq 1 ]]; then
+    refuse_all_worktrees_if_not_idle
+
     echo "sweep: --all-worktrees — pruning EVERY registered worktree. A build live in any" >&2
     echo "  of them can die on a fingerprint deleted underneath it; run this only when the" >&2
     echo "  fleet is idle." >&2
