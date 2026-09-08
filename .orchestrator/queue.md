@@ -32,6 +32,8 @@ change is intended.
 
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-537`, worktree `.claude/worktrees/item-537`.
+
 ⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
 per-document ladder scope** — the ladder follows first-reference order across
 the whole document, matching today's numbering; awl has no pages, so per-page
@@ -192,6 +194,8 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-588`, worktree `.claude/worktrees/item-588`.
+
 Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
 recorded, as its own clause (c), that LIST-BULLET pairs were not covered by that pass: they
 still carry the pre-Nishiki vocabulary while the trio beside them moved. The decision was a
@@ -311,6 +315,8 @@ Keep everything else: merging the two drifted placard predicates into one owner
 ---
 
 ### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-603`, worktree `.claude/worktrees/item-603`.
 
 ⬜ DECIDED, READY (user, 2026-09-07): **select within the transcript.** A selection asked for inside a substituted transcript selects that transcript's text — the first of the three options below, the one that needs a transcript-side offset map. The action stays advertised; it is never scoped to nothing. The user's own words: it should select what you selected.
 
