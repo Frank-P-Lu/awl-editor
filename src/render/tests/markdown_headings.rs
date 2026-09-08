@@ -112,7 +112,7 @@ fn blockquote_pull_quote_mark_page_mode_only() {
     assert_eq!(
         marks
             .iter()
-            .filter(|(_, side)| *side == crate::render::rects::QuoteSide::Open)
+            .filter(|(_, side, _)| *side == crate::render::rects::QuoteSide::Open)
             .count(),
         2,
         "one opening mark per block, never two: {marks:?}"
@@ -120,7 +120,7 @@ fn blockquote_pull_quote_mark_page_mode_only() {
     assert_eq!(
         marks
             .iter()
-            .filter(|(_, side)| *side == crate::render::rects::QuoteSide::Close)
+            .filter(|(_, side, _)| *side == crate::render::rects::QuoteSide::Close)
             .count(),
         2,
         "one closing mark per block — the 66 is followed by its 99: {marks:?}"
@@ -201,61 +201,62 @@ fn pull_quote_hangs_in_the_column_gutter_never_the_margin() {
     );
 }
 
-/// THE MIRROR LAW: the CLOSING pull-quote mark sits exactly as far from the
-/// writing column's RIGHT edge as the opening one sits from its LEFT edge —
-/// `geometry::pull_quote_right` is `pull_quote_left` reflected, so the pair
-/// reads as one ornament bracketing the block rather than as two marks with
-/// unrelated placements. Swept over the whole mark-width axis (including the
-/// over-wide regime where BOTH ends clamp flush to their page edge) and over
-/// several column geometries and clearances, because a mirror that only holds
-/// at one width is not a mirror. Pure, so no GPU is needed.
+/// THE CLOSE-MARK CLAMP LAW (2026-09 decision: the closing mark FOLLOWS the
+/// text instead of hanging in the right gutter its opening twin still uses).
+/// `geometry::pull_quote_close_x` must place the mark one `gap` past the
+/// block's own last-row `ink_right` whenever it fits, and clamp its RIGHT edge
+/// to `text_right` (never escaping the column) at the widest wrap, without
+/// ever pushing its LEFT edge behind `text_left`. Swept over the whole
+/// mark-width axis (including the over-wide regime where the clamp binds) and
+/// over several column geometries and clearances, because a clamp that only
+/// holds at one width is not a clamp. Pure, so no GPU is needed.
 #[test]
-fn pull_quote_close_mirrors_open_about_the_column() {
-    use geometry::{pull_quote_left, pull_quote_right};
+fn pull_quote_close_x_follows_ink_and_yields_inside_the_column() {
+    use geometry::pull_quote_close_x;
     let mut checked = 0usize;
-    for &(column_left, column_width, pad) in &[
-        (240.0_f32, 400.0_f32, 40.0_f32),
-        (0.0, 1200.0, 96.0),
-        (17.5, 333.25, 12.5),
-        (600.0, 220.0, 20.0),
+    for &(text_left, text_right) in &[
+        (280.0_f32, 640.0_f32),
+        (96.0, 1104.0),
+        (30.0, 350.75),
+        (620.0, 840.0),
     ] {
-        let column_right = column_left + column_width;
-        let text_left = column_left + pad;
-        let text_right = column_right - pad;
-        for gap_step in 0..6 {
-            let gap = gap_step as f32 * 2.5;
-            for w_step in 1..=60 {
-                let mark_w = w_step as f32 * 2.5; // 2.5 .. 150, past `pad` on every geometry
-                let l = pull_quote_left(column_left, text_left, gap, mark_w);
-                let r = pull_quote_right(column_right, text_right, gap, mark_w);
-                let inset_left = l - column_left;
-                let inset_right = column_right - (r + mark_w);
-                assert!(
-                    (inset_left - inset_right).abs() < 1e-3,
-                    "asymmetric pair: column {column_left}..{column_right}, pad {pad}, \
-                     gap {gap}, mark_w {mark_w} — opening inset {inset_left}, \
-                     closing inset {inset_right}"
-                );
-                assert!(
-                    r + mark_w <= column_right + 1e-3,
-                    "closing mark spills out of the page into the right margin: \
-                     right edge {} past {column_right} (mark_w {mark_w})",
-                    r + mark_w
-                );
-                if mark_w + gap <= pad {
+        for ink_step in 0..12 {
+            // Sweep the last row's ink-right across the whole column width —
+            // narrow wrap (ink stops early) through the widest wrap (ink runs
+            // to the column's own edge).
+            let ink_right = text_left + (text_right - text_left) * (ink_step as f32 / 11.0);
+            for gap_step in 0..5 {
+                let gap = gap_step as f32 * 3.0;
+                for w_step in 1..=40 {
+                    let mark_w = w_step as f32 * 3.0; // past the column on every geometry
+                    let x = pull_quote_close_x(ink_right, text_left, text_right, gap, mark_w);
                     assert!(
-                        r >= text_right + gap - 1e-3,
-                        "a mark that FITS the gutter must clear the text's own wrap \
-                         edge: {r} < {text_right} + {gap} (mark_w {mark_w})"
+                        x + mark_w <= text_right + 1e-3,
+                        "closing mark escapes the column at the widest wrap: \
+                         right edge {} past text_right {text_right} \
+                         (ink_right {ink_right}, gap {gap}, mark_w {mark_w})",
+                        x + mark_w
                     );
+                    assert!(
+                        x >= text_left - 1e-3,
+                        "closing mark clamps past the column's own left edge: \
+                         {x} < text_left {text_left} (mark_w {mark_w})"
+                    );
+                    if ink_right + gap + mark_w <= text_right {
+                        assert!(
+                            (x - (ink_right + gap)).abs() < 1e-3,
+                            "a mark that FITS must sit exactly one gap past the \
+                             row's own ink: {x} != {ink_right} + {gap}"
+                        );
+                    }
+                    checked += 1;
                 }
-                checked += 1;
             }
         }
     }
     assert!(
-        checked >= 4 * 6 * 60,
-        "the mirror sweep visited only {checked} cells — the loop bounds moved"
+        checked >= 4 * 12 * 5 * 40,
+        "the clamp sweep visited only {checked} cells — the loop bounds moved"
     );
 }
 
@@ -288,12 +289,12 @@ fn pull_quote_close_hangs_from_the_last_wrapped_row() {
     assert_eq!(marks.len(), 2, "one pair for the one block: {marks:?}");
     let open = marks
         .iter()
-        .find(|(_, s)| *s == crate::render::rects::QuoteSide::Open)
+        .find(|(_, s, _)| *s == crate::render::rects::QuoteSide::Open)
         .expect("an opening mark")
         .0;
     let close = marks
         .iter()
-        .find(|(_, s)| *s == crate::render::rects::QuoteSide::Close)
+        .find(|(_, s, _)| *s == crate::render::rects::QuoteSide::Close)
         .expect("a closing mark")
         .0;
     assert!(
@@ -377,7 +378,7 @@ fn long_block_culls_its_two_ends_independently() {
     );
 
     let sides = |p: &crate::render::TextPipeline| -> Vec<crate::render::rects::QuoteSide> {
-        p.quote_marks().iter().map(|&(_, s)| s).collect()
+        p.quote_marks().iter().map(|&(_, s, _)| s).collect()
     };
     assert_eq!(
         sides(&p),

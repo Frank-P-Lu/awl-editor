@@ -112,6 +112,13 @@ pub(super) struct RowGeom {
     /// blockquote pull-quote's CLOSING mark hangs on the block's final row, which is
     /// the last WRAPPED row of its last logical line, not that line's first.
     line_last_tops: std::cell::RefCell<Option<Vec<f32>>>,
+    /// Per LOGICAL line: the buffer-relative BASELINE y of that line's **LAST**
+    /// visual row (`line_last_baseline`) — the wrap-aware counterpart of
+    /// [`Self::line_baselines`], filled by the SAME walk (last write wins). The
+    /// blockquote pull-quote's CLOSING mark anchors here, on the block's real
+    /// final row of ink, not that row's top (a scaled-up mark's own ascent
+    /// otherwise rides well above a mere row-top anchor).
+    line_last_baselines: std::cell::RefCell<Option<Vec<f32>>>,
     /// Full visual-row partition assembled in the SAME shaped-run walk as the
     /// scalar row table. Layout consumers and the report share this owner.
     frame_rows: std::cell::RefCell<Option<Vec<FrameVisualRow>>>,
@@ -155,6 +162,7 @@ impl RowGeom {
             line_tops: std::cell::RefCell::new(None),
             line_baselines: std::cell::RefCell::new(None),
             line_last_tops: std::cell::RefCell::new(None),
+            line_last_baselines: std::cell::RefCell::new(None),
             frame_rows: std::cell::RefCell::new(None),
             frame_sealed: std::cell::Cell::new(false),
             rows_line: std::cell::Cell::new(None),
@@ -180,6 +188,7 @@ impl RowGeom {
         *self.line_tops.borrow_mut() = None;
         *self.line_baselines.borrow_mut() = None;
         *self.line_last_tops.borrow_mut() = None;
+        *self.line_last_baselines.borrow_mut() = None;
         *self.frame_rows.borrow_mut() = None;
         self.frame_sealed.set(false);
         // Drop the cursor-line VisualRow memo too: the shaped runs just changed, so
@@ -213,6 +222,7 @@ impl RowGeom {
         let mut line_tops: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_baselines: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_last_tops: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
+        let mut line_last_baselines: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_seen: Vec<bool> = vec![false; buf.lines.len()];
         let mut frame_rows = Vec::new();
         for run in buf.layout_runs() {
@@ -231,6 +241,9 @@ impl RowGeom {
             if let Some(top) = line_last_tops.get_mut(run.line_i) {
                 *top = run.line_top; // last run for this line wins: its LAST visual row
             }
+            if let Some(baseline) = line_last_baselines.get_mut(run.line_i) {
+                *baseline = run.line_y; // last run for this line wins: its LAST baseline
+            }
             if let Some(seen) = line_seen.get_mut(run.line_i)
                 && !*seen
             {
@@ -245,6 +258,7 @@ impl RowGeom {
         *self.line_tops.borrow_mut() = Some(line_tops);
         *self.line_baselines.borrow_mut() = Some(line_baselines);
         *self.line_last_tops.borrow_mut() = Some(line_last_tops);
+        *self.line_last_baselines.borrow_mut() = Some(line_last_baselines);
         *self.frame_rows.borrow_mut() = Some(frame_rows);
     }
 
@@ -338,6 +352,20 @@ impl RowGeom {
     pub(super) fn line_last_top(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
         self.ensure(buf, m);
         self.line_last_tops
+            .borrow()
+            .as_ref()
+            .and_then(|v| v.get(line).copied())
+            .unwrap_or(UNSHAPED_LINE_TOP)
+    }
+
+    /// Buffer-relative BASELINE y (px) of logical `line`'s **LAST** visual row —
+    /// the wrap-aware counterpart of [`Self::line_first_baseline`], and the real
+    /// shaped baseline (`LayoutRun::line_y`) of the block's true final row of ink,
+    /// not an approximation from the row's top or height. [`UNSHAPED_LINE_TOP`]
+    /// for an out-of-range or unshaped line, mirroring every sibling here.
+    pub(super) fn line_last_baseline(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
+        self.ensure(buf, m);
+        self.line_last_baselines
             .borrow()
             .as_ref()
             .and_then(|v| v.get(line).copied())

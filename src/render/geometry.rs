@@ -72,17 +72,25 @@ pub(super) fn pull_quote_left(column_left: f32, text_left: f32, gap: f32, mark_w
     (text_left - gap - mark_w).max(column_left)
 }
 
-/// BLOCKQUOTE pull-quote CLOSING mark x (px) — [`pull_quote_left`] MIRRORED into the
-/// writing column's RIGHT text-pad gutter, so the closing mark sits the same distance
-/// from the text edge as the opening one does on the other flank. Its LEFT edge is a
-/// hair (`gap`) past `text_right` (the wrap edge the quote's own text stops at, so the
-/// text clears it) with its RIGHT edge clamped to `column_right` so it can NEVER
-/// spill out of the page into the right margin. An OVER-WIDE mark clamps and overlaps
-/// the text rather than escaping the page — the same accepted cost, on the same side
-/// of the trade, as its left-hand twin. Pure so the mirror law is unit-testable
-/// without a GPU.
-pub(super) fn pull_quote_right(column_right: f32, text_right: f32, gap: f32, mark_w: f32) -> f32 {
-    (text_right + gap).min(column_right - mark_w)
+/// BLOCKQUOTE pull-quote CLOSING mark x (px): one `gap` past `ink_right` — the
+/// block's own LAST-ROW shaped ink-right edge (2026-09 decision: the close end
+/// FOLLOWS the text rather than hanging in a fixed gutter, unlike its opening
+/// twin), clamped so its RIGHT edge never escapes past `text_right` at the
+/// widest wrap — it yields INSIDE the column instead of spilling into the
+/// margin — and floored to `text_left` so a pathologically narrow column still
+/// keeps it on the page rather than at a negative x. An over-wide mark clamps
+/// and overlaps the text rather than escaping the page, the same accepted cost
+/// [`pull_quote_left`] takes on its own flank. Pure so the clamp law is
+/// unit-testable without a GPU. `mark_w` is the mark's shaped advance; `gap`
+/// the clearance past the text.
+pub(super) fn pull_quote_close_x(
+    ink_right: f32,
+    text_left: f32,
+    text_right: f32,
+    gap: f32,
+    mark_w: f32,
+) -> f32 {
+    (ink_right + gap).min(text_right - mark_w).max(text_left)
 }
 
 pub const PAGE_RESIZE_GRAB_PX: Logical = Logical(6.0);
