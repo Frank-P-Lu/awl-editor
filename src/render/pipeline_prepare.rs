@@ -179,7 +179,7 @@ impl TextPipeline {
         // above both arms. Read through `picker_chrome_theme()` — the SAME seam
         // `effective_list_style`/`effective_facet_style`/`effective_pane_split`/
         // `effective_chrome_face`/`effective_card_anchor`/`effective_location_style`
-        // already read (item 609) — rather than `theme::active()` directly: a crisp
+        // already read — rather than `theme::active()` directly: a crisp
         // picker's own preview step swaps `theme::active()` to the row under the
         // caret while the card stays open, and reading it raw here made previewing
         // Wagtail (the roster's one `Backdrop::Flat` world) from any OTHER world

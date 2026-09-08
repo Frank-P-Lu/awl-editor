@@ -2601,7 +2601,7 @@ fn emphasis_content_spans_agree_with_the_render_walk_and_see_what_it_cannot() {
     );
 }
 
-// ── FOOTNOTE LADDER (item 537) ──────────────────────────────────────────────
+// ── FOOTNOTE LADDER ─────────────────────────────────────────────────────────
 
 /// The ladder is pinned against the historical print-shop sequence: asterisk,
 /// dagger, double dagger, section, double vertical line, pilcrow — the exact

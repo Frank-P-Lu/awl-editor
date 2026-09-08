@@ -142,7 +142,8 @@ fn footnote_definition_and_every_reference_occurrence_share_one_mark_per_number(
     let _restore = crate::testlock::misc::TogglesRestore::capture();
     let Some(mut pipeline) = headless_pipeline() else {
         eprintln!(
-            "skipping footnote_definition_and_every_reference_occurrence_share_one_mark_per_number: \
+            "skipping footnote_definition_and_every_reference_occurrence\
+             _share_one_mark_per_number: \
              no wgpu adapter"
         );
         return;

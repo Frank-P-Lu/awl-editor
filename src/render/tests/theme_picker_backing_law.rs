@@ -1,9 +1,9 @@
-//! ITEM 632 — THE CARD'S BACKING MUST SURVIVE A CROSS-WORLD PREVIEW.
+//! THE CARD'S BACKING MUST SURVIVE A CROSS-WORLD PREVIEW.
 //!
 //! Open the theme picker on one world and arrow to PREVIEW another (uncommitted): the
 //! surrounding page repaints live in the previewed world's colours (that live preview is
 //! the whole point of the picker), but the card's own chrome stays pinned to the world it
-//! was SUMMONED on (item 609, `render::picker_chrome_theme`) so the list itself never
+//! was SUMMONED on (`render::picker_chrome_theme`) so the list itself never
 //! recomposes underfoot. The card's OPAQUE/FROSTED BACKING is a separate treatment from
 //! that pin — `TextPipeline::frost_mode`'s footprint arm — and it read `theme::active()`
 //! (the live, previewed world) rather than the pinned one for its one early exit: **TRUE
@@ -13,10 +13,10 @@
 //! the picker on any OTHER world and previewing Wagtail flipped `theme::active()` to
 //! Wagtail for the span of the preview, tripped that exit, and left the card with no
 //! backing at all — the document behind it bled straight through the row text, unreadable.
-//! Captured live at `gallery/item-628-shared-chrome/theme_kite_preview_wagtail.png`
+//! Captured live at `gallery/shared-chrome/theme_kite_preview_wagtail.png`
 //! (Kite open, previewing Wagtail) on an unrelated lane's branch, found incidentally.
 //!
-//! The fix joins the SAME seam item 609 already built rather than adding a second one:
+//! The fix joins the SAME pin the sibling resolvers read rather than a second one:
 //! `frost_mode` now reads `picker_chrome_theme().render_caps.backdrop`, exactly like the
 //! six existing `effective_*` resolvers read `picker_chrome_theme().render_caps.*` instead
 //! of `theme::active().render_caps.*`. `picker_chrome_theme()` falls back to
@@ -170,7 +170,7 @@ fn previewing_a_true_1bit_world_keeps_the_cards_backing_opaque() {
     );
     assert!(
         !targets.is_empty(),
-        "no world carries Backdrop::Flat — item 632's own axis has vanished from the \
+        "no world carries Backdrop::Flat — this law's own axis has vanished from the \
          roster; if that is deliberate, this law (and the frost_mode exception it \
          guards) can retire with it"
     );
@@ -297,7 +297,8 @@ fn previewing_a_true_1bit_world_keeps_the_cards_backing_opaque() {
             eprintln!("SAMPLE EDGES {label}: {sample_edges:?}");
             eprintln!(
                 "MEASURED {label}: measured={measured} edges={edges} peak_step={peak_step:.1} \
-                 peak_amplitude={peak_amplitude:.1} card={rect:?} frost_rect={frect:?} shear={shear}"
+                 peak_amplitude={peak_amplitude:.1} card={rect:?} \
+                 frost_rect={frect:?} shear={shear}"
             );
             assert!(
                 measured > 1000,
@@ -338,7 +339,7 @@ fn previewing_a_true_1bit_world_keeps_the_cards_backing_opaque() {
 /// MUTATION PROOF, IN CODE: the OLD predicate (`theme::active()`, unpinned) and the
 /// FIXED one (`picker_chrome_theme()`, pinned to the opener) must actually disagree on
 /// at least one enrolled crossing — otherwise the headline law above could be green for
-/// a reason that has nothing to do with the seam item 609 already built. Proven by
+/// a reason that has nothing to do with the chrome pin. Proven by
 /// evaluating both readings directly rather than by re-deriving `frost_mode`'s own
 /// logic, so a future refactor of that function cannot silently stop testing anything.
 #[test]

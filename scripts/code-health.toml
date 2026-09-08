@@ -74,8 +74,8 @@ reason = "The conflict workspace's summon reaches the live effect interpreter's 
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
-lines = 356
-reason = "`App::setting_toggle` and the replay interpreter both route through `crate::settings::flip_toggle_global` in `src/settings/toggle_core.rs`, preventing separate read/negate/set matches from drifting. +2: the live Keymap-picker apply path also threads `linux_emacs_meta` through the same setter chain the keys/keep fields already use. +1: `reload_config` now calls `refresh_native_menu_accelerators` after the config mirror settles, so a config-buffer reload's `[keys]` changes reach the native macOS menu the same way a rebind-menu commit does. +6: the `cjk_priority` persist mirror now reads the live Auto flag, clearing `self.config.cjk_priority` back to `None` on Auto rather than always mirroring an explicit list."
+lines = 358
+reason = "`App::setting_toggle` and the replay interpreter both route through `crate::settings::flip_toggle_global` in `src/settings/toggle_core.rs`, preventing separate read/negate/set matches from drifting. +2: the live Keymap-picker apply path also threads `linux_emacs_meta` through the same setter chain the keys/keep fields already use. +1: `reload_config` now calls `refresh_native_menu_accelerators` after the config mirror settles, so a config-buffer reload's `[keys]` changes reach the native macOS menu the same way a rebind-menu commit does. +6: the `cjk_priority` persist mirror now reads the live Auto flag, clearing `self.config.cjk_priority` back to `None` on Auto rather than always mirroring an explicit list. +2: the footnote-ladder Settings row, beside its sibling display toggles."
 
 [[file_size_mark]]
 file = "src/app/gpu.rs"
@@ -163,8 +163,8 @@ reason = "The review row joins the two resolutions in `row_hidden`, the one plac
 
 [[file_size_mark]]
 file = "src/config/model.rs"
-lines = 398
-reason = "+15: `Config::effective_linux_keep` filters the emacs preset's own `C-c`/`C-v` contribution out before composing the keep-list, leaving an explicit `[keys] linux_keep_emacs` reclaim untouched — the one composition owner named in CLAUDE.md's Linux-emacs tripwire. +20: `cjk_priority` parsing widens to accept the literal `\"auto\"` string (Auto) alongside the existing explicit array, both funnelling to the one `None`/`Some` representation `cjk_priority_or_default` already reads."
+lines = 401
+reason = "+15: `Config::effective_linux_keep` filters the emacs preset's own `C-c`/`C-v` contribution out before composing the keep-list, leaving an explicit `[keys] linux_keep_emacs` reclaim untouched — the one composition owner named in CLAUDE.md's Linux-emacs tripwire. +20: `cjk_priority` parsing widens to accept the literal `\"auto\"` string (Auto) alongside the existing explicit array, both funnelling to the one `None`/`Some` representation `cjk_priority_or_default` already reads. +3: the `footnote_ladder` key and its default, beside the other display toggles."
 
 [[file_size_mark]]
 file = "src/crashlog.rs"
@@ -300,7 +300,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3131
+lines = 3134
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
@@ -408,7 +408,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 595
+lines = 596
 # The exhaustive pipeline constructor initializes typing profiling and work counters.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 553 -> 554: item 540's table-dims card gained one field init
@@ -419,7 +419,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 589
+lines = 595
 # The pipeline geometry owner exposes changed-line assembly through the shared helper.
 # 548 -> 561: item 540's table-dims picker measures its hint text's shaped
 # width once per set_view (overlay_table_dims_hint_w), mirroring how
@@ -481,7 +481,7 @@ lines = 514
 
 [[file_size_mark]]
 file = "src/settings.rs"
-lines = 753
+lines = 762
 reason = "+2: a test-gated `pub(crate) use toggle_core::toggle_default`, the read-only sibling of `toggle_core_now` (\"what is this when nothing has set it\" rather than \"what is it now\"). The function itself lives in `settings/toggle_core.rs` beside the map it mirrors, so this file carries only the door the generated reference reads it through. +14: the Keymap row's kind changed Toggle -> Picker, plus COVERED_BY and row_available_on's macOS-inert gate. +7: `SettingId::CjkReadsAs`'s value_for reads the live Auto flag, showing \"Auto\" ahead of the ladder's front language when it is set."
 
 [[file_size_mark]]
@@ -535,8 +535,22 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1183
+lines = 1214
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki. +5: Kite authors its WarpedGrid roam/motion profile (fold, twist, forward drift, ribs) as one instance of the reusable typed data model, beside its other ground authoring."
+
+[[clippy_exception]]
+lint = "clippy::cognitive_complexity"
+file = "src/testlock/misc.rs"
+function = "leaked"
+message = "the function has a cognitive complexity of (26/25)"
+reason = "The leak audit walks ONE field list, and that list is shared by construction with the snapshot and the restore beside it, which is the whole mechanism this module provides. Its own doc records why: an audit and a restore kept as separate lists drift, and that drift once leaked a global which made an unrelated law report a clip that was not one. The complexity here is the field COUNT, not entangled logic; every branch is the same shape repeated per field. Splitting it would either duplicate the list, reintroducing the drift, or hide it behind a macro that reads worse than the thing it audits. It grows one branch per swappable global added, which is the intended cost of adding one."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/theme_picker_backing_law.rs"
+function = "previewing_a_true_1bit_world_keeps_the_cards_backing_opaque"
+message = "this function has too many lines (134/100)"
+reason = "One exhaustive pixel law sweeping every footprint-reliant opener into every Backdrop::Flat target, both sets derived from the roster rather than named. Its body is a single chain of dependent state: the settle render that resolves a Diagonal composition's shear one frame late, the frost footprint that shear defines, the dense-versus-empty residue measurement, the card-ink veto, and the paired opacity and presence assertions. Splitting it separates the settle from the measurement depending on it, and that ordering is exactly where two earlier attempts produced false positives, once against an upright frost the product never draws."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -864,14 +878,14 @@ reason = "Proves the folded field wraps continuously at its own hierarchy-repeat
 lint = "clippy::too_many_lines"
 file = "src/testlock/misc.rs"
 function = "leaked"
-message = "this function has too many lines (105/100)"
+message = "this function has too many lines (108/100)"
 reason = "The one exhaustive leak-detection sweep every sticky toggle/global must be pinned in; before/after destructuring and the CJK automatic preference report stay with the other fields this function checks."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (532/100)"
+message = "this function has too many lines (533/100)"
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default."
 
 [[clippy_exception]]

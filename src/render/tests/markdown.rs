@@ -631,9 +631,10 @@ fn bullet_glyphs_swap_per_world() {
     let text = "- top\n  - sub\n    - deep\n";
     let cases = [
         ("Tawny", ('🍁', '🍃', '🍂')), // Autumn: maple / fluttering / fallen leaf
-        ("Bombora", ('\u{F814}', '\u{F827}', '\u{F81C}')), // Arabesque: white / black pair heads + scroll
-        ("Gumtree", ('\u{F591}', '🐟', '🐌')),             // Riverbank: snake head / fish / snail
-        ("Bilby", ('🌸', '🌼', '🌷')), // Hanami: cherry blossom / blossom / tulip
+        // Arabesque: white / black pair heads + scroll
+        ("Bombora", ('\u{F814}', '\u{F827}', '\u{F81C}')),
+        ("Gumtree", ('\u{F591}', '🐟', '🐌')), // Riverbank: snake head / fish / snail
+        ("Bilby", ('🌸', '🌼', '🌷')),         // Hanami: cherry blossom / blossom / tulip
         ("Mopoke", ('🌝', '🌛', '🌚')), // Moonfaces: full / first-quarter / new moon with face
     ];
     for (world, (g0, g1, g2)) in cases {
