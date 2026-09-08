@@ -244,9 +244,7 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
 
-🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`.
-
-⬜ READY — queue only; coordinate with 589 and the focus-routing repair 585.
+🟢 MERGED as `4a1bb1f5` (header was stale; corrected 2026-09-08). Original brief kept below for 589's coordination.
 
 **Authoritative reference.** `references/find-replace-chrome.png` is the crop
 the user explicitly preferred AFTER the keyboard-first remake. Preserve its
@@ -584,21 +582,6 @@ inherit that variable — so each half of the suite ran in exactly one place and
 other. Green here, red there, for the whole life of the law.
 
 ## Owed to the user — landed work awaiting a live eye
-
-**606 — the closing 99's vertical drop (three captures ready, NOT yet landed).** The lane
-produced the A/B/C the item asked for rather than picking one, with every number read out of
-the tree: `QUOTE_CLOSE_GAP_EM = 0.5` (the "about half an em" the user described),
-`QUOTE_CLOSE_BASELINE_DROP_FRAC` shipped at `0.45`, both in `src/render/layers.rs`.
-
-| drop | value | how it reads |
-|---|---|---|
-| A | 0.45 (shipped) | ink between x-height and cap height, comfortably above the baseline |
-| B | 0.30 | rides higher — this is the user's "too tall" complaint reproduced |
-| C | 0.60 | closer to the baseline, matching "a little above the baseline" most nearly |
-
-The lane's own pick is C, judged across a serif world and a sans one, at one-line and
-multi-line. It deliberately did NOT change the shipped constant. Captures are in the session
-scratchpad, not the repo. **The pick is one line and it is the user's.**
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
 a live look, which landing does not discharge. Full context is in
