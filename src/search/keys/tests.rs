@@ -488,7 +488,7 @@ fn the_action_door_keeps_every_edit_verb_inside_the_focused_field() {
             let q_before = s.as_ref().unwrap().query().to_string();
             let r_before = s.as_ref().unwrap().replacement().to_string();
 
-            crate::search::keys::intercept_action(&mut s, action);
+            crate::search::keys::intercept_action(&mut s, &mut b, action);
 
             let st = s.as_ref().expect("the panel stays open");
             assert_eq!(
@@ -540,8 +540,8 @@ fn the_action_door_keeps_every_edit_verb_inside_the_focused_field() {
 #[test]
 fn select_all_on_an_empty_field_arms_no_selection() {
     let _g = crate::testlock::serial();
-    let (mut s, b) = open("alpha");
-    crate::search::keys::intercept_action(&mut s, &crate::keymap::Action::SelectAll);
+    let (mut s, mut b) = open("alpha");
+    crate::search::keys::intercept_action(&mut s, &mut b, &crate::keymap::Action::SelectAll);
     assert_eq!(s.as_ref().unwrap().focused_selection(), None);
     assert_eq!(b.text(), "alpha");
 }
@@ -556,7 +556,7 @@ fn select_all_then_typing_replaces_a_multibyte_field_whole() {
     for needle in ["日本語", "e\u{0301}te\u{0301}", "🇯🇵🇫🇷", "👍"] {
         let (mut s, mut b) = open("nothing matches here");
         type_str(&mut s, &mut b, needle);
-        crate::search::keys::intercept_action(&mut s, &crate::keymap::Action::SelectAll);
+        crate::search::keys::intercept_action(&mut s, &mut b, &crate::keymap::Action::SelectAll);
         assert_eq!(
             s.as_ref().unwrap().focused_selection(),
             Some((0, needle.chars().count())),

@@ -6,8 +6,8 @@
 //! Wagtail tripwire CLAUDE.md records for a picker's selected-row band.
 //!
 //! **THE COMPANION-FLOOR SHAPE.** A field's FILL (`base_200`) is a value-step
-//! off the surrounding card (`base_300`) on nineteen worlds, but on Wagtail
-//! (the one-bit world) the two are IDENTICAL by design — the whole ramp
+//! off the surrounding card (`base_300`) on every world but Wagtail (the
+//! one-bit world), where the two are IDENTICAL by design — the whole ramp
 //! collapses to pure black/white there (`theme::derive::surface_step_band`'s own
 //! early-return). A floor that only asked "does the fill differ from the card"
 //! would need Wagtail excluded by NAME, which is exactly the enrolment trap

@@ -223,7 +223,13 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
     // every operation's outcome is assertable from the sidecar `search`
     // block + `text` — the round's done-criteria witness. Real disk +
     // capture -> hold the fs TEST_LOCK like the sticky-root test above.
+    // `C-s` below opens the panel through the real production seam
+    // (`actions::motion::start_search`), which prefills from the process-global
+    // `search::last_query()` on a bare open — so a query assertion here needs a
+    // known-clear baseline, not just the lock (a prior test can leave the
+    // global dirty across its own guarded window).
     let _fs = crate::testlock::serial();
+    crate::search::clear_last_query();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-search-replay-{}", std::process::id())),
     );
@@ -277,6 +283,7 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
         "caret advanced to the next match"
     );
     assert_eq!(v["cursor"]["col"].as_u64().unwrap(), 0);
+    crate::search::clear_last_query();
 }
 
 #[test]

@@ -179,7 +179,7 @@ impl App {
         }
         if self.workspace_state.overlay_open() {
             self.overlay_click(exit);
-        } else if !(self.workspace_state.search_active() && self.panel_click()
+        } else if !(self.workspace_state.search_active() && self.panel_click(exit)
             || self.begin_image_resize_if_hovering()
             || self.begin_page_resize_if_hovering(exit))
             && !self.outline_click()

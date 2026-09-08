@@ -1,10 +1,11 @@
-//! `DocumentSession`'s search/replace delegates — split out of `document.rs`
-//! to keep it under its production ceiling. Every arm here is a THIN
-//! forwarder onto `crate::search::keys`, the one renderer-independent
-//! interception seam the live keyboard door and the headless `--keys` replay
-//! already share; a summoned find/replace panel CLICK routes through the
-//! exact same functions its matching keyboard chord already drives, so a
-//! click can never diverge into a second, click-only reimplementation.
+//! `DocumentSession`'s search key delegate — split out of `document.rs` to
+//! keep it under its production ceiling. A thin forwarder onto
+//! `crate::search::keys`, the one renderer-independent interception seam the
+//! live keyboard door and the headless `--keys` replay already share. A
+//! summoned find/replace panel CLICK does not live here: it resolves to an
+//! `Action::SearchPanel` and reaches the same surface through
+//! `actions::apply_transition` (`search::keys::intercept_action`) instead of
+//! a second, click-only door into the document.
 
 use super::*;
 
@@ -28,49 +29,5 @@ impl DocumentSession {
         mods: winit::keyboard::ModifiersState,
     ) -> Option<crate::caret::RecoilDir> {
         crate::search::keys::intercept(search, &mut self.active_entry_mut().buffer, logical, mods)
-    }
-
-    /// A CLICK on the panel's `Match case` checkbox: the same
-    /// `search::keys::toggle_case_and_jump` the keyboard's ⌘⌥C/M-c door
-    /// already calls, so a click can never diverge from the chord it mirrors
-    /// (the click driver used to reimplement the recompute + cursor-follow
-    /// inline, and that copy was missing the keyboard door's
-    /// `reveal_placement` call — a case toggle on a match inside a folded
-    /// section left the real cursor logically inside a hidden row).
-    pub(in crate::app) fn search_toggle_case(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-    ) {
-        crate::search::keys::toggle_case_and_jump(search, &mut self.active_entry_mut().buffer);
-    }
-
-    /// A CLICK on a nav prev/next button: the same step the keyboard's
-    /// arrows / Cmd-F family already drive. The live-only recoil feedback is
-    /// intentionally dropped here (a click has no failing-I-search bump to
-    /// animate), mirroring how the headless `--keys` replay already ignores it.
-    pub(in crate::app) fn search_step(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-        dir: crate::search::Direction,
-    ) {
-        crate::search::keys::step(search, &mut self.active_entry_mut().buffer, dir);
-    }
-
-    /// A CLICK on the `Replace` button: the same replace-current-and-advance
-    /// the keyboard's Enter (with the replace row up) already drives.
-    pub(in crate::app) fn search_replace_current(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-    ) {
-        crate::search::keys::replace_current(search, &mut self.active_entry_mut().buffer);
-    }
-
-    /// A CLICK on the `Replace all` button: the same atomic replace-every-match
-    /// the keyboard's Cmd/Super-Enter already drives.
-    pub(in crate::app) fn search_replace_all(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-    ) {
-        crate::search::keys::replace_all(search, &mut self.active_entry_mut().buffer);
     }
 }

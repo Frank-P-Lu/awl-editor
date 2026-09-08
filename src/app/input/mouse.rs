@@ -515,42 +515,43 @@ impl App {
     /// Returns `true` when the press landed on/in the panel and was handled;
     /// `false` (off the card / panel down) lets the caller fall through to the
     /// normal document press. The hit decision is the pure
-    /// `TextPipeline::panel_hit` (unit-tested); this only wires the field
-    /// state + redraw.
-    pub(in crate::app) fn panel_click(&mut self) -> bool {
+    /// `TextPipeline::panel_hit` (unit-tested); this only maps the hit onto
+    /// `Action::SearchPanel` and routes it through `App::apply` — the SAME
+    /// door the popover's own click (`popover_hit` → `button.action()`) and
+    /// the menu bar's already use, rather than reaching into
+    /// `workspace_state` for the search slot itself (that is
+    /// `actions::apply_transition`'s job, via `search::keys::intercept_action`).
+    /// A press on a separator/inter-row pad (`Elsewhere`) is swallowed with no
+    /// action at all — a true no-op, not a bypass.
+    pub(in crate::app) fn panel_click(&mut self, exit: &dyn schedule::Exit) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
-        let (search, _) = self.workspace_state.core_slots();
-        match hit {
+        let ctrl = match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
-                self.document.search_toggle_case(search);
+                Some(crate::search::PanelControl::CaseToggle)
             }
-            Some(crate::render::PanelHit::NavPrev) => {
-                self.document
-                    .search_step(search, crate::search::Direction::Backward);
-            }
-            Some(crate::render::PanelHit::NavNext) => {
-                self.document
-                    .search_step(search, crate::search::Direction::Forward);
-            }
+            Some(crate::render::PanelHit::NavPrev) => Some(crate::search::PanelControl::NavPrev),
+            Some(crate::render::PanelHit::NavNext) => Some(crate::search::PanelControl::NavNext),
             Some(crate::render::PanelHit::ReplaceButton) => {
-                self.document.search_replace_current(search);
+                Some(crate::search::PanelControl::ReplaceButton)
             }
             Some(crate::render::PanelHit::ReplaceAllButton) => {
-                self.document.search_replace_all(search);
+                Some(crate::search::PanelControl::ReplaceAllButton)
             }
-            Some(crate::render::PanelHit::Find) => {
-                if let Some(st) = search.as_mut() {
-                    st.focus_query();
-                }
-            }
+            Some(crate::render::PanelHit::Find) => Some(crate::search::PanelControl::FocusFind),
             Some(crate::render::PanelHit::Replace) => {
-                if let Some(st) = search.as_mut() {
-                    st.focus_replacement();
-                }
+                Some(crate::search::PanelControl::FocusReplace)
             }
-            Some(crate::render::PanelHit::Elsewhere) => {}
+            Some(crate::render::PanelHit::Elsewhere) => None,
             None => return false,
+        };
+        if let Some(ctrl) = ctrl {
+            self.apply(
+                Action::SearchPanel(ctrl),
+                false,
+                exit,
+                crate::stats::Door::Chord,
+            );
         }
         self.sync_view(true);
         self.request_frame();

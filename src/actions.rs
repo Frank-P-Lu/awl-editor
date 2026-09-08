@@ -459,7 +459,7 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     // those ran document verbs against the document parked behind the panel.
     // `search::keys::intercept_action` is what a routed action means to it.
     if ctx.search.is_some() {
-        crate::search::keys::intercept_action(ctx.search, action);
+        crate::search::keys::intercept_action(ctx.search, ctx.buffer, action);
         return Some(Effect::None);
     }
     None

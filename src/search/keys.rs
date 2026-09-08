@@ -66,16 +66,45 @@ pub fn intercept(
 /// **The contract**, matching the card's own (`overlay_nav::overlay_intercept`)
 /// exactly rather than inventing a second policy: the panel OWNS every action
 /// that reaches it. `SelectAll` is given its field-scoped meaning through the
-/// ONE owner the ⌘A key door also calls; every other action is CONSUMED. Quit
-/// and Save never reach it — they are about the SESSION rather than the
-/// document, and `actions::dispatch::summoned_surface_defers` lets them past
-/// every summoned surface alike one step before this door, deliberately not
-/// repeated here because a second copy is how the two would drift.
-pub fn intercept_action(search: &mut Option<SearchState>, action: &Action) {
-    if let Action::SelectAll = action
-        && let Some(st) = search.as_mut()
-    {
-        st.select_all_focused_field();
+/// ONE owner the ⌘A key door also calls; `SearchPanel` is the panel's own
+/// CLICK vocabulary (`app/input/mouse.rs::panel_click`'s only dispatch),
+/// resolved through the exact same functions the matching keyboard chord
+/// already drives — `step`/`toggle_case_and_jump`/`replace_current`/
+/// `replace_all` below, never a second click-only reimplementation; every
+/// other action is CONSUMED. Quit and Save never reach it — they are about
+/// the SESSION rather than the document, and
+/// `actions::dispatch::summoned_surface_defers` lets them past every summoned
+/// surface alike one step before this door, deliberately not repeated here
+/// because a second copy is how the two would drift.
+pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, action: &Action) {
+    match action {
+        Action::SelectAll => {
+            if let Some(st) = search.as_mut() {
+                st.select_all_focused_field();
+            }
+        }
+        Action::SearchPanel(ctrl) => match ctrl {
+            super::PanelControl::CaseToggle => toggle_case_and_jump(search, buffer),
+            super::PanelControl::NavPrev => {
+                step(search, buffer, Direction::Backward);
+            }
+            super::PanelControl::NavNext => {
+                step(search, buffer, Direction::Forward);
+            }
+            super::PanelControl::ReplaceButton => replace_current(search, buffer),
+            super::PanelControl::ReplaceAllButton => replace_all(search, buffer),
+            super::PanelControl::FocusFind => {
+                if let Some(st) = search.as_mut() {
+                    st.focus_query();
+                }
+            }
+            super::PanelControl::FocusReplace => {
+                if let Some(st) = search.as_mut() {
+                    st.focus_replacement();
+                }
+            }
+        },
+        _ => {}
     }
 }
 

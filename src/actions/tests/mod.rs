@@ -731,7 +731,8 @@ macro_rules! classify_delete_flinch {
             | Action::TrashFile
             | Action::MoveLineUp
             | Action::MoveLineDown
-            | Action::Ignore => None,
+            | Action::Ignore
+            | Action::SearchPanel(_) => None,
         }
     };
 }
@@ -972,7 +973,8 @@ macro_rules! assert_action_roster {
             | Action::RevealInFileManager
             | Action::CopyFilePath
             | Action::TrashFile
-            | Action::Ignore => {}
+            | Action::Ignore
+            | Action::SearchPanel(_) => {}
         }
     };
 }
@@ -1347,7 +1349,8 @@ macro_rules! classify_smoke_command {
         | Action::ShowStatsHud
         | Action::OpenSettings
         | Action::BeginPrefix
-            | Action::Ignore => SmokeKind::NotCatalog,
+            | Action::Ignore
+            | Action::SearchPanel(_) => SmokeKind::NotCatalog,
         }
     };
 }
