@@ -268,7 +268,7 @@ worktree's `sweep.sh 1`, which is **3 GiB**. Two facts bound it and neither is
 tunable: `cargo sweep --time` keeps every artifact whose fingerprint was used
 inside the window, and the one worktree this door may prune is the one that is
 building right now; and cargo-sweep never touches `target/debug/incremental`,
-measured at **61-69%** of every `target/` on this fleet. Sampled 2026-09-07 across
+measured at **46-86%** of every `target/` on this fleet. Sampled 2026-09-07 across
 worktrees spanning 1.2-25.4 GiB and one to fourteen days old, `--time 1` reclaimed
 **nothing at all**, and so did every threshold up to 60 days; the largest sweepable
 pool anywhere was 2.8 GiB of deps and fingerprints in a lane that had just rebuilt.
@@ -278,6 +278,18 @@ a day idle with its deps intact, which an active lane never has. Every receipt n
 prints `sweep_yield_bytes=` and `reclaimed_bytes=`, so the next tuning pass reads
 numbers off a run instead of remembering. `scripts/test-disk-preflight.sh` pins the
 derivation and runs in `code-health.sh`.
+
+`scripts/sweep.sh` now also prunes `target/{debug,release}/incremental` itself,
+by the same `DAYS` age rule it already applies to deps and fingerprints — the
+pool above had no owner at all until this, and rustc treats a missing session
+as nothing worse than one non-incremental recompile. This does not move
+`SWEEP_YIELD_BYTES`: sampled across four active lanes, every one showed zero
+`--time 1`-stale incremental content, because a building lane keeps touching
+its own session directories — the same reason its deps/fingerprints don't
+sweep either. The new door pays off on a manual, fleet-wide, longer-window
+pass over IDLE worktrees (`scripts/sweep.sh --all-worktrees 7`), which is where
+this fleet's ~90 GiB of orphaned incremental caches actually sits, not on the
+automatic one-lane door this band models.
 The serializer is a kernel advisory lock held through inherited file descriptor
 9. The lock file may persist, but its contents carry no authority; the kernel
 releases ownership when a process exits or is killed.
