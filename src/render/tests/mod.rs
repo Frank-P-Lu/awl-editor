@@ -611,3 +611,5 @@ pub(super) fn view_md(text: &str, line: usize, col: usize) -> ViewState {
     v.is_markdown = true;
     v
 }
+
+mod search_rects;

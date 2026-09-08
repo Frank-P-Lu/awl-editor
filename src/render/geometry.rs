@@ -983,16 +983,6 @@ impl TextPipeline {
         out
     }
 
-    #[cfg(test)]
-    pub(super) fn reset_visible_row_gathers(&self) {
-        self.visible_row_gathers.set(0);
-    }
-
-    #[cfg(test)]
-    pub(super) fn visible_row_gathers(&self) -> usize {
-        self.visible_row_gathers.get()
-    }
-
     /// The synthetic single [`VisualRow`] for an EMPTY / glyphless logical line —
     /// the shared fallback of [`Self::visual_rows`] and
     /// [`Self::visual_rows_for_lines`], at the uniform `line * line_height` top

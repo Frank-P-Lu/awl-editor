@@ -303,17 +303,19 @@ fn every_selection_adjacent_emitter_routes_through_the_shared_clip() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/rects.rs"),
     )
     .expect("src/render/rects.rs must exist");
+    let ranges_src = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/rects/ranges.rs"),
+    )
+    .expect("shared range geometry owner must exist");
     let layers_src = std::fs::read_to_string(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/layers.rs"),
     )
     .expect("src/render/layers.rs must exist");
 
-    // `range_rects` is the ONE body `selection_rects` and `search_match_rects`
-    // both funnel through — checking it once covers both by construction
-    // (see `range_rects`'s own doc: "Shared by `selection_rects` and
-    // `search_match_rects`").
+    // Selection and search share the range emitter; preedit and the caret
+    // independently route through the same content clip.
     let checks: &[(&str, &str, &str)] = &[
-        ("rects.rs", "fn range_rects(", &rects_src),
+        ("rects/ranges.rs", "fn range_rects_from_rows(", &ranges_src),
         ("rects.rs", "fn preedit_rects(", &rects_src),
         ("layers.rs", "fn prepare_caret_layer(", &layers_src),
     ];

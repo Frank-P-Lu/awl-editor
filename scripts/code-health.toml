@@ -300,7 +300,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3111
+lines = 3115
+# Test-only per-pipeline counters witness actual search row gathering and visits.
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
 # (overlay_table_dims_hint_w, the shaped hint width measured once per
 # set_view so the geometry function can size the card without a
@@ -389,7 +390,8 @@ reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: eve
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1331
+lines = 1334
+# Test-only per-pipeline counters witness actual search row gathering and visits.
 reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart. +7: corrected `assemble_glyph_xs`'s doc, which wrongly claimed Monaspace's tilde ligatures were AAT/`morx`-driven and unsuppressable; the font has no `morx` table at all (item 552). +22: `xray_x_span`, `row_x_span`'s counterpart reading a table x-ray row's real `glyph_xs` instead of the concealed doc row, so a selection-touched row's band can be rebuilt against what is actually on screen. +20: `active_wants_rail` and the documented `outline_wants_rail` — the one owner of the rail reservation, now keyed on the ROOM (feature on, page mode on, and any open buffer wanting rows) rather than on whichever file is on screen; reserving per buffer slid the whole page sideways on every switch. +13: `pull_quote_right` mirrors `pull_quote_left` into the writing column's right text-pad gutter — pure arithmetic, so the mirror law needs no GPU and sweeps 1440 geometry cells. +8 net: the closing mark stops mirroring (2026-09 decision) — `pull_quote_right` is replaced by `pull_quote_close_x`, which places the mark one gap past the block's own last-row ink and clamps it inside the column at the widest wrap, floored at the column's own left edge on a pathologically narrow page."
 
 [[file_size_mark]]
@@ -403,7 +405,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 587
+lines = 591
+# Test-only per-pipeline counters witness actual search row gathering and visits.
 # 553 -> 554: item 540's table-dims card gained one field init
 # (overlay_table_dims_hint_w) in the exhaustive TextPipeline::new literal.
 # 546 -> 553: the exhaustive initializer constructs the empty-cell wash
