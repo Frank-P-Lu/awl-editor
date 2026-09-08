@@ -1120,6 +1120,7 @@ fn apply_sticky_globals_restores_cjk_priority() {
     // `apply_sticky_globals_restores_dictionary`); an absent pref leaves the
     // global at its own built-in default.
     let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
     let cfg = Config {
         cjk_priority: Some(vec![

@@ -68,6 +68,7 @@
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MiscPins {
     debug: bool,
+    cjk_auto: bool,
     outline: bool,
     menu_bar: bool,
     typewriter: bool,
@@ -98,6 +99,7 @@ pub(crate) struct MiscPins {
 pub(crate) fn pins() -> MiscPins {
     MiscPins {
         debug: crate::debug::debug_on(),
+        cjk_auto: crate::frontmatter::cjk_priority_is_auto(),
         outline: crate::outline::outline_on(),
         menu_bar: crate::menubar::menu_bar_on(),
         typewriter: crate::typewriter::typewriter_on(),
@@ -131,6 +133,7 @@ pub(crate) fn pins() -> MiscPins {
 #[cfg(test)]
 pub(crate) fn restore(p: &MiscPins) {
     crate::debug::set_debug_on(p.debug);
+    crate::frontmatter::set_cjk_priority_auto(p.cjk_auto);
     crate::outline::set_outline_on(p.outline);
     crate::menubar::set_menu_bar_on(p.menu_bar);
     crate::typewriter::set_typewriter_on(p.typewriter);
@@ -166,6 +169,7 @@ pub(crate) fn restore(p: &MiscPins) {
 pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
     let MiscPins {
         debug: b_debug,
+        cjk_auto: b_cjk_auto,
         outline: b_outline,
         menu_bar: b_menu_bar,
         typewriter: b_typewriter,
@@ -191,6 +195,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
     } = before;
     let MiscPins {
         debug: a_debug,
+        cjk_auto: a_cjk_auto,
         outline: a_outline,
         menu_bar: a_menu_bar,
         typewriter: a_typewriter,
@@ -224,6 +229,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         };
     }
     field!("debug", b_debug, a_debug);
+    field!("cjk_auto", b_cjk_auto, a_cjk_auto);
     field!("outline", b_outline, a_outline);
     field!("menu_bar", b_menu_bar, a_menu_bar);
     field!("typewriter", b_typewriter, a_typewriter);
