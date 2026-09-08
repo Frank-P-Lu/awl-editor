@@ -357,29 +357,6 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ---
 
-### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-588`, worktree `.claude/worktrees/item-588`.
-
-Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
-recorded, as its own clause (c), that LIST-BULLET pairs were not covered by that pass: they
-still carry the pre-Nishiki vocabulary while the trio beside them moved. The decision was a
-"small follow-up taste round" deriving each world's bullet pair from the set it now wears —
-Genjikō for Mulga, Moonfaces for Mopoke, Gambit for Currawong, and so on down the adopted
-table in 536's own history (`git log -p -- .orchestrator/queue.md`).
-
-Mechanism is unchanged and must stay unchanged: `theme::ornament::Ornaments` is per-world
-const data. Derive the roster from `theme::worlds::THEMES` (`[Theme; 20]`, Cassowary
-included) rather than a hand-list — a grep over `worlds.rs` alone has already produced a
-wrong count of 19 once by missing Cassowary's own module.
-
-Laws: every world's bullet pair is drawn from the same adopted union its trio is (enrol the
-union from the roster, not a named member); no world keeps a bullet from the retired
-vocabulary; the pair stays legible at prose size in both grounds. The visual outcome is a
-taste call owed to the user — deliver a gallery capture across the roster, not an argument.
-
----
-
 ### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
 
 Coordination update (2026-09-08): **628 owns the shared visual specification and
@@ -496,6 +473,19 @@ inherit that variable — so each half of the suite ran in exactly one place and
 other. Green here, red there, for the whole life of the law.
 
 ## Owed to the user — landed work awaiting a live eye
+
+**588 — Brolga has no working bullet triple, and this is a real choice, not a defect.** The
+lane swept `bullet_scale` from 0.55 to 0.95 and found NO value where all three Dovecote
+members clear the 2.5:1 contrast floor AND stay clear of the following text: under about 0.68
+at least one dove falls below the floor, and by about 0.75 — where contrast finally clears —
+the widest dove fills the fixed-width bullet box edge to edge. Brolga therefore keeps the
+plain `•◦▪`, documented in the world, beside the scale constant, and in the law's exception
+list.
+
+The two ways out are both mechanism changes and neither is this item's: **a different single
+glyph for Brolga**, or **a wider bullet box**. A twenty-world gallery and contact sheet are at
+`/tmp/claude-588-gallery/` for the taste pass — the harness proved legibility, distinctness
+and derivation, and none of those is taste.
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
 a live look, which landing does not discharge. Full context is in
