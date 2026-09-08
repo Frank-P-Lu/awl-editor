@@ -1589,9 +1589,22 @@ impl TextPipeline {
         (l0, c0): (usize, usize),
         (l1, c1): (usize, usize),
     ) -> Vec<[f32; 4]> {
+        let range = ((l0, c0), (l1, c1));
+        let lines = self.visible_lines_for_ranges(&[range]);
+        let rows_by_line = self.visual_rows_for_lines(&lines);
+        self.range_rects_from_rows(range, &rows_by_line)
+    }
+
+    /// The logical lines from `ranges` whose shaped rows could paint in this
+    /// frame. Search uses this once for its whole match roster; selection passes
+    /// one range. Keeping the visible-band decision here makes their clipping
+    /// semantics identical while avoiding one whole-row gather per match.
+    fn visible_lines_for_ranges(
+        &self,
+        ranges: &[((usize, usize), (usize, usize))],
+    ) -> std::collections::BTreeSet<usize> {
         let m = &self.metrics;
         let doc_top = self.doc_top();
-        let eol_pad = m.char_width * 0.5;
         // VISIBLE-BAND CULL (mirrors the wash / squiggle / nit proto builders). A
         // selection can span the WHOLE document (Select-All), yet only the on-screen
         // rows can paint. Restrict the lines we resolve to those whose vertical
@@ -1607,25 +1620,41 @@ impl TextPipeline {
             self.row_geom
                 .line_first_top(&self.buffer, &self.metrics, line)
         };
-        let mut lines: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
-        for line in l0..=l1.min(last_line) {
-            let top = first_top(line);
-            let bottom = if line < last_line {
-                first_top(line + 1)
-            } else {
-                self.total_doc_height()
-            };
-            if bottom > band_lo && top < band_hi {
-                lines.insert(line);
+        let mut lines = std::collections::BTreeSet::new();
+        for &((l0, _), (l1, _)) in ranges {
+            for line in l0..=l1.min(last_line) {
+                let top = first_top(line);
+                let bottom = if line < last_line {
+                    first_top(line + 1)
+                } else {
+                    self.total_doc_height()
+                };
+                if bottom > band_lo && top < band_hi {
+                    lines.insert(line);
+                }
             }
         }
+        lines
+    }
+
+    /// Emit one range's visible highlight geometry using a caller-provided,
+    /// shared row gather. `search_match_rects` supplies all its visible lines at
+    /// once; selection supplies its one range, so both retain the same xray,
+    /// conceal, wrap, eol-pad and content-clip behaviour.
+    fn range_rects_from_rows(
+        &self,
+        ((l0, c0), (l1, c1)): ((usize, usize), (usize, usize)),
+        rows_by_line: &std::collections::HashMap<usize, Vec<VisualRow>>,
+    ) -> Vec<[f32; 4]> {
+        let m = &self.metrics;
+        let doc_top = self.doc_top();
+        let eol_pad = m.char_width * 0.5;
         // ONE `layout_runs()` walk for ALL visible selected lines — replaces the
         // per-line `line_glyph_xs` + `visual_rows` (each an O(doc) run walk that also
         // CLOBBERED the single-slot cursor-line memo), so Select-All is no longer
         // O(doc^2) per frame while the caret spring animates. `visual_rows_for_lines`
         // never touches that memo, and per line yields rows byte-identical to
         // `visual_rows(line)`.
-        let rows_by_line = self.visual_rows_for_lines(&lines);
         let text_left = self.text_left();
         let mut rects = Vec::new();
         for line in l0..=l1 {
@@ -1749,9 +1778,14 @@ impl TextPipeline {
     /// match, in document order). The CURRENT match gets no distinct color: the
     /// real amber caret already sits on it.
     pub(super) fn search_match_rects(&self) -> Vec<[f32; 4]> {
+        let lines = self.visible_lines_for_ranges(&self.search_matches);
+        // One full shaped-row partition walk for ALL visible matches. Calling
+        // `range_rects` per match repeats this O(document) gather and turns a
+        // dense search in one wrapped paragraph into a stall.
+        let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut r = Vec::new();
         for &(a, b) in &self.search_matches {
-            r.extend(self.range_rects(a, b));
+            r.extend(self.range_rects_from_rows((a, b), &rows_by_line));
         }
         r
     }

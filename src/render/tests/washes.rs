@@ -178,6 +178,39 @@ fn range_rects_selection_is_visible_bounded_and_memo_safe() {
     }
 }
 
+/// SEARCH WORK-COUNT LAW: a dense match roster may emit one wash per match,
+/// but it gets ONE shaped-row gather for the frame. The source check names the
+/// owner and counts its actual gather call, so putting a batched helper beside
+/// a restored per-match `range_rects` loop cannot satisfy the law.
+#[test]
+fn search_matches_share_one_visible_row_gather() {
+    let source = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/rects.rs"),
+    )
+    .expect("search rectangle owner must be readable");
+    let start = source
+        .find("pub(super) fn search_match_rects(")
+        .expect("search rectangle owner must exist");
+    let body = &source[start
+        ..source[start..]
+            .find("pub(super) fn search_no_matches(")
+            .expect("search rectangle owner must end at search_no_matches")
+            + start];
+    assert!(
+        body.contains("visible_lines_for_ranges(&self.search_matches)"),
+        "search must gather the visible line set from its complete match roster"
+    );
+    assert_eq!(
+        body.matches("visual_rows_for_lines(&lines)").count(),
+        1,
+        "search must gather shaped rows once per frame, never once per match"
+    );
+    assert!(
+        body.contains("range_rects_from_rows((a, b), &rows_by_line)"),
+        "each match must resolve against the shared gathered rows"
+    );
+}
+
 /// SYNTAX WASH CACHE + GEOMETRY: a code buffer's PROSE comment and STRING
 /// spans produce wash quads; commented-out code (CommentCode) produces NONE;
 /// a cursor move / scroll keeps the proto cache WARM (version unchanged, no
