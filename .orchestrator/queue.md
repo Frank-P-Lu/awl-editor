@@ -80,6 +80,37 @@ Do not claim constant-time typing or an expected speedup without measurements.
 
 ---
 
+### 631 — support the verification policy with cheaper checks and reusable evidence (user approval, 2026-09-09)
+
+🟢 READY — tooling follow-up, not dispatched. The standing policy is already in
+`docs/verification.md`; preserve the priority of the existing product work.
+
+Build in sequential phases. First provide one cheap preflight command that runs the
+relevant format/lint/source-audit checks before expensive GPU tests, using existing
+check owners rather than duplicating their rules. Include benchmark output and view
+construction audits; distinguish targeted/preflight results from a full receipt.
+Replace those two exact-count audit tables with structural ownership checks only when
+mutation tests prove the forbidden application output/substitution still fails and
+legitimate benchmark modules enroll automatically. Keep the remaining audits enforced.
+
+Then add conservative result reuse to the existing gate mechanism. Start with explicit
+input sets and configurations for a small number of checks, not a generic dependency
+framework. Record tested source/assets/tests, command, toolchain, environment branches,
+hardware class, and outcome. Unknown dependencies or incomplete results force execution.
+A changed test invalidates its own result. A failed run cannot become green through
+bookkeeping, and a result cannot silently acquire a new commit identity. Preserve the
+current full-candidate gate until the replacement can prove equivalent coverage.
+
+Done/Verify: demonstrate early rejection of both missing benchmark audit registrations
+without running GPU tests; prove structural audits with compiling forbidden cases.
+For reuse, law-test unchanged inputs, source/test/config/toolchain changes, missing or
+corrupt records, cancellation, failure, concurrency, and unrecognised inputs. Compare
+cold and repeated verification costs and emitted coverage against the uncached gate.
+Run the gate tooling's own laws, a real native gate rehearsal, and wasm. Do not weaken
+editing laws, configuration coverage, GPU skip reporting, or release benchmark witnesses.
+
+---
+
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
 🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows

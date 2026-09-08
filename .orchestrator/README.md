@@ -692,13 +692,19 @@ report shas and outcomes.
 
 ## Gates and landing
 
+`docs/verification.md` owns check scope, ordering, and evidence reuse. It takes
+precedence over older full-gate wording in worker-report examples and queue briefs.
+Workers normally deliver targeted checks; the merge train runs the full set once
+on the bounded integrated candidate. A worker full gate needs a stated risk reason.
+
 Run the cheapest thing that can falsify the current claim; run the full set
 once, at landing.
 
 - **While working:** rustfmt, the narrowest affected clippy/health arm, the
   targeted tests. Expected to run often, so keep it small.
-- **Before landing, on the exact combined-main candidate:** code health,
-  `scripts/native-gate.sh`, wasm smoke, and the item's required captures. Only
+- **Before landing, on the exact combined-main candidate:**
+  `scripts/native-gate.sh` (includes code health), wasm smoke, and the item's
+  required captures. Only
   that script's receipt authorizes “full native suite”; it names the exact
   commit and both conventions. **What it does not name is the GPU.** The gate
   runs on the host's own adapter — real Apple Silicon Metal here — so a receipt
@@ -823,8 +829,9 @@ about to move still means wait, or commit deliberately and accept that the
 holder's receipt will refuse itself (`HEAD changed while the suite ran`) and
 need a rerun. No marker, or a dead PID, means commit freely.
 
-Integrate one branch at a time. Two branches each green alone can be red
-together — a roster or ownership law is designed to cause exactly that. For
+Inspect and compile one branch integration at a time, then gate the bounded
+combined candidate once. Two branches each green alone can be red together — a
+roster or ownership law is designed to cause exactly that. For
 structs with per-call-site initializers, grep the construction sites before
 declaring a merge done: git merges a missing field cleanly and fails to
 compile later.
@@ -930,8 +937,9 @@ times it fires.**
 ## Non-negotiable operational facts
 
 - **Preserve gate truth.** Never pipe a gate through something that hides its
-  exit status. Always run the wasm gate: a change can look native-only and
-  still break it.
+  exit status. Run the wasm gate for executable changes on the integrated
+  candidate: a change can look native-only and still break it. Prose-only
+  policy and queue edits follow `docs/verification.md`.
 - **Never claim a tier that did not run**, and never hide a failure by
   selecting a smaller one. Formatting-, docs-, and board-only changes use only
   the applicable arms.
