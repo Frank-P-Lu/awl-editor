@@ -10,6 +10,11 @@ mod passive_roster;
 /// `passive_roster` is — a distinct, self-contained roster sweep.
 mod comparison_leak;
 
+/// The selection door over the same read-only prose family: a
+/// `SetTextSelection` request must move the transcript, never the hidden
+/// buffer behind it.
+mod transcript_selection;
+
 fn hermetic() -> App {
     App::new_hermetic(None, PathBuf::from("/"), Config::empty())
 }
