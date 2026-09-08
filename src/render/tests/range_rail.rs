@@ -487,7 +487,18 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             let v = settings_view(&ov);
             p.set_view(&v);
             p.prepare(&device, &queue, w, h).unwrap();
-            let (x0, x1) = p.overlay_range_scale(zoom_item).expect("a rail");
+            // The thumb's own reported rect — the SAME geometry the draw path and
+            // the pointer hit-test both go through — so the track scan below can
+            // be excluded from it by construction rather than by re-deriving it.
+            let geom = p.overlay_geometry(w);
+            let plan = p.overlay_row_plan(&geom);
+            let rail = p
+                .overlay_rails(&geom, &plan)
+                .into_iter()
+                .find(|(i, _)| *i == zoom_item)
+                .map(|(_, r)| r)
+                .expect("a rail");
+            let (x0, x1) = (rail.x0, rail.x1);
             let mid = (x0 + x1) * 0.5;
             let ys: Vec<f32> = (0..h)
                 .map(|y| y as f32)
@@ -534,6 +545,34 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             // and stays flat through inset 6, on both the forced-on and
             // forced-off menu-bar branch — the fill starts exactly there.
             const TRACK_EDGE_INSET: i64 = 2;
+            // THE TRACK MUST BE JUDGED ON INK OUTSIDE THE THUMB *AND* THE FILL.
+            // Both statistics above were being read off ONE scan of a span that
+            // contains all three marks: with no track painted at all, the
+            // thumb's own pixels supply both the maximum (the thumb itself) and
+            // the minimum non-zero delta (its own antialiased edge), so
+            // `track.0 >= 4` and `thumb.0 > track.0` both held with nothing
+            // painted outside the thumb. Excluding only the thumb's rect is not
+            // enough: `rail_geom`'s `fill` quad (the progress span from the
+            // track's start to the thumb) is uploaded through the SAME
+            // `prepare_multicolor` call as the thumb, in the thumb's own `ink`
+            // — never `overlay_range_track`'s `faint()` — so a deleted track
+            // still leaves a solid ink span sitting right beside the thumb,
+            // reading as "the track" to a scan that only steps around the
+            // thumb rect (measured live: emptying `overlay_range_track`'s
+            // upload left `track` reading a delta within ~30 of the thumb's
+            // own, off the fill's flat interior). Both the thumb's rect and the
+            // fill's rect (the same geometry the draw path uploads) are excluded
+            // from the track candidate range, each widened by 2px for the same
+            // antialiasing-bleed reason `TRACK_EDGE_INSET` exists.
+            const THUMB_EXCLUDE_MARGIN: i64 = 2;
+            let (thumb_lo, thumb_hi) = (
+                rail.thumb[0].floor() as i64 - THUMB_EXCLUDE_MARGIN,
+                (rail.thumb[0] + rail.thumb[2]).ceil() as i64 + THUMB_EXCLUDE_MARGIN,
+            );
+            let (fill_lo, fill_hi) = (
+                rail.fill[0].floor() as i64 - THUMB_EXCLUDE_MARGIN,
+                (rail.fill[0] + rail.fill[2]).ceil() as i64 + THUMB_EXCLUDE_MARGIN,
+            );
             let mut thumb = (0i64, [0u8; 4]);
             let mut track = (i64::MAX, [0u8; 4]);
             let (track_lo, track_hi) = (x0 as i64 + TRACK_EDGE_INSET, x1 as i64 - TRACK_EDGE_INSET);
@@ -544,7 +583,12 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
                 if d > thumb.0 {
                     thumb = (d, c);
                 }
-                if (track_lo..=track_hi).contains(&x) && d > 0 && d < track.0 {
+                if (track_lo..=track_hi).contains(&x)
+                    && !(thumb_lo..=thumb_hi).contains(&x)
+                    && !(fill_lo..=fill_hi).contains(&x)
+                    && d > 0
+                    && d < track.0
+                {
                     track = (d, c);
                 }
                 x += 1;
