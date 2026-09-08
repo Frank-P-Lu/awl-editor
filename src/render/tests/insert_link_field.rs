@@ -184,7 +184,8 @@ fn insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds()
     let _g = crate::testlock::serial();
     if headless_dqp(1200.0, 800.0).is_none() {
         eprintln!(
-            "skipping insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds: no wgpu adapter"
+            "skipping insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds: \
+             no wgpu adapter"
         );
         return;
     }
@@ -272,7 +273,8 @@ fn insert_link_field_card_stays_within_a_narrow_canvas_at_dpi_1_and_2() {
     const NARROW_H: f32 = 600.0;
     if headless_dqp(NARROW_W, NARROW_H).is_none() {
         eprintln!(
-            "skipping insert_link_field_card_stays_within_a_narrow_canvas_at_dpi_1_and_2: no wgpu adapter"
+            "skipping insert_link_field_card_stays_within_a_narrow_canvas_at_dpi_1_and_2: \
+             no wgpu adapter"
         );
         return;
     }
