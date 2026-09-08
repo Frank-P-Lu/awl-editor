@@ -140,6 +140,16 @@ impl TextPipeline {
             self.float_border.draw(&mut pass);
             self.float_card.draw(&mut pass);
             self.panel_card.draw(&mut pass);
+            // The panel's OWN inner chrome: each box's BORDER draws first, as
+            // a solid, slightly LARGER rect — the same nested-rect trick
+            // `float_border`/`float_card` already use for the outer card,
+            // never a stroke shader — so the fill drawn on top of it leaves
+            // only the outset ring showing. The thin region separators sit
+            // between the two so a rule can never paint over a box's own
+            // ring. All of it under the selection band / caret / text.
+            self.panel_control_border.draw(&mut pass);
+            self.panel_rules.draw(&mut pass);
+            self.panel_control_fill.draw(&mut pass);
             // The focused field's selection band: over the card, UNDER the
             // panel text and caret, exactly where the document's own
             // selection sits relative to its glyphs.

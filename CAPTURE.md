@@ -700,7 +700,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/211` (`/212` timeline, `/213` held)
+## The sidecar JSON — schema `awl-capture/212` (`/213` timeline, `/214` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -721,14 +721,18 @@ photographs the same rows — take those against a seeded `--root` and an explic
 `--config`.
 
 Schema `/203` adds **`search.panel`** — the summoned find/replace card's PLANNED
-geometry, or `null` while the panel is down.
+geometry, or `null` while the panel is down. **`/212` changed its shape**: the
+bordered-chrome round (clear find/replace fields, a separate match/navigation
+region, distinct `Replace`/`Replace all` controls) replaced the old terse `Aa`
+toggle and key-hint line with real bordered controls, so the one `case_toggle`
+span became a roster of named boxes.
 
 | key | shape | what it is |
 | --- | --- | --- |
 | `card` | `{ x, y, w, h }` | the card's exterior rect, the one the float primitive rims and the one a press is accepted inside |
 | `text` | `{ left, top }` | the ink origin inside it — where the shaped panel text was uploaded |
-| `rows` | `[{ row, top, h }]` | one band per SHAPED row of the card: `0` the find field, `1` the replace field, then the key-hint line(s). A plain find panel shapes one; the replace state shapes three at ordinary widths and breaks the complete hint into semantic lines under narrow pressure |
-| `case_toggle` | `{ x0, x1 }` | the `Aa` case indicator's x-span — a CLICK TARGET (a press there toggles case sensitivity), seated on its two shaped glyphs rather than a hardcoded pitch. `null` if the find row shaped fewer than those two glyphs |
+| `rows` | `[{ row, top, h }]` | one band per SHAPED row of the card: `0` the find field; `1` the replace field, once revealed; then the nav row (counter, step buttons, `Match case`); then, once replace is revealed, the actions row (`Replace` / `Replace all`) |
+| `controls` | `[{ name, x, y, w, h }]` | every drawn field/button/checkbox box this frame, `name` one of `find_field`, `replace_field`, `nav_prev`, `nav_next`, `case_toggle`, `replace_button`, `replace_all_button` — present only for the ones the current row plan actually shaped (a plain find panel publishes no `replace_field`/`replace_button`/`replace_all_button`), each a CLICK TARGET seated on its own shaped glyphs, never a hardcoded pitch |
 
 `row` indexes the CARD's own shaped lines, never a document row, and the bands are
 the ones the pointer inverts: a press at a band's centre resolves to that field,
@@ -739,8 +743,8 @@ agreement assertable must not ship two answers to one question.
 
 **These are PHYSICAL pixels**, like the rest of the chrome geometry family.
 ⚠️ **But they do not all double with `--capture-dpi`, and the difference is the
-point.** The row pitch and the `Aa` span come off the scaled metrics and the shaped
-advances, so they double exactly (`32 -> 64`, `29.59 -> 59.18` on the default
+point.** The row pitch and every control's span come off the scaled metrics and the
+shaped advances, so they double exactly (`32 -> 64`, `29.59 -> 59.18` on the default
 canvas). The card's `y` does NOT: it is `12 + menubar_reserve`, and that `12` — like
 the `12` of inner pad between `card` and `text` — is an unscaled constant, so it is
 counted once at either scale and `y` reads `12` at both. On a Retina display the
@@ -749,11 +753,11 @@ that rather than hiding it; a projection that "corrected" either figure would be
 reporting a card the frame did not draw.
 
 The card is seated from the window's right edge and responds before that seating
-would push it through the opposite edge: its value fields yield cells, the complete
-teaching hint takes semantic line breaks, its exterior is capped to the canvas
-between physical margins, and `x` is clamped. `search.panel` reports that same
-responsive card, including every shaped hint row; it does not project or repair the
-geometry after the frame draws.
+would push it through the opposite edge: its value fields yield cells, the nav/
+actions rows drop their trailing chord annotations, its exterior is capped to the
+canvas between physical margins, and `x` is clamped. `search.panel` reports that
+same responsive card, including every shaped row and control; it does not project
+or repair the geometry after the frame draws.
 
 **Why it is a geometry oracle and not a convenience.** Every figure is read off the
 same `panel_layout` the draw sizes the card from and the pointer inverts, plus the
