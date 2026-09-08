@@ -39,6 +39,26 @@
 //! moves the target with it instead of leaving the law asserting yesterday's
 //! number. [`TOLERANCE`]'s own doc records the real post-fix spread it must
 //! clear and the non-vacuity headroom below it.
+//!
+//! # A world that opts OUT of the upward equalization
+//!
+//! The equalization direction is UPWARD only until a live taste verdict asks
+//! for the opposite: Gumtree's own dash/star/underscore trio (the snake run,
+//! the fish, the snail) was judged "a tad too tall" against the rest of its
+//! own room, not against the roster, and was retuned smaller on that verdict
+//! alone. Re-running the roster-wide floor after that retune would either
+//! reject the very change the user asked for, or (worse) silently creep the
+//! literal back up the next time this law's own failure message is read as
+//! an instruction — the exact "law re-equalizes the value back up" trap.
+//! [`GUMTREE_TASTE_FLOOR`] is the named escape hatch: one world's own floor,
+//! pinned under its own live measurement, replacing the shared upward target
+//! for that world alone. A relaxed floor is not by itself safe — it is only
+//! as good as its companion [`ORNAMENT_PRESENCE_FLOOR`], an absolute minimum
+//! that ignores every per-world exception and is checked against the FULL
+//! live roster, never a named world: a size law with no presence floor is
+//! satisfied by an ornament that keeps shrinking toward nothing, and this is
+//! what stops that on Gumtree today or on whichever world earns the next
+//! taste exception.
 
 use super::dither::{offscreen, read_pixels};
 use super::{headless_dqp, view_md};
@@ -189,18 +209,41 @@ fn measure_world(
     }
 }
 
-/// The tolerance band under the roster's own live target. The real post-fix
-/// spread (measured against this exact law, dash glyph, default 70-char
-/// measure) runs from Gumtree's 4.093 (the snake run — four joined glyphs,
-/// the widest ink footprint in the roster, whose own height still trails the
-/// pack) up to Currawong's 4.417 (a knight's fine curves overshoot the
-/// predicted linear scale by a few percent) against a target that floats with
-/// whichever world is highest that run — a ~7.3% real spread. `0.15` clears
-/// that with real headroom (a law at the exact measured minimum would go red
-/// on ordinary floating-point/rasterization jitter) while staying far tighter
-/// than the ~53% spread the law was written to catch (the shared-tier state:
-/// Wagtail's un-equalized 2.014 against Saltpan's 4.324).
+/// The tolerance band under the roster's own live target, for every world
+/// still riding the shared upward equalization. `0.15` clears the real
+/// measured spread among that group with real headroom (a law at the exact
+/// measured minimum would go red on ordinary floating-point/rasterization
+/// jitter) while staying far tighter than the ~53% spread the law was
+/// written to catch (the shared-tier state: Wagtail's un-equalized 2.014
+/// against Saltpan's 4.324). Gumtree no longer rides this band — see
+/// [`GUMTREE_TASTE_FLOOR`] below — because its own live taste verdict moved
+/// it deliberately smaller than the pack, not by drift.
 const TOLERANCE: f32 = 0.15;
+
+/// GUMTREE's own floor: its dash/star/underscore trio (the snake run, the
+/// fish, the snail) is tuned smaller than the rest of the roster by a live
+/// taste verdict, not by drift. The roster-wide UPWARD equalization above no
+/// longer applies to this one world: it is smaller than the pack ON
+/// PURPOSE, so it is measured against its OWN floor instead of
+/// [`TOLERANCE`]'s roster-relative one — the fix that keeps this law from
+/// re-equalizing the retune back up the next time it runs. Real headroom
+/// under Gumtree's own live-measured ratio (3.487, at `ornament_scale` 3.95,
+/// on this law's fixed document) so ordinary float/rasterization jitter
+/// cannot flap it, while a further accidental shrink still fails here.
+const GUMTREE_TASTE_FLOOR: f32 = 3.3;
+
+/// The PRESENCE floor, independent of every per-world exception above: an
+/// ornament ink-height/char-width ratio below this is not a smaller
+/// drawing, it is one that has stopped drawing anything real. A per-world
+/// taste floor (like Gumtree's) may relax the roster's UPWARD target, but it
+/// may never relax past THIS ONE — checked against the FULL live roster
+/// (`theme::THEMES`) in the loop below, never a named world, so a treatment
+/// this weak on some FUTURE world fails here even before it earns its own
+/// taste exception. Set comfortably below every world's current measured
+/// ratio (including Gumtree's own 3.3 floor above) while staying well above
+/// the pre-equalization broken state this law exists to catch (Wagtail's
+/// un-equalized 2.014).
+const ORNAMENT_PRESENCE_FLOOR: f32 = 2.5;
 
 /// THE HEADLINE LAW — every world's ornament, EQUALIZED UPWARD.
 ///
@@ -262,21 +305,42 @@ fn every_world_ornament_ink_height_is_equalized_to_the_roster_target() {
     }
 
     let target = measured.iter().map(|m| m.ratio).fold(f32::MIN, f32::max);
-    let floor = target * (1.0 - TOLERANCE);
+    let roster_floor = target * (1.0 - TOLERANCE);
 
     for m in &measured {
+        // The PRESENCE floor first, over the FULL roster with no per-world
+        // exception — see `ORNAMENT_PRESENCE_FLOOR`'s own doc for why a
+        // relaxed law needs this companion.
         assert!(
-            m.ratio >= floor,
+            m.ratio >= ORNAMENT_PRESENCE_FLOOR,
             "{}: ornament ink-height/char-width ratio {:.3} (ink {}px / char {:.3}px) \
-             falls under the roster target {:.3} by more than {:.0}% (floor {:.3}) — \
-             theme::worlds::{}'s ornament_scale needs another upward correction",
+             falls under the absolute presence floor {:.3} — the ornament has shrunk \
+             toward nothing, not just smaller",
             m.name,
             m.ratio,
             m.ink_h,
             m.char_w,
-            target,
-            TOLERANCE * 100.0,
-            floor,
+            ORNAMENT_PRESENCE_FLOOR,
+        );
+
+        // Gumtree carries its own taste floor (retuned smaller on the user's
+        // own live verdict); every other world stays on the roster's shared
+        // upward-equalization floor.
+        let (world_floor, floor_name) = if m.name == "Gumtree" {
+            (GUMTREE_TASTE_FLOOR, "its own taste floor")
+        } else {
+            (roster_floor, "the roster target")
+        };
+        assert!(
+            m.ratio >= world_floor,
+            "{}: ornament ink-height/char-width ratio {:.3} (ink {}px / char {:.3}px) \
+             falls under {} {:.3} — theme::worlds::{}'s ornament_scale needs another look",
+            m.name,
+            m.ratio,
+            m.ink_h,
+            m.char_w,
+            floor_name,
+            world_floor,
             m.name.to_uppercase(),
         );
     }
