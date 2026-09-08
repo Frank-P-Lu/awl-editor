@@ -358,38 +358,6 @@ theme-specific composition remains a live taste review.
 
 ---
 
-### 600 — `--all-worktrees`: guard it (user decision, 2026-09-08)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-600b`, worktree `.claude/worktrees/item-600b`.
-
-⬜ DECIDED, READY: **guard it.** The user chose the recommendation below in one word. Build the refusal — `--all-worktrees` exits non-zero, naming the pid or the process, while the native-gate arbiter marker names a live pid or any `cargo`/`rustc` runs — and a law that a live marker makes the flag refuse. Nothing else in this item is open.
-
-🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
-take.** The floors are now derived from measurement — `MINIMUM_BYTES` unchanged at 24 GiB
-because it is a capacity floor, `HEALTHY_BYTES` down to a derived 27, and every receipt now
-reports what recovery reclaimed.
-
-What remains is one question with a measured cost on both sides.
-
-**What the mode costs.** A fleet-wide sweep empties `deps` and `.fingerprint` while leaving
-`incremental` intact — measured, and reproduced in a control. Fourteen of sixteen worktrees on
-this host currently sit in that state, holding about **90 GiB of `target/` that backs no
-build**, each owing a full cold rebuild if resumed. A law stops any tracked script or workflow
-passing the flag; nothing stops a person typing it mid-wave, and 593 already showed what a
-sweep reaching a live sibling does.
-
-**What it buys.** One command instead of forty-one, at a moment when the fleet is genuinely
-idle — and it rarely is: two lanes were live while the measurement ran.
-
-**The lane's recommendation, which the orchestrator endorses: keep the mode and put a check
-where the operator's judgement currently is** — refuse `--all-worktrees` while the native-gate
-arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten lines, and it
-turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
-the mode is second-best and does not touch the larger `incremental` number (item 612). The
-status quo, where the safety is a habit, is worst.
-
----
-
 ### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
 
 ⬜ DECIDED, READY (user, 2026-09-07): **select within the transcript.** A selection asked for inside a substituted transcript selects that transcript's text — the first of the three options below, the one that needs a transcript-side offset map. The action stays advertised; it is never scoped to nothing. The user's own words: it should select what you selected.
