@@ -68,28 +68,6 @@ doubling; option off ⇒ byte-identical render to today.
 
 ---
 
-### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-577`, worktree `.claude/worktrees/item-577`.
-
-`scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
-version is already on PATH, so a warm run pays 0s and this was invisible until item 566
-timed the first cold run in sixty: **4m25s**, the second-largest line in that job's
-pre-suite budget. A prebuilt-tarball path would take ~4 minutes off every cold run, and
-cold runs are now guaranteed to recur — rust-cache's key carries the rustc version, so
-EVERY stable toolchain release produces one.
-
-Not filed as a trivial swap: the script is shared with `release.yml`, so the blast radius
-includes the release pipeline's permanently-unexercised `publish` job, and downloading a
-prebuilt binary is a supply-chain and network-policy call rather than a build-speed one.
-Decide the policy first (pin by digest? verify a checksum? keep source-build as the
-fallback when the tarball 404s?), then implement.
-
-Verify: a cold-cache CI run's `Install sccache` step drops to seconds; the release
-workflow still installs the same pinned version by the same identity check.
-
----
-
 ### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
 
 Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
