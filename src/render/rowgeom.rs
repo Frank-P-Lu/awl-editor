@@ -145,7 +145,8 @@ pub(super) struct RowGeom {
     rows: std::cell::RefCell<Option<Vec<VisualRow>>>,
     /// SHAPED-GEOMETRY GENERATION — bumped by every [`Self::invalidate`], i.e. at
     /// every seam where the shaped runs (and so every derived pixel geometry)
-    /// change: retained row replacement, reshape, zoom/DPI, restyle, sync-wrap. Consumers that cache
+    /// change: retained row replacement, reshape, zoom/DPI, restyle, sync-wrap.
+    /// Consumers that cache
     /// geometry DERIVED from the shaped runs (the spell-squiggle / nit-underline
     /// protos in `rects.rs`) key their caches on this, so they are exactly as
     /// fresh as the row table itself — anything that would stale them bumps it.

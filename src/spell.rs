@@ -241,27 +241,6 @@ pub fn visible(cache: &[SpellVerdict], text: &str) -> Vec<Misspelling> {
         .collect()
 }
 
-/// Full-scan test oracle for [`SpellProjection`]. The projection's initial seed
-/// and exact invalidation fallbacks share [`refresh_text_cache`] with this
-/// wrapper, while ordinary live refreshes retain unchanged line verdicts.
-#[cfg(test)]
-pub(crate) fn refresh_buffer_cache(
-    buffer: &crate::buffer::Buffer,
-    checker: &SpellChecker,
-) -> Vec<SpellVerdict> {
-    let text = buffer.text();
-    refresh_text_cache(&text, buffer.syntax_lang(), checker)
-}
-
-fn refresh_text_cache(
-    text: &str,
-    lang: Option<crate::syntax::Lang>,
-    checker: &SpellChecker,
-) -> Vec<SpellVerdict> {
-    let spans = checker.misspellings_for(text, lang);
-    keyed(text, spans)
-}
-
 /// Loaded-once spell checker. Holds the parsed Hunspell dictionary; `check` is a
 /// pure lookup. Construction is the only fallible part (dictionary parse).
 ///

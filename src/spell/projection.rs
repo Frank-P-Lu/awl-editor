@@ -148,7 +148,7 @@ impl SpellProjection {
         let text = buffer.text();
         let table = buffer.runs();
         let (table_id, content_rev) = table.state_key();
-        let verdicts = super::refresh_text_cache(&text, buffer.syntax_lang(), checker);
+        let verdicts = refresh_text_cache(&text, buffer.syntax_lang(), checker);
 
         self.work = SpellRefreshWork {
             line_keys_scanned: table.runs().len() as u64,
@@ -227,6 +227,27 @@ fn line_verdicts(line: &str, checker: &SpellChecker) -> Vec<SpellVerdict> {
     super::keyed(line, spans)
 }
 
+/// Full-scan test oracle for [`SpellProjection`]. The projection's initial seed
+/// and exact invalidation fallbacks share [`refresh_text_cache`] with this
+/// wrapper, while ordinary live refreshes retain unchanged line verdicts.
+#[cfg(test)]
+fn refresh_buffer_cache(
+    buffer: &crate::buffer::Buffer,
+    checker: &SpellChecker,
+) -> Vec<SpellVerdict> {
+    let text = buffer.text();
+    refresh_text_cache(&text, buffer.syntax_lang(), checker)
+}
+
+fn refresh_text_cache(
+    text: &str,
+    lang: Option<crate::syntax::Lang>,
+    checker: &SpellChecker,
+) -> Vec<SpellVerdict> {
+    let spans = checker.misspellings_for(text, lang);
+    super::keyed(text, spans)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,7 +260,7 @@ mod tests {
     ) {
         assert_eq!(
             projection.refresh(buffer, checker),
-            super::super::refresh_buffer_cache(buffer, checker),
+            super::refresh_buffer_cache(buffer, checker),
             "{context}",
         );
     }
