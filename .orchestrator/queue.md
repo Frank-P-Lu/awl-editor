@@ -242,37 +242,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-590`, worktree `.claude/worktrees/item-590`.
-
-⬜ READY — queue only; coordinate shared chrome with 589.
-
-**Decision.** Replace the empty imitation list in Insert Link with an obvious
-destination field: readable `Link destination` label, `Paste or type a URL`
-placeholder, immediate typing, Enter to commit and Esc to cancel. Keep a quiet
-clickable commit affordance carrying its resolved binding. Preserve existing
-URL prefill, selected-text wrapping, editing an existing link and undo behavior.
-
-**Composition.** Keep the existing world/context placement policy, including
-clamping on small windows; the generated below-paragraph location is illustrative,
-not a new hardcoded rule. The user likes the relationship between Find and Link
-chrome, with consistent borders/corners inside a world. Apply 589's world-specific
-surface grammar and backing policy rather than shipping one generic rounded
-dialog. Keep surrounding prose readable; no full-viewport blur merely to enter
-a destination. Retain appropriate local separation where a world's composition
-otherwise interleaves text with the document.
-
-**Verify.** Read docs/markdown.md, docs/render.md and docs/harness-reach.md.
-Test empty/prefilled/existing-link/selected-text paths, keyboard and pointer
-commit/cancel, focus and document restoration. Native keyboard labels come
-from the real keymap. Sweep composition families, anchors, narrow widths and
-DPI 1/2; pixel-check label/field clarity and no clipping. Add the missing laws,
-mutation-prove them, and include the standing vision smoke. Report final feel
-as requiring the user's live eye, not as proven by image generation.
-
----
-
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
 
 🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`.
@@ -302,37 +271,6 @@ find-only/replace and case states across world compositions, widths and DPI
 1/2; assert bounds, shortcut/action correspondence and pixel legibility. Add
 mutation-proven laws and the five-shot vision smoke. Theme identity remains
 data through shared renderers, not one universal screenshot skin.
-
----
-
-### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
-
-⬜ READY — queue only; coordinate shared chrome with 589.
-
-**Approved direction.** The user strongly prefers the new Settings layout:
-modest nearby title and identifiable search, category rail beside the active
-category's controls, comfortable row spacing, and a bounded detail-column width
-that keeps values close to labels. Extra window width becomes breathing room,
-not a longer journey between a setting and its value. Remove the remote giant
-SETTINGS label in favor of the integrated hierarchy. The reference's proportions
-are the direction, not hardcoded pixel coordinates or replacement control semantics.
-
-**Worlds / interaction.** Preserve the existing category/detail focus model,
-selected-row control interaction, query, return path, exact editor restoration
-and narrow staged presentation. Express rows, selection, corners and backing
-through each world's Pane/Bars/Diagonal/Ruled vocabulary. Keep relevant key hints
-near the active control, using real bindings. Start with a quiet opaque themed
-workspace ground rather than ghost prose; retain frost only if it contributes
-to that world's authored composition. No blanket removal of ambient effects.
-
-**Verify.** Read DESIGN.md, docs/render.md and harness-reach. Sweep category,
-control kind, focus region, composition family, narrow/wide window, zoom and
-DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
-focus/selection and unchanged setting behavior. Validate appearance with pixels
-and the standing vision smoke; add mutation-proven laws at shared seams. Final
-theme-specific composition remains a live taste review.
 
 ---
 
@@ -404,37 +342,6 @@ pixel law — it renders on the shared device.
 
 ---
 
-### 606 — 570's closing 99 moves to B: after the last line's own text (user decision, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-606`, worktree `.claude/worktrees/item-606`.
-
-⬜ DECIDED, READY. The user saw the A/B captures (Paperbark and Bowerbird, one-line and
-multi-line) and chose B. Per-world was asked and declined: where a closing mark sits is a
-typographic rule, not a world identity — one answer, twenty worlds. Reopen only if a live
-look across the roster disagrees.
-
-What to build: a per-mark x on `QuoteOrnaments` (`render/layers/ornaments.rs`) — the "about
-20 lines" 570's lane costed when it prototyped B as a capture rather than landing it. The 99
-hangs one gap after the last visual row's shaped ink, on that row's own baseline. Two things
-the prototype captures show and this item must fix rather than inherit: (a) on the multi-line
-case the 99 rode above the row and read as belonging to the row above — anchor it to the last
-row's baseline the way the 66 is anchored to the first row's. **The user said this in their own
-words on seeing the captures: "some of the 99s look a tad too tall, it should be closer to the
-baseline, just a little bit"** — so the vertical placement is a taste target, not just a
-geometry fix, and the lane should offer two or three drops as captures rather than pick one. The user then showed a reference (a pull-quote in chat, not on disk): the 66 hangs in the left margin with its top near the first line's cap height; the 99 follows the last word after a gap of about half an em, with its ink sitting between that line's x-height and cap height — a little above the baseline, never above the line's own top. That is the target;
-(b) at the widest wrap the
-trailing 99 must yield inside the column rather than escape past the text edge — clamp,
-never overflow. The 66 stays where it is.
-
-Laws: 99's x = last-row ink right + gap, on every world and at narrow and wide wrap; its y
-band overlaps the last row's band and no other row's; a presence floor on the glyph's ink so
-a mark that failed to paint cannot pass. Deliver A-vs-B captures across the roster for the
-live eye; the feel is owed to the user, not proven by capture.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; visual judge at the production tier.
-
----
-
 ### 607 — follow gestures: middle-click under both Linux flavors, and the gestures rebindable (user decision, 2026-09-07)
 
 ⬜ DECIDED, READY. Two calls 576 left one line from the user, both now taken the other way.
@@ -459,48 +366,6 @@ grammar cannot spell keeps the default and prints a note naming the line, the sa
 bad key chord already gets. Keep the deferred `#heading-anchor` no-op deferred.
 
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
-
----
-
-### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-609`, worktree `.claude/worktrees/item-609`.
-
-⬜ DECIDED, READY — coordinate with 589 (shared transient chrome): this item is the one
-surface 589's "each world's authored composition" rule does NOT apply to, by decision.
-
-Reader feedback, relayed by the user: "the theme switcher should not jump all over the
-place — it made my boyfriend dizzy". Reproduced with `--keys "Cmd-T C-n…"` from Tawny: every
-arrow re-composes the LIST ITSELF into the previewed world's chrome, because
-`sync_theme_colors` switches `theme::active()` per arrow and the picker reads its
-composition from there like every other overlay. Across a few arrows the list is a plain
-pane at the column's left, then a descending spine on the left with a THEMES placard
-(Mangrove), then chips on the left with a paged "↑ 1 more / ↓ 7 more" window (Galah), then an
-ascending spine on the RIGHT (Magpie), then a ruled list top-right (Kite) — moving corners,
-changing face, row pitch, list style and how many rows are visible, all while the reader is
-trying to hold the selection with their eyes.
-
-**Decision.** The theme picker gets a FIXED chrome for the life of the summon: one simple
-list in one place, the Find/Replace-box grammar the user already prefers
-(`references/find-replace-chrome.png` beside this board), while everything BEHIND it — page,
-prose, margins, ground — previews the world live as today. The list's own surface colours
-may follow the previewed world (that is the preview) but its composition, anchor, face,
-row pitch, page window and selection treatment do not. Frost stays `Footprint`.
-
-Mechanism, not a per-world code path: the picker's chrome reads a PINNED `RenderCaps` /
-composition captured at summon (or a dedicated `ListStyle::Pane`-shaped constant) rather
-than `theme::active().render_caps` per frame — one seam, named, with every other overlay
-still reading the live caps. `effective_list_style()` is where the picker currently asks; do
-not special-case inside the compositions.
-
-Laws: across a full arrow sweep of the roster the picker's card rect, anchor, list style,
-row pitch and visible-row window are identical frame to frame (sidecar + pixel bbox of the
-card), while the page ground behind it changes on every arrow (presence: the frames DO
-differ outside the card); prove non-vacuity by restoring the live-caps read and watching the
-rect law go red on the first non-Pane world. Standing five-shot vision smoke.
-
-Routing: worker `gpt-5.6-sol` high or Sonnet high; visual judge at the production tier.
-Feel is owed to the user's live eye — and to the reader who got dizzy.
 
 ---
 
@@ -705,6 +570,41 @@ genuinely loses sight of a spinning process, which is the original defect (a rec
 reported `tracked_procs=0` and `0.6%` while two test binaries burned a core each).
 
 Routing: worker Sonnet high — the fix is small, the oracle design is not.
+
+---
+
+### 622 — the theme-picker chrome pin is a swappable global outside testlock's one field list (found reviewing 609's merge, 2026-09-08)
+
+⬜ READY — small, and it is the leak class this repo has already paid for once.
+
+609 added `PICKER_CHROME_PIN`, a thread-local world index that six `effective_*` resolvers
+read instead of `theme::active()`. The design is right and the module comment argues
+correctly that a thread-local can skip the lock: it isolates `cargo test`'s parallel worker
+threads from each other, which is the property the process-global guard exists to supply.
+
+The gap is not the lock — it is the RESTORE. `testlock`'s anti-leak design works because its
+snapshot, its leak audit and its restore share ONE field list by construction, so a global
+cannot be added to the snapshot and forgotten by the audit. This pin is in none of the three.
+A test that pins and then panics before unpinning leaks the pin to the next test on that
+worker thread, and the next test reads a `list_style`, `chrome_face` or `location_style` it
+did not choose.
+
+That is exactly the shape of the leaked `ListStyle::Bars` that once made an unrelated
+jump-hint law report a clip that was not one — green single-threaded, red under a wide
+`--test-threads`, and blamed on the wrong law for a while. The pin's own law does unpin and
+re-pin around its mutation arm, but on the HAPPY path only; an assertion failing between those
+two calls leaves the pin set.
+
+Build: bring the pin under the same discipline as the other swappable globals — either into
+`testlock`'s shared field list so the snapshot, the audit and the restore all see it, or
+behind a guard object whose `Drop` restores it on the unwinding path too. Prefer the shared
+list: a second mechanism here is how the first one drifted.
+
+Law: a test that pins and then panics must not leave the pin set for the next test on that
+thread. Prove non-vacuity by removing the restore and watching it go red — and run it under a
+wide `--test-threads`, because that is the configuration where this class shows up at all.
+
+Routing: worker Sonnet medium.
 
 ---
 
