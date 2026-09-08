@@ -434,10 +434,13 @@ fn parse_follow_overrides(overrides: &[String]) -> Option<Vec<FollowGesture>> {
     for spec in overrides {
         match crate::keyspec::parse_pointer_chord(spec) {
             Ok((button, mods)) => {
-                let label: &'static str = Box::leak(
-                    crate::keyspec::format_pointer_chord(button, mods).into_boxed_str(),
-                );
-                out.push(FollowGesture { button, mods, label });
+                let label: &'static str =
+                    Box::leak(crate::keyspec::format_pointer_chord(button, mods).into_boxed_str());
+                out.push(FollowGesture {
+                    button,
+                    mods,
+                    label,
+                });
             }
             Err(e) => {
                 eprintln!("config [keys]: follow = {spec:?}: {e}; keeping default");

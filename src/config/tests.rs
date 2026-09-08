@@ -207,9 +207,7 @@ fn load_diverts_follow_out_of_the_generic_keys_table() {
 fn load_reads_a_single_string_follow_line() {
     use std::sync::Arc;
     let p = PathBuf::from("/cfg/config.toml");
-    let fs = Arc::new(
-        crate::fs::InMemoryFs::new().with_file(&p, "[keys]\nfollow = \"C-click\"\n"),
-    );
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "[keys]\nfollow = \"C-click\"\n"));
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());
         assert_eq!(cfg.follow, vec!["C-click".to_string()]);
