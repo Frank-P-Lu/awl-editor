@@ -573,51 +573,6 @@ tier.
 
 ---
 
-### 611 — "Open in Awl" from the Finder: declare document types and accept the open-documents event (user request, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-611`, worktree `.claude/worktrees/item-611`.
-
-⬜ READY — engineering, two halves, both required; the second is the one that is easy to
-skip and then nothing opens.
-
-The user asked: "finder: open in awl, like right-click on a file and add this option? how do
-we do this?" Today `scripts/package-macos.sh` writes an Info.plist with NO
-`CFBundleDocumentTypes`, so the Finder's Open With menu never lists Awl and it cannot be made
-the default for `.md`; and the app has no handler for the open-documents Apple Event
-(`application:openURLs:` / `openFiles:` — `grep -rn openFiles src` is empty), so even
-`open -a Awl note.md` launches the app without the file. The only live door is the daemon's
-`open <path>` socket line, which the CLI uses.
-
-(1) **Declare the types** in the plist: `CFBundleDocumentTypes` for `net.daringfireball.markdown`,
-`public.plain-text`, `public.text` (and the `.txt`/`.md`/`.markdown` extensions as
-`CFBundleTypeExtensions` for pre-UTType consumers), role Editor, `LSHandlerRank Alternate`
-so Awl is OFFERED without stealing the default. Once declared, right-click ▸ Open With ▸ Awl
-appears for every text file, and "Change All…" makes it the default. Keep the MAS arm's
-entitlements in mind: the sandboxed build needs `com.apple.security.files.user-selected.read-write`
-already present for a picker-chosen file; verify Finder-opened files are covered by the same
-entitlement (they are, as user-selected).
-
-(2) **Accept the event.** winit 0.30 owns the `NSApplicationDelegate` and forwards no
-open-documents event, so install a handler on the delegate winit creates (objc2 subclass or
-method addition on the existing delegate class, the way `mac_chrome` already reaches AppKit)
-that routes each URL into the SAME `DaemonEvent::OpenPath` the socket door already posts via
-`EventLoopProxy` — one open path, never a second. Handle BOTH cases: app already running
-(event arrives on the live loop) and cold launch (the event arrives before the window exists;
-queue it and drain after the first frame, the same shape session restore uses). Honour the
-existing single-instance daemon: a second Finder open must not spawn a second process.
-
-A Finder context-menu item that reads literally "Open in Awl" is a Finder Sync extension or a
-user-installed Quick Action, neither of which awl ships; Open With is the platform's own
-answer and is what the item delivers. Record that in docs/platform.md.
-
-Laws: the plist declares each type by name (a test parses the generated plist); the
-open-path route is one owner (grep-law: no second path from AppKit into `App`); the
-cold-launch queue drains exactly once. Live: Open With from the Finder on a running and on a
-quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the user.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier.
-
 ### 616 — table selection: neighbouring cells flicker while the band settles (user report, 2026-09-08)
 
 ⬜ READY. The user confirmed 551's whole-row band is what they want, and reported one defect on it in their own words: "the neighbouring cells kind of flicker, I don't like that." Cells beside the selected run change appearance transiently while the selection moves. Read the cause out of the tree before fixing — 551 landed in `f740749c` (`render/rects.rs`, `render/geometry.rs`, law in `render/tests/table_selection_band_law.rs`) with a follow-up in `db90497e`; find what animates or re-paints on the untouched cells (a band ease, the table x-ray's grid float, or a cache invalidation that re-shapes the row). **The user's fallback, stated plainly: if the flicker cannot be cut out on its own, remove the animation on the table band altogether.** A calm still band beats a lively one that flickers.
@@ -639,16 +594,6 @@ The user kept the hand cursor (559's open question, now closed) and rejected the
 Laws: hovered × ink differs from resting × ink on every world (presence floor on both); no plate pixels paint on hover (the plate law from 558/559 inverts, not deletes); the active-row plate is untouched. Retire the plate-geometry laws that only 605's hover plate needed.
 
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; vision smoke over five worlds asking "which × is hovered?".
-
----
-
-### 618 — Gumtree's dash ornament about 15% smaller (user taste call on 561, 2026-09-08)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-618`, worktree `.claude/worktrees/item-618`.
-
-⬜ DECIDED, READY. The user saw 561 live in Gumtree: the snake reads proportionate but "a tad too tall — make it 15% smaller, maybe." Gumtree's `ornament_scale` is `4.648` in `theme/worlds.rs`; the target is about `3.95`. **Tripwire from 561, still true:** star and underscore share that one dial with dash, so a plain scale change shrinks all three. Decide in the lane whether the three should move together (simplest; check star and underscore in Gumtree after) or dash gets its own factor — prefer the shared move unless a capture shows the other two going too small, and say which in the report. Update the equalisation law in `theme::tests::ornament` so it does not re-equalise the value back up. Deliver before/after captures of `---`, `***` and `___` in Gumtree at the default geometry.
-
-Routing: worker Sonnet medium; one capture round, no audit beyond the law.
 
 ---
 
@@ -808,6 +753,21 @@ inherit that variable — so each half of the suite ran in exactly one place and
 other. Green here, red there, for the whole life of the law.
 
 ## Owed to the user — landed work awaiting a live eye
+
+**606 — the closing 99's vertical drop (three captures ready, NOT yet landed).** The lane
+produced the A/B/C the item asked for rather than picking one, with every number read out of
+the tree: `QUOTE_CLOSE_GAP_EM = 0.5` (the "about half an em" the user described),
+`QUOTE_CLOSE_BASELINE_DROP_FRAC` shipped at `0.45`, both in `src/render/layers.rs`.
+
+| drop | value | how it reads |
+|---|---|---|
+| A | 0.45 (shipped) | ink between x-height and cap height, comfortably above the baseline |
+| B | 0.30 | rides higher — this is the user's "too tall" complaint reproduced |
+| C | 0.60 | closer to the baseline, matching "a little above the baseline" most nearly |
+
+The lane's own pick is C, judged across a serif world and a sans one, at one-line and
+multi-line. It deliberately did NOT change the shipped constant. Captures are in the session
+scratchpad, not the repo. **The pick is one line and it is the user's.**
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
 a live look, which landing does not discharge. Full context is in
