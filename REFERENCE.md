@@ -218,6 +218,7 @@ persists to that key on change; a row without one does not persist.
 | Format popover | Appearance | On/off | `popover` |
 | Inline images | Appearance | On/off | `inline_images` |
 | Code ligatures | Appearance | On/off | `code_ligatures` |
+| Footnote ladder | Appearance | On/off | `footnote_ladder` |
 | Outline | Appearance | On/off | `outline` |
 | Menu bar | Appearance | On/off | `menu_bar` |
 | Spellcheck | Writing | On/off | `spellcheck` |
@@ -282,6 +283,7 @@ An absent key takes the default below. A command-line flag overrides the file; t
 | `popover` | true \| false | `true` |
 | `inline_images` | true \| false | `true` |
 | `code_ligatures` | true \| false | `true` |
+| `footnote_ladder` | true \| false | `false` |
 | `cjk_priority` | list of language codes | — |
 | `session_restore` | true \| false | `true` |
 | `outline` | true \| false | `true` |

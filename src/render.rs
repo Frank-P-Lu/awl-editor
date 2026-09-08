@@ -2894,16 +2894,19 @@ pub struct TextPipeline {
     /// inert (`keymap::seeded_chords_for` returns empty off `KeymapFlavor::Emacs`).
     config_keymap_flavor: crate::keymap::KeymapFlavor,
     md_enabled: bool,
-    /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
-    /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so
-    /// [`Self::set_view`] can force a full restyle when either FLIPS on UNCHANGED
+    /// WYSIWYG / INLINE-IMAGES / FOOTNOTE-LADDER LATCH: the last-shaped value of
+    /// three rendering process-globals (`markdown::wysiwyg_on()` /
+    /// `inline_images_on()` / `markdown::footnote_ladder_on()`), so
+    /// [`Self::set_view`] can force a full restyle when any FLIPS on UNCHANGED
     /// text — exactly like the `md_enabled` / `syn_lang` gates beside it. The
-    /// conceal geometry (zero-width metrics) and image row heights are baked into
-    /// each line's attrs at shape time, so a settings-menu toggle with no text edit
-    /// would otherwise leave them stale until the next edit; this is the live-apply
-    /// path that gap needed. A no-op on every ordinary frame (the value is unchanged).
+    /// conceal geometry (zero-width metrics), image row heights, and a footnote's
+    /// reserved painted-mark slot are all baked into each line's attrs at shape
+    /// time, so a settings-menu toggle with no text edit would otherwise leave
+    /// them stale until the next edit; this is the live-apply path that gap
+    /// needed. A no-op on every ordinary frame (the value is unchanged).
     wysiwyg_latched: bool,
     inline_images_latched: bool,
+    footnote_ladder_latched: bool,
     md_spans: Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     outline_headings: Vec<crate::markdown::Heading>,
     /// **THE WORKING SET'S HALF OF THE RAIL RESERVATION:** does any open buffer

@@ -64,6 +64,7 @@ fn absent_config_load_is_empty_with_its_path() {
             loaded.popover,
             loaded.inline_images,
             loaded.code_ligatures,
+            loaded.footnote_ladder,
             &loaded.cjk_priority,
             loaded.session_restore
         ),
@@ -76,6 +77,7 @@ fn absent_config_load_is_empty_with_its_path() {
             empty.popover,
             empty.inline_images,
             empty.code_ligatures,
+            empty.footnote_ladder,
             &empty.cjk_priority,
             empty.session_restore
         ),
@@ -881,6 +883,7 @@ fn write_pref_persists_settings_menu_toggles() {
             "popover",
             "inline_images",
             "code_ligatures",
+            "footnote_ladder",
             "outline",
             "menu_bar",
             "typewriter_scroll",
@@ -896,6 +899,7 @@ fn write_pref_persists_settings_menu_toggles() {
                 "popover" => cfg.popover,
                 "inline_images" => cfg.inline_images,
                 "code_ligatures" => cfg.code_ligatures,
+                "footnote_ladder" => cfg.footnote_ladder,
                 "outline" => cfg.outline,
                 "menu_bar" => cfg.menu_bar,
                 "typewriter_scroll" => cfg.typewriter_scroll,
@@ -1092,6 +1096,41 @@ fn apply_sticky_globals_restores_code_ligatures() {
         "absent pref leaves the global as-is"
     );
     crate::render::set_code_ligatures_on(saved);
+}
+
+#[test]
+fn apply_sticky_globals_restores_footnote_ladder() {
+    // The remembered footnote_ladder value lands on the
+    // `markdown::FOOTNOTE_LADDER_ON` process-global (no CLI flag, applies
+    // unconditionally) — mirrors the code_ligatures restore exactly.
+    let _g = crate::testlock::serial();
+    let saved = crate::markdown::footnote_ladder_on();
+    crate::markdown::set_footnote_ladder_on(true);
+    let cfg = Config {
+        footnote_ladder: Some(false),
+        ..Config::empty()
+    };
+    cfg.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::markdown::footnote_ladder_on(),
+        "footnote_ladder=false restored to off"
+    );
+    let cfg_on = Config {
+        footnote_ladder: Some(true),
+        ..Config::empty()
+    };
+    cfg_on.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        crate::markdown::footnote_ladder_on(),
+        "footnote_ladder=true restored to on"
+    );
+    crate::markdown::set_footnote_ladder_on(false);
+    Config::empty().apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::markdown::footnote_ladder_on(),
+        "absent pref leaves the global as-is"
+    );
+    crate::markdown::set_footnote_ladder_on(saved);
 }
 
 #[test]

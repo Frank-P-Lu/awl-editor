@@ -125,3 +125,55 @@ fn every_world_scales_footnote_geometry_at_one_and_two_dpi() {
     pipeline.sync_theme();
     pipeline.set_dpi(1.0);
 }
+
+/// **DECISION (b): THE DEFINITION LIST WEARS THE SAME MARK AS ITS
+/// REFERENCE.** [`SOURCE`] carries both label kinds sharing numbers — "earlier"
+/// (number 2, one reference + its definition) and "β" (number 1, TWO
+/// references + its definition) — so grouping every painted mark by `number`
+/// and requiring an identical reserved slot within each group is a real,
+/// non-trivial check that a reference occurrence and its definition (and a
+/// repeated reference) all paint the identical mark. Run under BOTH the
+/// default numeric mode and the traditional ladder, so the option's promise
+/// ("the definition list follows the option") holds in the mode it actually
+/// changes anything for.
+#[test]
+fn footnote_definition_and_every_reference_occurrence_share_one_mark_per_number() {
+    let _guard = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let Some(mut pipeline) = headless_pipeline() else {
+        eprintln!(
+            "skipping footnote_definition_and_every_reference_occurrence_share_one_mark_per_number: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    for ladder in [false, true] {
+        crate::markdown::set_footnote_ladder_on(ladder);
+        pipeline.set_view(&parked_view());
+        let marks = pipeline.footnote_marks();
+        assert_eq!(
+            marks.len(),
+            5,
+            "ladder={ladder}: fixture geometry unchanged by the option"
+        );
+        let mut by_number: std::collections::BTreeMap<usize, Vec<f32>> = Default::default();
+        for (_, _, number, slot) in &marks {
+            by_number.entry(*number).or_default().push(*slot);
+        }
+        // Both numbers in the fixture recur (β twice as a reference, earlier
+        // once as a reference plus once as a definition) — a group of size 1
+        // would prove nothing about sharing.
+        assert!(
+            by_number.values().any(|slots| slots.len() > 1),
+            "ladder={ladder}: the fixture must exercise a repeated number or this proves nothing"
+        );
+        for (number, slots) in &by_number {
+            let first = slots[0];
+            assert!(
+                slots.iter().all(|s| (s - first).abs() < 0.01),
+                "ladder={ladder}: number {number} painted at different slot widths across its \
+                 occurrences: {slots:?} — a reference and its definition must wear one mark"
+            );
+        }
+    }
+}

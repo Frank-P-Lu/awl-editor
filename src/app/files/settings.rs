@@ -35,6 +35,7 @@ impl App {
             "popover" => self.config.popover = Some(value == "true"),
             "inline_images" => self.config.inline_images = Some(value == "true"),
             "code_ligatures" => self.config.code_ligatures = Some(value == "true"),
+            "footnote_ladder" => self.config.footnote_ladder = Some(value == "true"),
             "outline" => self.config.outline = Some(value == "true"),
             "menu_bar" => self.config.menu_bar = Some(value == "true"),
             "reduce_motion" => self.config.reduce_motion = Some(value == "true"),
@@ -112,6 +113,7 @@ impl App {
                 self.sync_view(true);
             }
             "code_ligatures" => self.sync_view(true),
+            "footnote_ladder" => self.sync_view(true),
             "spellcheck" => self.run_spellcheck_now(),
             "writing_nits" => self.sync_view(false),
             "outline" => self.sync_view(false),

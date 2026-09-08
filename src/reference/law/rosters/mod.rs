@@ -50,6 +50,7 @@ fn every_config_field_is_documented() {
         popover,
         inline_images,
         code_ligatures,
+        footnote_ladder,
         cjk_priority,
         session_restore,
         outline,

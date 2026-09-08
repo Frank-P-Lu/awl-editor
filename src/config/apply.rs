@@ -123,6 +123,13 @@ impl Config {
         if let Some(on) = self.code_ligatures {
             crate::render::set_code_ligatures_on(on);
         }
+        // FOOTNOTE LADDER: same pattern (no CLI flag) — the remembered on/off
+        // applies when present; absent = the built-in default (OFF), which
+        // `markdown::FOOTNOTE_LADDER_ON` already carries. Paint-time only: the
+        // `[^label]` source and export stay numeric either way.
+        if let Some(on) = self.footnote_ladder {
+            crate::markdown::set_footnote_ladder_on(on);
+        }
         // PERSISTENT MARGIN OUTLINE: like the toggles above, the built-in default
         // is ON (`outline::OUTLINE_ON` starts true — flipped 2026-07-09, a
         // user-decided taste reversal of the original opt-in-off call; see

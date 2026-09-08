@@ -79,6 +79,7 @@ pub(crate) struct MiscPins {
     code_ligatures: bool,
     wysiwyg: bool,
     inline_images: bool,
+    footnote_ladder: bool,
     whichkey_force_shown: bool,
     /// `None` = auto (no override); mirrors `crate::caret::is_auto`.
     caret_mode: Option<crate::caret::CaretMode>,
@@ -110,6 +111,7 @@ pub(crate) fn pins() -> MiscPins {
         code_ligatures: crate::render::code_ligatures_on(),
         wysiwyg: crate::markdown::wysiwyg_on(),
         inline_images: crate::markdown::inline_images_on(),
+        footnote_ladder: crate::markdown::footnote_ladder_on(),
         whichkey_force_shown: crate::whichkey::force_shown(),
         caret_mode: (!crate::caret::is_auto()).then(crate::caret::mode),
         about_open: crate::about::about_open(),
@@ -144,6 +146,7 @@ pub(crate) fn restore(p: &MiscPins) {
     crate::render::set_code_ligatures_on(p.code_ligatures);
     crate::markdown::set_wysiwyg_on(p.wysiwyg);
     crate::markdown::set_inline_images_on(p.inline_images);
+    crate::markdown::set_footnote_ladder_on(p.footnote_ladder);
     crate::whichkey::set_force_shown(p.whichkey_force_shown);
     match p.caret_mode {
         Some(m) => crate::caret::set_mode(m),
@@ -180,6 +183,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         code_ligatures: b_code_ligatures,
         wysiwyg: b_wysiwyg,
         inline_images: b_inline_images,
+        footnote_ladder: b_footnote_ladder,
         whichkey_force_shown: b_whichkey_force_shown,
         caret_mode: b_caret_mode,
         about_open: b_about_open,
@@ -206,6 +210,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         code_ligatures: a_code_ligatures,
         wysiwyg: a_wysiwyg,
         inline_images: a_inline_images,
+        footnote_ladder: a_footnote_ladder,
         whichkey_force_shown: a_whichkey_force_shown,
         caret_mode: a_caret_mode,
         about_open: a_about_open,
@@ -244,6 +249,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
     field!("code_ligatures", b_code_ligatures, a_code_ligatures);
     field!("wysiwyg", b_wysiwyg, a_wysiwyg);
     field!("inline_images", b_inline_images, a_inline_images);
+    field!("footnote_ladder", b_footnote_ladder, a_footnote_ladder);
     field!(
         "whichkey_force_shown",
         b_whichkey_force_shown,

@@ -14,7 +14,7 @@ fn settings_table_names_are_unique() {
     assert_eq!(SETTINGS.len(), seen.len());
     assert_eq!(
         SETTINGS.len(),
-        31,
+        32,
         "corpus size changed — update this count deliberately (and the doc comments \
              at the top of settings.rs) rather than let it drift"
     );
@@ -755,6 +755,7 @@ impl SettingId {
             | SettingId::FormatPopover
             | SettingId::InlineImages
             | SettingId::CodeLigatures
+            | SettingId::FootnoteLadder
             | SettingId::Outline
             | SettingId::MenuBar
             | SettingId::Spellcheck
@@ -793,6 +794,7 @@ fn every_setting_id_maps_1_to_1_to_the_registry() {
         SettingId::FormatPopover,
         SettingId::InlineImages,
         SettingId::CodeLigatures,
+        SettingId::FootnoteLadder,
         SettingId::Outline,
         SettingId::MenuBar,
         SettingId::Spellcheck,
@@ -814,7 +816,7 @@ fn every_setting_id_maps_1_to_1_to_the_registry() {
     roster.iter().for_each(|id| id.witness());
     assert_eq!(
         roster.len(),
-        31,
+        32,
         "the hand-listed roster changed size — update deliberately"
     );
     assert_eq!(roster.len(), SETTINGS.len(), "roster/registry size drifted");
@@ -938,6 +940,10 @@ fn typed_ids_still_emit_the_legacy_wire_keys() {
     assert_eq!(toggle_key(SettingId::FormatPopover), Some("popover"));
     assert_eq!(toggle_key(SettingId::InlineImages), Some("inline_images"));
     assert_eq!(toggle_key(SettingId::CodeLigatures), Some("code_ligatures"));
+    assert_eq!(
+        toggle_key(SettingId::FootnoteLadder),
+        Some("footnote_ladder")
+    );
     assert_eq!(toggle_key(SettingId::Outline), Some("outline"));
     assert_eq!(toggle_key(SettingId::MenuBar), Some("menu_bar"));
     assert_eq!(toggle_key(SettingId::Spellcheck), Some("spellcheck"));
@@ -995,6 +1001,7 @@ fn the_complete_settings_roster_has_an_explicit_range_decision() {
             | SettingId::FormatPopover
             | SettingId::InlineImages
             | SettingId::CodeLigatures
+            | SettingId::FootnoteLadder
             | SettingId::Outline
             | SettingId::MenuBar
             | SettingId::Spellcheck
