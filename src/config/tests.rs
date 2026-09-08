@@ -175,7 +175,10 @@ fn load_diverts_follow_out_of_the_generic_keys_table() {
     let p = PathBuf::from("/cfg/config.toml");
     let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(
         &p,
-        "[keys]\nswitch_theme = \"C-t\"\nfollow = [\"C-click\", \"middle-click\", \"right-click\"]\n",
+        concat!(
+            "[keys]\nswitch_theme = \"C-t\"\n",
+            "follow = [\"C-click\", \"middle-click\", \"right-click\"]\n",
+        ),
     ));
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());

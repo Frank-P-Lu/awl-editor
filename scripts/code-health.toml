@@ -163,7 +163,7 @@ reason = "The review row joins the two resolutions in `row_hidden`, the one plac
 
 [[file_size_mark]]
 file = "src/config/model.rs"
-lines = 372
+lines = 398
 reason = "+15: `Config::effective_linux_keep` filters the emacs preset's own `C-c`/`C-v` contribution out before composing the keep-list, leaving an explicit `[keys] linux_keep_emacs` reclaim untouched — the one composition owner named in CLAUDE.md's Linux-emacs tripwire. +20: `cjk_priority` parsing widens to accept the literal `\"auto\"` string (Auto) alongside the existing explicit array, both funnelling to the one `None`/`Some` representation `cjk_priority_or_default` already reads."
 
 [[file_size_mark]]
@@ -218,13 +218,13 @@ lines = 890
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 25
-reason = "+3: `KeymapState::seed_defaults` gains the `linux_emacs_meta` gate deciding whether the Linux-only classic Meta layer seeds, at the same construction site the keep-list already threads through. Item 527/528's KeymapFlavor re-export, read by every label surface alongside Convention. +1: `PointerButton` and `follows_link` reflowing the existing `pub(crate) use platform::{…}` re-export block."
+lines = 32
+reason = "+3: `KeymapState::seed_defaults` gains the `linux_emacs_meta` gate deciding whether the Linux-only classic Meta layer seeds, at the same construction site the keep-list already threads through. Item 527/528's KeymapFlavor re-export, read by every label surface alongside Convention. +1: `PointerButton` and `follows_link` reflowing the existing `pub(crate) use platform::{…}` re-export block. +7: the pointer-gesture roster moved to its own `follow` module (a different grammar, not a different table) and is re-exported here, split by consumer so the two names only the roster laws use are cfg(test)."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
-lines = 528
-reason = "`undo_chord_label`: Undo has no palette command to resolve a label from, and the restore notice has to name a key that fires on the reader's own convention (+17), and its law resolves each spec through the real keymap on its own convention rather than trusting a comment (+33). +244 (offset by moving `mod tests` out to `src/keyspec/tests.rs`, mirroring `document.rs`'s own submodule-test split, once that growth pushed the file's own tests past a sane inline size): the find/replace panel's own fixed, non-rebindable chords (Replace/Replace-all/Switch-field/Close/Match-case) have no catalog row either, so `PanelChordSpec` + five named specs resolve their labels through the SAME mac/linux glyph renderer `undo_chord_label` established — never a hardcoded glyph on the other platform. The proof is one `#[test]` per chord family (five, replacing one long function that tripped its own too-many-lines ceiling), each feeding its spec through `search::keys::intercept` directly, since these chords never reach `KeymapState::resolve`."
+lines = 592
+reason = "`undo_chord_label`: Undo has no palette command to resolve a label from, and the restore notice has to name a key that fires on the reader's own convention (+17), and its law resolves each spec through the real keymap on its own convention rather than trusting a comment (+33). +244 (offset by moving `mod tests` out to `src/keyspec/tests.rs`, mirroring `document.rs`'s own submodule-test split, once that growth pushed the file's own tests past a sane inline size): the find/replace panel's own fixed, non-rebindable chords (Replace/Replace-all/Switch-field/Close/Match-case) have no catalog row either, so `PanelChordSpec` + five named specs resolve their labels through the SAME mac/linux glyph renderer `undo_chord_label` established — never a hardcoded glyph on the other platform. The proof is one `#[test]` per chord family (five, replacing one long function that tripped its own too-many-lines ceiling), each feeding its spec through `search::keys::intercept` directly, since these chords never reach `KeymapState::resolve`. +64: the pointer-chord grammar (parse_pointer_chord/format_pointer_chord), a deliberate sibling of the key grammar rather than a branch inside it, so a mouse chord still has no spelling in the grammar the Linux keep-list is composed and compared in."
 
 [[file_size_mark]]
 file = "src/lava.rs"
@@ -537,6 +537,13 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 file = "src/theme/worlds.rs"
 lines = 1183
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki. +5: Kite authors its WarpedGrid roam/motion profile (fold, twist, forward drift, ribs) as one instance of the reusable typed data model, beside its other ground authoring."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/range_rail.rs"
+function = "the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels"
+message = "this function has too many lines (111/100)"
+reason = "One exhaustive pixel law over a nested sweep -- two worlds (one light, one dark) crossed with selected and unselected -- whose body is a single chain of interdependent locals: geometry, row plan, rail bounds, the sampled row's y, the rendered frame, the sampled ground, and the thumb/fill exclusion spans the track scan must avoid. Splitting it would thread eight values through helpers or invent a struct purely to enable the split, and would separate the exclusion arithmetic from the scan that depends on it -- which is precisely where this law was wrong twice: once asserting a floor on edge antialiasing rather than fill, and once satisfied by rail.fill's ink because the exclusion covered only the thumb. Both fixes live in that arithmetic, and keeping it beside its scan is what makes the law readable as one argument."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

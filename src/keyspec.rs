@@ -214,7 +214,8 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
 /// [`parse_chord`]/[`canonical_binding`] on purpose: the Linux keep-list is
 /// composed and compared through THOSE two, so a mouse chord having no
 /// spelling there is what keeps it forever uncollidable with the `C-c`/`C-x`
-/// rules (`keymap::tests::the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide`).
+/// rules (`keymap::tests::
+/// the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide`).
 /// Case-insensitive on the trailing word, matching every other token this
 /// grammar's sibling already treats case-insensitively.
 pub fn parse_pointer_chord(spec: &str) -> Result<(crate::keymap::PointerButton, ModifiersState)> {
