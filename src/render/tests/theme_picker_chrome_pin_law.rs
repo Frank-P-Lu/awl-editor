@@ -25,7 +25,7 @@ struct ChromeSnapshot {
     /// once. Deliberately excludes both `top` (the scroll offset) and
     /// `sel_row`: as the sweep steps the selection down the roster, the
     /// window legitimately SCROLLS to keep it in view (ordinary, kind-agnostic
-    /// list-nav — item 609 does not touch it), and the selected row walks
+    /// list-nav this law leaves untouched), and the selected row walks
     /// down with it. What must not move is the window's own SIZE — a
     /// facet/list-style composition with more header overhead or a taller row
     /// pitch draws fewer lines in the same card height, which is exactly the
@@ -108,7 +108,8 @@ fn full_roster_arrow_sweep_holds_the_card_fixed() {
         let snap = snapshot(&mut p, &ov);
         assert_eq!(
             snap, summoned,
-            "world {name}: the picker's own chrome must not move (summoned={summoned:?}, now={snap:?})"
+            "world {name}: the picker's own chrome must not move \
+             (summoned={summoned:?}, now={snap:?})"
         );
         worlds_seen_ground.push(theme::active().base_100);
     }

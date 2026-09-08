@@ -62,8 +62,8 @@ fn a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_row(
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_row: \
-             no wgpu adapter"
+            "skipping a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_\
+             row: no wgpu adapter"
         );
         return;
     };
