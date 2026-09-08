@@ -2345,11 +2345,11 @@ fn pointer_grammar_spells_every_token_behind_every_modifier_prefix_style() {
     }
     assert_eq!(checked, tokens.len() * prefixes.len());
     // Case-insensitivity on the trailing word, matching the rest of the grammar.
-    assert!(crate::keyspec::parse_pointer_chord("Middle-Click").is_ok());
-    assert!(crate::keyspec::parse_pointer_chord("RIGHT-CLICK").is_ok());
+    crate::keyspec::parse_pointer_chord("Middle-Click").unwrap();
+    crate::keyspec::parse_pointer_chord("RIGHT-CLICK").unwrap();
     // A token this grammar cannot spell is a clear error, not a silent Primary.
-    assert!(crate::keyspec::parse_pointer_chord("triple-click").is_err());
-    assert!(crate::keyspec::parse_pointer_chord("C-t").is_err());
+    crate::keyspec::parse_pointer_chord("triple-click").unwrap_err();
+    crate::keyspec::parse_pointer_chord("C-t").unwrap_err();
 }
 
 // --- the `[keys] follow` override ------------------------------------------
