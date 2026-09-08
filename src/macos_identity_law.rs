@@ -211,3 +211,111 @@ fn bash_parses(path: &Path) -> bool {
         .map(|s| s.success())
         .unwrap_or(true) // no bash on this host: not this law's business
 }
+
+/// THE DOCUMENT-TYPES LAW. Declaring a type in
+/// `CFBundleDocumentTypes` is what makes Finder ▸ Open With ▸ Awl exist at
+/// all, and the earlier form of this bug ("`grep -rn openFiles src` comes back
+/// empty") was itself a text scan mistaken for a behavioral check — so this
+/// law does not repeat that mistake against the plist. It actually RUNS the
+/// ordinary (non-MAS) assembly path against a throwaway fake "binary" (the
+/// script only `cp`+`chmod`s the file at `$BIN_PATH`, never executes it),
+/// converts the real generated `Info.plist` to JSON with `plutil` (macOS's
+/// own converter — no new XML/plist-parsing dependency for one test), and
+/// asserts each declared type BY STRUCTURE by finding its own dict via
+/// `LSItemContentTypes` rather than by grepping for a string that could just
+/// as easily sit in a comment.
+///
+/// macOS-only: it shells out to the script's own `PlistBuddy` (inside
+/// `verify_bundle_identity`) and to `plutil`, neither of which exists on the
+/// Linux CI runner that otherwise text-scans this same script.
+#[cfg(target_os = "macos")]
+#[test]
+fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
+    let dir = std::env::temp_dir().join(format!(
+        "awl-doctypes-law-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("scratch dir");
+    let fake_bin = dir.join("fake-awl");
+    std::fs::write(&fake_bin, b"#!/bin/sh\n").expect("write fake binary");
+    let out_dir = dir.join("dist");
+
+    let status = std::process::Command::new(root().join("scripts/package-macos.sh"))
+        .arg(&fake_bin)
+        .arg(&out_dir)
+        .env("AWL_SKIP_DMG", "1")
+        .status()
+        .expect("package-macos.sh must run");
+    assert!(status.success(), "package-macos.sh must assemble cleanly");
+
+    let plist_path = out_dir.join("Awl.app/Contents/Info.plist");
+    let json_output = std::process::Command::new("plutil")
+        .args(["-convert", "json", "-o", "-"])
+        .arg(&plist_path)
+        .output()
+        .expect("plutil must run");
+    assert!(
+        json_output.status.success(),
+        "plutil must parse the generated Info.plist: {}",
+        String::from_utf8_lossy(&json_output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&json_output.stdout).expect("plutil's own JSON output must parse");
+
+    let types = value
+        .get("CFBundleDocumentTypes")
+        .and_then(|v| v.as_array())
+        .unwrap_or_else(|| {
+            panic!("Info.plist must declare CFBundleDocumentTypes as an array; got {value:#}")
+        });
+
+    // For every UTI the item names, find ITS OWN dict by content (matched
+    // through `LSItemContentTypes`, not by array position — a reordering
+    // must never break this) and assert its Editor role + Alternate rank so
+    // Awl is OFFERED without silently becoming the OS default.
+    for (uti, expect_extensions) in [
+        ("net.daringfireball.markdown", &["md", "markdown"][..]),
+        ("public.plain-text", &["txt"][..]),
+        ("public.text", &[][..]),
+    ] {
+        let entry = types
+            .iter()
+            .find(|d| {
+                d.get("LSItemContentTypes")
+                    .and_then(|v| v.as_array())
+                    .is_some_and(|a| a.iter().any(|s| s.as_str() == Some(uti)))
+            })
+            .unwrap_or_else(|| {
+                panic!("no CFBundleDocumentTypes entry declares {uti}; entries: {types:#?}")
+            });
+        assert_eq!(
+            entry.get("CFBundleTypeRole").and_then(|v| v.as_str()),
+            Some("Editor"),
+            "{uti} must be CFBundleTypeRole Editor"
+        );
+        assert_eq!(
+            entry.get("LSHandlerRank").and_then(|v| v.as_str()),
+            Some("Alternate"),
+            "{uti} must be LSHandlerRank Alternate, so Awl is offered without \
+             becoming the default"
+        );
+        let exts: Vec<&str> = entry
+            .get("CFBundleTypeExtensions")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|s| s.as_str()).collect())
+            .unwrap_or_default();
+        for want in expect_extensions {
+            assert!(
+                exts.contains(want),
+                "{uti} must list CFBundleTypeExtensions entry {want:?}; got {exts:?}"
+            );
+        }
+    }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
