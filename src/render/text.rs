@@ -7,9 +7,42 @@ type DocSpans = (
     Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
 );
 
+/// Exact CPU stages inside one document-text synchronization. Populated only
+/// when the benchmark enables profiling; ordinary editor runs pay one branch.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct TextSyncPhases {
+    pub context_ms: f64,
+    pub spans_ms: f64,
+    pub lines_ms: f64,
+    pub embeds_ms: f64,
+    pub splice_ms: f64,
+    pub shape_ms: f64,
+    /// Retained-row validation and replacement after shaping. Zero when
+    /// profiling is disabled.
+    pub geometry_ms: f64,
+    /// Number of changed logical lines whose new shaped rows replaced their
+    /// prior rows without rebuilding the document geometry table.
+    pub geometry_lines_patched: u64,
+    /// Number of visual rows replaced by the retained geometry path.
+    pub geometry_rows_patched: u64,
+    /// Local rows actually assembled, including any later rejected patch.
+    pub geometry_rows_materialized: u64,
+    /// Binary-search comparisons used to locate the changed lines in the
+    /// document's sorted visual-row partition.
+    pub geometry_index_probes: u64,
+    /// One when the retained geometry path succeeded for this synchronization.
+    pub geometry_patch_hits: u64,
+}
+
+fn profile_elapsed_ms(start: Option<crate::clock::Instant>) -> f64 {
+    start.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0)
+}
+
+mod change;
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
+use change::{TextChange, is_markdown_geometry_boundary};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
@@ -65,6 +98,14 @@ impl ScriptFonts {
 }
 
 impl TextPipeline {
+    pub(super) fn enable_text_sync_profile(&mut self) {
+        self.text_sync_profile = true;
+    }
+
+    pub(super) fn text_sync_phases(&self) -> TextSyncPhases {
+        self.last_text_sync_phases
+    }
+
     fn cache_script_fonts(&mut self) -> ScriptFonts {
         let fonts = self.resolve_script_fonts();
         self.script_fonts = fonts;
@@ -297,7 +338,9 @@ impl TextPipeline {
         // `syn_lang` is set upstream (in `set_view`) before this runs.
         self.shaped_font = self.doc_family();
         self.shaped_theme = theme::active_index();
-        self.set_text_incremental(text);
+        let old_width = self.buffer.size().0;
+        let change = self.set_text_incremental(text);
+        let shape_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Grow the buffer's shaping HEIGHT so the WHOLE new document shapes (every
         // visual row appears in `layout_runs()`), which the visual-row scroll
         // count + overlay placement + hit-test all depend on. `set_size` may have
@@ -308,13 +351,60 @@ impl TextPipeline {
         // measure), not the buffer's stale size — a zoom or measure change alters
         // the column, so re-feeding the old width would keep the wrong wrap.
         let width = Some(self.text_wrap_width());
+        let width_stable = old_width == width;
         let shape_h = self.full_shape_height();
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
         self.buffer.shape_until_scroll(&mut self.font_system, false);
-        // The shaped geometry just changed: the cached total-visual-row count is
-        // stale. Recomputed lazily on the next `total_visual_rows` read.
-        self.row_geom.invalidate();
+        if let Some(start) = shape_at {
+            self.last_text_sync_phases.shape_ms = start.elapsed().as_secs_f64() * 1000.0;
+        }
+        let geometry_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        // Retain the prior vertical partition only when every changed logical
+        // line still owns the same number and heights of visual rows. The common
+        // one-line edit becomes a binary row lookup plus replacement of that
+        // line's horizontal geometry. Anything that can move later rows, alter
+        // document-wide styling context, or change the wrap width invalidates.
+        let mut lookup_probes = 0;
+        let can_patch = change.can_retain_geometry(width_stable)
+            && (change.prefix..change.new_end).all(|line| {
+                let expected = self.buffer.lines[line].layout_opt().map(Vec::len);
+                expected.is_some()
+                    && self
+                        .row_geom
+                        .cached_line_row_count(line, &mut lookup_probes)
+                        == expected
+            });
+        let mut rows_materialized = 0;
+        let mut patches = if can_patch {
+            (change.prefix..change.new_end)
+                .map(|line| {
+                    self.line_rows_local_shaped(line).map(|rows| {
+                        rows_materialized += rows.len() as u64;
+                        (line, rows)
+                    })
+                })
+                .collect::<Option<Vec<_>>>()
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        if can_patch
+            && patches.len() == change.new_end - change.prefix
+            && let Some(work) = self.row_geom.patch_lines_if_stable(&mut patches)
+        {
+            self.last_text_sync_phases.geometry_lines_patched = patches.len() as u64;
+            self.last_text_sync_phases.geometry_rows_patched = work.rows_patched;
+            self.last_text_sync_phases.geometry_index_probes = work.index_probes;
+            self.last_text_sync_phases.geometry_patch_hits = 1;
+        } else {
+            // A structural edit, changed vertical partition, or absent prior
+            // frame can move later rows. Rebuild lazily from the shaped buffer.
+            self.row_geom.invalidate();
+        }
+        self.last_text_sync_phases.geometry_rows_materialized = rows_materialized;
+        self.last_text_sync_phases.geometry_index_probes += lookup_probes;
+        self.last_text_sync_phases.geometry_ms = profile_elapsed_ms(geometry_at);
     }
 
     /// BEFORE-style whole-buffer reshape: the original code path that called
@@ -746,14 +836,23 @@ impl TextPipeline {
         ))
     }
 
-    pub(super) fn set_text_incremental(&mut self, text: &str) {
+    fn set_text_incremental(&mut self, text: &str) -> TextChange {
+        let context_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let old_doc_lang = self.doc_lang;
+        let old_han_evidence = self.han_evidence;
+        let old_image_heights = self.image_heights.clone();
+        let old_image_force = self.image_force.clone();
         let attrs = self.doc_attrs();
         // Resolve fallback faces once, then overlay each changed line through
         // `build_line_attrs` -> `add_script_spans`.
         let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
         self.han_evidence = crate::script::cjk_evidence(text);
+        let context_ms = profile_elapsed_ms(context_at);
+        let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
+        let spans_ms = profile_elapsed_ms(spans_at);
+        let lines_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Split without line terminators; cosmic-text stores endings separately.
         // Re-add the trailing empty line that `str::lines()` drops so an EOF caret
         // has a row. Compute this before image layout so selection-touch can feed it.
@@ -778,6 +877,8 @@ impl TextPipeline {
             |i| line_starts.get(i).copied().unwrap_or(0),
             |i| new_lines.get(i).map_or(0, |l| l.len()),
         );
+        let lines_ms = profile_elapsed_ms(lines_at);
+        let embeds_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let mut image_heights =
             self.compute_image_layout(text, &md_spans, selection_touch.as_ref());
         let image_force = self.image_force.clone();
@@ -791,6 +892,8 @@ impl TextPipeline {
                 }
             }
         }
+        let embeds_ms = profile_elapsed_ms(embeds_at);
+        let splice_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Build a per-line attrs list = base doc attrs + MARKDOWN spans + CJK
         // family spans (CJK family wins on CJK runs; markdown weight/color/style
         // win elsewhere). `start` is the line's document byte offset. A HEADING
@@ -828,6 +931,20 @@ impl TextPipeline {
             )
         };
         let (prefix, old_end, new_end) = self.unchanged_band(&new_lines);
+        let touches_geometry_boundary = self.md_enabled
+            && (self.buffer.lines[prefix..old_end]
+                .iter()
+                .any(|line| is_markdown_geometry_boundary(line.text()))
+                || new_lines[prefix..new_end]
+                    .iter()
+                    .any(|line| is_markdown_geometry_boundary(line)));
+        let reservation_changed_outside_band = old_image_heights.len() != image_heights.len()
+            || old_image_force.len() != image_force.len()
+            || (0..image_heights.len()).any(|line| {
+                !(prefix..new_end).contains(&line)
+                    && (old_image_heights[line] != image_heights[line]
+                        || old_image_force[line] != image_force[line])
+            });
         let mut replacement: Vec<glyphon::cosmic_text::BufferLine> =
             Vec::with_capacity(new_end - prefix);
         for (k, &lt) in new_lines[prefix..new_end].iter().enumerate() {
@@ -885,6 +1002,29 @@ impl TextPipeline {
         self.image_heights = image_heights;
 
         self.finalize_buffer_lines(&attrs);
+        self.last_text_sync_phases = TextSyncPhases {
+            context_ms,
+            spans_ms,
+            lines_ms,
+            embeds_ms,
+            splice_ms: profile_elapsed_ms(splice_at),
+            shape_ms: 0.0,
+            geometry_ms: 0.0,
+            geometry_lines_patched: 0,
+            geometry_rows_patched: 0,
+            geometry_rows_materialized: 0,
+            geometry_index_probes: 0,
+            geometry_patch_hits: 0,
+        };
+        TextChange {
+            prefix,
+            old_end,
+            new_end,
+            geometry_safe: !touches_geometry_boundary
+                && !reservation_changed_outside_band
+                && old_doc_lang == self.doc_lang
+                && old_han_evidence == self.han_evidence,
+        }
     }
 
     pub(super) fn unchanged_band(&self, new_lines: &[&str]) -> (usize, usize, usize) {

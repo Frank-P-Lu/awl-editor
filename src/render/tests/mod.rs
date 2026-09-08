@@ -131,6 +131,7 @@ mod frost_upright;
 /// enumeration's completeness is measured off a frost-suppressed frame.
 mod frost_width;
 mod geometry;
+mod geometry_patch;
 mod geometry_reshape;
 mod glide_anchor_law;
 /// The glyph-ink alpha decision: `Srgb::to_glyphon` carries alpha, the

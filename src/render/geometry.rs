@@ -496,10 +496,29 @@ pub(super) fn visual_row_from_run(
     run: &glyphon::cosmic_text::LayoutRun<'_>,
     char_width: f32,
 ) -> VisualRow {
+    visual_row_from_glyphs(
+        line_text,
+        run.glyphs,
+        run.line_top,
+        run.line_height,
+        char_width,
+    )
+}
+
+/// Assemble a visual row from the fields shared by a document `LayoutRun` and
+/// one line's cached `LayoutLine`. This keeps the retained-row patch and the
+/// full document walk on the same glyph-to-column mapping.
+fn visual_row_from_glyphs(
+    line_text: &str,
+    glyphs: &[glyphon::cosmic_text::LayoutGlyph],
+    line_top: f32,
+    line_height: f32,
+    char_width: f32,
+) -> VisualRow {
     let mut clusters: Vec<(usize, usize, f32, f32)> = Vec::new();
     let mut byte_start = usize::MAX;
     let mut byte_end = 0usize;
-    for g in run.glyphs.iter() {
+    for g in glyphs {
         clusters.push((g.start, g.end, g.x, g.x + g.w));
         byte_start = byte_start.min(g.start);
         byte_end = byte_end.max(g.end);
@@ -512,8 +531,8 @@ pub(super) fn visual_row_from_run(
     let start_col = byte_col(line_text, byte_start);
     let end_col = byte_col(line_text, byte_end);
     VisualRow {
-        line_top: run.line_top,
-        line_height: run.line_height,
+        line_top,
+        line_height,
         start_col,
         end_col,
         xs,
@@ -1014,49 +1033,39 @@ impl TextPipeline {
     /// Falls back to `visual_rows(line)` when the line is unshaped / has no layout
     /// (an empty or not-yet-laid line), so the synthetic-row edge case stays exactly
     /// as before.
-    pub(super) fn line_rows_local(&self, line: usize) -> Vec<VisualRow> {
+    pub(super) fn line_rows_local_shaped(&self, line: usize) -> Option<Vec<LocalVisualRow>> {
         let Some(bline) = self.buffer.lines.get(line) else {
-            return self.visual_rows(line);
+            return None;
         };
         let Some(layout) = bline.layout_opt() else {
-            return self.visual_rows(line);
+            return None;
         };
         if layout.is_empty() {
-            return self.visual_rows(line);
+            return None;
         }
-        let line_text = bline.text().to_string();
-        let mut rows: Vec<VisualRow> = Vec::with_capacity(layout.len());
+        let line_text = bline.text();
+        let mut rows = Vec::with_capacity(layout.len());
         for lline in layout.iter() {
-            let mut clusters: Vec<(usize, usize, f32, f32)> = Vec::new();
-            let mut byte_start = usize::MAX;
-            let mut byte_end = 0usize;
-            for g in lline.glyphs.iter() {
-                clusters.push((g.start, g.end, g.x, g.x + g.w));
-                byte_start = byte_start.min(g.start);
-                byte_end = byte_end.max(g.end);
-            }
-            if byte_start == usize::MAX {
-                byte_start = 0;
-                byte_end = 0;
-            }
-            let xs = assemble_glyph_xs(&line_text, &clusters, self.metrics.char_width);
-            let start_col = byte_col(&line_text, byte_start);
-            let end_col = byte_col(&line_text, byte_end);
-            rows.push(VisualRow {
-                // The motion oracle ignores these two; use benign placeholders (the
-                // uniform line height) rather than the absolute wrap top this path
-                // deliberately does NOT compute.
-                line_top: 0.0,
-                line_height: self.metrics.line_height,
-                start_col,
-                end_col,
-                xs,
+            let line_height = lline.line_height_opt.unwrap_or(self.metrics.line_height);
+            let glyph_height = lline.max_ascent + lline.max_descent;
+            rows.push(LocalVisualRow {
+                row: visual_row_from_glyphs(
+                    line_text,
+                    &lline.glyphs,
+                    0.0,
+                    line_height,
+                    self.metrics.char_width,
+                ),
+                baseline_offset: (line_height - glyph_height) * 0.5 + lline.max_ascent,
             });
         }
-        if rows.is_empty() {
-            return self.visual_rows(line);
-        }
-        rows
+        (!rows.is_empty()).then_some(rows)
+    }
+
+    pub(super) fn line_rows_local(&self, line: usize) -> Vec<VisualRow> {
+        self.line_rows_local_shaped(line)
+            .map(|rows| rows.into_iter().map(|row| row.row).collect())
+            .unwrap_or_else(|| self.visual_rows(line))
     }
 
     /// TOTAL number of VISUAL ROWS in the whole document (every soft-wrapped

@@ -6,6 +6,8 @@ const AFF_AU: &str = include_str!("../assets/dict/en_AU.aff");
 const DIC_AU: &str = include_str!("../assets/dict/en_AU.dic");
 
 mod personal;
+mod projection;
+pub(crate) use projection::{SpellProjection, SpellRefreshWork};
 
 enum_with_all! {
     /// Active bundled Hunspell variant, shared by live mode and capture.
@@ -88,17 +90,32 @@ pub fn set_active_variant(v: DictVariant) {
 /// and by the generated reference (`settings::toggle_default`).
 pub(crate) const SPELLCHECK_DEFAULT: bool = true;
 static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(SPELLCHECK_DEFAULT);
+static SPELLCHECK_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+static NEXT_CHECKER_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 pub fn spellcheck_on() -> bool {
     SPELLCHECK_ON.on()
 }
 
 pub fn set_spellcheck_on(on: bool) {
+    if spellcheck_on() != on {
+        SPELLCHECK_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
     SPELLCHECK_ON.set(on);
 }
 
 pub fn toggle() -> bool {
-    SPELLCHECK_ON.toggle()
+    let on = SPELLCHECK_ON.toggle();
+    SPELLCHECK_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    on
+}
+
+fn spellcheck_generation() -> u64 {
+    SPELLCHECK_GENERATION.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn next_checker_generation() -> u64 {
+    NEXT_CHECKER_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// A misspelled word's location in the document, in CHAR columns on a logical
@@ -224,6 +241,27 @@ pub fn visible(cache: &[SpellVerdict], text: &str) -> Vec<Misspelling> {
         .collect()
 }
 
+/// Full-scan test oracle for [`SpellProjection`]. The projection's initial seed
+/// and exact invalidation fallbacks share [`refresh_text_cache`] with this
+/// wrapper, while ordinary live refreshes retain unchanged line verdicts.
+#[cfg(test)]
+pub(crate) fn refresh_buffer_cache(
+    buffer: &crate::buffer::Buffer,
+    checker: &SpellChecker,
+) -> Vec<SpellVerdict> {
+    let text = buffer.text();
+    refresh_text_cache(&text, buffer.syntax_lang(), checker)
+}
+
+fn refresh_text_cache(
+    text: &str,
+    lang: Option<crate::syntax::Lang>,
+    checker: &SpellChecker,
+) -> Vec<SpellVerdict> {
+    let spans = checker.misspellings_for(text, lang);
+    keyed(text, spans)
+}
+
 /// Loaded-once spell checker. Holds the parsed Hunspell dictionary; `check` is a
 /// pure lookup. Construction is the only fallible part (dictionary parse).
 ///
@@ -237,6 +275,7 @@ pub fn visible(cache: &[SpellVerdict], text: &str) -> Vec<Misspelling> {
 pub struct SpellChecker {
     dict: spellbook::Dictionary,
     user_words: std::collections::HashSet<String>,
+    generation: u64,
 }
 
 impl SpellChecker {
@@ -257,6 +296,7 @@ impl SpellChecker {
         Ok(Self {
             dict,
             user_words: std::collections::HashSet::new(),
+            generation: next_checker_generation(),
         })
     }
 
@@ -274,6 +314,10 @@ impl SpellChecker {
         false
     }
 
+    fn generation(&self) -> u64 {
+        self.generation
+    }
+
     /// REPLACE the user (personal) dictionary with `words` — the launch-time load
     /// from the on-disk word list (and the re-load after a dictionary-variant
     /// switch reconstructs the checker). Each word is trimmed + lowercased +
@@ -285,6 +329,7 @@ impl SpellChecker {
             .map(|w| w.trim().to_lowercase())
             .filter(|w| !w.is_empty())
             .collect();
+        self.generation = next_checker_generation();
     }
 
     pub fn add_user_word(&mut self, word: &str) -> bool {
@@ -292,7 +337,11 @@ impl SpellChecker {
         if w.is_empty() {
             return false;
         }
-        self.user_words.insert(w)
+        let inserted = self.user_words.insert(w);
+        if inserted {
+            self.generation = next_checker_generation();
+        }
+        inserted
     }
 
     #[cfg(test)]
@@ -315,7 +364,11 @@ impl SpellChecker {
     /// [`Self::add_user_word`] normalizes on the way in, so a hand-edited file's
     /// stray casing or whitespace still matches. `true` when something left.
     pub fn remove_user_word(&mut self, word: &str) -> bool {
-        self.user_words.remove(&word.trim().to_lowercase())
+        let removed = self.user_words.remove(&word.trim().to_lowercase());
+        if removed {
+            self.generation = next_checker_generation();
+        }
+        removed
     }
 
     pub fn misspellings(&self, text: &str) -> Vec<Misspelling> {

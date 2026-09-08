@@ -14,7 +14,8 @@
 //! unshaped fallback) — as narrow params. So `TextPipeline` holds a `row_geom: RowGeom`
 //! field and DELEGATES `row_top_px` / `row_height_px` / `total_doc_height` /
 //! `total_visual_rows` to it, replacing its inline cache with `row_geom.invalidate()`
-//! at every shaped-geometry seam. Pure cache mechanics moved verbatim → byte-identical.
+//! when a change can move rows. A text-only edit whose changed lines preserve
+//! their row count and heights replaces those rows in place.
 
 use super::*;
 
@@ -59,6 +60,8 @@ pub(super) fn report_row_borrow_count() -> usize {
     REPORT_ROW_BORROWS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+mod patch;
+
 /// The first-row top (and baseline) reported for a logical line that has NO shaped
 /// run — `layout_runs()` stopped before reaching it, so the line genuinely has no
 /// geometry yet. Positive infinity, because every consumer of `line_first_top`
@@ -77,7 +80,7 @@ pub(super) const UNSHAPED_LINE_TOP: f32 = f32::INFINITY;
 /// module docs). Owned by [`super::TextPipeline`] as its `row_geom` field.
 pub(super) struct RowGeom {
     /// Lazily-cached total visual-row count for the currently-shaped buffer.
-    /// Invalidated (set to `None`) whenever the buffer is reshaped or its metrics
+    /// Invalidated (set to `None`) whenever metrics or the vertical row partition
     /// change; recomputed on demand by [`Self::total_visual_rows`]. Counting rows
     /// walks every shaped run, so caching keeps the per-frame / per-keystroke
     /// `app.rs` reads free.
@@ -134,17 +137,15 @@ pub(super) struct RowGeom {
     /// holds the last line's rows so calls 2–4 (and every idle glide frame, where
     /// the cursor line is unchanged) clone the cached vector instead of re-walking
     /// the runs. Built lazily on the first `visual_rows(line)` read and dropped by
-    /// [`Self::invalidate`] — which fires at EVERY shaped-geometry seam (reshape /
-    /// zoom / DPI / restyle / sync-wrap) and NEVER on a cursor move, so the memo is
-    /// automatically correct: a motion keeps the same shaped runs, so the cached
-    /// rows stay valid; anything that re-shapes clears it. Holds one line at a time
+    /// [`Self::invalidate`] or an in-place row patch. A cursor move leaves it alone;
+    /// any changed glyph geometry clears it. Holds one line at a time
     /// (the cursor line dominates the per-frame reads); the cold up/down oracle
     /// reads of `line ± 1` simply miss and rebuild.
     rows_line: std::cell::Cell<Option<usize>>,
     rows: std::cell::RefCell<Option<Vec<VisualRow>>>,
     /// SHAPED-GEOMETRY GENERATION — bumped by every [`Self::invalidate`], i.e. at
     /// every seam where the shaped runs (and so every derived pixel geometry)
-    /// change: reshape, zoom/DPI, restyle, sync-wrap. Consumers that cache
+    /// change: retained row replacement, reshape, zoom/DPI, restyle, sync-wrap. Consumers that cache
     /// geometry DERIVED from the shaped runs (the spell-squiggle / nit-underline
     /// protos in `rects.rs`) key their caches on this, so they are exactly as
     /// fresh as the row table itself — anything that would stale them bumps it.
@@ -417,8 +418,8 @@ impl RowGeom {
     /// TOTAL number of VISUAL ROWS in the whole document — the COUNT of shaped runs
     /// (one per visual row), read from the row-geometry table. Cached: counting rows
     /// walks every shaped run (O(visual rows)), so an unchanged buffer answers from
-    /// the cache. Invalidated whenever the buffer is reshaped (`set_text`) or its
-    /// metrics change (zoom in `set_view`), so a cursor move / scroll / selection
+    /// the cache. Invalidated whenever the vertical partition or metrics change;
+    /// stable text-only edits keep the count. A cursor move / scroll / selection
     /// change — which never reshape — keep reading the cached count for free. This
     /// is what keeps `app.rs`'s `total_visual_rows()` read in the per-keystroke /
     /// per-frame path cheap. Falls back to the logical line count if nothing is
