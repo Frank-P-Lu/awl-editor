@@ -68,8 +68,8 @@ cargo run --release -- --bench-suite --bench-baseline benches/baseline.json
 
 Output: the printed table plus `./bench.json` (gitignored; shape
 `awl-bench/1` — machine + toolchain identity, per-cell min/median/p90 AND
-witness counts). Total wall time is ~2.5 minutes, dominated by the XPARA search cell
-(~2 min by itself — a real pathology, see below).
+witness counts). Runtime depends on the machine and its current load; the report
+records total wall time alongside each cell's samples.
 
 ## Baseline + diff
 
@@ -130,11 +130,10 @@ witnesses lean on (in `src/render/benchsuite/mod.rs::tests`):
 
 ## Known pathologies the suite exposed (banked, not fixed here)
 
-- **XPARA x search: ~12 s per step.** Highlighting every match on one
-  enormous wrapped paragraph is catastrophically super-linear per frame —
-  a real freeze-class finding for search-in-a-wall-of-text. Candidate
-  optimization round; the cell stays in the matrix so the fix shows up as an
-  improvement in the diff.
+- Search highlights share one visible-line geometry gather and locate each
+  match's intersecting wrapped rows by column range. The XPARA search cell
+  measures this dense-paragraph workload; `render/tests/search_rects.rs`
+  checks geometry equivalence, row-work bounds, and empty/offscreen searches.
 - **`full_shape_height`'s ~8-rows-per-logical-line budget** under-shapes an
   enormous single-line paragraph (`total_visual_rows` reports ~66 where
   hundreds exist), which also clamps live scrolling short on such a document.

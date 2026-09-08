@@ -962,6 +962,9 @@ impl TextPipeline {
         &self,
         lines: &std::collections::BTreeSet<usize>,
     ) -> std::collections::HashMap<usize, Vec<VisualRow>> {
+        #[cfg(test)]
+        self.visible_row_gathers
+            .set(self.visible_row_gathers.get() + 1);
         let mut out = self
             .row_geom
             .rows_for_lines(&self.buffer, &self.metrics, lines);
