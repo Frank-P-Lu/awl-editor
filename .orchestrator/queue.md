@@ -114,7 +114,7 @@ editing laws, configuration coverage, GPU skip reporting, or release benchmark w
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
 🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows
-user review of the composed prototype. Preserve 624/625's existing priority order.
+user review of the composed prototype.
 
 Problem: the user rejected the live Find strip as crowded and the live Settings
 workspace as a huge surface with a tiny, tightly packed cluster and distant values.
@@ -197,7 +197,7 @@ do not settle taste or live motion. This board-only decision claims no receipt.
 
 ### 627 — spellcheck squiggles taper into rounded ends (user approval, 2026-09-08)
 
-🟢 READY — queued only. Preserve the existing 624/625 priority order.
+🟢 READY — queued only.
 
 User report: enlarged Kite spellcheck underlines beneath two short words look
 abruptly chopped at both ends. Approved direction: gently taper each endpoint
