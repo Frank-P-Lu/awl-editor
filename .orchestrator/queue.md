@@ -409,6 +409,8 @@ be law-pinned so a surface cannot advertise what it will not do.
 
 ### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, worktree `.claude/worktrees/item-605-617`; landed together with 617 as the board directs.
+
 ⬜ READY — a user-reported bug, so audit its neighbourhood: the active-row plate shares the
 estimate and the same drift.
 
@@ -504,6 +506,8 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ### 612 — `target/debug/incremental` has no owner and no reclaimer, and it is the biggest disk lever here (measured by 600's lane, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-612-613`, worktree `.claude/worktrees/item-612-613`; one lane with 613.
+
 ⬜ READY — the largest single disk fact on this host, and nothing in the fleet addresses it.
 
 `cargo sweep` cannot touch `target/debug/incremental` at any threshold — measured directly,
@@ -524,6 +528,8 @@ if this door starts reclaiming too.
 
 ### 613 — `test-native-gate.sh`'s free-oracle hardcodes 40 GiB, an undeclared coupling to the healthy floor (found by 600's lane, 2026-09-07)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-612-613`, same lane as 612.
+
 ⬜ READY — small, and it is the "a check runs in one configuration" hazard in miniature.
 
 The probe's fake free-space oracle returns a hardcoded 40 GiB. That is above the healthy floor
@@ -539,6 +545,8 @@ exceed the healthy floor by a stated margin, and the law fails if the floor is r
 ---
 
 ### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-608`, worktree `.claude/worktrees/item-608`.
 
 ⬜ READY — small, reproduced headlessly, and the neighbourhood is already audited: the bullet
 ornament is the ONE painted-ornament family that never learned the selection reveal.
@@ -739,6 +747,8 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ### 617 — the × hover box goes; the mark flips colour instead (user decision, 2026-09-08)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, same lane as 605.
+
 ⬜ DECIDED, READY — sequenced after 605, or landed in the same lane.
 
 The user kept the hand cursor (559's open question, now closed) and rejected the hover plate: "the box that shows up when you hover the × is kind of offensive; get rid of the box and just flip the colour of the ×." So on hover the × swaps to a second palette colour and no rect is drawn. The hit zone stays exactly where 605 puts it (shaped ink edge); only the paint changes. Pick the flipped colour from the world's existing roster through one owner rather than a new constant per world — the caret accent is the obvious candidate, and DESIGN.md's one-accent rule is the reason to prefer it. The user asked "we have enough colours in the palette to do this, right?" — answer that in the lane's report with the pair actually used, per world, and a contrast figure against the ground.
@@ -788,34 +798,30 @@ ALREADY answered through the other session — 603, 568, 570's placement, 576's 
 572's four taste calls were all decided in `35177829` while this one was mid-wave. Read the
 board's own Owed section before telling the user what they owe you.
 
-## NOT GATED — two orchestrators are merging to main at once
+## GATED AND PUSHED — and the CI run nobody read
 
-Local `main` carries two merges with **no receipt describing this tree**: 597/598/596 and
-602/595/604. Both lanes' own branch receipts are green, taken with HEAD verified unmoved
-(`8719465d` health=pass:266s unit_tests=4974; `3436e35f` health=pass:250s unit_tests=4969),
-and `code-health.sh` passes on the merged tree. **A branch receipt is not an exact-main
-receipt** and a health pass is not a suite.
-
-The obstruction is not the code. A second orchestrator session works this board and merges to
-main concurrently. An exact-main gate from this session returned:
+Resolved. `main` is receipted and pushed through `8f7c628f`, covering 596, 597, 598, 602, 595
+and 604. The exact-main gate ran with HEAD verified unmoved end to end:
 
 ```
-native-gate: HEAD changed while the suite ran (start=47b6af0d end=0b295b84); no receipt issued
+native-gate-receipt commit=8f7c628f health=pass:280s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=4979 unit_shards=6 integration_targets=18
 ```
+plus `web-smoke: OK`. The two-writer worry that held this back was overstated: the gate
+happened to catch a quiet window, and the user's answer was to push.
 
-HEAD moved **twice inside one run** — the suite is right to discard itself, and the cost is
-that neither session can earn an exact-main receipt while the other commits, at roughly
-fifteen minutes a throw.
+⚠️ **What actually cost something was not the missing receipt — it was a CI run this session
+never opened.** The push before it (`437e6280`, carrying 600/601) failed the GATING
+`linux (build + test)` job, and this session recorded the wave as landed without reading the
+result. **A push is not finished when it succeeds; it is finished when its run is read.** The
+concurrency setting makes that worse, not better: pushing over an in-flight run cancels it, so
+a run can vanish without ever having been looked at.
 
-**This needs a protocol, and it is the user's call because both sessions are theirs.** The
-options, in the orchestrator's order of preference: one session owns `main` and the other
-hands over branches; or the sessions take turns explicitly, with whoever is gating saying so
-while the other holds board writes and merges; or exact-main receipts are abandoned in favour
-of per-branch ones, which is weakest because the tree they share is the thing a receipt is
-for.
-
-**Until it is settled: nothing is pushed from this session.** The same root cause produced the
-605/606 numbering collision recorded above.
+The failure itself is recorded under the ambient-environment entry in CLAUDE.md's principles
+and fixed in `d57f1d93`. In one line: `disk-preflight.sh` answers a CI environment on a branch
+of its own, every hosted runner exports `CI`, and `test-disk-preflight.sh` let its fleet laws
+inherit that variable — so each half of the suite ran in exactly one place and never the
+other. Green here, red there, for the whole life of the law.
 
 ## Owed to the user — landed work awaiting a live eye
 
@@ -866,6 +872,16 @@ this ground's geometry and inherits the same sign-off.
 ---
 
 ## Green train — the exact-main receipts
+
+**Sixth train, `8f7c628f`** — covers 596, 597, 598, 602, 595 and 604, HEAD verified unmoved
+across the run. `health=pass:280s unit_tests=4979`, web-smoke OK. **CI run 34173463828 was
+cancelled by the push that followed it** (`concurrency.cancel-in-progress`), so this train's
+own CI verdict does not exist; `d57f1d93` on top of it carries the linux fix and is the run to
+read. Recorded rather than quietly inherited from the local receipt.
+
+⚠️ **The train before this one, `437e6280`, was pushed and its CI never read. It was RED** on
+`linux (build + test)`. See the section above.
+
 
 **Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run. Pushed as
 `2ce630d5`; **CI run 34076734681 passed all four gating jobs** (39 min wall, the linux job the
