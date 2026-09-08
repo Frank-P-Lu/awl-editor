@@ -61,10 +61,20 @@ STUB
 # sweep.sh prepends $HOME/.cargo/bin to PATH, so the stub only wins with HOME
 # pointed somewhere without a real toolchain. Faking HOME also keeps the
 # fixture's git off the developer's global config.
+#
+# The --all-worktrees guard (below) reads a marker path and a process-check
+# command, both overridable. Every law here that is not specifically testing
+# the guard needs a reliably IDLE answer from both — this host routinely has
+# real cargo/rustc processes from other lanes, so leaving these ambient would
+# make law 2 flake on exactly the fleet the guard exists to protect. A caller
+# that exports either variable before calling run_sweep (the guard's own laws
+# below) overrides these defaults, since `:-` only fires when unset or empty.
 run_sweep() {
     local dir="$1"
     shift
     HOME="$dir/home" PATH="$dir/bin:$PATH" SWEEP_LOG="$dir/sweep.log" \
+        AWL_NATIVE_GATE_MARKER="${AWL_NATIVE_GATE_MARKER:-$dir/no-such-marker}" \
+        AWL_SWEEP_CARGO_PS_COMMAND="${AWL_SWEEP_CARGO_PS_COMMAND:-true}" \
         "$dir/main/.claude/worktrees/lane-b/scripts/sweep.sh" "$@" \
         >"$dir/sweep.out" 2>"$dir/sweep.err"
 }
@@ -102,7 +112,10 @@ fi
 #
 # This is the other half of law 1's non-vacuity: it proves the stub and the
 # fixture CAN delete across worktrees, so law 1's survivor is the scoping rule
-# and not an inert harness.
+# and not an inert harness. It also doubles as the idle-fleet non-vacuity
+# proof for laws 6 and 7 below: run_sweep's defaults report no live marker and
+# no live cargo/rustc, and this proves that answer still lets the flag run —
+# the guard refuses a busy fleet, not every fleet.
 # ---------------------------------------------------------------------------
 B="$WORK/law2"
 make_fixture "$B"
@@ -231,5 +244,76 @@ if [[ ! -e "$D/main/target/debug/incremental/sibling-stale-session" ]]; then
 fi
 
 echo "test-sweep: target/debug/incremental has an owner — stale sessions go, fresh ones and a sibling's own pool do not"
+
+# ---------------------------------------------------------------------------
+# LAW 6: --all-worktrees refuses while the native-gate arbiter marker names a
+# live pid, and does NOT refuse on a stale one (a dead pid left behind by a
+# killed gate — the exact shape native-gate.sh's own arbiter treats as free).
+# Presence floor: both halves prune inside the SAME fixture, so a guard that
+# always refuses (satisfying the live half for free) is caught by the second
+# assertion, and a guard that never refuses is caught by the first.
+# ---------------------------------------------------------------------------
+E="$WORK/law6"
+make_fixture "$E"
+
+mkdir -p "$E/orch"
+printf 'pid=%s start_commit=deadbeef start_epoch=0\n' "$$" > "$E/orch/live-marker"
+: > "$E/sweep.log"
+if AWL_NATIVE_GATE_MARKER="$E/orch/live-marker" AWL_SWEEP_CARGO_PS_COMMAND=true \
+    run_sweep "$E" --all-worktrees 1; then
+    fail "--all-worktrees proceeded while the native-gate marker named this test's own live pid"
+fi
+if [[ ! -e "$E/main/target/artifact.stale" \
+    || ! -e "$E/main/.claude/worktrees/lane-b/target/artifact.stale" ]]; then
+    fail "a refused --all-worktrees still deleted a sentinel; the guard must run before any traversal"
+fi
+if ! grep -q "refusing --all-worktrees" "$E/sweep.err" || ! grep -q "$$" "$E/sweep.err"; then
+    fail "refusal did not name the live pid; got: $(cat "$E/sweep.err")"
+fi
+
+# A dead pid (never allocated to a real process on a freshly booted-feeling
+# range) must NOT trip the same refusal — the marker is stale, not live.
+printf 'pid=999999999 start_commit=deadbeef start_epoch=0\n' > "$E/orch/stale-marker"
+: > "$E/sweep.log"
+if ! AWL_NATIVE_GATE_MARKER="$E/orch/stale-marker" AWL_SWEEP_CARGO_PS_COMMAND=true \
+    run_sweep "$E" --all-worktrees 1; then
+    fail "--all-worktrees refused on a stale (dead-pid) marker: $(cat "$E/sweep.err")"
+fi
+if [[ -e "$E/main/target/artifact.stale" \
+    || -e "$E/main/.claude/worktrees/lane-b/target/artifact.stale" ]]; then
+    fail "a stale marker blocked the sweep from reaching its sentinels"
+fi
+
+echo "test-sweep: --all-worktrees refuses on a live native-gate marker, proceeds on a stale one"
+
+# ---------------------------------------------------------------------------
+# LAW 7: --all-worktrees refuses while a cargo/rustc process is running, even
+# with no native-gate marker at all — the two checks are independent, since a
+# hand-run `cargo build` outside any gate is exactly the case the marker alone
+# cannot see.
+# ---------------------------------------------------------------------------
+F="$WORK/law7"
+make_fixture "$F"
+
+: > "$F/sweep.log"
+if AWL_NATIVE_GATE_MARKER="$F/orch/no-such-marker" AWL_SWEEP_CARGO_PS_COMMAND="echo $$" \
+    run_sweep "$F" --all-worktrees 1; then
+    fail "--all-worktrees proceeded while the process check reported a live pid"
+fi
+if [[ ! -e "$F/main/target/artifact.stale" \
+    || ! -e "$F/main/.claude/worktrees/lane-b/target/artifact.stale" ]]; then
+    fail "a refused --all-worktrees still deleted a sentinel"
+fi
+if ! grep -q "cargo/rustc process" "$F/sweep.err"; then
+    fail "refusal did not name the process check; got: $(cat "$F/sweep.err")"
+fi
+
+: > "$F/sweep.log"
+if ! AWL_NATIVE_GATE_MARKER="$F/orch/no-such-marker" AWL_SWEEP_CARGO_PS_COMMAND=true \
+    run_sweep "$F" --all-worktrees 1; then
+    fail "--all-worktrees refused with no marker and no reported live process: $(cat "$F/sweep.err")"
+fi
+
+echo "test-sweep: --all-worktrees refuses on a live cargo/rustc report even absent a marker"
 
 echo "test-sweep: sweep.sh deletes only inside its caller's worktree"
