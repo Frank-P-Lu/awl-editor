@@ -15,6 +15,9 @@ mod cache;
 mod edit;
 mod entries;
 mod naming;
+/// The search/replace panel's `DocumentSession` delegates — split out to keep
+/// this file under its production ceiling.
+mod search;
 #[cfg(not(target_arch = "wasm32"))]
 mod session_restore;
 #[cfg(test)]
@@ -379,15 +382,6 @@ impl DocumentSession {
 
     pub(in crate::app) fn previous_key(&self) -> Option<crate::buffers::BufferKey> {
         self.previous.clone()
-    }
-
-    pub(in crate::app) fn intercept_search_key(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-        logical: &winit::keyboard::Key,
-        mods: winit::keyboard::ModifiersState,
-    ) -> Option<crate::caret::RecoilDir> {
-        crate::search::keys::intercept(search, &mut self.active_entry_mut().buffer, logical, mods)
     }
 
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]

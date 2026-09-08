@@ -17,8 +17,8 @@ use super::super::*;
 use super::pixeldiff::Region;
 use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 
-const FIND_LABEL_LEN: usize = "find    ".len();
-const REPLACE_LABEL_LEN: usize = "replace ".len();
+const FIND_LABEL_LEN: usize = "Find         ".len();
+const REPLACE_LABEL_LEN: usize = "Replace with ".len();
 const QUERY: &str = "hello";
 /// Deliberately MULTIBYTE, and a different CHAR length from [`QUERY`]. The two
 /// row labels are the same width and both fields are padded to the same cell
