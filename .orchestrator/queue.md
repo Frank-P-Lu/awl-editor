@@ -719,6 +719,50 @@ the valuable half.
 
 ---
 
+### 621 — the cpu-spin law asserts an absolute 50% floor, so a busy host cannot earn a receipt (blocked a merge train, 2026-09-08)
+
+⬜ READY, and it is currently BLOCKING: while several lanes build, no gate on this machine can
+issue a receipt at all, including a lane's own.
+
+`scripts/test-native-gate.sh`'s cpu-spin probe launches a fixture that deliberately spins, then
+asserts the vitals heartbeat saw a tracked process peak at `>= 50` percent of a core. The
+comment beside the floor explains where 50 came from: `ps -o time=` quantises to whole seconds
+on Linux, so a 3s window can under-read a pegged process by about a third. That is a
+MEASUREMENT correction, and it is correct as far as it goes.
+
+What it does not contemplate is a host where the fixture cannot GET a core. On a ten-core
+machine running seven concurrent lane builds the spinner peaked at 33.3%, and the law failed —
+truthfully reporting that the busiest tracked process was not pegged, which was simply the
+fact. The law is not wrong about what it measured; its unstated precondition is an idle host,
+and this fleet's whole design is to not have one.
+
+This is the configuration principle again, one turn further in: the law states its
+measurement correction in a comment and never states the precondition that the correction
+assumes. Compare 620 — same shape, different axis (working directory there, host load here).
+
+Build, and the choice matters. The weak fix is a bigger tolerance, which only moves the load at
+which this recurs. Two better ones:
+
+- **Assert the relationship, not the absolute.** What the law actually wants to know is whether
+  the heartbeat's reported percentage TRACKS the fixture's real CPU consumption. Compare the
+  heartbeat's figure against the fixture's own cumulative CPU time over the same window and
+  require them to agree within a band. That is true on an idle host and on a loaded one, and it
+  still fails if the heartbeat stops seeing the process — which is the defect the law exists to
+  catch, and the one a raised tolerance would start hiding.
+- **Or detect contention and skip LOUDLY**, naming the load average and saying which law did not
+  run — never silently, and never by passing.
+
+Whichever is chosen, the probe must print the configuration it ran in — load average and core
+count — so a reader can tell a real regression from a busy afternoon without re-running it.
+
+Non-vacuity is the interesting half: prove the new form still goes red when the heartbeat
+genuinely loses sight of a spinning process, which is the original defect (a receipt run once
+reported `tracked_procs=0` and `0.6%` while two test binaries burned a core each).
+
+Routing: worker Sonnet high — the fix is small, the oracle design is not.
+
+---
+
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
