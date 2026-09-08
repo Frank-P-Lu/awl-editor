@@ -96,21 +96,21 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
     assert_eq!(document.selection.unwrap().focus, 5);
 }
 
-/// `semantic_snapshot()` builds a WHOLE snapshot: every line of the document
-/// read out of the rope and segmented under UAX #29. That is the right shape
-/// for a one-shot consumer and the wrong shape for a frame, so the call sites
-/// are enumerated.
-///
-/// The live frame path is deliberately absent: `refresh_accessibility` drives
-/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
-/// touched, so `app/semantic/mod.rs` naming this function again would mean the
-/// per-frame whole-document cost had come back.
-#[test]
-fn semantic_snapshot_has_no_ungated_frame_side_caller() {
+/// Every production `.rs` file under `src/`, relative to the crate root,
+/// that calls `semantic_snapshot()` — the walk
+/// `semantic_snapshot_has_no_ungated_frame_side_caller` asserts over.
+/// Anchored at `env!("CARGO_MANIFEST_DIR")` (fixed at COMPILE time) rather
+/// than a relative `"src"`, so it locates the same tree regardless of the
+/// test process's own working directory — see
+/// `semantic_snapshot_walk_resolves_from_a_different_cwd` below.
+fn ungated_frame_side_callers() -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
-    let mut stack = vec![PathBuf::from("src")];
+    let manifest_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut stack = vec![manifest_root.join("src")];
     while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).expect("src is readable") {
+        for entry in
+            std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("{} is readable: {e}", dir.display()))
+        {
             let path = entry.expect("dir entry").path();
             if path.is_dir() {
                 stack.push(path);
@@ -122,7 +122,11 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
             // `tests.rs` and everything under a `tests/` directory is test
             // code by this tree's convention, and a test may build a snapshot
             // freely — the cost being rationed is per FRAME, not per test.
-            let text = path.to_string_lossy().replace('\\', "/");
+            let text = path
+                .strip_prefix(&manifest_root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
             if text.ends_with("/tests.rs") || text.contains("/tests/") {
                 continue;
             }
@@ -141,6 +145,21 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
         }
     }
     found.sort();
+    found
+}
+
+/// `semantic_snapshot()` builds a WHOLE snapshot: every line of the document
+/// read out of the rope and segmented under UAX #29. That is the right shape
+/// for a one-shot consumer and the wrong shape for a frame, so the call sites
+/// are enumerated.
+///
+/// The live frame path is deliberately absent: `refresh_accessibility` drives
+/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
+/// touched, so `app/semantic/mod.rs` naming this function again would mean the
+/// per-frame whole-document cost had come back.
+#[test]
+fn semantic_snapshot_has_no_ungated_frame_side_caller() {
+    let found = ungated_frame_side_callers();
     let mut sanctioned = vec![
         // The live-App sidecar embeds the same snapshot.
         "src/app/capture_state.rs".to_string(),
@@ -157,12 +176,38 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     );
 }
 
+/// MUTATION PROOF for the `CARGO_MANIFEST_DIR` anchor: run the exact same
+/// walk from a working directory that is NOT the crate root (a relative
+/// `PathBuf::from("src")` would report `NotFound` here) and require the
+/// identical result. Restoring the old relative root by hand and rerunning
+/// under this cwd is what the reported defect looked like — `src is
+/// readable: NotFound` — so this law goes red the moment that regresses.
+#[test]
+fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
+    let from_manifest_root = ungated_frame_side_callers();
+    let elsewhere = std::env::temp_dir();
+    let _cwd = crate::fs::CwdGuard::enter(&elsewhere);
+    let from_elsewhere = ungated_frame_side_callers();
+    assert_eq!(
+        from_manifest_root,
+        from_elsewhere,
+        "the walk must resolve identically regardless of the test process's cwd \
+         (ran once from {}, once from {})",
+        std::env::current_dir()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default(),
+        elsewhere.display(),
+    );
+}
+
 /// The card captions and figures must exist in exactly one place. If a caption
 /// string reappears inside the renderer, the two descriptions have forked and
 /// an assistive technology is reading a stale copy of the card.
 #[test]
 fn the_renderer_composes_no_card_text_of_its_own() {
-    let source = std::fs::read_to_string("src/render/chrome/hud.rs").expect("hud.rs is readable");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/chrome/hud.rs");
+    let source = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} is readable: {e}", path.display()));
     for needle in [
         "CURRENT STREAK",
         "WRITTEN TODAY",

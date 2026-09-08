@@ -85,12 +85,15 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
         crate::markdown::set_inline_images_on(prev);
         return;
     };
-    // `doc_dir` is None (the `view` helper), so the relative path resolves
-    // against the test cwd (the crate root) — `samples/tiny.png` is 120x48.
+    // `doc_dir` anchors the relative reference at the crate root, fixed at
+    // COMPILE time, rather than the `view` helper's default `None` (which
+    // resolves against the test process's OWN cwd) — `samples/tiny.png` is
+    // 120x48.
     let text = "![pic](samples/tiny.png)\nprose here\n";
     // Caret on line 1 (prose): line 0's image source conceals, the tall row shows.
     let mut v = view(text, 1, 0);
     v.is_markdown = true;
+    v.doc_dir = Some(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")));
     p.set_view(&v);
     let rows0 = p.visual_rows(0);
     let h = rows0[0].line_height;
@@ -147,8 +150,10 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
 
     // The committed corpus takes the SAME path with prose above and below the
     // image.  This is defence in depth for the law above, not a second law.
-    let fixture =
-        std::fs::read_to_string("samples/image-reveal.md").expect("samples/image-reveal.md exists");
+    let fixture_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples/image-reveal.md");
+    let fixture = std::fs::read_to_string(&fixture_path)
+        .unwrap_or_else(|e| panic!("{} exists: {e}", fixture_path.display()));
     let image_line = fixture
         .lines()
         .position(|line| line.starts_with("!["))
@@ -156,7 +161,7 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
     let after_line = image_line + 1;
     let mut off = view(&fixture, after_line, 0);
     off.is_markdown = true;
-    off.doc_dir = Some(std::path::PathBuf::from("samples"));
+    off.doc_dir = Some(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples"));
     p.set_view(&off);
     let off_height = p.visual_rows(image_line)[0].line_height;
     assert_eq!(p.images_report().len(), 1, "fixture has one real image");
@@ -168,7 +173,7 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
 
     let mut on = view(&fixture, image_line, 0);
     on.is_markdown = true;
-    on.doc_dir = Some(std::path::PathBuf::from("samples"));
+    on.doc_dir = Some(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples"));
     p.set_view(&on);
     let on_height = p.visual_rows(image_line)[0].line_height;
     assert!(

@@ -1677,6 +1677,59 @@ pub(crate) fn picker_chrome_pin_probe() -> Option<usize> {
     (idx < theme::THEMES.len()).then_some(idx)
 }
 
+/// TEST HOOK, the write half of [`picker_chrome_pin_probe`]: force the raw
+/// pin state back to exactly what a snapshot read — `None` unpins,
+/// `Some(idx)` pins to that world. Used by [`PickerChromePinRestore`] to put
+/// the pin back the way a test found it, on the unwinding path too.
+#[cfg(test)]
+pub(crate) fn set_picker_chrome_pin_for_test(pin: Option<usize>) {
+    PICKER_CHROME_PIN.with(|c| c.set(pin.unwrap_or(usize::MAX)));
+}
+
+/// Scoped snapshot-and-restore for a test that manipulates the picker chrome
+/// pin DIRECTLY — bypassing the ordinary overlay-construction lifecycle
+/// ([`pin_picker_chrome`]/[`unpin_picker_chrome`] via
+/// `OverlayState::new_marked`) that otherwise makes a stale pin
+/// self-correcting: every summon of ANY overlay kind sets or clears it
+/// unconditionally, so a pin left over from a NORMAL test is inert (this
+/// thread-local's own doc above). A test that instead calls
+/// `unpin_picker_chrome()`/`pin_picker_chrome()` (or the raw setter above)
+/// itself, mid-test, to observe or undo a mutation — the one shape in this
+/// tree today is `render::tests::theme_picker_chrome_pin_law`'s own
+/// mutation-proof test — steps OUTSIDE that self-healing lifecycle for the
+/// span it does so, and a panicking assertion in that span leaves the pin
+/// exactly where the mutation put it: a CONCRETE world index surviving for
+/// whatever the harness schedules onto this worker thread next, the same
+/// shape a leaked forced `ListStyle` once corrupted an unrelated law with.
+/// Capture this BEFORE such a manual mutation; its `Drop` restores the
+/// captured value, including while unwinding.
+///
+/// Deliberately NOT a field on `testlock::misc::MiscPins`: that module's
+/// shared list is for globals that must return to one stable AMBIENT value
+/// between tests, and this pin's whole design is the opposite — it is
+/// EXPECTED to still read `Some(idx)` after any ordinary test that summons a
+/// Theme overlay and returns without dismissing it (self-healing happens at
+/// the NEXT overlay construction, not at test-exit). A field there would
+/// make `SerialGuard`'s exit audit flag that ordinary, correct exit state as
+/// a leak — exactly the false positive `theme_picker_chrome_pin_law`'s own
+/// non-mutation tests would trip on every run.
+#[cfg(test)]
+pub(crate) struct PickerChromePinRestore(Option<usize>);
+
+#[cfg(test)]
+impl PickerChromePinRestore {
+    pub(crate) fn capture() -> Self {
+        PickerChromePinRestore(picker_chrome_pin_probe())
+    }
+}
+
+#[cfg(test)]
+impl Drop for PickerChromePinRestore {
+    fn drop(&mut self) {
+        set_picker_chrome_pin_for_test(self.0);
+    }
+}
+
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     match overrides::current().list_style {
         Some(s) => s,

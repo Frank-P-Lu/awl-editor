@@ -225,6 +225,12 @@ fn without_the_pin_the_sweep_would_move_the_card() {
     // THE MUTATION: drop the pin the same way `preview_move` would if
     // `pin_picker_chrome` had never been wired up (never call it again after
     // this — the point is to observe the picker's composition WITHOUT it).
+    // Captured BEFORE the mutation and restored on `Drop` — including while
+    // unwinding — so a panicking assertion below cannot leave this thread's
+    // pin unset for whatever the harness schedules here next; see
+    // `PickerChromePinRestore`'s own doc for why this manual span (not the
+    // ordinary overlay-construction lifecycle) is the one place that needs it.
+    let _pin_restore = crate::render::PickerChromePinRestore::capture();
     crate::render::unpin_picker_chrome();
 
     step_to(&mut ov, target);
@@ -236,9 +242,39 @@ fn without_the_pin_the_sweep_would_move_the_card() {
          move the card — the mutation the laws above are proven against"
     );
 
-    // Restore the pin so this test does not leak an unpinned state into
-    // whatever the harness runs next.
-    crate::render::pin_picker_chrome();
     theme::set_active_by_name(restore).unwrap();
     crate::render::set_card_anchor_test_override(None);
+}
+
+/// THE LEAK `PickerChromePinRestore` CLOSES: the mutation proof above steps
+/// outside the self-healing overlay-construction lifecycle for one span (a
+/// raw `unpin_picker_chrome()` with no matching summon), so a fixture that
+/// forces the pin directly and dies inside that span — before its own
+/// cleanup runs — used to leave a CONCRETE world index for whatever the
+/// harness schedules onto this worker thread next, exactly the shape a
+/// leaked forced `ListStyle` once corrupted an unrelated law with. Forces
+/// the identical shape directly (pin, then panic) and checks the pin
+/// afterward on the SAME thread, which is where a thread-local leak of this
+/// kind would actually land.
+#[test]
+fn a_panic_after_a_direct_pin_does_not_leak_it_to_the_next_reader_on_this_thread() {
+    let _g = crate::testlock::serial();
+    assert_eq!(
+        crate::render::picker_chrome_pin_probe(),
+        None,
+        "fixture assumption: nothing pinned the picker chrome ambiently entering this test"
+    );
+    let died = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _g = crate::testlock::serial();
+        let _pin_restore = crate::render::PickerChromePinRestore::capture();
+        crate::render::set_picker_chrome_pin_for_test(Some(0));
+        panic!("a fixture that pinned the picker chrome directly and died before unpinning");
+    }));
+    assert!(died.is_err(), "the fixture above must have panicked");
+    assert_eq!(
+        crate::render::picker_chrome_pin_probe(),
+        None,
+        "PickerChromePinRestore must put the pin back on the unwinding path, or the \
+         NEXT reader on this worker thread inherits a concrete world index nobody chose"
+    );
 }
