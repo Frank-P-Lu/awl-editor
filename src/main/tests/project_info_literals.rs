@@ -95,6 +95,15 @@ fn every_capture_project_info_literal_is_accounted_for() {
         // A hand-built sidecar FIXTURE: no root, no filesystem, no derivation
         // to get wrong — it exists to pin the JSON schema's chrome block.
         ("capture/tests/schema_chrome.rs", 1),
+        // A hand-built no-document FIXTURE (the folder-naming start-surface
+        // laws): its one helper's return-type-plus-brace ALSO matches this
+        // needle after whitespace collapse, hence 2 for a single struct
+        // literal. Deliberately not routed through `run::project_info` —
+        // these tests need a specific folder `name` independent of any real
+        // directory's `Project::resolve` (git branch/dirty probes included),
+        // so a hand-built `ProjectInfo` with the other fields left at their
+        // capture-irrelevant defaults is the right fixture here too.
+        ("capture/tests/start_folder.rs", 2),
         // The two deliberately LOCATION-FREE capture modes. `--capture-timeline`
         // and `--capture-held` report `default_folder: None, workspace: None`
         // on purpose: neither takes a `--workspace`/`--default-folder` flag,

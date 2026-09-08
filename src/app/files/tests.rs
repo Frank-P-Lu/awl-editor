@@ -740,7 +740,10 @@ fn window_title_dirty_is_only_ever_a_leading_marker_insertion() {
 
 #[test]
 fn window_title_without_a_document_invents_no_scratch_identity() {
-    assert_eq!(window_title_no_document("Bilby"), "awl [Bilby]");
+    assert_eq!(
+        window_title_no_document("notes", "Bilby"),
+        "awl - notes [Bilby]"
+    );
 }
 
 #[test]

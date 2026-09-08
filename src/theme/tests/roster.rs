@@ -413,7 +413,12 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
 
     let render = include_str!("../../render.rs");
     assert!(render.contains("None => theme::MotionJuice::CALM"));
-    assert!(render.contains("None => theme::active().render_caps.pane_split"));
+    // The owner moved, the rule did not: `picker_chrome_theme()` IS
+    // `theme::active()` for every surface except the theme picker's own
+    // chrome, which pins the world it was summoned in. What this line
+    // guards is that the resolver reads ONE owner rather than branching on
+    // theme data, and that is still what it does.
+    assert!(render.contains("None => picker_chrome_theme().render_caps.pane_split"));
     assert!(render.contains("set_overlay_motion_test_override"));
     assert!(render.contains("set_pane_split_test_override"));
     assert!(render.contains("set_placard_placement_test_override"));

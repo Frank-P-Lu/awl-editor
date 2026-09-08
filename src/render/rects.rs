@@ -23,10 +23,12 @@ fn push_or_grow_quote_block(quotes: &mut Vec<(usize, usize)>, li: usize, prev: b
     }
 }
 
-/// Which end of a blockquote block a hanging pull-quote mark hangs from. The two
-/// sides differ ONLY in glyph and in x (`geometry::pull_quote_left` /
-/// `geometry::pull_quote_right`) — same face, same scale, same
-/// [`crate::theme::faint`] value, so the pair can never drift apart in weight.
+/// Which end of a blockquote block a hanging pull-quote mark hangs from. Both
+/// ends are shaped from one face, one scale, one [`crate::theme::faint`] value,
+/// so the pair can never drift apart in weight — they differ in glyph, and in
+/// how their position is derived: Open is a page-geometry constant
+/// (`geometry::pull_quote_left`); Close follows its own block's last-row ink
+/// (`geometry::pull_quote_close_x`, `TextPipeline::quote_close_row_end_x`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum QuoteSide {
     Open,
@@ -416,6 +418,34 @@ impl TextPipeline {
                 .line_first_baseline(&self.buffer, &self.metrics, line)
     }
 
+    /// Buffer-relative -> absolute BASELINE y of logical `line`'s **LAST** visual
+    /// row — the wrap-aware counterpart of [`Self::line_ornament_baseline`]. The
+    /// blockquote pull-quote's CLOSING mark anchors here rather than to that row's
+    /// top, so a mark shaped taller than one body row still reads as belonging to
+    /// its own line's baseline instead of riding above it.
+    pub(super) fn line_ornament_last_baseline(&self, line: usize) -> f32 {
+        self.doc_top()
+            + self
+                .row_geom
+                .line_last_baseline(&self.buffer, &self.metrics, line)
+    }
+
+    /// Buffer-relative -> absolute ink-right x of logical `line`'s **LAST** visual
+    /// row — the wrap-aware, LAST-row counterpart of
+    /// [`Self::fold_affordance_row_end_x`] (which deliberately reads the FIRST
+    /// row, appropriate to a collapsed heading's own affordance). The blockquote
+    /// pull-quote's CLOSING mark hangs one gap past THIS edge: the block's real
+    /// final row of shaped ink, never a row above it.
+    pub(super) fn quote_close_row_end_x(&self, line: usize) -> f32 {
+        let end = self
+            .visual_rows(line)
+            .last()
+            .and_then(|r| r.xs.get(r.end_col).copied())
+            .filter(|x| x.is_finite())
+            .unwrap_or(0.0);
+        self.text_left() + end
+    }
+
     pub(super) fn table_blocks(&self) -> Vec<(usize, std::ops::Range<usize>)> {
         if self.md_spans.is_empty() {
             return Vec::new();
@@ -511,11 +541,14 @@ impl TextPipeline {
             return Vec::new();
         }
         // CACHE + CULL (mirrors `rule_lines`): the bullet-line SET is cached by reshape
-        // version; each frame we walk only those, skip the caret's own line (reveal-on-
-        // cursor) and the OFF-SCREEN lines. Ascending order + identical membership on
-        // the visible rows => byte-identical to the old whole-document scan.
+        // version; each frame we walk only those, skip every REVEALED line (the
+        // caret's own, or one a selection touches — `line_is_revealed`, the same
+        // owner `rule_lines` reads) and the OFF-SCREEN lines. Ascending order +
+        // identical membership on the visible rows => byte-identical to the old
+        // whole-document scan.
         self.ensure_ornament_lists();
         let text_left = self.text_left();
+        let selection_touch = self.selection_touch();
         // Resolve each visible, non-caret unordered-bullet line to its
         // (line, top, indent, glyph), DEFERRING the marker x: an UNINDENTED bullet's
         // marker sits at column 0 (x == 0), needing no shaped-x lookup at all — the
@@ -528,8 +561,8 @@ impl TextPipeline {
         let mut items: Vec<(usize, f32, usize, char)> = Vec::new();
         let mut indented: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for &li in self.ornament_cache.bullet_lines.borrow().iter() {
-            if li == self.cursor_line {
-                continue; // reveal-on-cursor: the raw marker shows on the caret's line
+            if self.line_is_revealed(li, selection_touch.as_ref()) {
+                continue; // caret's own line, or a selection touching it: raw marker shows
             }
             if !self.line_ornament_visible(li) {
                 continue; // off-screen: the glyph would be clipped to nothing
@@ -568,16 +601,22 @@ impl TextPipeline {
         out
     }
 
-    /// The visible hanging pull-quote marks: `(row top, side)`, TWO per blockquote
-    /// block — an opening mark on the block's first row and a closing one on its
-    /// last, so a quote never reads permanently unclosed. Each end is culled
-    /// independently, so a block taller than the viewport still shows whichever of
-    /// its two marks is on screen. The closing mark hangs from the last WRAPPED row
-    /// of the block's last logical line ([`Self::line_ornament_last_top`]), not that
-    /// line's first row. A ONE-LINE block yields both marks at the same top; the
-    /// pair is told apart by x, never by y (`geometry::pull_quote_left` /
-    /// `geometry::pull_quote_right`).
-    pub(super) fn quote_marks(&self) -> Vec<(f32, QuoteSide)> {
+    /// The visible hanging pull-quote marks: `(row top, side, logical line)`, TWO
+    /// per blockquote block — an opening mark on the block's first row and a
+    /// closing one on its last, so a quote never reads permanently unclosed. Each
+    /// end is culled independently, so a block taller than the viewport still
+    /// shows whichever of its two marks is on screen. The closing mark's row is
+    /// the last WRAPPED row of the block's last logical line
+    /// ([`Self::line_ornament_last_top`]), not that line's first row. A ONE-LINE
+    /// block yields both marks on the same row.
+    ///
+    /// The `line` is the row this mark belongs to (the block's `first` for Open,
+    /// `last` for Close) — the caller resolves the OPEN mark's x from
+    /// `geometry::pull_quote_left` (a page-geometry constant, independent of which
+    /// block) but the CLOSE mark's x from THIS line's own shaped ink
+    /// ([`Self::quote_close_row_end_x`]), because unlike the open end the close
+    /// end now follows the text rather than hanging in a fixed gutter.
+    pub(super) fn quote_marks(&self) -> Vec<(f32, QuoteSide, usize)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || !crate::page::page_on() {
             return Vec::new();
         }
@@ -588,11 +627,11 @@ impl TextPipeline {
         let mut out = Vec::new();
         for (first, last) in self.ornament_cache.quote_blocks.borrow().iter().copied() {
             if self.line_ornament_visible(first) {
-                out.push((self.line_ornament_top(first), QuoteSide::Open));
+                out.push((self.line_ornament_top(first), QuoteSide::Open, first));
             }
             let close_top = self.line_ornament_last_top(last);
             if self.row_box_visible(close_top, 0.0) {
-                out.push((close_top, QuoteSide::Close));
+                out.push((close_top, QuoteSide::Close, last));
             }
         }
         out

@@ -170,8 +170,6 @@ impl TextPipeline {
         // frame, so this seed only has to be a valid colour.
         let gutter_stack_plate =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let gutter_close_hover_plate =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         // The row-drag insertion hairline. Seeded like the others; the live
         // drag re-resolves its own colour + rect on every armed move.
         let gutter_drag_indicator_plate =
@@ -259,6 +257,7 @@ impl TextPipeline {
             renderer,
             buffer,
             document_active: true,
+            start_folder: None,
             caret_pipeline,
             caret_trail_pipeline,
             caret_glyph_pipeline,
@@ -423,7 +422,6 @@ impl TextPipeline {
             gutter_files: Vec::new(),
             gutter_stack_hover: None,
             gutter_stack_plate,
-            gutter_close_hover_plate,
             gutter_drag_indicator: None,
             gutter_drag_indicator_plate,
             page_drag_renderer,
@@ -504,6 +502,7 @@ impl TextPipeline {
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
             overlay_query_selection: None,
+            overlay_query_placeholder: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),

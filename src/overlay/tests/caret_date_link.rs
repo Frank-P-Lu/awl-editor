@@ -126,17 +126,16 @@ fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
 /// content-filename figure/ground split (`OverlayKind::row_path_splits`):
 /// three of the five example dates (`DD/MM/YY`, `MM/DD/YY`, `YYYY/MM/DD`) use
 /// `/` as a DATE separator, and `row_split` would otherwise mistake it for a
-/// path boundary and mute part of the date's own glyphs. Only `InsertLink`'s
-/// row content is a genuine URL/path — exhaustive over every kind so a future
-/// variant must consciously decide (no-wildcard match in the fn under test).
+/// path boundary and mute part of the date's own glyphs. No kind's row holds
+/// a genuine URL/path today — `InsertLink`'s moved to its FIELD line (`query`)
+/// — exhaustive over every kind so a future variant must consciously decide
+/// (no-wildcard match in the fn under test).
 #[test]
-fn only_insert_link_rows_get_the_path_figure_ground_split() {
+fn no_kind_splits_row_content_on_a_path_boundary() {
     for kind in OverlayKind::ALL {
-        let expect = matches!(kind, OverlayKind::InsertLink);
-        assert_eq!(
-            kind.row_path_splits(),
-            expect,
-            "{kind:?}.row_path_splits() should be {expect}"
+        assert!(
+            !kind.row_path_splits(),
+            "{kind:?}.row_path_splits() should be false"
         );
     }
     // The concrete regression: every example date this picker shows contains a

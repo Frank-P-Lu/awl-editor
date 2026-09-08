@@ -171,6 +171,19 @@ impl ProjectLocation {
         self.rescan_file_index();
         self.workspace_root = Some(policy.workspace_root(&self.root));
     }
+
+    /// The folder name shown on every NO-DOCUMENT surface — the window title
+    /// (`files::window_title_no_document`) and the start screen's own dim line
+    /// (`TextPipeline::start_folder`, set from `ViewState::start_folder` in
+    /// `sync_zero_document_view`) both read this ONE owner rather than each
+    /// deriving a name from `root` independently, so the two can never drift
+    /// apart on what "the folder" is called. Already just the last path
+    /// segment (`crate::project::folder_name`, via `Project::resolve`) — never
+    /// a full path — so this cannot leak more of the filesystem than one
+    /// component.
+    pub(in crate::app) fn no_document_folder_name(&self) -> String {
+        self.project.name.clone()
+    }
 }
 
 #[cfg(test)]

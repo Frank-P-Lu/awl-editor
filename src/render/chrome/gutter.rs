@@ -239,7 +239,6 @@ impl TextPipeline {
             // Drop any previous plate so a hidden gutter leaves no floating band.
             self.gutter_stack_plate
                 .prepare(device, queue, width, height, &[]);
-            self.prepare_close_hover_plate(device, queue, width, height, None);
             self.gutter_drag_indicator_plate
                 .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);
@@ -286,14 +285,18 @@ impl TextPipeline {
         // The mark's text is shaped FIRST (a LEADING span), even for the single-file
         // identity: it rides the SAME close-mark door a working-set row does
         // (`GutterLine::Name` in `gutter_hit::stack_hit_from_plan`), one mechanism
-        // rather than a single-file copy. And the identity line draws ON
-        // `plate_rects`' own fill, so its name and its revealed mark wear the ink an
-        // active stack row wears, off the one owner `gutter_stack::active_row_ink`.
+        // rather than a single-file copy. The identity line IS the active row by
+        // construction, so it follows `gutter_stack::stack_spans`' own File/Group
+        // rule for one: `active_ink` at rest, `close_mark_hover_ink(true)` under
+        // the pointer, never fully transparent (617 retired the hover plate).
         let active_ink = gutter_stack::active_row_ink();
-        let hidden_ink = glyphon::Color::rgba(0, 0, 0, 0);
         if stack_ink.is_empty() {
-            let revealed = self.gutter_stack_hover.is_some_and(|hit| hit.row == 0);
-            let mark = if revealed { active_ink } else { hidden_ink };
+            let hovered = self.gutter_stack_hover.is_some_and(|hit| hit.row == 0);
+            let mark = if hovered {
+                gutter_stack::close_mark_hover_ink(true)
+            } else {
+                active_ink
+            };
             spans.push((gutter_stack::CLOSE_MARK_TEXT, base.clone().color(mark)));
             spans.push((name.as_str(), base.clone().color(active_ink)));
         } else {
@@ -349,10 +352,13 @@ impl TextPipeline {
         // live drag, and an empty `prepare` leaves its pipeline with zero
         // instances. The indicator's ink is `muted`, not the caret's accent —
         // DESIGN.md's "one accent" law reserves that for the caret alone.
+        // `ink_widths`: the real glyph run this call just shaped above, never
+        // a char-count estimate (`gutter_stack::shaped_line_widths`'s doc).
+        let ink_widths = gutter_stack::shaped_line_widths(&self.gutter_buffer);
         let (plates, indicator) = gutter_stack::plates_and_drag_indicator(
             &layout,
             &stack,
-            m.char_width * label,
+            &ink_widths,
             m.line_height * label * gutter_stack::PLATE_PAD_X.0,
             m.px_physical(gutter_stack::DRAG_INDICATOR_THICKNESS_PX),
             self.gutter_drag_indicator,
@@ -368,7 +374,6 @@ impl TextPipeline {
         self.gutter_drag_indicator_plate.set_corner(0.0);
         self.gutter_drag_indicator_plate
             .prepare(device, queue, width, height, &indicator);
-        self.prepare_close_hover_plate(device, queue, width, height, Some((&layout, &stack)));
         let area = TextArea {
             buffer: &self.gutter_buffer,
             // Shifted left by the box's own widened amount, so its right
@@ -437,45 +442,6 @@ impl TextPipeline {
             )
             .carve,
         )
-    }
-
-    /// THE ACTIVE FILE'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
-    /// layout + planner rows [`Self::prepare_gutter`] draws
-    /// `gutter_stack_plate` from — the lone identity line's as readily as a stack
-    /// row's ([`gutter_stack::plate_rects`] answers for both). `None` only when the
-    /// gutter itself is hidden/off, with nothing drawn to plate.
-    ///
-    /// Exists for real-pixel laws that need to sample INSIDE the plate without
-    /// re-deriving its padding arithmetic by hand (`render/tests/one_bit.rs`'s
-    /// stack-plate legibility law): a rect computed any differently than what
-    /// production actually filled would defeat the point of testing pixels —
-    /// the same reasoning [`Self::gutter_frost_seeds`] already documents for
-    /// itself, one door over.
-    #[cfg(test)]
-    pub(in crate::render) fn gutter_stack_plate_rect(&self, height: u32) -> Option<[f32; 4]> {
-        let layout = self.gutter_layout()?;
-        let label = crate::markdown::type_scale::LABEL;
-        let row_h = self.metrics.line_height * label;
-        if row_h <= 0.0 {
-            return None;
-        }
-        let stack = crate::render::plan::plan_gutter_stack(
-            height as f32,
-            layout.avail,
-            row_h,
-            layout.lines().len(),
-            self.metrics.px_physical(super::readout::CANVAS_INSET),
-            GUTTER_CARVE_BREATH.0,
-        );
-        let label_char_w = self.metrics.char_width * label;
-        gutter_stack::plate_rects(
-            &layout,
-            &stack,
-            label_char_w,
-            row_h * gutter_stack::PLATE_PAD_X.0,
-        )
-        .into_iter()
-        .next()
     }
 
     /// The page-mode GUTTER state for the capture sidecar: `Some((name, project))`

@@ -165,27 +165,6 @@ fn push_beat_spacer<'a>(
     }
 }
 
-/// Whether the active [`theme::TitleStyle`] draws a placard THIS frame — the
-/// one fact [`TextPipeline::overlay_shape_placard`] (draws it) and
-/// [`TextPipeline::overlay_title_prefix`] (suppresses the inline title so the
-/// two announcements of the same name can never both show) reduce to, so
-/// neither can drift from the other's idea of when a placard is showing.
-///
-/// A SUMMONED WORKSPACE never draws one. The wordmark anchors to the full
-/// canvas and bleeds outward from it on purpose (a floating card's ornament,
-/// authored to overrun the card it sits behind); a workspace's own box already
-/// fills that canvas down to a thin margin, so the giant mark has nowhere
-/// authored left to bleed into except past the workspace's own edge — the
-/// defect this excludes. The modest inline title (`overlay_title_prefix`)
-/// carries the same name inside the composition it announces instead.
-fn placard_style_applies(geom: &OverlayGeom) -> bool {
-    matches!(
-        crate::render::effective_title_style(),
-        theme::TitleStyle::Placard { .. }
-    ) && !geom.card_narrow
-        && !geom.workspace
-}
-
 impl TextPipeline {
     /// THE PLACARD RENDERER — the one owner of [`theme::TitleStyle::Placard`].
     /// Shapes the picker's own title text (`overlay_title`, the ONE owner of
@@ -243,13 +222,16 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
     ) -> Option<(f32, f32, f32, f32)> {
-        if geom.header_rows == 0 || self.overlay_title.is_empty() || !placard_style_applies(geom) {
+        if geom.header_rows == 0 || self.overlay_title.is_empty() {
             return None;
         }
         let (corner, scale, ink) = match crate::render::effective_title_style() {
             theme::TitleStyle::Placard { corner, scale, ink } => (corner, scale, ink),
             theme::TitleStyle::InlinePrefix => return None,
         };
+        if geom.card_narrow {
+            return None;
+        }
         let corner = crate::render::derived_placard_corner(
             corner,
             crate::render::resolve_overlay_anchor(self.overlay_align),
@@ -616,7 +598,10 @@ impl TextPipeline {
     }
 
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
-        let placard_drawn = placard_style_applies(geom);
+        let placard_drawn = matches!(
+            crate::render::effective_title_style(),
+            theme::TitleStyle::Placard { .. }
+        ) && !geom.card_narrow;
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
         } else {
@@ -714,7 +699,17 @@ impl TextPipeline {
             } else {
                 spans.push((title_prefix.as_str(), hkc(muted)));
             }
-            spans.push((self.overlay_query.as_str(), hk(ink)));
+            // GHOST TEXT: an empty field with something to say about it (today
+            // only Insert-link's URL field) shows it dim in the field's own
+            // place, never a second line — a query text still overrides it the
+            // instant it exists, matching the plain text-field convention.
+            match (
+                self.overlay_query.is_empty(),
+                self.overlay_query_placeholder.as_deref(),
+            ) {
+                (true, Some(ph)) => spans.push((ph, hk(muted))),
+                _ => spans.push((self.overlay_query.as_str(), hk(ink))),
+            }
         }
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands

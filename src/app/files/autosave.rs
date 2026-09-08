@@ -118,7 +118,12 @@ impl App {
         self.persistence.record_title(dirty);
         if let Some(gpu) = self.frame.gpu() {
             let title = self.document.buffer_opt().map_or_else(
-                || window_title_no_document(crate::theme::active().name),
+                || {
+                    window_title_no_document(
+                        &self.project_location.no_document_folder_name(),
+                        crate::theme::active().name,
+                    )
+                },
                 |buffer| {
                     window_title(
                         buffer.path(),

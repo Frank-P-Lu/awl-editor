@@ -271,6 +271,25 @@ for pair in fonts dict; do
   fi
 done
 
+# DOCUMENT TYPES: declares Awl as an EDITOR for markdown/plain-text/
+# text documents at `LSHandlerRank Alternate` — OFFERED in Finder's Open With
+# menu (and "Change All…" can make it the default) without silently stealing
+# the OS default the way `Default` would. `net.daringfireball.markdown` is a
+# third-party-declared UTI (not an Apple built-in), so its own
+# `CFBundleTypeExtensions` fallback (`md`/`markdown`, plus `txt` under
+# `public.plain-text`) is what still matches on a machine where nothing else
+# has ever declared that UTI — LaunchServices falls back to extension matching
+# when no UTI claims one. Declaring the type is only HALF the story: the
+# process must also accept the resulting Apple Event, which
+# `crate::mac_open_documents` (`src/mac_open_documents.rs`) does at runtime by
+# injecting `application:openURLs:` onto winit's own delegate class — see that
+# file's module doc. MAS ENTITLEMENTS: a Finder-opened file arrives to a
+# sandboxed process exactly like an `NSOpenPanel` selection (both are
+# USER-SELECTED file access grants at the point the user picked something in
+# Finder/a panel), so the existing
+# `com.apple.security.files.user-selected.read-write` entitlement
+# (`packaging/mas/entitlements.plist`) already covers it — no new entitlement
+# needed for the `--mas` flavor.
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -298,6 +317,54 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <true/>
   <key>NSHumanReadableCopyright</key>
   <string>GPL-3.0-only</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Markdown</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>net.daringfireball.markdown</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>md</string>
+        <string>markdown</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Plain Text</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.plain-text</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>txt</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Text</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.text</string>
+      </array>
+    </dict>
+  </array>
 PLIST
 
 if [ -f "$ICON_SRC" ]; then

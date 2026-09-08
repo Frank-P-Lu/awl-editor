@@ -30,6 +30,11 @@ mod bowerbird_breathe;
 mod bowerbird_finds;
 mod bowerbird_spacing;
 mod build_integrity;
+/// The bullet ornament's real-pixel reveal law: a selection touching a
+/// nested list row draws ONLY that row's raw dash, never the depth glyph
+/// stacked over it — the `rule_reveal_state` pixel law's sibling for the
+/// other legacy (pre-`ConcealKind`) construct.
+mod bullet_reveal_pixels;
 mod card_texture_shape;
 mod caret;
 mod caret_block;
@@ -144,6 +149,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod insert_link_field;
 mod layout_oracle;
 mod list_surfaces;
 mod magpie_bands;
@@ -201,6 +207,7 @@ mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod pull_quote_pair;
 mod query_field;
+mod quote_close_geometry;
 mod quote_orientation;
 mod rail_ink_law;
 mod raked_location;
@@ -256,6 +263,7 @@ mod stars;
 /// each row's chord glyph reads muted beside it — the quiet-chord/full-ink-verb
 /// split `shape_overlay_right` established for a row's secondary column, reused
 /// here rather than a bespoke start-screen ink rule.
+mod start_folder_law;
 mod start_screen_ink_law;
 /// The Writing-streaks card's own drawn geometry: `streaks_card_rect` names
 /// the rect a click hit-test reads, and the ←/→ paging hint's presence is
@@ -282,6 +290,7 @@ mod theme_caps_law;
 /// ACTION path, so the RENDER path can hold the world still while the selection
 /// moves — the true A/B no capture can arrange, and the answer to the pre-tag
 /// sweep's abstention on every textured and staggered world.
+mod theme_picker_chrome_pin_law;
 mod theme_picker_selection_law;
 /// How far one theme-picker arrow's reshape REACHES — the whole document, not
 /// the viewport — carrying the release per-stage measurement that makes that

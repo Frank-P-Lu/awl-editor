@@ -36,24 +36,14 @@ pub(super) const PLATE_HEIGHT_ROWS: Rows = Rows(0.86);
 /// object in the margin as it does in a picker.
 pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 
-/// **559:** the close-zone hover plate's own alpha, over the SAME
-/// [`theme::surface_selected`] fill the active-row plate uses — a fraction of
-/// it, not a second color, so the hover square reads as a quieter member of
-/// the same family rather than a competing accent (DESIGN's "one accent"
-/// still names the caret alone). Distinct from the active-row plate's own
-/// opaque fill so a reader never mistakes "the pointer is here" for "this is
-/// the open file".
-pub(super) const CLOSE_HOVER_PLATE_ALPHA: u8 = 0x80;
-
 /// THE CLOSE ZONE'S own UPPER BOUND, in LABEL rows — a square target sized to
 /// the row it belongs to, so the thing the pointer aims at is the size of the
 /// line it belongs to rather than a width invented for it. An UPPER bound,
 /// not the zone's literal width: [`close_zone`] also holds the zone to the
 /// mark's OWN drawn lane (`mark_w`), so a face whose row height reaches
-/// further than two characters of its own real pitch never draws (or
-/// accepts clicks over) a square wider than the × it marks — the 559 hover
-/// plate reuses this exact rect, and a zone wider than the mark's own lane
-/// would be a highlight sitting under the label's first letter.
+/// further than two characters of its own real pitch never accepts clicks
+/// over a square wider than the × it marks — reaching into the label's own
+/// first glyph otherwise.
 ///
 /// Anchored on the row's own shaped INK, never a fixed x: the mark is a
 /// LEADING span in a right-aligned line, so it sits wherever that row's own
@@ -99,14 +89,12 @@ pub enum RowIntent {
 }
 
 /// The close zone `[x, y, w, h]` inside a row's own planner band, anchored on
-/// the row's own shaped ink width `text_w` — chars × the LABEL char width,
-/// counting the leading mark's own characters, the SAME quantity
-/// [`plate_rect`]'s own caller measures a plate from — rather than a fixed x.
-/// A right-aligned row's ink starts wherever its own name happens to end on
-/// the left, so a target pinned to the band's own edge instead would sit in
-/// empty margin on a short name and inside the label on a long one —
-/// [`plate_rect`]'s own rationale, mirrored here for the pointer rather than
-/// the fill.
+/// the row's own real shaped ink width `text_w` (mark included — the SAME
+/// quantity [`plate_rect`]'s own caller measures a plate from) rather than a
+/// fixed x. A right-aligned row's ink starts wherever its own name happens to
+/// end on the left, so a target pinned to the band's own edge instead would
+/// sit in empty margin on a short name and inside the label on a long one —
+/// [`plate_rect`]'s own rationale, mirrored here for the pointer.
 ///
 /// `mark_w` is the mark's OWN drawn lane width (`CLOSE_MARK_TEXT.chars().count()
 /// as f32 * label_char_w`, the caller's exact quantity), and it caps the zone
@@ -114,9 +102,7 @@ pub enum RowIntent {
 /// second bound, a mono face whose row height reaches further than the
 /// mark's own two characters (a narrow-aspect face — [`CLOSE_ZONE_ROWS`]'s
 /// own doc) would offer a full row-height square that reaches past the ×
-/// into the label's own first glyph. The 559 hover plate draws exactly this
-/// rect, so a zone wider than the mark's lane would be a highlight sitting
-/// under text that is not the mark.
+/// into the label's own first glyph.
 ///
 /// Clamped to the band on both sides: a maximal-width name can push
 /// `text_w` past the band's own width (the mark yields off the canvas edge
@@ -140,6 +126,36 @@ pub(super) fn row_intent(row_rect: [f32; 4], text_w: f32, mark_w: f32, px: f32) 
     } else {
         RowIntent::Switch
     }
+}
+
+/// **605: THE ONE OWNER OF A ROW'S REAL INK WIDTH** — read off the shaped
+/// `gutter_buffer`'s own layout runs, never estimated from a char count times
+/// a nominal `label_char_w`. Indexed to match [`GutterLayout::lines`]'s own
+/// row order: cosmic-text's `line_i` is the buffer's own newline-delimited
+/// line index, and `prepare_gutter`'s `Wrap::None` guarantees exactly one
+/// run per line, so the two orders coincide exactly.
+///
+/// This is what [`close_zone`] (via [`super::gutter_hit::stack_hit_from_plan`])
+/// and [`plate_rect`] (via [`plate_rects`]) both consume for a row's own
+/// `text_w`: a MONOSPACE face's char count agrees with its real advance, but
+/// on the PROPORTIONAL faces most worlds ship (`panel_attrs` shapes the
+/// active world's own display font), a nominal `CHAR_WIDTH` is a MEAN over
+/// glyphs of very different real widths, and the gap compounds over every
+/// character in the name — the estimate's leading edge lands nowhere near
+/// the real one, worse the longer the name (the user's own report: a
+/// 15-character name lit a plate a full plate-width left of the ×). Reading
+/// the shaped run has zero estimation error by construction; what remains is
+/// ordinary shaper/antialiasing noise, the same order `line_glyph_xs`
+/// already tolerates for the document's own caret placement.
+pub(super) fn shaped_line_widths(buffer: &glyphon::Buffer) -> Vec<f32> {
+    let mut widths = Vec::new();
+    for run in buffer.layout_runs() {
+        if run.line_i >= widths.len() {
+            widths.resize(run.line_i + 1, 0.0);
+        }
+        widths[run.line_i] = run.line_w;
+    }
+    widths
 }
 
 /// ONE FITTED ROW: the exact text drawn, where its quieter location half ends,
@@ -205,6 +221,32 @@ pub(super) fn active_row_ink() -> glyphon::Color {
     theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
 }
 
+/// **617: THE ×'s HOVER INK** — the flip that replaces the retired hover
+/// plate. `theme::accent_ink` against whatever this row sits on: the active
+/// row's own plate fill ([`plate_rects`]) when `active`, or the bare margin
+/// ground otherwise. One owner so the mark's hover colour can never drift
+/// from the contrast substitution the caret's accent gets everywhere else.
+///
+/// Passes the mark's own RESTING ink ([`active_row_ink`] when `active`, else
+/// [`theme::faint`]) as `accent_ink`'s `avoid`: without it, a hover ink and a
+/// rest ink seeded from DIFFERENT preferred colours (`primary` vs `muted`)
+/// can still collide on the SAME fallback pole when both fail the floor
+/// against `band` (measured: Potoroo's own selection band swallows both) —
+/// `theme::accent_ink`'s own doc names the collision this closes.
+pub(super) fn close_mark_hover_ink(active: bool) -> glyphon::Color {
+    let band = if active {
+        theme::surface_selected()
+    } else {
+        theme::base_100()
+    };
+    let rest = if active {
+        theme::selected_row_secondary_ink(theme::surface_selected())
+    } else {
+        theme::faint()
+    };
+    theme::accent_ink(band, Some(rest)).to_glyphon()
+}
+
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
 /// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row is a
@@ -233,29 +275,31 @@ pub(super) fn stack_spans(
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
         let name_ink = if line.active { active_ink } else { faint };
-        // The mark's text is ALWAYS shaped FIRST for EVERY row kind, even
-        // when its alpha is zero: a LEADING span in a right-aligned line
-        // grows the row's shaped width into the ragged margin a
-        // shorter-than-budget name already leaves empty, so revealing it
-        // only ever changes ink, never the label's own advances — and it
-        // carries the row-separating newline, since it is now the first
-        // span every row pushes rather than whichever of parent/leaf
-        // happened to be first under the old trailing order. `hover` can
-        // only ever name a `File` or `Group` row (`stack_hit_from_plan`'s
-        // own enrolment), so a `More`/`Overflow` row's mark is shaped but
-        // permanently transparent — it grows the ragged margin without ever
-        // being able to reveal.
-        let shown = hover.filter(|hit| hit.row == row).map(|_| {
-            if line.active {
-                active_row_ink()
-            } else {
-                theme::muted().to_glyphon()
-            }
-        });
-        out.push((
-            format!("{lead}{CLOSE_MARK_TEXT}"),
-            shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
-        ));
+        // The mark's text is ALWAYS shaped FIRST for EVERY row kind — a
+        // LEADING span in a right-aligned line grows the row's shaped width
+        // into the ragged margin a shorter-than-budget name already leaves
+        // empty, so its ink changing is the only thing that ever moves.
+        //
+        // **617:** closable rows (`File`, and a `Group` heading closing its
+        // whole group) show the × AT REST too — no plate to announce it any
+        // more, so it wears the row's OWN name ink at rest (blending in) and
+        // flips to [`close_mark_hover_ink`] under the live pointer. `hover`
+        // can only ever name a `File`/`Group` row (`stack_hit_from_plan`'s
+        // own enrolment), so a `More`/`Overflow` row's mark stays
+        // shaped-but-transparent always.
+        let closable = matches!(
+            line.kind,
+            crate::workingset::StackRowKind::File | crate::workingset::StackRowKind::Group { .. }
+        );
+        let hovered = hover.is_some_and(|hit| hit.row == row);
+        let mark_ink = if !closable {
+            glyphon::Color::rgba(0, 0, 0, 0)
+        } else if hovered {
+            close_mark_hover_ink(line.active)
+        } else {
+            name_ink
+        };
+        out.push((format!("{lead}{CLOSE_MARK_TEXT}"), mark_ink));
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if !parent.is_empty() {
             out.push((parent.to_string(), faint));
@@ -353,14 +397,14 @@ pub(super) fn drag_indicator_rect(
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
-    label_char_w: f32,
+    ink_widths: &[f32],
     pad_x: f32,
 ) -> Vec<[f32; 4]> {
     layout
         .lines()
         .into_iter()
         .enumerate()
-        .filter_map(|(row, (text, kind))| {
+        .filter_map(|(row, (_text, kind))| {
             match kind {
                 // The lone identity line — the one open file, hence the active
                 // one. There is no `files` entry to consult and none is invented.
@@ -374,101 +418,59 @@ pub(super) fn plate_rects(
                 gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped line BEGINS with the always-present close run: even while
-            // transparent it participates in right alignment, growing the row's own
-            // shaped width leftward, so the plate's measured run includes it (a
-            // revealed × must never draw routed ink outside its own fill — fatal in
-            // a one-bit world, black on black, the same tripwire this file already
-            // names for the label itself). Both plated shapes shape that lane, the
-            // identity line through `gutter::prepare_gutter` and a stack row through
-            // `stack_spans`, so it is always present here.
-            let ink_w =
-                (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
+            // `ink_widths[row]` is the REAL shaped width of this row's own
+            // line, mark included (the always-present close run grows the
+            // shaped width leftward even at zero alpha) — `shaped_line_widths`
+            // is the ONE owner, see its own doc for why a char-count estimate
+            // cannot stand in for it on a proportional face.
+            let ink_w = *ink_widths.get(row)?;
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .collect()
 }
 
-/// **559: THE CLOSE-ZONE HOVER PLATE** — a soft square behind the × under the
-/// LIVE pointer, drawn ONLY while the pointer sits inside that row's own
-/// close zone ([`RowIntent::Close`]). Exactly [`close_zone`]'s own rect: the
-/// zone the hit-test accepts and the plate the reader sees are the SAME
-/// geometry (this function's whole reason to exist, over hand-placing a
-/// second square), so a click can never land somewhere the highlight did not
-/// promise — the "drawn-vs-accepted drift" `close_zone`'s own doc names.
-///
-/// Unlike [`plate_rects`], this is not limited to the ACTIVE row: any row's
-/// (or the single-file identity's) close zone earns the hover plate, since
-/// the affordance answers "what will clicking here do", not "which file is
-/// open" — the active-row question [`plate_rects`] alone answers. `None`
-/// off every other state: resting, hovering the row's SWITCH half, or no
-/// stack/identity drawn at all.
-pub(super) fn close_hover_plate_rect(
-    layout: &GutterLayout,
-    plan: &crate::render::plan::GutterStackPlan,
-    label_char_w: f32,
-    hover: Option<super::gutter_hit::GutterStackHit>,
-) -> Option<[f32; 4]> {
-    let hit = hover.filter(|h| h.is_close())?;
-    let mark_chars = CLOSE_MARK_TEXT.chars().count();
-    layout
-        .lines()
-        .into_iter()
-        .enumerate()
-        .find_map(|(line, (text, kind))| {
-            let row = match kind {
-                gutter::GutterLine::File(at) => at,
-                // The single-file identity draws the same lone slot `hit.row ==
-                // 0` names (`gutter_hit::stack_hit_from_plan`'s own doc).
-                gutter::GutterLine::Name => 0,
-                gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
-            };
-            if row != hit.row {
-                return None;
-            }
-            let rect = *plan.rows.get(line)?;
-            let ink_w = (text.chars().count() + mark_chars) as f32 * label_char_w;
-            let mark_w = mark_chars as f32 * label_char_w;
-            Some(close_zone(rect, ink_w, mark_w))
-        })
-}
-
 impl TextPipeline {
-    /// **559:** set + upload the close-zone hover plate, off the exact rect
-    /// [`close_hover_plate_rect`] hands the hit-test. Lives here (not inline
-    /// in `gutter.rs::prepare_gutter`, the shared block owner) so a new draw
-    /// does not grow that function past its own ceiling; recomputes
-    /// `label_char_w`/the corner radius itself, matching how
-    /// `gutter_hit::gutter_hit_plan` already re-derives the same quantity
-    /// from `self.metrics` rather than threading it through every caller.
-    /// `ctx` is `None` for the block-hidden path — folding that clear in
-    /// here too (rather than a bare empty `prepare` at the call site) is
-    /// what keeps `prepare_gutter` itself down to one line per plate.
-    pub(super) fn prepare_close_hover_plate(
+    /// THE ACTIVE FILE'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
+    /// layout + planner rows [`TextPipeline::prepare_gutter`] draws
+    /// `gutter_stack_plate` from ([`plate_rects`] answers for both the lone
+    /// identity line and a stack row). `None` when the gutter is hidden/off.
+    ///
+    /// For real-pixel laws sampling INSIDE the plate without re-deriving its
+    /// padding by hand (`render/tests/one_bit.rs`'s legibility law) — a rect
+    /// computed any differently than production would defeat the point.
+    ///
+    /// **605:** shapes the buffer for the CURRENT view via the real
+    /// [`TextPipeline::prepare_gutter`] first, so the plate's ink width reads
+    /// the REAL shaped run ([`shaped_line_widths`]), never a char-count
+    /// estimate, and a caller can never see a plate computed independently
+    /// of a draw.
+    #[cfg(test)]
+    pub(in crate::render) fn gutter_stack_plate_rect(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        ctx: Option<(&GutterLayout, &crate::render::plan::GutterStackPlan)>,
-    ) {
-        let label_char_w = self.metrics.char_width * crate::markdown::type_scale::LABEL;
-        let hover = self.gutter_stack_hover;
-        let rect = ctx
-            .and_then(|(layout, plan)| close_hover_plate_rect(layout, plan, label_char_w, hover));
-        let fill = theme::surface_selected();
-        self.gutter_close_hover_plate.set_color(
-            theme::Srgb::rgba(fill.r, fill.g, fill.b, CLOSE_HOVER_PLATE_ALPHA).rgba_bytes(),
+    ) -> Option<[f32; 4]> {
+        self.prepare_gutter(device, queue, width, height).ok()?;
+        let layout = self.gutter_layout()?;
+        let label = crate::markdown::type_scale::LABEL;
+        let row_h = self.metrics.line_height * label;
+        if row_h <= 0.0 {
+            return None;
+        }
+        let stack = crate::render::plan::plan_gutter_stack(
+            height as f32,
+            layout.avail,
+            row_h,
+            layout.lines().len(),
+            self.metrics.px_physical(super::readout::CANVAS_INSET),
+            super::gutter::GUTTER_CARVE_BREATH.0,
         );
-        self.gutter_close_hover_plate
-            .set_corner(self.metrics.px_physical(PLATE_CORNER_PX));
-        self.gutter_close_hover_plate.prepare(
-            device,
-            queue,
-            width,
-            height,
-            &rect.into_iter().collect::<Vec<_>>(),
-        );
+        let ink_widths = shaped_line_widths(&self.gutter_buffer);
+        plate_rects(&layout, &stack, &ink_widths, row_h * PLATE_PAD_X.0)
+            .into_iter()
+            .next()
     }
 }
 
@@ -480,12 +482,12 @@ impl TextPipeline {
 pub(super) fn plates_and_drag_indicator(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
-    label_char_w: f32,
+    ink_widths: &[f32],
     pad_x: f32,
     indicator_thickness_px: f32,
     drag_row: Option<usize>,
 ) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
-    let plates = plate_rects(layout, plan, label_char_w, pad_x);
+    let plates = plate_rects(layout, plan, ink_widths, pad_x);
     let indicator = drag_row
         .and_then(|row| drag_indicator_rect(layout, plan, row, indicator_thickness_px))
         .into_iter()

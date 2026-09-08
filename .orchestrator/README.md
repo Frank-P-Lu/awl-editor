@@ -128,6 +128,21 @@ the turn** — ending the turn is the actual failure, because nothing wakes a
 worker but the orchestrator. Committing before any wait remains mandatory
 regardless.
 
+‼ **A FINISHED WORKER CAN WAKE ITSELF, SO REPLACING ONE IS NOT THE SAME AS RETIRING IT.**
+An agent that ended its turn while a background child was still running reports as
+`completed` — and then reports again, `running`, when that child finishes. So an orchestrator
+that responds to the first notification by spawning a REPLACEMENT into the same worktree can
+end up with two agents editing one tree, each unaware of the other. This happened on
+2026-09-08: a replacement lane and the original it replaced were both live in
+`.claude/worktrees/item-611`, and only a routine `ListAgents` caught it. Neither had committed
+yet, so nothing was lost, and that was luck rather than design.
+
+The rule: **stop the original explicitly before spawning its replacement, and stop it even
+when it reads `completed`** — that status describes its turn, not its children. `ListAgents`
+is the only thing that shows the true set; a completion notification does not mean the agent
+is retired. When you do replace a lane, tell the replacement that the inherited work is
+unreviewed, because it now owns work nobody has read.
+
 **A turn must never end on the word "holding".** On 2026-08-01 one lane ended
 four consecutive turns saying it was waiting for a monitor to notify it that a
 gate had finished. The gate had already finished — no build process was even

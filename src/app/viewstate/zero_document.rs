@@ -12,6 +12,14 @@ impl App {
         let ov = self.workspace_state.overlay();
         let mut view = ViewState::base();
         view.document_active = false;
+        // THE START SCREEN NAMES THE FOLDER: a real root is ALWAYS resolved
+        // by the time the live App reaches this state (launch, `--root`, a
+        // switched project, or the first-run default folder — never a true
+        // absence), so this is unconditional here. The render-level "absent
+        // with no root" guarantee lives at `ViewState::base()`'s own inert
+        // default instead: a fixture that never opts in leaves this `None`
+        // and the start surface stays byte-identical.
+        view.start_folder = Some(self.project_location.no_document_folder_name());
         view.zoom = self.frame.zoom();
         view.overlay_active = ov.is_some();
         view.overlay_align = ov.map(|o| o.align);
@@ -19,6 +27,8 @@ impl App {
         view.overlay_query = ov.map(|o| o.query.text().to_string()).unwrap_or_default();
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
         view.overlay_query_selection = ov.and_then(|o| o.query.selection_range());
+        view.overlay_query_placeholder =
+            ov.and_then(|o| o.kind.field_placeholder().map(str::to_string));
         view.overlay_title = ov
             .filter(|o| o.kind.draws_title_prefix())
             .map(|o| o.kind.title().to_string())

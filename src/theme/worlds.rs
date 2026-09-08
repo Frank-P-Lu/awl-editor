@@ -58,7 +58,7 @@ pub const GUMTREE: Theme = Theme {
     ornaments: Ornaments::of("\u{F591}\u{F592}\u{F592}\u{F593}", "🐟", "🐌"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_JUNICODE,
-    ornament_scale: 4.648, // equalized upward from tier 2.2 (theme::tests::ornament)
+    ornament_scale: 3.95, // retuned smaller by taste (was 4.648) — see GUMTREE_TASTE_FLOOR
     bullets: ('❧', '☙', '❦'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,

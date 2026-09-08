@@ -67,6 +67,22 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
 const QUOTE_MARK_CLOSE_GLYPH: char = '\u{201D}';
 
+/// The CLOSING mark's clearance past the last row's own shaped ink — an EM
+/// fraction (of body `font_size`), not a fixed px, so the gap holds its
+/// typographic proportion across zoom and DPI. "About half an em" is the
+/// user's own reference for this decision.
+const QUOTE_CLOSE_GAP_EM: f32 = 0.5;
+
+/// How far the closing mark's OWN baseline sits below the row's real baseline
+/// it anchors to, as a fraction of `metrics.line_height`. TUNABLE (live-taste,
+/// 2026-09 decision): the mark is shaped at [`QUOTE_MARK_SCALE`], so aligning
+/// its baseline EXACTLY to the row's own baseline leaves its ink riding a
+/// whole scaled ascender above the line — the reported "too tall" defect. A
+/// positive drop pulls the ink down toward the baseline; [`QuoteOrnaments`]
+/// additionally floors the mark's box at the row's own top, so no drop value
+/// can send it back above the line it closes.
+const QUOTE_CLOSE_BASELINE_DROP_FRAC: f32 = 0.45;
+
 fn fold_tail_text(n: usize) -> String {
     if n == 1 {
         "\u{2026} 1 line".to_string()

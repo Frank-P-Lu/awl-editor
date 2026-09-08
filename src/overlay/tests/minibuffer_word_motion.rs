@@ -121,7 +121,7 @@ fn link_minibuffer_word_delete() {
         LinkEditMode::Empty { at: 0 },
     );
     ov.link_edit_pop_word(); // drops the trailing "path" segment, keeps the "/"
-    assert_eq!(ov.rows[0].accept, "http://a.com/");
+    assert_eq!(ov.query, "http://a.com/");
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn link_minibuffer_accepts_slash_mid_string() {
     let mut ov = OverlayState::new_link_edit("ab".to_string(), LinkEditMode::Empty { at: 0 });
     ov.link_edit_char_left(); // caret between 'a' and 'b'
     ov.link_edit_push('/');
-    assert_eq!(ov.rows[0].accept, "a/b");
+    assert_eq!(ov.query, "a/b");
 }
 
 /// C — KEEP-VERSION MINIBUFFER: an empty (or whitespace-only) input still

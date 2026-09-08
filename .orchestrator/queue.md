@@ -32,6 +32,8 @@ change is intended.
 
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-537`, worktree `.claude/worktrees/item-537`.
+
 ⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
 per-document ladder scope** — the ladder follows first-reference order across
 the whole document, matching today's numbering; awl has no pages, so per-page
@@ -68,28 +70,6 @@ doubling; option off ⇒ byte-identical render to today.
 
 ---
 
-### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-577`, worktree `.claude/worktrees/item-577`.
-
-`scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
-version is already on PATH, so a warm run pays 0s and this was invisible until item 566
-timed the first cold run in sixty: **4m25s**, the second-largest line in that job's
-pre-suite budget. A prebuilt-tarball path would take ~4 minutes off every cold run, and
-cold runs are now guaranteed to recur — rust-cache's key carries the rustc version, so
-EVERY stable toolchain release produces one.
-
-Not filed as a trivial swap: the script is shared with `release.yml`, so the blast radius
-includes the release pipeline's permanently-unexercised `publish` job, and downloading a
-prebuilt binary is a supply-chain and network-policy call rather than a build-speed one.
-Decide the policy first (pin by digest? verify a checksum? keep source-build as the
-fallback when the tarball 404s?), then implement.
-
-Verify: a cold-cache CI run's `Install sccache` step drops to seconds; the release
-workflow still installs the same pinned version by the same identity check.
-
----
-
 ### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
 
 Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
@@ -110,6 +90,24 @@ above is from one arm64 container with Mesa 22.3.6, not from CI's x86_64 lavapip
 claim about "software rendering performance" needs its configuration stated, per the
 standing rule that a check runs in one configuration and that configuration is itself an
 untested hypothesis.
+
+**Shape of the work, so a lane does not start tuning.** The FIRST deliverable is a profile,
+not a patch: where do those 82-184 ms actually go, per world, on the software path? Until that
+exists, every optimisation is a guess, and this codebase's own history says a bench that does
+not witness the work will happily measure nothing — one theme bench "measured" 5 ms while no
+reshape happened at all. So make the profile witness the frame, and report the breakdown
+before proposing a change.
+
+**"Documented non-target" is a legitimate answer and may be the right one.** An 84x gap that
+is uniform across every world is not a hot spot; it is the cost of the whole render meeting a
+rasteriser with no GPU under it. If the profile says that, the honest outcome is a
+RELEASING.md/WEB.md sentence naming software rendering as unsupported and saying what a user
+sees when they land on it — not a speculative optimisation pass. That is a product call and
+belongs to the user; bring them the profile and the two options rather than a patch.
+
+Whatever is measured, state the configuration in the same breath as the number: which
+rasteriser, which Mesa, which architecture. The figure above is one arm64 container with Mesa
+22.3.6 and is NOT CI's x86_64 lavapipe.
 
 ---
 
@@ -214,6 +212,8 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
 
+🟡 IN PROGRESS — Claude (this session), branch `item-588`, worktree `.claude/worktrees/item-588`.
+
 Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
 recorded, as its own clause (c), that LIST-BULLET pairs were not covered by that pass: they
 still carry the pre-Nishiki vocabulary while the trio beside them moved. The decision was a
@@ -264,42 +264,11 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-590`, worktree `.claude/worktrees/item-590`.
-
-⬜ READY — queue only; coordinate shared chrome with 589.
-
-**Decision.** Replace the empty imitation list in Insert Link with an obvious
-destination field: readable `Link destination` label, `Paste or type a URL`
-placeholder, immediate typing, Enter to commit and Esc to cancel. Keep a quiet
-clickable commit affordance carrying its resolved binding. Preserve existing
-URL prefill, selected-text wrapping, editing an existing link and undo behavior.
-
-**Composition.** Keep the existing world/context placement policy, including
-clamping on small windows; the generated below-paragraph location is illustrative,
-not a new hardcoded rule. The user likes the relationship between Find and Link
-chrome, with consistent borders/corners inside a world. Apply 589's world-specific
-surface grammar and backing policy rather than shipping one generic rounded
-dialog. Keep surrounding prose readable; no full-viewport blur merely to enter
-a destination. Retain appropriate local separation where a world's composition
-otherwise interleaves text with the document.
-
-**Verify.** Read docs/markdown.md, docs/render.md and docs/harness-reach.md.
-Test empty/prefilled/existing-link/selected-text paths, keyboard and pointer
-commit/cancel, focus and document restoration. Native keyboard labels come
-from the real keymap. Sweep composition families, anchors, narrow widths and
-DPI 1/2; pixel-check label/field clarity and no clipping. Add the missing laws,
-mutation-prove them, and include the standing vision smoke. Report final feel
-as requiring the user's live eye, not as proven by image generation.
-
----
-
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
 
-🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`.
+🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`; MERGED then REVERTED 2026-09-08, back with three named failures (see the merge-train revert commit for the reproduction).
 
-⬜ READY — queue only; coordinate with 589 and the focus-routing repair 585.
+🟢 MERGED as `4a1bb1f5` (header was stale; corrected 2026-09-08). Original brief kept below for 589's coordination.
 
 **Authoritative reference.** `references/find-replace-chrome.png` is the crop
 the user explicitly preferred AFTER the keyboard-first remake. Preserve its
@@ -327,70 +296,45 @@ data through shared renderers, not one universal screenshot skin.
 
 ---
 
-### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
+### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07; MERGED then REVERTED 2026-09-08)
 
 🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
+The branch is intact and the work is good; it comes back with one defect, not a rejection.
 
-⬜ READY — queue only; coordinate shared chrome with 589.
+⬜ The merge train reverted it. `git bisect` between the last green receipt and HEAD names
+`3a4c0ac5` — 592's own commit — as the first bad one, and it reproduces deterministically,
+alone, single-threaded:
 
-**Approved direction.** The user strongly prefers the new Settings layout:
-modest nearby title and identifiable search, category rail beside the active
-category's controls, comfortable row spacing, and a bounded detail-column width
-that keeps values close to labels. Extra window width becomes breathing room,
-not a longer journey between a setting and its value. Remove the remote giant
-SETTINGS label in favor of the integrated hierarchy. The reference's proportions
-are the direction, not hardcoded pixel coordinates or replacement control semantics.
+```
+AWL_MENU_BAR_FORCE=on cargo test --bin awl -- --exact --test-threads 1 \
+  render::tests::range_rail::the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels
+```
+```
+Bombora (selected=true): the TRACK must paint something distinct from its ground
+```
 
-**Worlds / interaction.** Preserve the existing category/detail focus model,
-selected-row control interaction, query, return path, exact editor restoration
-and narrow staged presentation. Express rows, selection, corners and backing
-through each world's Pane/Bars/Diagonal/Ruled vocabulary. Keep relevant key hints
-near the active control, using real bindings. Start with a quiet opaque themed
-workspace ground rather than ghost prose; retain frost only if it contributes
-to that world's authored composition. No blanket removal of ambient effects.
+The law scans the rail's own row and samples its GROUND 14px past the rail's right end. Every
+sample along the rail then matched that ground exactly, so no track ink was found at all. The
+suspicion — for the lane to confirm or refute, NOT to inherit — is that clamping the content
+pane to 72 chars moves what sits 14px past the rail: either the sample is no longer on the
+card, or the rail's painted extent no longer matches the extent `overlay_range_scale` reports.
+The second would be the same class of bug 591 was reverted for in the same wave.
 
-**Verify.** Read DESIGN.md, docs/render.md and harness-reach. Sweep category,
-control kind, focus region, composition family, narrow/wide window, zoom and
-DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
-focus/selection and unchanged setting behavior. Validate appearance with pixels
-and the standing vision smoke; add mutation-proven laws at shared seams. Final
-theme-specific composition remains a live taste review.
+**Why this is worth more than the fix.** 592's lane verified its ceiling LIVE, at five window
+widths from 1200 to 3600, and watched the pane hold flat at 881.28px. That was real work and
+it still missed this, because all five ran on this host's ambient menu-bar branch, which on
+macOS is OFF. The `menubar-full` arm exists precisely because a macOS host never runs the
+branch every Linux host and every CI run always take. A check runs in one configuration, and
+the configuration is the hypothesis.
 
----
-
-### 600 — `--all-worktrees`: guard it (user decision, 2026-09-08)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-600b`, worktree `.claude/worktrees/item-600b`.
-
-⬜ DECIDED, READY: **guard it.** The user chose the recommendation below in one word. Build the refusal — `--all-worktrees` exits non-zero, naming the pid or the process, while the native-gate arbiter marker names a live pid or any `cargo`/`rustc` runs — and a law that a live marker makes the flag refuse. Nothing else in this item is open.
-
-🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
-take.** The floors are now derived from measurement — `MINIMUM_BYTES` unchanged at 24 GiB
-because it is a capacity floor, `HEALTHY_BYTES` down to a derived 27, and every receipt now
-reports what recovery reclaimed.
-
-What remains is one question with a measured cost on both sides.
-
-**What the mode costs.** A fleet-wide sweep empties `deps` and `.fingerprint` while leaving
-`incremental` intact — measured, and reproduced in a control. Fourteen of sixteen worktrees on
-this host currently sit in that state, holding about **90 GiB of `target/` that backs no
-build**, each owing a full cold rebuild if resumed. A law stops any tracked script or workflow
-passing the flag; nothing stops a person typing it mid-wave, and 593 already showed what a
-sweep reaching a live sibling does.
-
-**What it buys.** One command instead of forty-one, at a moment when the fleet is genuinely
-idle — and it rarely is: two lanes were live while the measurement ran.
-
-**The lane's recommendation, which the orchestrator endorses: keep the mode and put a check
-where the operator's judgement currently is** — refuse `--all-worktrees` while the native-gate
-arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten lines, and it
-turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
-the mode is second-best and does not touch the larger `incremental` number (item 612). The
-status quo, where the safety is a habit, is worst.
+Keep everything else: merging the two drifted placard predicates into one owner
+(`placard_style_applies`) is better than the item asked for and should come back with the fix.
 
 ---
 
 ### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
+
+🟡 IN PROGRESS — Claude (this session), branch `item-603`, worktree `.claude/worktrees/item-603`.
 
 ⬜ DECIDED, READY (user, 2026-09-07): **select within the transcript.** A selection asked for inside a substituted transcript selects that transcript's text — the first of the three options below, the one that needs a transcript-side offset map. The action stays advertised; it is never scoped to nothing. The user's own words: it should select what you selected.
 
@@ -414,78 +358,6 @@ right.
 Laws: whichever is chosen, the three surfaces must agree by construction with enrolment
 derived from `shows_read_only_prose` rather than named, and the advertise/refuse pairing must
 be law-pinned so a surface cannot advertise what it will not do.
-
----
-
-### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, worktree `.claude/worktrees/item-605-617`; landed together with 617 as the board directs.
-
-⬜ READY — a user-reported bug, so audit its neighbourhood: the active-row plate shares the
-estimate and the same drift.
-
-Reported with a screenshot: in a right-aligned stack over a proportional face, hovering a
-15-character name lit a plate a full plate-width to the LEFT of the ×, and the active-row
-plate ran past the × on the same side. Cause, read out of the tree: `close_hover_plate_rect`
-and `close_zone` (`render/chrome/gutter_stack.rs`) derive the ink's left edge as
-`right − (chars + 2) × label_char_w`, with `label_char_w = CHAR_WIDTH × LABEL` — the fixed
-nominal advance in `render.rs`, never the shaped label's width. Right alignment pins the real
-right edge, so in a proportional face the estimate overshoots left by the per-glyph shortfall
-summed over the name; the drift grows with name length and with how narrow the face runs.
-`plate_rects` uses the same estimate. Because the hover plate and the hit-test are
-deliberately ONE rect, this is a hit bug, not a cosmetic one: on a long name a click on the ×
-glyph itself lands in Switch, and the lit box off to the left is the place that would close.
-
-Why the law missed it: `the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone`
-(`render/tests/gutter_stack_pixels.rs`) sweeps two name lengths in Saltpan only, and pads the
-mark lane 6px to tolerate "estimate/shaping slop on a proportional face" — the face axis was
-never swept, and the pad was set under the slop it was meant to expose.
-
-**Scope change (user, 2026-09-08, see 617):** the hover PLATE is being retired — the × will flip colour instead — so this item owns the ZONE and the active-row plate only. The hit-test still needs the shaped edge; a click on the × glyph must close. Sequence 617 after this, or land both in one lane.
-
-Fix: ONE owner reads the ink's left edge off the shaped `gutter_buffer`'s layout run (the
-row's first glyph x, or right edge minus `line_w`), consumed by the zone, the hover plate, the
-active plate and the hit-test alike; the char-count estimate survives only for the BUDGET
-(`avail_chars`), where a count is the right question. Laws: enrol the whole world roster
-(derived from `THEMES`, not a named world) × both name lengths; assert the zone's left edge
-against the ×'s real first-glyph x within an antialiasing tolerance; retire the 6px pad, or
-justify it against a measured maximum; prove non-vacuity by restoring the estimate under one
-proportional face and watching the law go red. Name the world in the failure message.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier. Read docs/render.md (rowlayout) and this file's test-lock tripwire before touching the
-pixel law — it renders on the shared device.
-
----
-
-### 606 — 570's closing 99 moves to B: after the last line's own text (user decision, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-606`, worktree `.claude/worktrees/item-606`.
-
-⬜ DECIDED, READY. The user saw the A/B captures (Paperbark and Bowerbird, one-line and
-multi-line) and chose B. Per-world was asked and declined: where a closing mark sits is a
-typographic rule, not a world identity — one answer, twenty worlds. Reopen only if a live
-look across the roster disagrees.
-
-What to build: a per-mark x on `QuoteOrnaments` (`render/layers/ornaments.rs`) — the "about
-20 lines" 570's lane costed when it prototyped B as a capture rather than landing it. The 99
-hangs one gap after the last visual row's shaped ink, on that row's own baseline. Two things
-the prototype captures show and this item must fix rather than inherit: (a) on the multi-line
-case the 99 rode above the row and read as belonging to the row above — anchor it to the last
-row's baseline the way the 66 is anchored to the first row's. **The user said this in their own
-words on seeing the captures: "some of the 99s look a tad too tall, it should be closer to the
-baseline, just a little bit"** — so the vertical placement is a taste target, not just a
-geometry fix, and the lane should offer two or three drops as captures rather than pick one. The user then showed a reference (a pull-quote in chat, not on disk): the 66 hangs in the left margin with its top near the first line's cap height; the 99 follows the last word after a gap of about half an em, with its ink sitting between that line's x-height and cap height — a little above the baseline, never above the line's own top. That is the target;
-(b) at the widest wrap the
-trailing 99 must yield inside the column rather than escape past the text edge — clamp,
-never overflow. The 66 stays where it is.
-
-Laws: 99's x = last-row ink right + gap, on every world and at narrow and wide wrap; its y
-band overlaps the last row's band and no other row's; a presence floor on the glyph's ink so
-a mark that failed to paint cannot pass. Deliver A-vs-B captures across the roster for the
-live eye; the feel is owed to the user, not proven by capture.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; visual judge at the production tier.
 
 ---
 
@@ -513,87 +385,6 @@ grammar cannot spell keeps the default and prints a note naming the line, the sa
 bad key chord already gets. Keep the deferred `#heading-anchor` no-op deferred.
 
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
-
----
-
-### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-608`, worktree `.claude/worktrees/item-608`.
-
-⬜ READY — small, reproduced headlessly, and the neighbourhood is already audited: the bullet
-ornament is the ONE painted-ornament family that never learned the selection reveal.
-
-Reported as "when selected, the 2nd-level indent changes shape": in a nested list, selecting
-across a child row shows two markers on it — the depth glyph where it always sits and, just
-below and left of it, the raw `-` the selection reveal restored. Reproduced in Bombora and
-Bowerbird with `--keys "C-n C-n S-Down S-Down"` over a four-line list; the marker lane's ink
-on the selected child row widens from the ornament's 7px to the full 25px of a depth-0 lane,
-and the zoom shows the glyph stacked over the dash. The depth-0 rows double too, but there the
-ornament sits on top of the dash and hides it, which is why the child row is the one a reader
-notices.
-
-Cause, read out of the tree: the line-attrs owner (`render/spans/layout.rs`) conceals the raw
-marker only when `conceal_off_cursor && !line_selected`, exactly as its comment promises — "on
-the caret's own line, or any selected line, the raw markup reveals and NO ORNAMENT IS DRAWN".
-The painter does not keep that promise: `bullet_marks` (`render/rects.rs`) skips `li ==
-self.cursor_line` and nothing else, while its siblings `rule_marks`, `footnote_marks` and
-`bare_url_marks` all filter through `selection_touch_bytes`/`selection_touches` as well. The
-selection reveal was widened to the legacy bullet CONCEAL and never to the bullet ORNAMENT.
-
-Fix: route `bullet_marks` through the same `selection_touch_bytes`/`selection_touches` owner
-the other three read — one filter, not a fourth reading of the overlap test — so the ornament
-set and the conceal set are the same set by construction. Laws: extend the existing bullet
-depth/reveal law so that a selection touching a bullet row (caret elsewhere) yields no glyph
-for that row in `bullet_glyphs()` while `bullet_marker_concealed` reads false for it; sweep
-depth 0 and depth 1 and a selection that touches the row without the caret's line moving
-(the `refresh_rule_conceal` skip-gate tripwire in docs/markdown.md); prove non-vacuity by
-restoring the caret-only skip and watching it go red. A pixel companion: the marker lane's
-ink on a selected child row is the dash's alone, no wider than the unselected caret-row lane.
-
-Routing: worker Sonnet medium (Claude) or `gpt-5.6-sol` medium; outcome audit at the
-production tier.
-
----
-
-### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-609`, worktree `.claude/worktrees/item-609`.
-
-⬜ DECIDED, READY — coordinate with 589 (shared transient chrome): this item is the one
-surface 589's "each world's authored composition" rule does NOT apply to, by decision.
-
-Reader feedback, relayed by the user: "the theme switcher should not jump all over the
-place — it made my boyfriend dizzy". Reproduced with `--keys "Cmd-T C-n…"` from Tawny: every
-arrow re-composes the LIST ITSELF into the previewed world's chrome, because
-`sync_theme_colors` switches `theme::active()` per arrow and the picker reads its
-composition from there like every other overlay. Across a few arrows the list is a plain
-pane at the column's left, then a descending spine on the left with a THEMES placard
-(Mangrove), then chips on the left with a paged "↑ 1 more / ↓ 7 more" window (Galah), then an
-ascending spine on the RIGHT (Magpie), then a ruled list top-right (Kite) — moving corners,
-changing face, row pitch, list style and how many rows are visible, all while the reader is
-trying to hold the selection with their eyes.
-
-**Decision.** The theme picker gets a FIXED chrome for the life of the summon: one simple
-list in one place, the Find/Replace-box grammar the user already prefers
-(`references/find-replace-chrome.png` beside this board), while everything BEHIND it — page,
-prose, margins, ground — previews the world live as today. The list's own surface colours
-may follow the previewed world (that is the preview) but its composition, anchor, face,
-row pitch, page window and selection treatment do not. Frost stays `Footprint`.
-
-Mechanism, not a per-world code path: the picker's chrome reads a PINNED `RenderCaps` /
-composition captured at summon (or a dedicated `ListStyle::Pane`-shaped constant) rather
-than `theme::active().render_caps` per frame — one seam, named, with every other overlay
-still reading the live caps. `effective_list_style()` is where the picker currently asks; do
-not special-case inside the compositions.
-
-Laws: across a full arrow sweep of the roster the picker's card rect, anchor, list style,
-row pitch and visible-row window are identical frame to frame (sidecar + pixel bbox of the
-card), while the page ground behind it changes on every arrow (presence: the frames DO
-differ outside the card); prove non-vacuity by restoring the live-caps read and watching the
-rect law go red on the first non-Pane world. Standing five-shot vision smoke.
-
-Routing: worker `gpt-5.6-sol` high or Sonnet high; visual judge at the production tier.
-Feel is owed to the user's live eye — and to the reader who got dizzy.
 
 ---
 
@@ -666,51 +457,6 @@ tier.
 
 ---
 
-### 611 — "Open in Awl" from the Finder: declare document types and accept the open-documents event (user request, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-611`, worktree `.claude/worktrees/item-611`.
-
-⬜ READY — engineering, two halves, both required; the second is the one that is easy to
-skip and then nothing opens.
-
-The user asked: "finder: open in awl, like right-click on a file and add this option? how do
-we do this?" Today `scripts/package-macos.sh` writes an Info.plist with NO
-`CFBundleDocumentTypes`, so the Finder's Open With menu never lists Awl and it cannot be made
-the default for `.md`; and the app has no handler for the open-documents Apple Event
-(`application:openURLs:` / `openFiles:` — `grep -rn openFiles src` is empty), so even
-`open -a Awl note.md` launches the app without the file. The only live door is the daemon's
-`open <path>` socket line, which the CLI uses.
-
-(1) **Declare the types** in the plist: `CFBundleDocumentTypes` for `net.daringfireball.markdown`,
-`public.plain-text`, `public.text` (and the `.txt`/`.md`/`.markdown` extensions as
-`CFBundleTypeExtensions` for pre-UTType consumers), role Editor, `LSHandlerRank Alternate`
-so Awl is OFFERED without stealing the default. Once declared, right-click ▸ Open With ▸ Awl
-appears for every text file, and "Change All…" makes it the default. Keep the MAS arm's
-entitlements in mind: the sandboxed build needs `com.apple.security.files.user-selected.read-write`
-already present for a picker-chosen file; verify Finder-opened files are covered by the same
-entitlement (they are, as user-selected).
-
-(2) **Accept the event.** winit 0.30 owns the `NSApplicationDelegate` and forwards no
-open-documents event, so install a handler on the delegate winit creates (objc2 subclass or
-method addition on the existing delegate class, the way `mac_chrome` already reaches AppKit)
-that routes each URL into the SAME `DaemonEvent::OpenPath` the socket door already posts via
-`EventLoopProxy` — one open path, never a second. Handle BOTH cases: app already running
-(event arrives on the live loop) and cold launch (the event arrives before the window exists;
-queue it and drain after the first frame, the same shape session restore uses). Honour the
-existing single-instance daemon: a second Finder open must not spawn a second process.
-
-A Finder context-menu item that reads literally "Open in Awl" is a Finder Sync extension or a
-user-installed Quick Action, neither of which awl ships; Open With is the platform's own
-answer and is what the item delivers. Record that in docs/platform.md.
-
-Laws: the plist declares each type by name (a test parses the generated plist); the
-open-path route is one owner (grep-law: no second path from AppKit into `App`); the
-cold-launch queue drains exactly once. Live: Open With from the Finder on a running and on a
-quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the user.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier.
-
 ### 616 — table selection: neighbouring cells flicker while the band settles (user report, 2026-09-08)
 
 ⬜ READY. The user confirmed 551's whole-row band is what they want, and reported one defect on it in their own words: "the neighbouring cells kind of flicker, I don't like that." Cells beside the selected run change appearance transiently while the selection moves. Read the cause out of the tree before fixing — 551 landed in `f740749c` (`render/rects.rs`, `render/geometry.rs`, law in `render/tests/table_selection_band_law.rs`) with a follow-up in `db90497e`; find what animates or re-paints on the untouched cells (a band ease, the table x-ray's grid float, or a cache invalidation that re-shapes the row). **The user's fallback, stated plainly: if the flicker cannot be cut out on its own, remove the animation on the table band altogether.** A calm still band beats a lively one that flickers.
@@ -721,41 +467,135 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ---
 
-### 617 — the × hover box goes; the mark flips colour instead (user decision, 2026-09-08)
+### 620 — a law locates its subject by relative path, so it passes only from the crate root (found by 608's gate, 2026-09-08)
 
-🟡 IN PROGRESS — Claude (this session), branch `item-605-617`, same lane as 605.
+⬜ READY — small, reproduced in one command, and it is the configuration principle in its
+purest form: the law is correct and the working directory it runs in is the untested
+hypothesis.
 
-⬜ DECIDED, READY — sequenced after 605, or landed in the same lane.
+`app::semantic::tests::semantic_snapshot_has_no_ungated_frame_side_caller`
+(`src/app/semantic/tests/mod.rs`) walks the tree from `PathBuf::from("src")` — a RELATIVE
+path — so it asserts over the crate only when the test process happens to start in the crate
+root. Run the same built binary from anywhere else and it panics `src is readable: NotFound`.
+Reproduced directly: green from the worktree, red from `/tmp`, same binary, same commit.
 
-The user kept the hand cursor (559's open question, now closed) and rejected the hover plate: "the box that shows up when you hover the × is kind of offensive; get rid of the box and just flip the colour of the ×." So on hover the × swaps to a second palette colour and no rect is drawn. The hit zone stays exactly where 605 puts it (shaped ink edge); only the paint changes. Pick the flipped colour from the world's existing roster through one owner rather than a new constant per world — the caret accent is the obvious candidate, and DESIGN.md's one-accent rule is the reason to prefer it. The user asked "we have enough colours in the palette to do this, right?" — answer that in the lane's report with the pair actually used, per world, and a contrast figure against the ground.
+Two defects, not one. **(a) The subject is located by cwd** rather than by
+`env!("CARGO_MANIFEST_DIR")`, which is fixed at compile time and is what every other
+source-walking law in this tree should be checked against too — sweep for siblings, because
+this one was found by accident. **(b) The failure misnames itself.** The
+`.expect("src is readable")` fires for EVERY directory the walk pops, so whichever directory
+actually failed, the message says "src". A law that cannot name what broke costs a reader the
+diagnosis it was written to give.
 
-Laws: hovered × ink differs from resting × ink on every world (presence floor on both); no plate pixels paint on hover (the plate law from 558/559 inverts, not deletes); the active-row plate is untouched. Retire the plate-geometry laws that only 605's hover plate needed.
+It went red once, during a gate run while the orchestrator was deleting fifteen worktree
+`target/` trees and the host was at load 100 with 9 GiB of swap in use. That is the trigger,
+not the cause — a law anchored at the manifest directory would not have noticed.
 
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; vision smoke over five worlds asking "which × is hovered?".
+**The sweep is already done — this is the census, so the lane spends its round fixing rather
+than finding.** Four sites assume the crate root is the working directory, and two of them say
+so in a comment without ever asserting it, which is the tell:
+
+| site | shape |
+|---|---|
+| `src/app/semantic/tests/mod.rs:111` | `PathBuf::from("src")` — the walk that fired |
+| `src/app/semantic/tests/mod.rs:165` | `read_to_string("src/render/chrome/hud.rs")` — same file, same defect |
+| `src/app_icon/tests.rs:24` | `fn root() -> PathBuf { PathBuf::from(".") }`, commented *"Tests run with CWD == the crate root"* |
+| `src/icon_manifest.rs:295` | the same comment, *"Tests run with CWD == the crate root."* |
+
+The correct pattern is already in this tree and needs no invention:
+`src/module_map_law.rs:82` uses `PathBuf::from(env!("CARGO_MANIFEST_DIR"))`, which is fixed at
+COMPILE time and therefore cannot be moved by a runner, a shard, or a shell. `println_audit`,
+`macos_identity_law`, `embedded_docs_law` and `roster_claim_law` all read the same way.
+
+Build: anchor all four at `CARGO_MANIFEST_DIR`; make the expect name the directory it was
+actually reading rather than always saying "src". Delete the two comments — an assumption
+stated in prose and asserted nowhere is the thing being retired, and leaving the comment
+beside a fixed call site would preserve the wrong idea.
+Law: the walk resolves identically from a different working directory — assert it by running
+the check function with the process cwd changed, so the law fails if someone reintroduces a
+relative root.
+
+Routing: worker Sonnet medium; no audit tier needed — the fix is mechanical and the sweep is
+the valuable half.
 
 ---
 
-### 618 — Gumtree's dash ornament about 15% smaller (user taste call on 561, 2026-09-08)
+### 621 — the cpu-spin law asserts an absolute 50% floor, so a busy host cannot earn a receipt (blocked a merge train, 2026-09-08)
 
-🟡 IN PROGRESS — Claude (this session), branch `item-618`, worktree `.claude/worktrees/item-618`.
+⬜ READY, and it is currently BLOCKING: while several lanes build, no gate on this machine can
+issue a receipt at all, including a lane's own.
 
-⬜ DECIDED, READY. The user saw 561 live in Gumtree: the snake reads proportionate but "a tad too tall — make it 15% smaller, maybe." Gumtree's `ornament_scale` is `4.648` in `theme/worlds.rs`; the target is about `3.95`. **Tripwire from 561, still true:** star and underscore share that one dial with dash, so a plain scale change shrinks all three. Decide in the lane whether the three should move together (simplest; check star and underscore in Gumtree after) or dash gets its own factor — prefer the shared move unless a capture shows the other two going too small, and say which in the report. Update the equalisation law in `theme::tests::ornament` so it does not re-equalise the value back up. Deliver before/after captures of `---`, `***` and `___` in Gumtree at the default geometry.
+`scripts/test-native-gate.sh`'s cpu-spin probe launches a fixture that deliberately spins, then
+asserts the vitals heartbeat saw a tracked process peak at `>= 50` percent of a core. The
+comment beside the floor explains where 50 came from: `ps -o time=` quantises to whole seconds
+on Linux, so a 3s window can under-read a pegged process by about a third. That is a
+MEASUREMENT correction, and it is correct as far as it goes.
 
-Routing: worker Sonnet medium; one capture round, no audit beyond the law.
+What it does not contemplate is a host where the fixture cannot GET a core. On a ten-core
+machine running seven concurrent lane builds the spinner peaked at 33.3%, and the law failed —
+truthfully reporting that the busiest tracked process was not pegged, which was simply the
+fact. The law is not wrong about what it measured; its unstated precondition is an idle host,
+and this fleet's whole design is to not have one.
+
+This is the configuration principle again, one turn further in: the law states its
+measurement correction in a comment and never states the precondition that the correction
+assumes. Compare 620 — same shape, different axis (working directory there, host load here).
+
+Build, and the choice matters. The weak fix is a bigger tolerance, which only moves the load at
+which this recurs. Two better ones:
+
+- **Assert the relationship, not the absolute.** What the law actually wants to know is whether
+  the heartbeat's reported percentage TRACKS the fixture's real CPU consumption. Compare the
+  heartbeat's figure against the fixture's own cumulative CPU time over the same window and
+  require them to agree within a band. That is true on an idle host and on a loaded one, and it
+  still fails if the heartbeat stops seeing the process — which is the defect the law exists to
+  catch, and the one a raised tolerance would start hiding.
+- **Or detect contention and skip LOUDLY**, naming the load average and saying which law did not
+  run — never silently, and never by passing.
+
+Whichever is chosen, the probe must print the configuration it ran in — load average and core
+count — so a reader can tell a real regression from a busy afternoon without re-running it.
+
+Non-vacuity is the interesting half: prove the new form still goes red when the heartbeat
+genuinely loses sight of a spinning process, which is the original defect (a receipt run once
+reported `tracked_procs=0` and `0.6%` while two test binaries burned a core each).
+
+Routing: worker Sonnet high — the fix is small, the oracle design is not.
 
 ---
 
-### 619 — the no-document screen says which folder is open (user report, 2026-09-08)
+### 622 — the theme-picker chrome pin is a swappable global outside testlock's one field list (found reviewing 609's merge, 2026-09-08)
 
-🟡 IN PROGRESS — Claude (this session), branch `item-619`, worktree `.claude/worktrees/item-619`.
+⬜ READY — small, and it is the leak class this repo has already paid for once.
 
-⬜ READY. The user opened a folder of markdown files and saw the same blank screen as before, and read it as "nothing happened" — the folder HAD opened (the picker lists it), but the screen gave no sign. That is a real gap in the first-run/no-document state, not a bug in opening. Read the current state out of the tree first: `app/lifecycle.rs` builds the title through `window_title_no_document`, and `firstrun::is_first_run` decides the welcome; find what the empty document surface paints when `root` is set but `file` is not (the empty-state notice law in `render/plan/tests.rs` is the seam).
+609 added `PICKER_CHROME_PIN`, a thread-local world index that six `effective_*` resolvers
+read instead of `theme::active()`. The design is right and the module comment argues
+correctly that a thread-local can skip the lock: it isolates `cargo test`'s parallel worker
+threads from each other, which is the property the process-global guard exists to supply.
 
-What to build: when a root is set and no file is open, the empty surface names the folder (its last path segment, home-relative) and the one action that follows — the Go-to-file chord rendered through `keytoken`, so the glyph is right per convention. Same owner for the title bar's no-document text. Keep it to one dim line in the composition, not a panel. Nothing changes when neither root nor file is set.
+The gap is not the lock — it is the RESTORE. `testlock`'s anti-leak design works because its
+snapshot, its leak audit and its restore share ONE field list by construction, so a global
+cannot be added to the snapshot and forgotten by the audit. This pin is in none of the three.
+A test that pins and then panics before unpinning leaks the pin to the next test on that
+worker thread, and the next test reads a `list_style`, `chrome_face` or `location_style` it
+did not choose.
 
-Laws: sidecar reports the folder name in the empty state when a root is set (drive it with `--root`); the line is absent with no root; the chord glyph matches the active convention; pixel presence floor on the line in both grounds. Capture against a seeded `--root`, never the ambient one (public repo; see Conventions).
+That is exactly the shape of the leaked `ListStyle::Bars` that once made an unrelated
+jump-hint law report a clip that was not one — green single-threaded, red under a wide
+`--test-threads`, and blamed on the wrong law for a while. The pin's own law does unpin and
+re-pin around its mutation arm, but on the HAPPY path only; an assertion failing between those
+two calls leaves the pin set.
 
-Routing: worker Sonnet high; vision smoke: "what folder is open?" over three worlds.
+Build: bring the pin under the same discipline as the other swappable globals — either into
+`testlock`'s shared field list so the snapshot, the audit and the restore all see it, or
+behind a guard object whose `Drop` restores it on the unwinding path too. Prefer the shared
+list: a second mechanism here is how the first one drifted.
+
+Law: a test that pins and then panics must not leave the pin set for the next test on that
+thread. Prove non-vacuity by removing the restore and watching it go red — and run it under a
+wide `--test-threads`, because that is the configuration where this class shows up at all.
+
+Routing: worker Sonnet medium.
 
 ---
 
@@ -844,6 +684,29 @@ this ground's geometry and inherits the same sign-off.
 ---
 
 ## Green train — the exact-main receipts
+
+**Seventh train, `984a9975`** — covers 608, 600, 577, 611, 618, 590, 609, 606, 605+617 and
+619, HEAD verified unmoved across the run.
+
+```
+native-gate-receipt commit=984a9975 health=pass:345s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5007 unit_shards=6 integration_targets=18
+```
+
+⚠️ **NOT PUSHED, and not for any reason in the tree.** GitHub refuses the push because 577's
+merge touches `.github/workflows/ci.yml` and this session's token carries no `workflow` scope.
+That is a credential scope on the user's own account: `gh auth refresh -h github.com -s
+workflow`. Nearly fifty commits wait behind it.
+
+Two items were REVERTED out of this train rather than shipped: 591 (a sidecar publishing a
+card rim 560 units from where it draws, plus a summoned-layer bypass in mouse.rs) and 592 (a
+menu-bar-axis regression in the range rail). Both branches are intact and both are back with
+their lanes. **Both were merged un-gated** because this orchestrator told every lane to skip
+the full gate so the train could hold the capacity=1 arbiter. That protocol bought arbiter
+time and cost two defects reaching main and two gate cycles removing them. It is not obviously
+a bad trade at eleven lanes, but it is a trade, and it should be made deliberately rather than
+inherited.
+
 
 **Sixth train, `8f7c628f`** — covers 596, 597, 598, 602, 595 and 604, HEAD verified unmoved
 across the run. `health=pass:280s unit_tests=4979`, web-smoke OK. **CI run 34173463828 was

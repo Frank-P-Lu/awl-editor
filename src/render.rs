@@ -1518,7 +1518,7 @@ pub(crate) fn derived_placard_corner(
 pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
     match overrides::current().card_anchor {
         Some(anchor) => anchor,
-        None => theme::active().render_caps.card_anchor,
+        None => picker_chrome_theme().render_caps.card_anchor,
     }
 }
 
@@ -1581,7 +1581,7 @@ pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     match overrides::current().chrome_face {
         Some(f) => f,
-        None => theme::active().render_caps.chrome_face,
+        None => picker_chrome_theme().render_caps.chrome_face,
     }
 }
 
@@ -1612,10 +1612,75 @@ pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
 
 pub(crate) const BAR_OUTLINE_STROKE: Logical = Logical(1.5);
 
+thread_local! {
+    /// The world INDEX the currently-open THEME PICKER's own chrome composes
+    /// against, or `usize::MAX` while nothing is pinned — every OTHER overlay
+    /// kind, and no overlay at all. Reader feedback: arrow-stepping the picker
+    /// re-composed the LIST ITSELF into each previewed world (moving corners,
+    /// row pitch, list style, visible-row count) because every render call below
+    /// read `theme::active()` LIVE, and the picker's own preview step
+    /// (`preview_overlay`) is the one thing in the app that swaps
+    /// `theme::active()` while an overlay is still open. Set once at summon
+    /// (`OverlayState::new_marked`, to whichever world was active then) and
+    /// re-set to `usize::MAX` the moment any NON-theme overlay opens — since
+    /// only one overlay is ever open at a time, and every overlay of every kind
+    /// passes through that one constructor, this needs no dismiss/accept/revert
+    /// hook: the NEXT summon of any kind always leaves it correct for itself.
+    /// A stale pin surviving between summons is inert — every reader here is
+    /// itself reachable only while SOME overlay's own chrome is being computed.
+    ///
+    /// THREAD-LOCAL, deliberately, unlike `theme::ACTIVE`: overlay construction
+    /// is on the hot path of nearly every test in the tree (unlike a theme
+    /// switch, which a test opts into), so a process-wide static here would put
+    /// `crate::testlock::serial()` on every one of them. A single production
+    /// process drives its whole overlay/render lifecycle from one thread, so a
+    /// thread-local behaves identically there; it only additionally isolates
+    /// `cargo test`'s parallel worker threads from each other, which is exactly
+    /// the property that lets this skip the lock.
+    static PICKER_CHROME_PIN: std::cell::Cell<usize> = const { std::cell::Cell::new(usize::MAX) };
+}
+
+/// The world the theme picker's OWN chrome reads its `RenderCaps` (and
+/// `location_style`) from this frame: the pin while one is set, else
+/// `theme::active()` exactly as every other overlay reads it. The ONE seam
+/// [`effective_list_style`], [`effective_facet_style`], [`effective_pane_split`],
+/// [`effective_chrome_face`] and [`effective_location_style`] read instead of
+/// `theme::active()` directly, so none of their ~40 existing call sites (every
+/// other overlay's own geometry/shaping/hit-test/selection-mark code) needs a
+/// per-kind branch — the pin is a no-op for them by construction, since the
+/// active world cannot move under a summon that never previews one.
+fn picker_chrome_theme() -> theme::Theme {
+    let idx = PICKER_CHROME_PIN.with(|c| c.get());
+    theme::THEMES
+        .get(idx)
+        .copied()
+        .unwrap_or_else(theme::active)
+}
+
+/// Pin the theme picker's own chrome to the world active RIGHT NOW — called
+/// once, at summon, from [`crate::overlay::OverlayState::new_marked`].
+pub(crate) fn pin_picker_chrome() {
+    PICKER_CHROME_PIN.with(|c| c.set(theme::active_index()));
+}
+
+/// Release the pin — called from the same constructor for every non-`Theme`
+/// summon, so a picker that just closed can never leave a stale pin under
+/// the next (unrelated) overlay.
+pub(crate) fn unpin_picker_chrome() {
+    PICKER_CHROME_PIN.with(|c| c.set(usize::MAX));
+}
+
+/// TEST/AUDIT HOOK: the pinned world index, or `None` while unpinned.
+#[cfg(test)]
+pub(crate) fn picker_chrome_pin_probe() -> Option<usize> {
+    let idx = PICKER_CHROME_PIN.with(|c| c.get());
+    (idx < theme::THEMES.len()).then_some(idx)
+}
+
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     match overrides::current().list_style {
         Some(s) => s,
-        None => theme::active().render_caps.list_style,
+        None => picker_chrome_theme().render_caps.list_style,
     }
 }
 
@@ -1632,15 +1697,24 @@ pub(crate) fn effective_bar_config() -> theme::BarConfig {
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     match overrides::current().facet_style {
         Some(s) => s,
-        None => theme::active().render_caps.facet_style,
+        None => picker_chrome_theme().render_caps.facet_style,
     }
 }
 
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     match overrides::current().pane_split {
         Some(s) => s,
-        None => theme::active().render_caps.pane_split,
+        None => picker_chrome_theme().render_caps.pane_split,
     }
+}
+
+/// The ONE owner of the overlay `location_style` read — mirrors
+/// [`effective_list_style`]/[`effective_facet_style`]/[`effective_pane_split`]
+/// (no dev-only force knob exists for this axis, so there is no `overrides`
+/// arm to check first). Every direct `theme::active().render_caps.location_style`
+/// read in a render CONSUMER is a stray that bypasses the theme picker's pin.
+pub(crate) fn effective_location_style() -> theme::LocationStyle {
+    picker_chrome_theme().render_caps.location_style
 }
 pub(crate) fn effective_overlay_density() -> TypeDensity {
     match overrides::current().density {
@@ -1772,6 +1846,10 @@ pub struct TextPipeline {
     pub renderer: TextRenderer,
     pub buffer: GlyphBuffer,
     document_active: bool,
+    /// Mirror of [`ViewState::start_folder`] — see that field's doc. Read by
+    /// `prepare_start_surface`'s third dim line and by the sidecar's
+    /// `document.start_folder`, both through [`Self::start_folder`].
+    start_folder: Option<String>,
     /// The GPU quad pipeline that draws the caret underline/dot (no glow/trail).
     /// This is the classic BLOCK caret; left untouched by the Morph work.
     pub caret_pipeline: CaretPipeline,
@@ -2570,6 +2648,8 @@ pub struct TextPipeline {
     /// line behave as a search field? `false` parks its caret.
     overlay_query_field: bool,
     overlay_query_selection: Option<(usize, usize)>,
+    /// Mirror of [`ViewState::overlay_query_placeholder`].
+    overlay_query_placeholder: Option<String>,
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
@@ -2683,18 +2763,13 @@ pub struct TextPipeline {
     /// [`ViewState::gutter_files`].
     gutter_files: Vec<crate::workingset::StackRow>,
     /// The working-set row/zone under the live pointer. `None` on every
-    /// headless frame (no pointer driver), so the close-mark reveal it drives
-    /// is live-pointer-only and unreachable from any capture door.
+    /// headless frame (no pointer driver), so the close-mark hover flip it
+    /// drives is live-pointer-only and unreachable from any capture door.
     gutter_stack_hover: Option<chrome::GutterStackHit>,
     /// The soft plate under the gutter block's ACTIVE FILE — a working-set row's,
     /// or the lone identity line's. Empty whenever the gutter is not drawn, so
     /// such a frame issues no extra draw (`SelectionPipeline::draw` early-returns).
     gutter_stack_plate: crate::selection::SelectionPipeline,
-    /// The soft square behind the × under the live pointer, drawn only
-    /// inside a row's close ZONE — the same rect
-    /// [`chrome::gutter_stack::close_hover_plate_rect`] hands the hit-test.
-    /// Empty outside that one hover state, so an ordinary frame draws none.
-    gutter_close_hover_plate: crate::selection::SelectionPipeline,
     /// A live row-DRAG's own drop-slot indicator: the drawn row index to
     /// insert BEFORE (`gutter_files.len()` means "at the very end"). `None`
     /// off a drag entirely — mirrors [`Self::gutter_stack_hover`]'s own

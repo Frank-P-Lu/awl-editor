@@ -380,7 +380,7 @@ impl TextPipeline {
             // `LocationStyle::draws_inline()` is false (Cassowary's
             // `RotatedRail`, composed off-card). Reads the shaper's own gate,
             // not a named world, so it tracks any future non-inline style.
-            let location_inline = theme::active().render_caps.location_style.draws_inline();
+            let location_inline = crate::render::effective_location_style().draws_inline();
             for r in plan.rows().iter().filter(|r| r.item.is_none()) {
                 let off = !location_inline
                     && matches!(geom.plan.get(r.display), Some(PlanLine::Location(_)));

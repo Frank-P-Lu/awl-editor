@@ -209,6 +209,20 @@ impl OverlayState {
         recent: Vec<usize>,
         browse_dir: Option<String>,
     ) -> Self {
+        // PIN (or release) the theme picker's own chrome to the world active
+        // right now. `Theme` is the one kind whose own rows preview a world by
+        // making it active, so it is also the one kind whose OWN composition
+        // must stop tracking `theme::active()` for the life of this summon —
+        // see `crate::render::pin_picker_chrome`'s doc. Every other kind
+        // releases the pin unconditionally: since exactly one overlay is ever
+        // open, and every overlay of every kind passes through this one
+        // constructor, a picker that just closed can never leave the pin
+        // dangling under whatever opens next.
+        if kind == OverlayKind::Theme {
+            crate::render::pin_picker_chrome();
+        } else {
+            crate::render::unpin_picker_chrome();
+        }
         let rows: Vec<OverlayRow> = corpus
             .into_iter()
             .zip(git)
