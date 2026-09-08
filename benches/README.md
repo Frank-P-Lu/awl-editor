@@ -33,7 +33,8 @@ only the legacy flags.
 | scenario  | workload                                | witness |
 | --------- | --------------------------------------- | ------- |
 | cold_open | document swap → first settled frame     | exactly 2 reshapes/sample; whole doc shaped; corpus fingerprint |
-| typing    | 30 keystrokes at the caret, frame each  | exactly 1 reshape/keystroke; pixels changed |
+| typing    | 30 render-only text edits, frame each    | exactly 1 reshape/edit; pixels changed |
+| typing_live | 30 real buffer edits + retained spell refresh + view/frame | one reshape/edit; pixels changed; spell and row work counts |
 | scroll    | page-through + jump-to-end (M-> shape)  | resolved viewport offset strictly advances per step (+ the jump leaves the top); ZERO reshapes while scrolling (the O(visible) law); pixels changed |
 | search    | type the query + next x 6, frame each   | engine count == independent `str::matches` count |
 | palette   | build + draw the real command palette   | rows exist; row instances uploaded; pixels changed |

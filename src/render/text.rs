@@ -7,9 +7,42 @@ type DocSpans = (
     Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
 );
 
+/// Exact CPU stages inside one document-text synchronization. Populated only
+/// when the benchmark enables profiling; ordinary editor runs pay one branch.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct TextSyncPhases {
+    pub context_ms: f64,
+    pub spans_ms: f64,
+    pub lines_ms: f64,
+    pub embeds_ms: f64,
+    pub splice_ms: f64,
+    pub shape_ms: f64,
+    /// Retained-row validation and replacement after shaping. Zero when
+    /// profiling is disabled.
+    pub geometry_ms: f64,
+    /// Number of changed logical lines whose new shaped rows replaced their
+    /// prior rows without rebuilding the document geometry table.
+    pub geometry_lines_patched: u64,
+    /// Number of visual rows replaced by the retained geometry path.
+    pub geometry_rows_patched: u64,
+    /// Local rows actually assembled, including any later rejected patch.
+    pub geometry_rows_materialized: u64,
+    /// Binary-search comparisons used to locate the changed lines in the
+    /// document's sorted visual-row partition.
+    pub geometry_index_probes: u64,
+    /// One when the retained geometry path succeeded for this synchronization.
+    pub geometry_patch_hits: u64,
+}
+
+fn profile_elapsed_ms(start: Option<crate::clock::Instant>) -> f64 {
+    start.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0)
+}
+
+mod change;
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
+use change::{ChangedLines, TextChange};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
@@ -65,6 +98,14 @@ impl ScriptFonts {
 }
 
 impl TextPipeline {
+    pub(super) fn enable_text_sync_profile(&mut self) {
+        self.text_sync_profile = true;
+    }
+
+    pub(super) fn text_sync_phases(&self) -> TextSyncPhases {
+        self.last_text_sync_phases
+    }
+
     fn cache_script_fonts(&mut self) -> ScriptFonts {
         let fonts = self.resolve_script_fonts();
         self.script_fonts = fonts;
@@ -297,7 +338,9 @@ impl TextPipeline {
         // `syn_lang` is set upstream (in `set_view`) before this runs.
         self.shaped_font = self.doc_family();
         self.shaped_theme = theme::active_index();
-        self.set_text_incremental(text);
+        let old_width = self.buffer.size().0;
+        let change = self.set_text_incremental(text);
+        let shape_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Grow the buffer's shaping HEIGHT so the WHOLE new document shapes (every
         // visual row appears in `layout_runs()`), which the visual-row scroll
         // count + overlay placement + hit-test all depend on. `set_size` may have
@@ -308,13 +351,15 @@ impl TextPipeline {
         // measure), not the buffer's stale size — a zoom or measure change alters
         // the column, so re-feeding the old width would keep the wrong wrap.
         let width = Some(self.text_wrap_width());
+        let width_stable = old_width == width;
         let shape_h = self.full_shape_height();
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
         self.buffer.shape_until_scroll(&mut self.font_system, false);
-        // The shaped geometry just changed: the cached total-visual-row count is
-        // stale. Recomputed lazily on the next `total_visual_rows` read.
-        self.row_geom.invalidate();
+        if let Some(start) = shape_at {
+            self.last_text_sync_phases.shape_ms = start.elapsed().as_secs_f64() * 1000.0;
+        }
+        self.refresh_changed_row_geometry(change, width_stable);
     }
 
     /// BEFORE-style whole-buffer reshape: the original code path that called
@@ -746,40 +791,39 @@ impl TextPipeline {
         ))
     }
 
-    pub(super) fn set_text_incremental(&mut self, text: &str) {
+    fn set_text_incremental(&mut self, text: &str) -> TextChange {
+        let context_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let old_doc_lang = self.doc_lang;
+        let old_han_evidence = self.han_evidence;
+        let old_image_heights = self.image_heights.clone();
+        let old_image_force = self.image_force.clone();
         let attrs = self.doc_attrs();
         // Resolve fallback faces once, then overlay each changed line through
         // `build_line_attrs` -> `add_script_spans`.
         let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
         self.han_evidence = crate::script::cjk_evidence(text);
+        let context_ms = profile_elapsed_ms(context_at);
+        let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
-        // Split without line terminators; cosmic-text stores endings separately.
-        // Re-add the trailing empty line that `str::lines()` drops so an EOF caret
-        // has a row. Compute this before image layout so selection-touch can feed it.
-        let new_lines: Vec<&str> = text.split('\n').collect();
-        let mut line_starts: Vec<usize> = Vec::with_capacity(new_lines.len());
-        let mut acc = 0usize;
-        for l in &new_lines {
-            line_starts.push(acc);
-            acc += l.len() + 1;
-        }
+        let spans_ms = profile_elapsed_ms(spans_at);
+        let lines_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let cursor_line = self.cursor_line;
-        let cursor_byte = line_starts.get(cursor_line).copied().unwrap_or(0);
         // SELECTION REVEAL: the byte extent of every line the active selection
         // touches (`None` with no selection), computed ONCE from the freshly-
-        // diffed `line_starts`/`new_lines` (not `self.buffer.lines`, which is
+        // diffed line index (not `self.buffer.lines`, which is
         // still the STALE pre-edit text at this point in the splice) — see
         // `selection_touch_bytes`'s own doc comment for why this is the ONE
         // owner every reveal decision below reads (now including
         // `compute_image_layout`'s inline-image reveal).
-        let selection_touch = selection_touch_bytes(
-            self.selection,
-            |i| line_starts.get(i).copied().unwrap_or(0),
-            |i| new_lines.get(i).map_or(0, |l| l.len()),
-        );
-        let mut image_heights =
-            self.compute_image_layout(text, &md_spans, selection_touch.as_ref());
+        let changed_lines = ChangedLines::new(text, cursor_line, self.selection);
+        let lines_ms = profile_elapsed_ms(lines_at);
+        let new_lines = &changed_lines.lines;
+        let line_starts = &changed_lines.starts;
+        let cursor_byte = changed_lines.cursor_byte;
+        let selection_touch = changed_lines.selection_touch.as_ref();
+        let embeds_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let mut image_heights = self.compute_image_layout(text, &md_spans, selection_touch);
         let image_force = self.image_force.clone();
         {
             let table_heights = self.compute_table_layout(text, &md_spans);
@@ -791,6 +835,8 @@ impl TextPipeline {
                 }
             }
         }
+        let embeds_ms = profile_elapsed_ms(embeds_at);
+        let splice_at = self.text_sync_profile.then(crate::clock::Instant::now);
         // Build a per-line attrs list = base doc attrs + MARKDOWN spans + CJK
         // family spans (CJK family wins on CJK runs; markdown weight/color/style
         // win elsewhere). `start` is the line's document byte offset. A HEADING
@@ -814,7 +860,7 @@ impl TextPipeline {
             cjk_priority: &cjk_priority,
             fonts: &fonts,
             cursor_byte,
-            selection_touch: selection_touch.as_ref(),
+            selection_touch,
             substitute_advances: self.substitute_advances,
         };
         let line_attrs = |lt: &str, start: usize, li: usize| {
@@ -827,39 +873,14 @@ impl TextPipeline {
                 image_force.get(li).copied().flatten(),
             )
         };
-        let (prefix, old_end, new_end) = self.unchanged_band(&new_lines);
-        let mut replacement: Vec<glyphon::cosmic_text::BufferLine> =
-            Vec::with_capacity(new_end - prefix);
-        for (k, &lt) in new_lines[prefix..new_end].iter().enumerate() {
-            let old_idx = prefix + k;
-            if old_idx < old_end {
-                // Reuse the slot: `set_text` no-ops (keeps cache) if text unchanged,
-                // else resets just this line's shaping.
-                let mut line = std::mem::replace(
-                    &mut self.buffer.lines[old_idx],
-                    glyphon::cosmic_text::BufferLine::new(
-                        "",
-                        glyphon::cosmic_text::LineEnding::None,
-                        glyphon::cosmic_text::AttrsList::new(&attrs),
-                        Shaping::Advanced,
-                    ),
-                );
-                line.set_text(
-                    lt,
-                    glyphon::cosmic_text::LineEnding::Lf,
-                    line_attrs(lt, line_starts[old_idx], old_idx),
-                );
-                replacement.push(line);
-            } else {
-                replacement.push(glyphon::cosmic_text::BufferLine::new(
-                    lt,
-                    glyphon::cosmic_text::LineEnding::Lf,
-                    line_attrs(lt, line_starts[old_idx], old_idx),
-                    Shaping::Advanced,
-                ));
-            }
-        }
-
+        let change = self.classify_text_change(
+            new_lines,
+            &old_image_heights,
+            &image_heights,
+            &old_image_force,
+            &image_force,
+            (old_doc_lang, old_han_evidence),
+        );
         // Splice the changed band into the glyphon line vector. The unchanged
         // prefix lines (0..prefix) and suffix lines (old_end..old_len) keep their
         // identity and cached shaping.
@@ -873,7 +894,13 @@ impl TextPipeline {
         // touched — accepted to preserve the incremental single-line reshape. The
         // freshly-parsed `self.md_spans` (below) always reflects the whole doc, so
         // the sidecar + focus compositing stay accurate.
-        self.buffer.lines.splice(prefix..old_end, replacement);
+        self.splice_changed_lines(
+            new_lines,
+            line_starts,
+            &attrs,
+            (change.prefix, change.old_end, change.new_end),
+            line_attrs,
+        );
         self.outline_headings = if md {
             crate::markdown::headings_from_spans(text, &md_spans)
         } else {
@@ -885,6 +912,15 @@ impl TextPipeline {
         self.image_heights = image_heights;
 
         self.finalize_buffer_lines(&attrs);
+        self.last_text_sync_phases = TextSyncPhases {
+            context_ms,
+            spans_ms,
+            lines_ms,
+            embeds_ms,
+            splice_ms: profile_elapsed_ms(splice_at),
+            ..TextSyncPhases::default()
+        };
+        change
     }
 
     pub(super) fn unchanged_band(&self, new_lines: &[&str]) -> (usize, usize, usize) {

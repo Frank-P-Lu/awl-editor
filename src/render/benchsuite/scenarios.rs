@@ -14,6 +14,8 @@ use super::corpus::{self, Tier};
 use super::cx::{Cx, FramePasses, differing_pixels, ms};
 use super::{HEIGHT, WIDTH};
 
+mod typing;
+
 enum_with_all! {
     /// The scenario axis. `ALL` is the per-tier run order; `name` is a no-wildcard
     /// match so a new scenario fails to compile until it is placed everywhere.
@@ -21,6 +23,7 @@ enum_with_all! {
     pub(super) enum Scenario {
         ColdOpen,
         Typing,
+        TypingLive,
         Scroll,
         Search,
         Palette,
@@ -35,6 +38,7 @@ impl Scenario {
         match self {
             Scenario::ColdOpen => "cold_open",
             Scenario::Typing => "typing",
+            Scenario::TypingLive => "typing_live",
             Scenario::Scroll => "scroll",
             Scenario::Search => "search",
             Scenario::Palette => "palette",
@@ -79,6 +83,7 @@ pub(super) fn run_scenario(sc: Scenario, cx: &mut Cx) -> Result<CellOut> {
     match sc {
         Scenario::ColdOpen => cold_open(cx),
         Scenario::Typing => typing(cx),
+        Scenario::TypingLive => typing::live(cx),
         Scenario::Scroll => scroll(cx),
         Scenario::Search => search(cx),
         Scenario::Palette => palette(cx),
@@ -134,12 +139,14 @@ fn cold_open(cx: &mut Cx) -> Result<CellOut> {
     })
 }
 
-/// TYPING BURST (the `--bench-typing` workload shape, end-to-end): insert one
-/// char at the caret per keystroke and pay set_view + one frame — the live
-/// key→pixel path. The caret sits at the TOP of the document (line 0 is on
-/// screen at scroll 0 in EVERY tier — including XPARA, whose enormous single
-/// line under-reports its visual-row count, so a tail-following scroll cannot
-/// be this scenario's oracle; the first witness run caught exactly that).
+/// TYPING BURST (the established render-only workload): insert one character
+/// into the benchmark's working `String`, then pay `set_view` + one serialized
+/// offscreen frame. It intentionally excludes `App` synchronization, spelling,
+/// the window event loop, and the compositor. The caret sits at the TOP of the
+/// document (line 0 is on screen at scroll 0 in EVERY tier — including XPARA,
+/// whose enormous single line under-reports its visual-row count, so a
+/// tail-following scroll cannot be this scenario's oracle; the first witness
+/// run caught exactly that).
 /// WITNESS: exactly one reshape per keystroke (the incremental path still
 /// reshapes the edited line — for XPARA that line IS the whole pathology) and
 /// the typed text visibly changed the frame.

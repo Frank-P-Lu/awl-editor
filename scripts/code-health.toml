@@ -300,7 +300,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3115
+lines = 3131
+# Per-pipeline typing work counters and profiling state live with the GPU owner.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
 # (overlay_table_dims_hint_w, the shaped hint width measured once per
@@ -320,7 +321,8 @@ lines = 598
 
 [[file_size_mark]]
 file = "src/render/benchsuite/scenarios.rs"
-lines = 585
+lines = 592
+# The scenario roster dispatches live typing to its dedicated measurement module.
 reason = "Go to Line's `goto_line_count` field on the bench fixture's `OverlayState` construction, defaulted to 0 (no buffer known) like every other bare-constructed bench overlay. Item 527/528's config_keymap_flavor joins the other ViewState fields this bench fixture already threads. +2: seeds search_root/search_corpus inertly, beside the other per-kind construction fields this fixture already owns."
 
 [[file_size_mark]]
@@ -390,7 +392,8 @@ reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: eve
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1334
+lines = 1343
+# Shared row assembly serves both full geometry and changed-line geometry.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart. +7: corrected `assemble_glyph_xs`'s doc, which wrongly claimed Monaspace's tilde ligatures were AAT/`morx`-driven and unsuppressable; the font has no `morx` table at all (item 552). +22: `xray_x_span`, `row_x_span`'s counterpart reading a table x-ray row's real `glyph_xs` instead of the concealed doc row, so a selection-touched row's band can be rebuilt against what is actually on screen. +20: `active_wants_rail` and the documented `outline_wants_rail` — the one owner of the rail reservation, now keyed on the ROOM (feature on, page mode on, and any open buffer wanting rows) rather than on whichever file is on screen; reserving per buffer slid the whole page sideways on every switch. +13: `pull_quote_right` mirrors `pull_quote_left` into the writing column's right text-pad gutter — pure arithmetic, so the mirror law needs no GPU and sweeps 1440 geometry cells. +8 net: the closing mark stops mirroring (2026-09 decision) — `pull_quote_right` is replaced by `pull_quote_close_x`, which places the mark one gap past the block's own last-row ink and clamps it inside the column at the widest wrap, floored at the column's own left edge on a pathologically narrow page."
 
@@ -405,7 +408,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 591
+lines = 595
+# The exhaustive pipeline constructor initializes typing profiling and work counters.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 553 -> 554: item 540's table-dims card gained one field init
 # (overlay_table_dims_hint_w) in the exhaustive TextPipeline::new literal.
@@ -415,7 +419,8 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 584
+lines = 589
+# The pipeline geometry owner exposes changed-line assembly through the shared helper.
 # 548 -> 561: item 540's table-dims picker measures its hint text's shaped
 # width once per set_view (overlay_table_dims_hint_w), mirroring how
 # overlay_spell_w is already measured there, so the card-width geometry
@@ -446,7 +451,8 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1486
+lines = 1522
+# Text synchronization records profiling stages and checks local styling context; retained geometry work lives in text/change.rs.
 reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling. +42: the resize handle under the live pointer is mirrored into render state by re-deriving its rect fresh from `image_hit_rects()` each frame — never a stashed pixel rect, so it cannot go stale across a document edit — through the SAME `image_handle_at` hit-test the cursor-icon path already reads, so the drawn grip can never disagree with a clickable target. +53: `font_features` disables `rlig` per-face for Monaspace Xenon only (its GSUB routes the tilde family and ~40 other operator ligatures through that DEFAULT feature, verified directly against the font — no other bundled face registers it), and the doc's prior claim that this ligation was AAT/`morx`-driven and unsuppressable is corrected (item 552). +4: the three reshape paths compute the document's effective CJK-priority ladder (`script::effective_cjk_priority`, folding in the cached Han-ambiguity evidence) in place of the plain config-derived list."
 
 [[file_size_mark]]
@@ -484,7 +490,8 @@ lines = 618
 
 [[file_size_mark]]
 file = "src/spell.rs"
-lines = 992
+lines = 1024
+# Dictionary and toggle generations invalidate retained spelling projections; projection logic lives in spell/projection.rs.
 reason = "+8: `SPELLCHECK_DEFAULT` and `DictVariant::DEFAULT` — the two fresh-install values this file owns, each now a const its own static is initialised from (`SPELLCHECK_ON`, `ACTIVE_VARIANT`) rather than a bare literal, so the generated reference reads the owner instead of restating `true`/`en_us`. +14: `suggest` folds the personal (user-added) dictionary's near-miss words in before returning, so the list a correction picker shows is the same list `check` already silences squiggles from — the scan, the distance bound and the precedence rule live in the new `spell/personal.rs` sibling rather than here, so this file grows only by the merge call and its doc."
 
 [[file_size_mark]]
@@ -765,13 +772,6 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
-function = "TextPipeline::set_text_incremental"
-message = "this function has too many lines (102/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. +1: caches the document's Han-ambiguity evidence (script::cjk_evidence) beside doc_lang, its own text-derived sibling; +1: computes the effective CJK-priority ladder in place of the plain config-derived list."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/text.rs"
 function = "TextPipeline::compute_image_layout"
 message = "this function has too many lines (116/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
@@ -864,8 +864,8 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (528/100)"
-reason = "Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default."
+message = "this function has too many lines (532/100)"
+reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

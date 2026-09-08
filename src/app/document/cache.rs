@@ -36,14 +36,20 @@ impl DocumentSession {
     }
 
     pub(in crate::app) fn spell_checked_version(&self) -> Option<u64> {
-        self.active
-            .as_ref()
-            .and_then(|active| active.extra.spell_checked_version)
+        let active = self.active.as_ref()?;
+        let checker = self.spell.as_ref()?;
+        active
+            .extra
+            .spell_projection
+            .is_current(&active.buffer, checker)
+            .then_some(active.extra.spell_checked_version)
+            .flatten()
     }
 
     pub(in crate::app) fn invalidate_spell_cache(&mut self) {
         if let Some(active) = self.active.as_mut() {
             active.extra.spell_checked_version = None;
+            active.extra.spell_projection.invalidate();
         }
     }
 
@@ -54,9 +60,7 @@ impl DocumentSession {
         let Some(active) = self.active.as_mut() else {
             return;
         };
-        let text = active.buffer.text();
-        let spans = spell.misspellings_for(&text, active.buffer.syntax_lang());
-        active.extra.spell_cache = crate::spell::keyed(&text, spans);
+        active.extra.spell_cache = active.extra.spell_projection.refresh(&active.buffer, spell);
         active.extra.spell_checked_version = Some(active.buffer.version());
     }
 

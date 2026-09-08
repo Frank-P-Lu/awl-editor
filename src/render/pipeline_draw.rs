@@ -394,6 +394,10 @@ impl TextPipeline {
             #[cfg(test)]
             last_table_cell_lines: std::cell::RefCell::new(Vec::new()),
             reshape_count: 0,
+            text_sync_profile: false,
+            last_text_sync_phases: text::TextSyncPhases::default(),
+            last_conceal_sync_ms: 0.0,
+            last_caret_target_ms: 0.0,
             shape_tail_settled_height: None,
             search_active: false,
             search_matches: Vec::new(),

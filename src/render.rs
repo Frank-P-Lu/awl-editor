@@ -1857,6 +1857,15 @@ struct VisualRow {
     xs: Vec<f32>,
 }
 
+/// One visual row assembled from a single line's shaped layout, before its
+/// document-relative top is known. The incremental geometry path uses the
+/// baseline offset and row height to decide whether that line can replace its
+/// prior rows without moving any later row.
+struct LocalVisualRow {
+    row: VisualRow,
+    baseline_offset: f32,
+}
+
 impl Clone for VisualRow {
     fn clone(&self) -> Self {
         #[cfg(test)]
@@ -2273,8 +2282,9 @@ pub struct TextPipeline {
     /// the scroll<->pixel conversion can no longer use `row_index * line_height`;
     /// `RowGeom` holds, per visual row in document order (as `layout_runs()` yields
     /// them — ascending `line_top`), the row's top y + height plus the document's
-    /// total pixel height, built lazily from the shaped runs and invalidated whenever
-    /// the buffer is reshaped or its metrics change. Counting rows walks every shaped
+    /// total pixel height, built lazily from the shaped runs. Text-only edits retain
+    /// it when changed lines keep the same row count and heights; structural edits,
+    /// changed heights, and metric changes invalidate it. Counting rows walks every shaped
     /// run, so caching keeps the per-frame / per-keystroke `app.rs` reads free. The
     /// pipeline's `row_top_px` / `row_height_px` / `total_doc_height` /
     /// `total_visual_rows` delegate here.
@@ -2444,6 +2454,12 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
+    /// Release-benchmark instrumentation for the real document reshape seam.
+    /// Disabled in ordinary editor and capture runs.
+    text_sync_profile: bool,
+    last_text_sync_phases: text::TextSyncPhases,
+    last_conceal_sync_ms: f64,
+    last_caret_target_ms: f64,
     /// `Some` while a [`ShapeReach::Presentable`] reshape owes an off-screen tail;
     /// the value is the last settled whole-document height. A preview burst keeps
     /// it stable while the live row table is intentionally truncated, so each

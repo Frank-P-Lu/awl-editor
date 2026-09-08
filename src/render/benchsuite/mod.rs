@@ -1,8 +1,9 @@
 //! UNIFIED BENCH SUITE (hidden `--bench-suite` flag) — the measured matrix the
 //! five scattered `--bench-*` flags never were: corpus TIERS (S/M/L/XPARA/
 //! XMD/CODE, generated deterministically from a fixed seed — see [`corpus`])
-//! crossed with interaction SCENARIOS (cold open, typing burst, scroll +
-//! jump-to-end, search, palette open, zoom burst, theme burst, wrap/resize —
+//! crossed with interaction SCENARIOS (cold open, render-only and live-prep
+//! typing bursts, scroll + jump-to-end, search, palette open, zoom burst,
+//! theme burst, wrap/resize —
 //! see [`scenarios`]), every cell reporting min/median/p90 wall times AND the
 //! witness counters that prove the work happened (the bench-witness law:
 //! a cell that can silently measure nothing is a defect, enforced with

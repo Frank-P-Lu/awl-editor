@@ -140,6 +140,19 @@ pub(super) struct Cx<'a> {
     pub world: usize,
 }
 
+/// CPU/GPU stage split for one offscreen editor frame. Each field brackets the
+/// production method named by it; the blocking device poll stays in `render_ms`
+/// so the aggregate remains directly comparable with the suite's historical
+/// serialized frame timing.
+pub(super) struct FramePhases {
+    pub(super) set_view_ms: f64,
+    pub(super) prepare_ms: f64,
+    pub(super) render_ms: f64,
+    pub(super) text: super::super::text::TextSyncPhases,
+    pub(super) conceal_ms: f64,
+    pub(super) caret_ms: f64,
+}
+
 impl<'a> Cx<'a> {
     /// Push a built overlay into the view (the palette scenario's timed half) and
     /// tear it back down (its untimed half), so the scenario body stays readable.
@@ -178,6 +191,7 @@ impl<'a> Cx<'a> {
         misspelled: Vec<crate::spell::Misspelling>,
     ) -> Result<Self> {
         let mut p = TextPipeline::new(device, queue, cache, crate::capture::FORMAT);
+        p.enable_text_sync_profile();
         p.set_size(WIDTH as f32, HEIGHT as f32);
         p.set_dpi(DPI);
         let buffer = Buffer::from_str(&text);
@@ -219,9 +233,16 @@ impl<'a> Cx<'a> {
     /// One live-shaped frame at the CURRENT canvas width: the exact
     /// `RedrawRequested` aggregate, GPU serialized by the blocking poll.
     pub(super) fn frame(&mut self) -> Result<()> {
+        self.frame_inner(false).map(|_| ())
+    }
+
+    fn frame_inner(&mut self, timed: bool) -> Result<Option<(f64, f64)>> {
         self.p.advance(DT);
+        let prepare_at = timed.then(Instant::now);
         self.p
             .prepare(self.device, self.queue, self.width, HEIGHT)?;
+        let prepare_ms = prepare_at.map(ms);
+        let render_at = timed.then(Instant::now);
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -233,7 +254,7 @@ impl<'a> Cx<'a> {
             .poll(wgpu::PollType::wait_indefinitely())
             .context("device poll failed")?;
         self.p.atlas.trim();
-        Ok(())
+        Ok(prepare_ms.zip(render_at.map(ms)))
     }
 
     /// Push the working view and draw one frame (the per-step unit most
@@ -241,6 +262,29 @@ impl<'a> Cx<'a> {
     pub(super) fn sync_frame(&mut self) -> Result<()> {
         self.p.set_view(&self.view);
         self.frame()
+    }
+
+    /// Push the current view and draw one frame while retaining the exact stage
+    /// boundaries. Used only by the typing cell; every other scenario keeps the
+    /// established aggregate timer through [`Self::sync_frame`].
+    pub(super) fn sync_frame_phases(&mut self) -> Result<FramePhases> {
+        let set_view_at = Instant::now();
+        self.p.set_view(&self.view);
+        let set_view_ms = ms(set_view_at);
+        let text = self.p.text_sync_phases();
+        let conceal_ms = self.p.last_conceal_sync_ms;
+        let caret_ms = self.p.last_caret_target_ms;
+        let (prepare_ms, render_ms) = self
+            .frame_inner(true)?
+            .expect("timed frame must return its stage split");
+        Ok(FramePhases {
+            set_view_ms,
+            prepare_ms,
+            render_ms,
+            text,
+            conceal_ms,
+            caret_ms,
+        })
     }
 
     /// Read the offscreen target back for a pixel witness.

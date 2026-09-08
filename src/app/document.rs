@@ -29,6 +29,7 @@ struct BufferExtra {
     scroll: crate::render::ScrollPos,
     spell_cache: Vec<crate::spell::SpellVerdict>,
     spell_checked_version: Option<u64>,
+    spell_projection: crate::spell::SpellProjection,
     sync_text_cache: Option<(u64, String)>,
     caret_synced_version: u64,
     doc_saved_version: Option<u64>,
@@ -447,11 +448,13 @@ impl DocumentSession {
             .unfold_at(line);
     }
     pub(in crate::app) fn set_path(&mut self, path: PathBuf) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .set_path(path);
+        let active = self.active.as_mut().expect("active document");
+        let before = active.buffer.syntax_lang();
+        active.buffer.set_path(path);
+        if active.buffer.syntax_lang() != before {
+            active.extra.spell_checked_version = None;
+            active.extra.spell_projection.invalidate();
+        }
     }
     pub(in crate::app) fn set_note_dir(&mut self, path: PathBuf) {
         self.active_entry_mut().buffer.set_note_dir(path);

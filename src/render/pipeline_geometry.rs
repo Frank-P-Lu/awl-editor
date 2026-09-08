@@ -329,8 +329,13 @@ impl TextPipeline {
         // stale PRE-toggle geometry (the old ordering) would leave the caret one
         // step behind the just-revealed/concealed row until some unrelated event
         // caught it up. Calling it here settles the geometry first.
+        let conceal_at = self.text_sync_profile.then(crate::clock::Instant::now);
         self.refresh_rule_conceal(reshaped || restyled);
+        self.last_conceal_sync_ms =
+            conceal_at.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0);
+        let caret_at = self.text_sync_profile.then(crate::clock::Instant::now);
         self.set_caret_target(view.is_edit_move, view.held);
+        self.last_caret_target_ms = caret_at.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0);
     }
 
     pub fn set_hover_line(&mut self, line: Option<usize>) -> bool {
