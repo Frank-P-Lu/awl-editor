@@ -189,6 +189,7 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
 /// readable: NotFound` — so this law goes red the moment that regresses.
 #[test]
 fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
+    let _guard = crate::testlock::serial();
     let from_manifest_root = ungated_frame_side_callers();
     let elsewhere = std::env::temp_dir();
     let _cwd = crate::fs::CwdGuard::enter(&elsewhere);
@@ -198,7 +199,7 @@ fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
         from_elsewhere,
         "the walk must resolve identically regardless of the test process's cwd \
          (ran once from {}, once from {})",
-        std::env::current_dir()
+        crate::fs::current_dir()
             .map(|p| p.display().to_string())
             .unwrap_or_default(),
         elsewhere.display(),
