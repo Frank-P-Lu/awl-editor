@@ -583,6 +583,23 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
+**Ninth train, `4059591c` — PUSHED as `07959082..4059591c`, 18 commits.**
+
+```
+native-gate-receipt commit=4059591c health=pass:294s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5089 unit_shards=6 integration_targets=18
+```
+plus `web-smoke: OK`. Covers 623, 607, the pointer-roster extraction, 627 and 616.
+
+First train gated under the new verification policy: one gate on the integrated candidate
+rather than a full gate per worker branch. Five lanes delivered targeted evidence instead, and
+the single gate found the one thing they could not — 607's `[keys] follow` note had no fate in
+the println audit, which is a whole-tree census no branch-local run reaches.
+
+The eighth train's CI (run 34249325854) passed all four gating jobs, including both hosted-mac
+arms — the only place the virtualised-GPU axis is ever exercised.
+
+
 **Eighth train, `07959082` — PUSHED as `127ab8b1..07959082`, 103 commits.**
 
 ```
