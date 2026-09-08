@@ -1703,6 +1703,16 @@ pub(crate) fn set_picker_chrome_pin_for_test(pin: Option<usize>) {
 /// shape a leaked forced `ListStyle` once corrupted an unrelated law with.
 /// Capture this BEFORE such a manual mutation; its `Drop` restores the
 /// captured value, including while unwinding.
+///
+/// Deliberately NOT a field on `testlock::misc::MiscPins`: that module's
+/// shared list is for globals that must return to one stable AMBIENT value
+/// between tests, and this pin's whole design is the opposite — it is
+/// EXPECTED to still read `Some(idx)` after any ordinary test that summons a
+/// Theme overlay and returns without dismissing it (self-healing happens at
+/// the NEXT overlay construction, not at test-exit). A field there would
+/// make `SerialGuard`'s exit audit flag that ordinary, correct exit state as
+/// a leak — exactly the false positive `theme_picker_chrome_pin_law`'s own
+/// non-mutation tests would trip on every run.
 #[cfg(test)]
 pub(crate) struct PickerChromePinRestore(Option<usize>);
 

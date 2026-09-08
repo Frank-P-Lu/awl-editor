@@ -105,8 +105,14 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
 /// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
 /// touched, so `app/semantic/mod.rs` naming this function again would mean the
 /// per-frame whole-document cost had come back.
-#[test]
-fn semantic_snapshot_has_no_ungated_frame_side_caller() {
+/// The walk `semantic_snapshot_has_no_ungated_frame_side_caller` asserts
+/// over: every production `.rs` file under `src/`, relative to the crate
+/// root, that calls `semantic_snapshot()`. Anchored at
+/// `env!("CARGO_MANIFEST_DIR")` (fixed at COMPILE time) rather than a
+/// relative `"src"`, so it locates the same tree regardless of the test
+/// process's own working directory — see
+/// `semantic_snapshot_walk_resolves_from_a_different_cwd` below.
+fn ungated_frame_side_callers() -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     let manifest_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut stack = vec![manifest_root.join("src")];
@@ -148,6 +154,12 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
         }
     }
     found.sort();
+    found
+}
+
+#[test]
+fn semantic_snapshot_has_no_ungated_frame_side_caller() {
+    let found = ungated_frame_side_callers();
     let mut sanctioned = vec![
         // The live-App sidecar embeds the same snapshot.
         "src/app/capture_state.rs".to_string(),
@@ -161,6 +173,29 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     assert_eq!(
         found, sanctioned,
         "a new caller of semantic_snapshot() must justify its per-frame cost",
+    );
+}
+
+/// MUTATION PROOF for the `CARGO_MANIFEST_DIR` anchor: run the exact same
+/// walk from a working directory that is NOT the crate root (a relative
+/// `PathBuf::from("src")` would report `NotFound` here) and require the
+/// identical result. Restoring the old relative root by hand and rerunning
+/// under this cwd is what the reported defect looked like — `src is
+/// readable: NotFound` — so this law goes red the moment that regresses.
+#[test]
+fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
+    let from_manifest_root = ungated_frame_side_callers();
+    let elsewhere = std::env::temp_dir();
+    let _cwd = crate::fs::CwdGuard::enter(&elsewhere);
+    let from_elsewhere = ungated_frame_side_callers();
+    assert_eq!(
+        from_manifest_root, from_elsewhere,
+        "the walk must resolve identically regardless of the test process's cwd \
+         (ran once from {}, once from {})",
+        std::env::current_dir()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default(),
+        elsewhere.display(),
     );
 }
 
