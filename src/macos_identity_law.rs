@@ -322,5 +322,4 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
             );
         }
     }
-
 }
