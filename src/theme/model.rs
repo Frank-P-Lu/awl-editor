@@ -643,8 +643,8 @@ pub struct Theme {
     pub ko: &'static [&'static str],
     pub ornaments: Ornaments,
     pub ornament_face: &'static str,
-    /// List bullets keep their existing face until the separate bullet-pair
-    /// fitting round assigns pairs derived from each world's new ornament set.
+    /// The face `bullets` draws from — the Nishiki register on every world,
+    /// the same face that world's own ornament trio already reads from.
     pub bullet_face: &'static str,
     pub ornament_scale: f32,
     pub bullets: (char, char, char),
