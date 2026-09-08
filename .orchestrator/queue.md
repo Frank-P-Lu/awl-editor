@@ -580,6 +580,51 @@ Routing: worker Sonnet medium.
 
 ---
 
+### 623 — the range-rail law passes with the track deleted: it is satisfied by the thumb (found mutation-testing 592's repair, 2026-09-08)
+
+⬜ READY — small, and it is the "satisfiable by deleting its own subject" shape in its purest
+form. Not introduced by 592; found while checking 592's repair, which is sound.
+
+`the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels` asserts, by name and
+by message, that "the TRACK must paint something distinct from its ground". Delete the track
+entirely and the law stays GREEN. Verified with the mutation compiled and run:
+
+```
+# in overlay_rows.rs, the track prepares with no rects at all
+self.overlay_range_track.prepare(device, queue, width, height, &[]);
+```
+```
+Compiling awl v0.12.0
+test result: ok. 1 passed; 0 failed
+```
+Green under `AWL_MENU_BAR_FORCE=on` and `=off` alike.
+
+The reason is structural. The law walks x from the track's left to its right and keeps the
+STRONGEST delta as the thumb and the WEAKEST non-zero delta as the track. Those are two
+statistics of one scan over a span that contains both marks — so with no track painted at all,
+the thumb's own pixels supply both the maximum and the minimum, `track.0 >= 4` holds, and
+`thumb.0 > track.0` holds too. Nothing in the law ever asks whether ink was found OUTSIDE the
+thumb's own extent.
+
+592's repair is orthogonal and correct: it proved the scan's edge pixel was antialiasing rather
+than fill, and `TRACK_EDGE_INSET` moves the search off that seam. That fix is measured and
+stands. This item is the second, independent way the same law fails to mean what it says.
+
+Build: make the track's assertion look at ink that is NOT the thumb — the obvious owner is the
+thumb's own reported extent, which the test already has, so sample the track strictly outside
+it. Keep the existing figure/ground relationship (`thumb.0 > track.0`) and the one-accent
+check.
+
+Law: the law must go RED when the track paints nothing, and RED when the track paints its own
+ground colour — two different mutations, because "absent" and "present but invisible" are
+different defects and this law currently catches neither. Prove both with the mutation
+compiled AND run; a mutation that silently failed to rebuild proves nothing, and this item
+exists because that check was nearly skipped.
+
+Routing: worker Sonnet medium.
+
+---
+
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
