@@ -350,7 +350,9 @@ theme-specific composition remains a live taste review.
 
 ---
 
-### 600 — `--all-worktrees`: guard it, delete it, or leave the safety a habit? (awaiting the user, 2026-09-07)
+### 600 — `--all-worktrees`: guard it (user decision, 2026-09-08)
+
+⬜ DECIDED, READY: **guard it.** The user chose the recommendation below in one word. Build the refusal — `--all-worktrees` exits non-zero, naming the pid or the process, while the native-gate arbiter marker names a live pid or any `cargo`/`rustc` runs — and a law that a live marker makes the flag refuse. Nothing else in this item is open.
 
 🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
 take.** The floors are now derived from measurement — `MINIMUM_BYTES` unchanged at 24 GiB
@@ -426,6 +428,8 @@ Why the law missed it: `the_lone_row_close_mark_reveals_on_real_pixels_only_over
 (`render/tests/gutter_stack_pixels.rs`) sweeps two name lengths in Saltpan only, and pads the
 mark lane 6px to tolerate "estimate/shaping slop on a proportional face" — the face axis was
 never swept, and the pad was set under the slop it was meant to expose.
+
+**Scope change (user, 2026-09-08, see 617):** the hover PLATE is being retired — the × will flip colour instead — so this item owns the ZONE and the active-row plate only. The hit-test still needs the shaped edge; a click on the × glyph must close. Sequence 617 after this, or land both in one lane.
 
 Fix: ONE owner reads the ink's left edge off the shaped `gutter_buffer`'s layout run (the
 row's first glyph x, or right edge minus `line_w`), consumed by the zone, the hover plate, the
@@ -723,6 +727,48 @@ quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the use
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
 tier.
 
+### 616 — table selection: neighbouring cells flicker while the band settles (user report, 2026-09-08)
+
+⬜ READY. The user confirmed 551's whole-row band is what they want, and reported one defect on it in their own words: "the neighbouring cells kind of flicker, I don't like that." Cells beside the selected run change appearance transiently while the selection moves. Read the cause out of the tree before fixing — 551 landed in `f740749c` (`render/rects.rs`, `render/geometry.rs`, law in `render/tests/table_selection_band_law.rs`) with a follow-up in `db90497e`; find what animates or re-paints on the untouched cells (a band ease, the table x-ray's grid float, or a cache invalidation that re-shapes the row). **The user's fallback, stated plainly: if the flicker cannot be cut out on its own, remove the animation on the table band altogether.** A calm still band beats a lively one that flickers.
+
+Laws: over a selection that grows one cell at a time, the pixels of every cell OUTSIDE the band are byte-identical frame to frame (sweep the roster, not one world); the band itself still paints whole rows. Prove non-vacuity by re-introducing the transient and watching the law go red. The feel is live-only; deliver a motion capture (`--screenshot-motion`) and flag the live look as owed.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
+
+---
+
+### 617 — the × hover box goes; the mark flips colour instead (user decision, 2026-09-08)
+
+⬜ DECIDED, READY — sequenced after 605, or landed in the same lane.
+
+The user kept the hand cursor (559's open question, now closed) and rejected the hover plate: "the box that shows up when you hover the × is kind of offensive; get rid of the box and just flip the colour of the ×." So on hover the × swaps to a second palette colour and no rect is drawn. The hit zone stays exactly where 605 puts it (shaped ink edge); only the paint changes. Pick the flipped colour from the world's existing roster through one owner rather than a new constant per world — the caret accent is the obvious candidate, and DESIGN.md's one-accent rule is the reason to prefer it. The user asked "we have enough colours in the palette to do this, right?" — answer that in the lane's report with the pair actually used, per world, and a contrast figure against the ground.
+
+Laws: hovered × ink differs from resting × ink on every world (presence floor on both); no plate pixels paint on hover (the plate law from 558/559 inverts, not deletes); the active-row plate is untouched. Retire the plate-geometry laws that only 605's hover plate needed.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; vision smoke over five worlds asking "which × is hovered?".
+
+---
+
+### 618 — Gumtree's dash ornament about 15% smaller (user taste call on 561, 2026-09-08)
+
+⬜ DECIDED, READY. The user saw 561 live in Gumtree: the snake reads proportionate but "a tad too tall — make it 15% smaller, maybe." Gumtree's `ornament_scale` is `4.648` in `theme/worlds.rs`; the target is about `3.95`. **Tripwire from 561, still true:** star and underscore share that one dial with dash, so a plain scale change shrinks all three. Decide in the lane whether the three should move together (simplest; check star and underscore in Gumtree after) or dash gets its own factor — prefer the shared move unless a capture shows the other two going too small, and say which in the report. Update the equalisation law in `theme::tests::ornament` so it does not re-equalise the value back up. Deliver before/after captures of `---`, `***` and `___` in Gumtree at the default geometry.
+
+Routing: worker Sonnet medium; one capture round, no audit beyond the law.
+
+---
+
+### 619 — the no-document screen says which folder is open (user report, 2026-09-08)
+
+⬜ READY. The user opened a folder of markdown files and saw the same blank screen as before, and read it as "nothing happened" — the folder HAD opened (the picker lists it), but the screen gave no sign. That is a real gap in the first-run/no-document state, not a bug in opening. Read the current state out of the tree first: `app/lifecycle.rs` builds the title through `window_title_no_document`, and `firstrun::is_first_run` decides the welcome; find what the empty document surface paints when `root` is set but `file` is not (the empty-state notice law in `render/plan/tests.rs` is the seam).
+
+What to build: when a root is set and no file is open, the empty surface names the folder (its last path segment, home-relative) and the one action that follows — the Go-to-file chord rendered through `keytoken`, so the glyph is right per convention. Same owner for the title bar's no-document text. Keep it to one dim line in the composition, not a panel. Nothing changes when neither root nor file is set.
+
+Laws: sidecar reports the folder name in the empty state when a root is set (drive it with `--root`); the line is absent with no root; the chord glyph matches the active convention; pixel presence floor on the line in both grounds. Capture against a seeded `--root`, never the ambient one (public repo; see Conventions).
+
+Routing: worker Sonnet high; vision smoke: "what folder is open?" over three worlds.
+
+---
+
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
@@ -777,20 +823,7 @@ These items have MERGED and left the build queue. Each one still owes the user a
 a live look, which landing does not discharge. Full context is in
 `git log -p -- .orchestrator/queue.md`.
 
-**586/587 — inline formatting (merged `945ceff1`).** Two calls the lane made and flagged
-rather than buried, both read out of the tree:
-
-- **A taste call, landed, one line to revert** per this board's standing preference.
-  `==highlight==` has no flanking rule of its own — measured, `==hello world ==` really does
-  highlight — so trimming its edge whitespace is taste, not grammar. It is currently
-  `InlineKind::Highlight => Grammar::Prose("==")` in `src/actions/format/inline.rs`; giving it
-  its own grammar arm restores the old behaviour. Reverting is one line.
-- **Code spans do not pad edge spaces**, though CommonMark strips a symmetric pair. awl styles
-  the SOURCE bytes, so padding would show you `"  x  "` for a selected `" x "`. The cost is
-  that a foreign renderer reads `` ` x ` `` as `x`. The backtick case IS padded, because there
-  the alternative is no span at all.
-
-**583/584 — new-document behaviour (merged `27aa13fa`). LIVE CONFIRMATION DID NOT HAPPEN.**
+**584 — new-document VoiceOver (merged `27aa13fa`).** 583's pause-then-type journey was confirmed live by the user on 2026-09-08 ("seems to work"); only 584's VoiceOver listening test remains, and the user said they will do it later.
 The display was locked at both ends of the lane's round — `CGSSessionScreenIsLocked` read
 `<true/>` before it started and again after the gate launched — so it did not run the app and
 claimed no live evidence, which is the correct call: a locked display fails SILENTLY and
@@ -800,10 +833,6 @@ capture), and 584's VoiceOver listening test. Stated plainly because the ceiling
 584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
 through. They cannot prove the OS received it, or that VoiceOver announces it.
 
-**585 — Find's edit verbs (merged `92b1b13a`). LIVE CONFIRMATION NOT OBTAINED.** The display
-was locked (`CGSSessionScreenIsLocked = true`), so the visible ⌘A-then-typing journey the item
-asks for was not run and no live evidence is claimed. Owed to a human.
-
 **558 — the lone file's plate (merged `6c888d5c`). LIVE LOOK NOT OBTAINED.** The display was
 locked at both ends of that lane's round, so it ran headless captures only and claimed no live
 evidence. The plate is capture-verified in Mulga at RGB 126,140,103 over a 2447-pixel bbox,
@@ -812,10 +841,6 @@ plated lone file reads as calm or as busy in ordinary use — that is the whole 
 and 515 left it bare, and it is the one thing worth a live glance now that the decision has
 gone the other way.
 
-**551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
-whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
-that alternative was flagged, never built.
-
 **553 — folder-wide search (merged `277c3717`, follow-ups `e076ddd8`/`104fb174`).** The match
 highlight's real-pixel legibility is live-only and unverified. Also flagged, not hidden:
 grouping does not use the lens-strip header mechanism (a deliberate scope call); a CRLF
@@ -823,18 +848,13 @@ source file's matched line keeps a cosmetic trailing `\r`; and the corpus is sum
 only, like Assets and Go to — a file edited on disk while the picker stays open is not
 re-read until the next summon.
 
-**559 — close mark hover (merged with 550 as `347eba64`).** Keep the existing hand cursor, or
-switch the whole row to arrow-plus-hover-only to match the cited convention? Hover is
-pointer-only and undrivable by `--keys`/`--screenshot-app`, so the resting geometry is
-capture-verified but the feel and the cursor question are yours.
-
-**561 — ornament scale equalized upward (merged `5f90cb6d`, follow-ups `1b22a1c1`/`fd2f5894`).**
+**561 — answered 2026-09-08: proportionate, a little tall; 618 takes it down ~15%.** Original note kept for the star/underscore caveat, which 618 inherits. Ornament scale equalized upward (merged `5f90cb6d`, follow-ups `1b22a1c1`/`fd2f5894`).**
 Gumtree's dash is a 4-glyph snake run, so equalizing its height also grew its width (~119px →
 ~252px against a 1008px column); it reads proportionate in capture, unconfirmed live.
 Unmeasured: star and underscore share one `ornament_scale` dial with dash, so they grew
 proportionally without being checked against their own ink-to-em ratios.
 
-**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed).**
+**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed). REJECTED AGAIN LIVE, 2026-09-08:** the user looked and said "Kite is still really wrong" — nothing has changed since 582 was written, because 582 is queued and NOT dispatched. The next dispatch wave should take 582 ahead of new taste work; the user asked whether it was finished and the answer is no.
 Live human sign-off is owed for the several-minute drift and contortion feel — the harness
 verifies single-frame trajectories and the motion-safe still, not wall-clock feel over
 minutes. Also owed: at the default 1200×800 capture geometry the roaming vanishing point can
@@ -922,7 +942,4 @@ here; 566 is closed.
 
 ## Needs release authority
 
-🔴 BLOCKED — release work requires the user's explicit release word and Apple signing secrets.
-
-1. **macOS release signing** — supply the Apple secrets required by
-   `RELEASING.md` §1 before the macOS release arm can run.
+🔴 BLOCKED on the user's release word only. The user reports (2026-09-08) that Apple signing and notarisation are set up and have shipped a release already — tags `v0.9.0` through `v0.12.0` exist — so the secrets line is retired. What remains: every tag waits for the user's explicit word.
