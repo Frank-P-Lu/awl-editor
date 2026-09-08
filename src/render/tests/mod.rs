@@ -288,6 +288,7 @@ mod theme_caps_law;
 /// ACTION path, so the RENDER path can hold the world still while the selection
 /// moves — the true A/B no capture can arrange, and the answer to the pre-tag
 /// sweep's abstention on every textured and staggered world.
+mod theme_picker_chrome_pin_law;
 mod theme_picker_selection_law;
 /// How far one theme-picker arrow's reshape REACHES — the whole document, not
 /// the viewport — carrying the release per-stage measurement that makes that

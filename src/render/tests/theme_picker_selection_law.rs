@@ -6,8 +6,9 @@
 //! theme picker cannot be driven that way: its selection AUDITIONS the world
 //! (`actions::overlay_nav::preview_overlay`, reached from every input kind through
 //! `preview_move`), so two frames of a moving selection are two DIFFERENT WORLDS
-//! and their difference says nothing about selection. The world even relocates the
-//! card (`reanchor_crossing_law`), so the rows are not in the same place twice.
+//! (different ground, different surface colours) and their difference says
+//! nothing about selection — even though the picker's OWN chrome now holds
+//! still across that same move (`reanchor_crossing_law`).
 //!
 //! `scripts/pretag-journeys.py` therefore grades this picker with a within-frame
 //! substitute — the selected row's textless tail against its unselected
