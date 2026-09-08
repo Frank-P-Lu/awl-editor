@@ -533,6 +533,31 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
+**Tenth train, `d2a45d5e` — PUSHED as `4059591c..d2a45d5e`, 17 commits.** Covers 537, 632, 588.
+
+```
+native-gate-receipt commit=d2a45d5e health=pass:284s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5100 unit_shards=6 integration_targets=18
+```
+plus `web-smoke: OK`.
+
+Two failures the train caught that no worker gate would have, both worth naming because they
+argue for where the full suite belongs.
+
+**537's sixteenth settings toggle** turned two roster sweeps red — sweeps whose own message is
+"the toggle roster changed size, update this sweep deliberately". They live in
+`app::tests::files` and `actions::tests::overlay_drive`, and no reasonable reading of a
+footnote-ladder diff selects those modules. A census reached from an unrelated module is
+exactly what only a whole-suite run finds.
+
+**607's follow-override note** (previous train) had no fate in the println audit — a
+whole-tree census, invisible to any branch-local run by construction.
+
+Under the retired policy both would have been found by a per-branch gate at the cost of one
+serialized full gate per lane; under the current one they were found once, at the point where
+the tree they share actually exists.
+
+
 **Ninth train, `4059591c` — PUSHED as `07959082..4059591c`, 18 commits.**
 
 ```
