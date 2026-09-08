@@ -6,6 +6,42 @@
 
 ## Ready to build
 
+### 627 — spellcheck squiggles taper into rounded ends (user approval, 2026-09-08)
+
+🟢 READY — queued only. Preserve the existing 624/625 priority order.
+
+User report: enlarged Kite spellcheck underlines beneath two short words look
+abruptly chopped at both ends. Approved direction: gently taper each endpoint
+into a small rounded cap, retaining the existing wave amplitude, wavelength,
+phase, middle thickness, baseline gap and per-world color. The generated preview
+illustrates endpoint softness; it is not authority to change typography, palette,
+wave proportions or the background. No blur or opacity fade.
+
+Build: use the shared underline renderer and theme data, not a Kite-specific arm.
+A starting thickness envelope for a span of length L is d = min(x, L-x),
+u = clamp(d/t, 0, 1), w = w_tip + (w_middle-w_tip)*(3*u*u-2*u*u*u).
+Start t around a quarter wavelength and bound it for short spans (at most L/2);
+use a small nonzero rounded tip and appropriate antialiasing. The sine-wave
+centerline stays unchanged. Treat these as tuning guidance, not a requirement
+to approximate distance incorrectly on steep wave sections. Ensure geometry
+bounds accommodate caps without recreating the original clipping edge. Define
+endpoint handling for wrapped fragments and viewport clipping deliberately:
+viewport clipping must not manufacture decorative ends in the middle of a word.
+Keep the shared zero-amplitude nit underline behavior unchanged unless an explicit
+separate design decision requires otherwise. Preserve cached, visible-range work.
+
+Done/Verify: actual awl captures show natural starts/ends and unchanged middle
+waves; compare normal reading size and an enlarged crop. Sweep one-character,
+shorter-than-one-wave and long spans, wrap boundaries, clipping, zoom, 1x/2x DPI,
+and the roster's underline metrics/colors. Assert cap/taper presence and central
+stroke retention using rendered-pixel comparisons; the law must fail when the
+hard cut is restored and when the whole underline is faded away. Include a
+five-shot affordance vision smoke, relevant targeted laws and normal native/wasm
+gates for implementation. Final tuning remains a live taste check; report the
+revert cost when landing for judgment. This board-only decision claims no receipt.
+
+---
+
 ### 624 — search highlights share visible geometry (user priority, 2026-09-08)
 
 🟡 IN PROGRESS — Codex search owner, model `gpt-5.6-terra` at `medium`, branch `codex/624-search`, worktree `.worktrees/624-search`.
