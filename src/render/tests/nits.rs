@@ -1814,7 +1814,7 @@ fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
     crate::markdown::set_wysiwyg_on(true);
 }
 
-/// QUEUE ITEM 629 — [`rects::NitProjection`]'s retained per-line spans must
+/// [`rects::NitProjection`]'s retained per-line spans must
 /// match a FRESH `crate::nits::line_nits` recompute of the CURRENT text, at
 /// every step of an edit sequence swept across the shapes its band-splice
 /// math has to get right: a same-line append, a same-line mid-edit, a
@@ -1932,7 +1932,7 @@ fn nit_underlines_count_matches_document_nits_oracle_across_edit_shapes() {
     crate::nits::set_nits_on(true);
 }
 
-/// QUEUE ITEM 629's third correctness question: [`rects::NitProjection`] is
+/// COALESCED RESHAPES: [`rects::NitProjection`] is
 /// refreshed from [`TextPipeline::set_text`] — once per RESHAPE — rather than
 /// lazily from `ensure_nit_protos`/`prepare`, specifically so that TWO
 /// reshapes landing before the next drawn frame both still patch the cache.
@@ -1991,7 +1991,7 @@ fn nit_projection_patches_across_two_reshapes_before_one_read() {
     crate::nits::set_nits_on(true);
 }
 
-/// QUEUE ITEM 629's second correctness question: a BUFFER SWAP reuses the
+/// BUFFER SWAP: a swap reuses the
 /// same live `TextPipeline` (the real app holds exactly one, per
 /// `CLAUDE.md`'s cache-key-discipline tripwire), so [`rects::NitProjection`]
 /// must never carry a stale document's spans over into a totally unrelated

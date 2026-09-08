@@ -105,7 +105,7 @@ struct LiveTimings {
     geometry_lines_patched: u64,
     geometry_rows_patched: u64,
     geometry_index_probes: u64,
-    // Frame-preparation owner witnesses (queue item 629). `_ms` fields are
+    // Frame-preparation owner witnesses. `_ms` fields are
     // wall-clock SUMS across every key (not medians — a per-owner miss is rare
     // and lumpy, so a sum states the real cumulative cost over the run instead
     // of hiding it in a mostly-zero median). The `_lines`/`_spans`/`_calls`

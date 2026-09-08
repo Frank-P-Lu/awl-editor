@@ -111,7 +111,7 @@ pub(super) struct UnderlineCache {
 }
 
 /// Release-benchmark instrumentation for the document-wide-typing-work
-/// investigation (queue item 629): witnesses for [`TextPipeline::ensure_nit_protos`],
+/// investigation: witnesses for [`TextPipeline::ensure_nit_protos`],
 /// [`TextPipeline::ensure_ornament_lists`], [`TextPipeline::destination_ranges`]
 /// (called from both nit and spell-squiggle rebuilds, so its counters accumulate
 /// rather than overwrite), and [`TextPipeline::ensure_squiggle_protos`]. Every
@@ -234,7 +234,7 @@ pub(super) fn nit_fast_path_eligible(
         })
 }
 
-/// Retained per-line WRITING-NIT spans (queue item 629's named mechanism):
+/// Retained per-line WRITING-NIT spans:
 /// `ensure_nit_protos` used to re-tokenize EVERY logical line's own text on
 /// EVERY reshape, even though a raw nit span (before the frontmatter/table/
 /// prose/destination filters `ensure_nit_protos` applies afterward) is a pure

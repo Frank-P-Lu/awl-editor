@@ -151,7 +151,7 @@ pub(super) struct FramePhases {
     pub(super) text: super::super::text::TextSyncPhases,
     pub(super) conceal_ms: f64,
     pub(super) caret_ms: f64,
-    /// Owner witnesses from INSIDE `prepare_ms` (queue item 629): the nit and
+    /// Owner witnesses from INSIDE `prepare_ms`: the nit and
     /// ornament document-wide rescans, the destination-range document join
     /// either can trigger, and the spell-squiggle proto rebuild.
     pub(super) owner_scan: super::super::rects::OwnerScanSnapshot,

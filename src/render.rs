@@ -2460,7 +2460,7 @@ pub struct TextPipeline {
     last_text_sync_phases: text::TextSyncPhases,
     last_conceal_sync_ms: f64,
     last_caret_target_ms: f64,
-    /// Frame-preparation owner witnesses (queue item 629): the two confirmed
+    /// Frame-preparation owner witnesses: the two confirmed
     /// document-wide rescans (`ensure_nit_protos`, `ensure_ornament_lists`), the
     /// full-document join they can each trigger (`destination_ranges`), and the
     /// spell-squiggle proto rebuild. Reset once per [`Self::prepare`] call.
