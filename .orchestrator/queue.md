@@ -264,38 +264,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
-
-🟡 IN PROGRESS — Claude (this session), branch `item-591`, worktree `.claude/worktrees/item-591`; MERGED then REVERTED 2026-09-08, back with three named failures (see the merge-train revert commit for the reproduction).
-
-🟢 MERGED as `4a1bb1f5` (header was stale; corrected 2026-09-08). Original brief kept below for 589's coordination.
-
-**Authoritative reference.** `references/find-replace-chrome.png` is the crop
-the user explicitly preferred AFTER the keyboard-first remake. Preserve its
-clear bordered fields, subtle lavender surface, thin separators, separate
-match/navigation region and distinct Replace/Replace all controls where the
-world uses bordered panels. The later borderless text-strip mockup is NOT the
-selected chrome. Derive compatible corners from the world's shared treatment.
-
-**Keep keyboard character.** Controls remain clickable, but visible shortcut
-labels teach the existing behavior: replace/next, replace all, switch field,
-close and match case. Source bindings from the active platform/keymap; no
-hardcoded macOS glyphs on Linux. Distinguish labels, editable values, match
-count and actions without tiny crowded hints. Find-only remains compact.
-Keep the EXISTING top-right placement and safe inset, close below the title/menu
-bar; the first mockup's large top gap was rejected. Do not adopt its enlarged
-footprint blindly. Keep matches and surrounding prose readable.
-
-**Verify.** Preserve search/replace semantics and focus, including 585's query
-select-all law. Read docs/config.md, docs/render.md and harness-reach; exercise
-both fields and actual command bindings. Capture empty/no-match/multiple-match,
-find-only/replace and case states across world compositions, widths and DPI
-1/2; assert bounds, shortcut/action correspondence and pixel legibility. Add
-mutation-proven laws and the five-shot vision smoke. Theme identity remains
-data through shared renderers, not one universal screenshot skin.
-
----
-
 ### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07; MERGED then REVERTED 2026-09-08)
 
 🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
@@ -594,6 +562,19 @@ list: a second mechanism here is how the first one drifted.
 Law: a test that pins and then panics must not leave the pin set for the next test on that
 thread. Prove non-vacuity by removing the restore and watching it go red — and run it under a
 wide `--test-threads`, because that is the configuration where this class shows up at all.
+
+**A SECOND GLOBAL OF THE SAME CLASS, found by 591's repair lane and not by looking for it.**
+`search::LAST_QUERY` is a process-global that `actions::motion::start_search` — the real
+`C-s`/`OpenReplace` production path — prefills from, and `testlock`'s guard does not snapshot
+or restore it either. Tests that neither hold the lock nor call `clear_last_query()` inherit
+the previous test's query: two laws asserting `Some("h")` got `Some("alphah")`. Those tests
+were repaired to match the convention their siblings in the same file already followed, but
+the structural fix belongs here, with the pin.
+
+That makes this item about the LIST rather than about one global. Two were found in one day,
+neither by searching for them, which is the shape of a class rather than a pair — so the
+useful deliverable is a way for a new swappable global to be caught at birth, not two more
+entries typed into a table. Sweep for others while you are here and report what you find.
 
 Routing: worker Sonnet medium.
 
