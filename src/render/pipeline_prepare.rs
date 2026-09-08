@@ -176,8 +176,21 @@ impl TextPipeline {
     pub(in crate::render) fn frost_mode(&self) -> Option<blur::Frost> {
         // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge
         // into grey. That is true of a footprint too, so the exclusion is asked once,
-        // above both arms.
-        if theme::active().render_caps.backdrop == theme::Backdrop::Flat {
+        // above both arms. Read through `picker_chrome_theme()` — the SAME seam
+        // `effective_list_style`/`effective_facet_style`/`effective_pane_split`/
+        // `effective_chrome_face`/`effective_card_anchor`/`effective_location_style`
+        // already read (item 609) — rather than `theme::active()` directly: a crisp
+        // picker's own preview step swaps `theme::active()` to the row under the
+        // caret while the card stays open, and reading it raw here made previewing
+        // Wagtail (the roster's one `Backdrop::Flat` world) from any OTHER world
+        // drop this card's own footprint frost entirely for the duration of the
+        // preview — the row text then had nothing behind it but the live document,
+        // unreadable exactly like the sidecar-blind `selected_index` bug this
+        // module's other laws are named for. Pinned while a Theme picker is open
+        // (to the world it was summoned on, unmoved by arrowing through the list);
+        // `picker_chrome_theme()` falls back to `theme::active()` verbatim for every
+        // other overlay and for no overlay at all, so this is byte-identical there.
+        if picker_chrome_theme().render_caps.backdrop == theme::Backdrop::Flat {
             return None;
         }
         // A TEST-ONLY DOOR, and the whole of why it exists is in `blur::suppress`: a

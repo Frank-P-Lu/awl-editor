@@ -293,6 +293,10 @@ mod theme_caps_law;
 /// ACTION path, so the RENDER path can hold the world still while the selection
 /// moves — the true A/B no capture can arrange, and the answer to the pre-tag
 /// sweep's abstention on every textured and staggered world.
+/// Item 632: the card's opaque/frosted backing must survive a cross-world preview —
+/// the treatment 609's chrome pin never covered, since the pin and the backing are
+/// separate mechanisms that happen to share one seam once this item joins them.
+mod theme_picker_backing_law;
 mod theme_picker_chrome_pin_law;
 mod theme_picker_selection_law;
 /// How far one theme-picker arrow's reshape REACHES — the whole document, not
