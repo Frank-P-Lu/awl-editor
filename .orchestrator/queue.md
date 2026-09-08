@@ -6,6 +6,90 @@
 
 ## Ready to build
 
+### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
+
+🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows
+user review of the composed prototype. Preserve 624/625's existing priority order.
+
+Problem: the user rejected the live Find strip as crowded and the live Settings
+workspace as a huge surface with a tiny, tightly packed cluster and distant values.
+They expected Find, Settings and the theme picker to share the approved bordered
+form's family. Individual feature briefs reproduced controls but lost composition.
+This item owns the coordinated correction; it is awl-rendered chrome, not a request
+for OS-native widgets.
+
+Coordination: supersedes conflicting visual choices in 591 (landed), 592 (reverted),
+and 609 (landed). 589's shared-control work must use this language; retain its Commands
+scope, but do not independently land overlapping visual changes ahead of this review.
+592's separate visual implementation waits for this prototype; retain its correctness
+findings and tests. 622/623's test-integrity repairs remain valid independently. Read
+current tree/status before implementation; do not reapply a reverted branch wholesale.
+
+Shared foundations (initial prototype measurements, not frozen final constants):
+- Interface scale and display DPI control chrome, independently of document zoom.
+  One UI face per world; labels/values share a readable size, titles about 1.25x and
+  quieter hints about 0.85x. Respect font metrics and readable minimum sizes.
+- Four-unit spacing rhythm: 8 within groups, 16 between groups, 20–24 panel padding.
+  Controls start at 32 logical units high, growing for font metrics. One corner family
+  per world, inner controls smaller-radius than their enclosing panel.
+- Figure/ground by value; caret retains the accent. Clear focus outline/selection;
+  distinguish selected, focused, pressed and disabled. Selection stays visible when
+  keyboard focus moves away. Hints use actual platform/rebound keys for the focus.
+- Start with opaque backing. Frost may express a world but cannot be necessary to
+  read its controls; ambient background effects are outside this item's scope.
+
+Shared components, one owner each: bounded text fields with persistent labels and
+placeholders distinct from labels; bounded named buttons with optional shortcuts;
+a checkbox plus label as one clickable group (no separate Aa beside Match case);
+choice rows with nearby values and a choice affordance; consistent selectable list
+rows; modest section headings with deliberate gaps and only useful dividers.
+Route interactions through existing Action owners and expose real accessibility
+roles/states/actions. Shared render components remain driven by theme data.
+
+Surface compositions:
+1. Find/Replace: compact form at the EXISTING top-right inset, starting 420–480 logical
+   units wide and clamped to the window. Find field, optional Replace field, then
+   count + previous/next + Match case group, optional Replace/Replace all actions,
+   then quiet hints. Labels beside fields where roomy, above where narrow. Find-only
+   shrinks vertically; never flatten all groups into one strip. Approved bordered
+   reference: `references/find-replace-chrome.png` beside this board.
+2. Settings: modest title and identifiable search; category rail around 140–180 units,
+   gap 24, bounded detail column around 360–520. Labels left, controls in a consistent
+   nearby column, rows initially 36–40 high. Extra window space surrounds useful
+   content rather than separating labels/values. Full-workspace backing is allowed;
+   composition still needs deliberate proportion. Narrow mode uses successive
+   category/detail views and preserves search/focus/editor restoration.
+3. Theme picker: stable chooser using the same fields/rows/surface family. Explicit
+   stable panel composition, not the opening world's arbitrary list arrangement.
+   Freeze position, width, UI face/size, row height/count, border geometry and
+   selection treatment throughout preview. For the FIRST PROTOTYPE also freeze
+   picker colors until dismissal; everything behind it continues live theme preview.
+   Reopening adopts the chosen world's chrome styling. Preserve commit/cancel semantics.
+
+World contract: grouping, hierarchy, behavior, label/value relationships, minimum
+spacing/legibility, state meanings and responsive behavior are common. Worlds author
+UI face, palette, corner/border character, plates/rules, state styling and optional
+frost/motion. Plate/rule worlds retain identity while preserving recognizable controls
+and grouping. Theme picker's stable composition is the explicit layout exception.
+
+Phase 1 / review: show all THREE surfaces together in Kite and Mopoke, at normal and
+narrow actual window sizes, including focused fields, selected rows and replacement
+mode. Prototype in awl with headless captures per repo policy; no HTML artifacts.
+Measure useful content, hierarchy and spacing, not merely panel/control presence.
+User approves these coordinated compositions before Phase 2's shared implementation.
+Do not call an image-generation approximation a product screenshot.
+
+Phase 2 / done: implement reviewed measurements through shared owners; compare real
+awl captures against the approved compositions before declaring completion. Read
+`docs/render.md`, `docs/config.md`, `docs/harness-reach.md` and CAPTURE.md before
+choosing probes. Sweep roster compositions, narrow/wide, UI scale, 1x/2x DPI, keyboard
+and pointer routing, theme preview stability and cancel/restore. Assert real geometry
+and relative rendered-pixel presence/legibility, with mutation proof and five-shot
+vision smoke; appropriate native/wasm gates follow implementation. Headless captures
+do not settle taste or live motion. This board-only decision claims no receipt.
+
+---
+
 ### 627 — spellcheck squiggles taper into rounded ends (user approval, 2026-09-08)
 
 🟢 READY — queued only. Preserve the existing 624/625 priority order.
@@ -322,6 +406,9 @@ taste call owed to the user — deliver a gallery capture across the roster, not
 
 ### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
 
+Coordination update (2026-09-08): **628 owns the shared visual specification and
+prototype review; follow its sequencing before overlapping visual implementation.**
+
 ⬜ READY — queue only; not dispatched. Shared design foundation for 590–592;
 integrate overlapping renderer work serially.
 
@@ -352,6 +439,9 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 ---
 
 ### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07; MERGED then REVERTED 2026-09-08)
+
+Coordination update (2026-09-08): **628 owns the shared visual specification and
+prototype review; follow its sequencing before overlapping visual implementation.**
 
 🟡 IN PROGRESS — Claude (this session), branch `item-592`, worktree `.claude/worktrees/item-592`.
 The branch is intact and the work is good; it comes back with one defect, not a rejection.
