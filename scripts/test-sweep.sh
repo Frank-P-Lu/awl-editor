@@ -195,4 +195,41 @@ else
     echo "test-sweep: law 4 ran against $(cargo-sweep sweep --version 2>/dev/null || echo cargo-sweep)"
 fi
 
+# ---------------------------------------------------------------------------
+# LAW 5: `target/{debug,release}/incremental` has an owner. cargo-sweep never
+# reaches it (law 4's fixture proves the tool itself doesn't try), so this
+# script prunes it directly: a session dir untouched for DAYS+ goes, a fresh
+# one and a SIBLING worktree's own incremental survive. Uses the fixture's
+# stub cargo-sweep (a no-op), so this law is about sweep.sh's own reach, not
+# the real binary's.
+# ---------------------------------------------------------------------------
+D="$WORK/law5"
+make_fixture "$D"
+mkdir -p "$D/main/target/debug/incremental/sibling-stale-session" \
+         "$D/main/.claude/worktrees/lane-b/target/debug/incremental/stale-session" \
+         "$D/main/.claude/worktrees/lane-b/target/debug/incremental/fresh-session"
+echo data > "$D/main/target/debug/incremental/sibling-stale-session/x"
+echo data > "$D/main/.claude/worktrees/lane-b/target/debug/incremental/stale-session/x"
+echo data > "$D/main/.claude/worktrees/lane-b/target/debug/incremental/fresh-session/x"
+# Only the two dirs meant to read as DEAD get an old mtime; fresh-session keeps
+# "now", the mtime a live build's own session directory carries.
+touch -t 202001010000 \
+    "$D/main/target/debug/incremental/sibling-stale-session" \
+    "$D/main/.claude/worktrees/lane-b/target/debug/incremental/stale-session"
+
+: > "$D/sweep.log"
+run_sweep "$D" 1
+
+if [[ -e "$D/main/.claude/worktrees/lane-b/target/debug/incremental/stale-session" ]]; then
+    fail "a stale incremental session dir (untouched 1+ day) in the caller's own worktree was not pruned"
+fi
+if [[ ! -e "$D/main/.claude/worktrees/lane-b/target/debug/incremental/fresh-session" ]]; then
+    fail "a fresh incremental session dir was pruned; sweep.sh must only touch stale ones"
+fi
+if [[ ! -e "$D/main/target/debug/incremental/sibling-stale-session" ]]; then
+    fail "a sweep launched from lane-b pruned incremental inside the sibling main worktree"
+fi
+
+echo "test-sweep: target/debug/incremental has an owner — stale sessions go, fresh ones and a sibling's own pool do not"
+
 echo "test-sweep: sweep.sh deletes only inside its caller's worktree"

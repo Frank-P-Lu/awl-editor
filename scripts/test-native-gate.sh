@@ -223,11 +223,98 @@ fi
 EOF
 chmod +x "$WORK/cargo"
 
-cat >"$WORK/free-oracle" <<'EOF'
+# THE FREE-ORACLE IS DERIVED FROM DISK-PREFLIGHT'S OWN FLOOR, NOT A REMEMBERED
+# NUMBER. A hardcoded 40 GiB sat above the healthy floor (27 GiB) only by
+# coincidence: raise HEALTHY_BYTES past it and every probe below silently stops
+# exercising the no-recovery path and starts taking the preflight's real lock
+# and sweep — a policy change with no test going red. Read the real floor off
+# disk-preflight's own receipt (the same technique test-disk-preflight.sh's
+# band_field uses) rather than parsing its source arithmetic, so a change to
+# HOW the floor is computed cannot desync the two files — only a huge
+# probe value is needed here, so the healthy branch is reached regardless of
+# what the real floor currently is.
+disk_preflight_floor_oracle="$WORK/disk-preflight-floor-oracle"
+cat >"$disk_preflight_floor_oracle" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' $((40 * 1024 * 1024 * 1024))
+printf '%s\n' $((1024 * 1024 * 1024 * 1024))
+EOF
+chmod +x "$disk_preflight_floor_oracle"
+disk_preflight_floor_receipt="$(
+  env -u CI \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$disk_preflight_floor_oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-preflight-floor-lock" \
+    "$ROOT/.orchestrator/disk-preflight.sh"
+)"
+disk_preflight_healthy_bytes="${disk_preflight_floor_receipt#*healthy_bytes=}"
+disk_preflight_healthy_bytes="${disk_preflight_healthy_bytes%% *}"
+[[ "$disk_preflight_healthy_bytes" =~ ^[0-9]+$ ]] || {
+  echo "test-native-gate: could not read disk-preflight's healthy_bytes floor from its own receipt: $disk_preflight_floor_receipt" >&2
+  exit 1
+}
+# A STATED margin, not a coincidence: every probe's oracle sits exactly this
+# far above the real floor, so the gap is legible on its own rather than only
+# discoverable by reading two files side by side.
+readonly free_oracle_margin_bytes=$((1 * 1024 * 1024 * 1024))
+free_oracle_bytes=$((disk_preflight_healthy_bytes + free_oracle_margin_bytes))
+
+cat >"$WORK/free-oracle" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' $free_oracle_bytes
 EOF
 chmod +x "$WORK/free-oracle"
+
+# LAW: the oracle exceeds the real floor by exactly the stated margin — a
+# presence floor first, since a zero-or-negative margin would satisfy a bare
+# ">" comparison for free (the shape where a law is satisfiable by deleting
+# its own subject).
+(( free_oracle_margin_bytes > 0 )) || {
+  echo "test-native-gate: free_oracle_margin_bytes=$free_oracle_margin_bytes; a non-positive margin makes the coupling law vacuous" >&2
+  exit 1
+}
+(( free_oracle_bytes - disk_preflight_healthy_bytes == free_oracle_margin_bytes )) || {
+  echo "test-native-gate: free-oracle is $free_oracle_bytes but the real healthy floor is $disk_preflight_healthy_bytes (want exactly +$free_oracle_margin_bytes)" >&2
+  exit 1
+}
+
+# MUTATION PROOF: raise the floor the way the item warns about — past the OLD
+# hardcoded 40 GiB — and show (a) the scenario is real, (b) this file's DERIVED
+# oracle keeps its margin with no code change, and (c) the retired hardcode
+# would have gone silently wrong under exactly this mutation, which is the bug
+# this fix retires.
+legacy_hardcoded_oracle_bytes=$((40 * 1024 * 1024 * 1024))
+mutated_disk_preflight="$WORK/disk-preflight-with-raised-floor.sh"
+cp "$ROOT/.orchestrator/disk-preflight.sh" "$mutated_disk_preflight"
+perl -pi -e 's/readonly MINIMUM_BYTES=\$\(\(24 \* 1024 \* 1024 \* 1024\)\)/readonly MINIMUM_BYTES=\$((60 * 1024 * 1024 * 1024))/' \
+  "$mutated_disk_preflight"
+chmod +x "$mutated_disk_preflight"
+mutated_floor_receipt="$(
+  env -u CI \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$disk_preflight_floor_oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-preflight-mutated-floor-lock" \
+    "$mutated_disk_preflight"
+)"
+mutated_healthy_bytes="${mutated_floor_receipt#*healthy_bytes=}"
+mutated_healthy_bytes="${mutated_healthy_bytes%% *}"
+[[ "$mutated_healthy_bytes" =~ ^[0-9]+$ ]] || {
+  echo "test-native-gate: mutation fixture did not raise a readable floor: $mutated_floor_receipt" >&2
+  exit 1
+}
+(( mutated_healthy_bytes > legacy_hardcoded_oracle_bytes )) || {
+  echo "test-native-gate: mutation fixture raised the floor to $mutated_healthy_bytes, which is not past the legacy hardcode $legacy_hardcoded_oracle_bytes — the scenario this law guards against was not reproduced" >&2
+  exit 1
+}
+mutated_derived_oracle_bytes=$((mutated_healthy_bytes + free_oracle_margin_bytes))
+(( mutated_derived_oracle_bytes - mutated_healthy_bytes == free_oracle_margin_bytes )) || {
+  echo "test-native-gate: derivation did not keep its margin under a raised floor: floor=$mutated_healthy_bytes derived=$mutated_derived_oracle_bytes" >&2
+  exit 1
+}
+(( legacy_hardcoded_oracle_bytes <= mutated_healthy_bytes )) || {
+  echo "test-native-gate: mutation did not exceed the legacy hardcode; the regression this law names was not reproduced" >&2
+  exit 1
+}
+echo "test-native-gate: free-oracle margin law — real floor $disk_preflight_healthy_bytes, oracle $free_oracle_bytes (margin $free_oracle_margin_bytes); a raised floor of $mutated_healthy_bytes keeps its margin under the derived value and would have silently passed the retired $legacy_hardcoded_oracle_bytes hardcode"
 
 cat >"$WORK/git" <<'EOF'
 #!/usr/bin/env bash

@@ -27,6 +27,24 @@
 # `.claude/worktrees/`. That is a property of the tool, not of this script, so
 # scripts/test-sweep.sh pins it against the real binary.
 #
+# `target/{debug,release}/incremental` HAS NO OTHER OWNER. `cargo sweep` never
+# touches it at any threshold — measured directly across this fleet, a sweep
+# that emptied `deps` and `.fingerprint` left it byte-for-byte unchanged — and
+# it is 46-86% of every `target/` sampled here. rustc's own incremental cache
+# is safe to delete at any time (a missing session just costs one non-
+# incremental recompile of that crate, never a wrong build), so this script is
+# the one owner of both pools and applies the SAME age rule to both: a session
+# directory untouched for DAYS+ is exactly as dead as a fingerprint untouched
+# for DAYS+, and is deleted by the same call. This reaches only
+# `<root>/target/{debug,release}/incremental` — two fixed paths under the root
+# `cargo sweep` was already given, never a traversal from `<root>` downward —
+# so it inherits the same non-crossing guarantee as the cargo-sweep call above
+# without depending on find(1) or any tool's own scoping. A LIVE build keeps
+# touching its own session directories, so this reclaims nothing from a lane
+# that used its artifacts within the window — same shape as cargo-sweep's own
+# near-zero yield on an active lane, and re-measured rather than assumed
+# (scripts/test-sweep.sh pins both the deletion and the survival cases).
+#
 #   scripts/sweep.sh                    # this worktree: artifacts unused for 7+ days
 #   scripts/sweep.sh 3                  # ...for 3+ days
 #   scripts/sweep.sh --all-worktrees 1  # every registered worktree (manual only)
@@ -89,6 +107,31 @@ else
     echo "sweep: scope=self root=$ROOT days=$DAYS"
 fi
 
+# The owner cargo-sweep does not have. Fixed subpaths of the SAME root
+# cargo-sweep was just given, never a traversal from that root downward, so a
+# sibling worktree nested elsewhere under `.claude/worktrees/` is unreachable
+# by construction rather than by find(1) obeying a boundary.
+prune_stale_incremental() {
+    local root="$1" days="$2" profile dir pruned_dirs=0 pruned_kib=0
+    for profile in debug release; do
+        dir="$root/target/$profile/incremental"
+        [[ -d "$dir" ]] || continue
+        while IFS= read -r -d '' stale; do
+            local kib
+            kib="$(du -sk "$stale" 2>/dev/null | awk '{print $1}')"
+            kib="${kib:-0}"
+            if [[ -n "${DRY_RUN:-}" ]]; then
+                echo "sweep: would prune $stale (${kib}KiB, unused ${days}+d)"
+            else
+                rm -rf "$stale"
+            fi
+            pruned_dirs=$((pruned_dirs + 1))
+            pruned_kib=$((pruned_kib + kib))
+        done < <(find "$dir" -mindepth 1 -maxdepth 1 -type d -mtime "+$days" -print0 2>/dev/null)
+    done
+    echo "sweep: $root: incremental: ${pruned_dirs} stale session dir(s), ${pruned_kib}KiB (cargo sweep cannot see this pool at any threshold)"
+}
+
 for root in "${unique_roots[@]}"; do
     if [[ ! -d "$root" ]]; then
         echo "sweep: $root (registered worktree unavailable)" >&2
@@ -101,6 +144,7 @@ for root in "${unique_roots[@]}"; do
     else
         cargo sweep --hidden --time "$DAYS" "$root"
     fi
+    prune_stale_incremental "$root" "$DAYS"
     after_kib="$(du -sk "$root" 2>/dev/null | awk '{print $1}')"
     reclaimed_kib=$((before_kib - after_kib))
     echo "sweep: $root: ${before_kib}KiB -> ${after_kib}KiB (reclaimed ${reclaimed_kib}KiB; kept artifacts used within ${DAYS}d)"
