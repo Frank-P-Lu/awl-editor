@@ -106,6 +106,13 @@ impl TextPipeline {
         self.last_text_sync_phases
     }
 
+    /// The frame-preparation owner witnesses from the most recent [`Self::prepare`]
+    /// call — zero fields when `text_sync_profile` is unset. See
+    /// [`rects::OwnerScanWork`]'s doc for what each field proves and why.
+    pub(super) fn owner_scan(&self) -> rects::OwnerScanSnapshot {
+        self.owner_scan.snapshot()
+    }
+
     fn cache_script_fonts(&mut self) -> ScriptFonts {
         let fonts = self.resolve_script_fonts();
         self.script_fonts = fonts;

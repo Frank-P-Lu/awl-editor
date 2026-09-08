@@ -7,6 +7,7 @@ impl TextPipeline {
         if self.md_spans.is_empty() {
             return Vec::new();
         }
+        let join_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let doc_text: String = self
             .buffer
             .lines
@@ -14,7 +15,19 @@ impl TextPipeline {
             .map(|l| l.text())
             .collect::<Vec<_>>()
             .join("\n");
-        crate::markdown::destination_ranges(&doc_text, &self.md_spans)
+        let out = crate::markdown::destination_ranges(&doc_text, &self.md_spans);
+        if let Some(at) = join_at {
+            self.owner_scan
+                .destination_join_ms
+                .set(self.owner_scan.destination_join_ms.get() + at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan
+                .destination_join_calls
+                .set(self.owner_scan.destination_join_calls.get() + 1);
+            self.owner_scan
+                .destination_join_bytes
+                .set(doc_text.len() as u64);
+        }
+        out
     }
 
     fn nit_hidden_by_bullet_glyph(&self, li: usize, end_col: usize) -> bool {
@@ -87,6 +100,7 @@ impl TextPipeline {
         if self.squiggle_cache.version.get() == Some(key) {
             return;
         }
+        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let destination_ranges = self.destination_ranges();
         let mut line_starts: Vec<usize> = Vec::new();
         if !destination_ranges.is_empty() {
@@ -146,6 +160,14 @@ impl TextPipeline {
         }
         *self.squiggle_cache.protos.borrow_mut() = protos;
         self.squiggle_cache.version.set(Some(key));
+        if let Some(at) = scan_at {
+            self.owner_scan
+                .squiggle_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan
+                .squiggle_scan_misspellings
+                .set(self.misspelled.len() as u64);
+        }
     }
 
     fn word_at_caret(&self, line: usize, start_col: usize, end_col: usize) -> bool {
@@ -237,6 +259,7 @@ impl TextPipeline {
         if self.nit_cache.version.get() == Some(key) {
             return;
         }
+        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let prose_ranges: Option<Vec<std::ops::Range<usize>>> = self.syn_lang.map(|_| {
             use crate::syntax::SynKind;
             let mut ranges: Vec<std::ops::Range<usize>> = self
@@ -325,6 +348,14 @@ impl TextPipeline {
         }
         *self.nit_cache.protos.borrow_mut() = protos;
         self.nit_cache.version.set(Some(key));
+        if let Some(at) = scan_at {
+            self.owner_scan
+                .nit_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan
+                .nit_scan_lines
+                .set(self.buffer.lines.len() as u64);
+        }
     }
 
     /// Build the STRAIGHT muted WRITING-NIT underline geometry for every nit span

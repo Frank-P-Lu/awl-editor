@@ -110,6 +110,91 @@ pub(super) struct UnderlineCache {
     protos: std::cell::RefCell<Vec<UnderlineProto>>,
 }
 
+/// Release-benchmark instrumentation for the document-wide-typing-work
+/// investigation (queue item 629): witnesses for [`TextPipeline::ensure_nit_protos`],
+/// [`TextPipeline::ensure_ornament_lists`], [`TextPipeline::destination_ranges`]
+/// (called from both nit and spell-squiggle rebuilds, so its counters accumulate
+/// rather than overwrite), and [`TextPipeline::ensure_squiggle_protos`]. Every
+/// owner here is reached through `&self`, hence `Cell`. Populated only while
+/// [`TextPipeline::text_sync_profile`] is set — an ordinary editor run pays one
+/// bool check per timed owner and never allocates or reads a clock. Reset once
+/// per [`TextPipeline::prepare`] call so a call reached twice in one frame
+/// (`destination_ranges`) reports the true total, not the last call's slice.
+#[derive(Default)]
+pub(super) struct OwnerScanWork {
+    pub(super) nit_scan_ms: std::cell::Cell<f64>,
+    /// Logical lines walked by the last `ensure_nit_protos` cache MISS. Zero on
+    /// a hit — the cache key (row-geometry generation, reshape count) did not
+    /// change, so no owner is on this frame's path at all.
+    pub(super) nit_scan_lines: std::cell::Cell<u64>,
+    pub(super) ornament_scan_ms: std::cell::Cell<f64>,
+    /// Logical lines walked by the last `ensure_ornament_lists` cache MISS.
+    pub(super) ornament_scan_lines: std::cell::Cell<u64>,
+    /// `md_spans.len()` at the time of that same miss — multiplied by
+    /// `ornament_scan_lines`, the floor on span comparisons the per-line loop
+    /// performs (two of its four passes over `md_spans` never short-circuit).
+    pub(super) ornament_scan_spans: std::cell::Cell<u64>,
+    pub(super) destination_join_ms: std::cell::Cell<f64>,
+    /// Number of times `destination_ranges` actually joined + parsed the whole
+    /// document this `prepare` (0 when `md_spans` is empty; up to 2 when both
+    /// the nit and spell-squiggle owners miss their caches on the same frame).
+    pub(super) destination_join_calls: std::cell::Cell<u64>,
+    /// Bytes of the joined document string on the LAST such call.
+    pub(super) destination_join_bytes: std::cell::Cell<u64>,
+    pub(super) squiggle_scan_ms: std::cell::Cell<f64>,
+    /// `self.misspelled.len()` on the last `ensure_squiggle_protos` cache MISS —
+    /// zero either on a hit or because the misspelled list was empty (the caller,
+    /// `spell_squiggles`, skips the ensure call entirely in that case).
+    pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
+}
+
+/// A plain-data snapshot of [`OwnerScanWork`], read once per timed sample so a
+/// caller outside this module (the `typing_live` benchmark) never touches a
+/// `Cell` directly.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct OwnerScanSnapshot {
+    pub(super) nit_scan_ms: f64,
+    pub(super) nit_scan_lines: u64,
+    pub(super) ornament_scan_ms: f64,
+    pub(super) ornament_scan_lines: u64,
+    pub(super) ornament_scan_spans: u64,
+    pub(super) destination_join_ms: f64,
+    pub(super) destination_join_calls: u64,
+    pub(super) destination_join_bytes: u64,
+    pub(super) squiggle_scan_ms: f64,
+    pub(super) squiggle_scan_misspellings: u64,
+}
+
+impl OwnerScanWork {
+    pub(super) fn snapshot(&self) -> OwnerScanSnapshot {
+        OwnerScanSnapshot {
+            nit_scan_ms: self.nit_scan_ms.get(),
+            nit_scan_lines: self.nit_scan_lines.get(),
+            ornament_scan_ms: self.ornament_scan_ms.get(),
+            ornament_scan_lines: self.ornament_scan_lines.get(),
+            ornament_scan_spans: self.ornament_scan_spans.get(),
+            destination_join_ms: self.destination_join_ms.get(),
+            destination_join_calls: self.destination_join_calls.get(),
+            destination_join_bytes: self.destination_join_bytes.get(),
+            squiggle_scan_ms: self.squiggle_scan_ms.get(),
+            squiggle_scan_misspellings: self.squiggle_scan_misspellings.get(),
+        }
+    }
+
+    pub(super) fn reset(&self) {
+        self.nit_scan_ms.set(0.0);
+        self.nit_scan_lines.set(0);
+        self.ornament_scan_ms.set(0.0);
+        self.ornament_scan_lines.set(0);
+        self.ornament_scan_spans.set(0);
+        self.destination_join_ms.set(0.0);
+        self.destination_join_calls.set(0);
+        self.destination_join_bytes.set(0);
+        self.squiggle_scan_ms.set(0.0);
+        self.squiggle_scan_misspellings.set(0);
+    }
+}
+
 /// One cached underline span: the owning visual row's buffer-relative top +
 /// height (`VisualRow::line_top` / `line_height`) and the span's x boundaries
 /// relative to the text left edge (`row.xs[s]` / `row.xs[e]`, exactly the two
@@ -285,6 +370,15 @@ impl TextPipeline {
         if self.ornament_cache.version.get() == Some(self.reshape_count) {
             return;
         }
+        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        if self.text_sync_profile {
+            self.owner_scan
+                .ornament_scan_lines
+                .set(self.buffer.lines.len() as u64);
+            self.owner_scan
+                .ornament_scan_spans
+                .set(self.md_spans.len() as u64);
+        }
         let mut rules = Vec::new();
         let mut bullets = Vec::new();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
@@ -391,6 +485,11 @@ impl TextPipeline {
         *self.ornament_cache.bare_url_tails.borrow_mut() = bare_url_tails;
         *self.ornament_cache.smart_punct_spans.borrow_mut() = smart_punct_spans;
         self.ornament_cache.version.set(Some(self.reshape_count));
+        if let Some(at) = scan_at {
+            self.owner_scan
+                .ornament_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+        }
     }
 
     /// Buffer-relative -> absolute: the top y of logical `line`'s ornament (its first

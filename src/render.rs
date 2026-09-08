@@ -2460,6 +2460,11 @@ pub struct TextPipeline {
     last_text_sync_phases: text::TextSyncPhases,
     last_conceal_sync_ms: f64,
     last_caret_target_ms: f64,
+    /// Frame-preparation owner witnesses (queue item 629): the two confirmed
+    /// document-wide rescans (`ensure_nit_protos`, `ensure_ornament_lists`), the
+    /// full-document join they can each trigger (`destination_ranges`), and the
+    /// spell-squiggle proto rebuild. Reset once per [`Self::prepare`] call.
+    owner_scan: rects::OwnerScanWork,
     /// `Some` while a [`ShapeReach::Presentable`] reshape owes an off-screen tail;
     /// the value is the last settled whole-document height. A preview burst keeps
     /// it stable while the live row table is intentionally truncated, so each
