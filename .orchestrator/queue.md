@@ -6,6 +6,80 @@
 
 ## Ready to build
 
+### 629 — remove remaining document-wide typing frame preparation (user request, 2026-09-08)
+
+🟢 READY — queued investigation findings; not dispatched. Measure the named owners
+before implementing. Coordinate with other render work; no world-switch redesign.
+
+Evidence: the combined release typing benchmark on the 50,029-word manuscript
+reports 8.194 ms median overall; its stage summaries report 3.588 ms in frame
+preparation, 2.656 ms in view synchronization, and 1.459 ms rendering. Stage summaries
+are separate statistics, not an additive latency decomposition. See
+`benches/typing-search.md` for workload and measurement boundaries.
+
+Two repeated-work mechanisms are confirmed in source; their individual time shares
+are hypotheses. `src/render/rects/underlines.rs::ensure_nit_protos` keys its cache by row
+geometry generation and reshape count, so ordinary edits trigger a scan of all lines.
+Its `destination_ranges` also joins the entire document when Markdown spans exist.
+Writing nits are enabled by default. `src/render/rects.rs::ensure_ornament_lists` invalidates
+on every reshape and walks all logical lines, with repeated full Markdown-span loops
+inside the line loop. Even the manuscript's chapter headings enroll that scan. Spell-squiggle prototypes
+also rebuild on geometry generation, but their cardinality is not yet reported;
+measure misspellings and affected lines before attributing a material cost there.
+
+Build: first add per-owner timing and actual-work counters to the existing
+`typing_live` benchmark through the production prepare path. The older `--bench-frame`
+manual stage replay is not sufficient evidence for this edit workload. Confirm nit
+on/off and equal-length heading/no-heading axes. Then retain semantic nit results
+independently of render geometry, update affected lines with exact scope invalidation,
+and index ornament spans by line or construct rather than multiplying lines by all
+spans. Prefer one owner of each rule. Preserve all enabled diagnostics and ornaments;
+do not hide, debounce, or defer them to make a timing improve.
+
+Done/Verify: same-revision release before/after with the six corpus tiers; count actual
+nit lines/bytes scanned and ornament span tests, including zero-result documents.
+Differential laws against full recomputation cover edit location, Unicode, undo/redo,
+line insertion/deletion, links/destinations, tables, frontmatter, code fences, toggles,
+and buffer identity swaps. Separate semantic invalidation from width/scroll geometry.
+Prove headline work laws fail under a compiling regression. Read `docs/render.md`,
+`docs/markdown.md`, and `docs/harness-reach.md`; render outcome audit and five-shot
+vision smoke, then native gate and wasm. Report measured gains, including a result
+that disproves either cost hypothesis, without promising another multiplier.
+
+---
+
+### 630 — bound document context and parsing work during prose edits (user request, 2026-09-08)
+
+🟢 READY — lower priority than 629; queued only, not dispatched. Profile before choosing
+scope; this is not authorization for a speculative parser or rope replacement.
+
+Evidence: the combined manuscript benchmark reports about 0.973 ms in document-span
+parsing and 0.661 ms in context preparation per edit. Context includes multiple calls,
+so the entire figure must not be attributed to language evidence. Source confirms
+`src/render/text.rs::set_text_incremental` calls `script::cjk_evidence(text)` and
+`parse_doc_spans(text)` on every edit. `src/script/evidence.rs` scans all characters in an
+English manuscript; `parse_doc_spans` passes the full document to the Markdown parser.
+The editor already uses a rope. Avoidable work is in these derived representations.
+
+Build: measure these owners separately and establish bytes/lines actually visited.
+Choose the smallest measured improvement: retain per-line language evidence with an
+exact document aggregate, and/or retain parsing with correct nonlocal invalidation.
+A deleted last decisive CJK character must retract its evidence. Markdown fences,
+frontmatter, references and other cross-line constructs must update affected suffixes;
+unchanged text is not proof that derived styling is unchanged. Preserve preedit/IME,
+code-language behavior, buffer identity, and settings invalidation. Keep a full path
+for scopes that cannot yet be updated safely. Coordinate parsing/invalidation ownership
+with 629 rather than creating separate caches of the same rule.
+
+Done/Verify: isolated release before/after on size and edit-position ladders; work-count
+and full-recompute equivalence laws cover insertion/deletion of decisive script evidence,
+frontmatter, fences, Unicode, undo/redo, preedit, and buffer swaps. Mutation-prove the
+headline law. Read `docs/fonts.md`, `docs/markdown.md`, and `docs/harness-reach.md` before
+render verification; native gate, wasm, and a render outcome audit for changed styling.
+Do not claim constant-time typing or an expected speedup without measurements.
+
+---
+
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
 🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows
@@ -123,59 +197,6 @@ hard cut is restored and when the whole underline is faded away. Include a
 five-shot affordance vision smoke, relevant targeted laws and normal native/wasm
 gates for implementation. Final tuning remains a live taste check; report the
 revert cost when landing for judgment. This board-only decision claims no receipt.
-
----
-
-### 624 — search highlights share visible geometry (user priority, 2026-09-08)
-
-🟡 IN PROGRESS — Codex search owner, model `gpt-5.6-terra` at `medium`, branch `codex/624-search`, worktree `.worktrees/624-search`.
-
-Build: remove repeated row scanning/copying while painting search matches. Current
-release measurements report 138–150 ms median per search step for the 5,005-word
-single-paragraph corpus; headless frame measurements, not input-to-display latency.
-Verify the premise and measure a same-base before before editing. The suspected
-chain is `search_match_rects` calling `range_rects` separately per match, each
-gathering row geometry. Gather/borrow visible geometry once and resolve intersecting
-matches against it; retain all matches for counts/navigation. Preserve selection,
-current-match treatment, Unicode, concealed Markdown, tables, clipping and scroll
-behavior. No world-switch work or broad layout rewrite.
-
-Done: a material measured reduction in the long-paragraph search stall, with a
-work-count law forbidding repeated whole-row work per match. Sweep document length,
-match density and wrap width, including empty/offscreen matches and buffer swaps.
-Verify pixel/sidecar outcomes with seeded fixtures, five-shot vision smoke, targeted
-tests and a compiling mutation of the headline law. Then exact-candidate native
-gate and wasm smoke before integration. Timing/feel remains a live confirmation.
-Benchmarks run alone; typing implementation follows this item. Other queue work
-remains paused by the user's instruction.
-
----
-
-### 625 — typing updates affected text rather than reprocessing the manuscript (user priority, 2026-09-08)
-
-🟡 IN PROGRESS — Codex typing owner, model `gpt-5.6-sol` at `high`, branch `codex/625-typing`, worktree `.worktrees/625-typing`; diagnosis first, implementation after 624.
-
-Build: reduce ordinary edit latency with the existing rope and editor model. The
-50,029-word corpus measures 18.4–18.5 ms median per typing/render step, excluding
-live spell recomputation. First profile actual edit-to-view preparation plus frame
-work, separately reporting spellcheck, parsing/layout and geometry/cache costs.
-Existing full-document passes are suspects, not a proven attribution. Establish a
-same-revision baseline and work witnesses before selecting the smallest substantial
-fix. Propagate affected text/version/identity through measured expensive owners;
-retain correct invalidation for structural Markdown edits and nonlocal dependencies.
-Do not substitute debounce, stale spelling, or dropped formatting for less work.
-No rope replacement, speculative layout tree, theme-toggle/world-switch changes.
-
-Done: materially lower manuscript edit cost, with bounded-work laws for whichever
-owners become incremental and full-recompute equivalence for edits, undo/redo,
-paste, Unicode, fences/frontmatter, and buffer switching. Measure a size ladder and
-edit-position/structure axes; distinguish rendering-only from live preparation.
-Mutation-prove headline laws, check relevant pixel/sidecar outcomes and five-shot
-vision smoke, then native gate and wasm smoke on the integration candidate.
-Source-only diagnosis may overlap 624; builds and performance runs are coordinated
-by the root. Report residual costs honestly instead of claiming constant-time typing.
-
----
 
 ---
 
