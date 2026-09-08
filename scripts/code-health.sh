@@ -85,6 +85,11 @@ scripts/test-native-gate.sh
 # stubbing its two steps so this does not recompile clippy from scratch on
 # every code-health.sh pass. Wired at birth, same reason as the gate law above.
 scripts/test-preflight.sh
+# scripts/verify_cache.py's reuse-invalidation, failure, cancellation,
+# concurrency, and unrecognised-input laws, entirely against a throwaway
+# fixture repo and fake commands (never the real cargo tests it is meant to
+# cache). Wired at birth, same reason as the two script laws above.
+scripts/test-verify-cache.sh
 # What sweep.sh is allowed to delete. Wired at birth: the previous version of
 # this law was deleted for being unwired, and the defect it now pins — one
 # lane's disk preflight pruning a SIBLING lane's live build — reads as the
