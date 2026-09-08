@@ -22,19 +22,26 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write as _;
-use std::path::Path;
 
 use ttf_parser::Face;
 
 const FONTS_DIR: &str = "assets/fonts";
+
+/// `FONTS_DIR` anchored at the crate root, fixed at COMPILE time so the walk
+/// resolves identically regardless of the process's working directory
+/// (matches `font_licence.rs`'s own `fonts_dir`).
+fn fonts_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(FONTS_DIR)
+}
 
 /// Every `.ttf` filename physically present in `assets/fonts/`, sorted — the
 /// DIRECTORY, not a hand-kept roster (matches `font_licence.rs`'s own
 /// `bundled_ttf_files`, duplicated rather than shared across two otherwise
 /// independent survey/law files).
 fn bundled_ttf_files() -> Vec<String> {
-    let mut names: Vec<String> = std::fs::read_dir(FONTS_DIR)
-        .unwrap_or_else(|e| panic!("{FONTS_DIR} must be readable from the repo root: {e}"))
+    let dir = fonts_dir();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("{} is readable: {e}", dir.display()))
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .filter(|name| name.ends_with(".ttf"))
@@ -207,7 +214,7 @@ fn symbol_atlas_gallery() {
     let byte_bufs: Vec<Vec<u8>> = files
         .iter()
         .map(|f| {
-            std::fs::read(Path::new(FONTS_DIR).join(f))
+            std::fs::read(fonts_dir().join(f))
                 .unwrap_or_else(|e| panic!("{f}: could not read: {e}"))
         })
         .collect();

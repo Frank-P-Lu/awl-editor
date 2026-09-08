@@ -353,12 +353,12 @@ mod tests {
             return;
         };
         let mut cache = ImageCache::default();
-        let path = std::path::Path::new("samples/tiny.png");
-        if std::fs::metadata(path).is_err() {
-            eprintln!("skipping: samples/tiny.png fixture not present");
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples/tiny.png");
+        if std::fs::metadata(&path).is_err() {
+            eprintln!("skipping: {} fixture not present", path.display());
             return;
         }
-        match cache.ensure(&device, &queue, path, 300.0, 16384) {
+        match cache.ensure(&device, &queue, &path, 300.0, 16384) {
             ImageState::Ready { intrinsic, .. } => {
                 assert_eq!(*intrinsic, (120, 48), "fixture intrinsic dims");
             }
@@ -372,7 +372,7 @@ mod tests {
         // A second ensure at the same mtime is a FRESH HIT: served from the same slot
         // the Entry API resolved, with NO re-decode.
         assert!(matches!(
-            cache.ensure(&device, &queue, path, 300.0, 16384),
+            cache.ensure(&device, &queue, &path, 300.0, 16384),
             ImageState::Ready { .. }
         ));
         assert_eq!(
@@ -394,21 +394,21 @@ mod tests {
             eprintln!("skipping stale_mtime_forces_a_redecode: no wgpu adapter");
             return;
         };
-        let path = std::path::Path::new("samples/tiny.png");
-        if std::fs::metadata(path).is_err() {
-            eprintln!("skipping: samples/tiny.png fixture not present");
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples/tiny.png");
+        if std::fs::metadata(&path).is_err() {
+            eprintln!("skipping: {} fixture not present", path.display());
             return;
         }
         let mut cache = ImageCache::default();
-        cache.ensure(&device, &queue, path, 300.0, 16384);
+        cache.ensure(&device, &queue, &path, 300.0, 16384);
         assert_eq!(cache.decode_count(), 1, "first ensure decodes once");
         // Age the stored entry's mtime so the next ensure sees it as stale.
-        let key = ImageCache::canonical_key(path);
+        let key = ImageCache::canonical_key(&path);
         cache.map.get_mut(&key).expect("entry present").mtime_ns ^= 1;
-        cache.ensure(&device, &queue, path, 300.0, 16384);
+        cache.ensure(&device, &queue, &path, 300.0, 16384);
         assert_eq!(cache.decode_count(), 2, "a stale mtime re-decodes");
         // And now fresh again: no further decode.
-        cache.ensure(&device, &queue, path, 300.0, 16384);
+        cache.ensure(&device, &queue, &path, 300.0, 16384);
         assert_eq!(
             cache.decode_count(),
             2,

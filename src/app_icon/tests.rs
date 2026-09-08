@@ -22,9 +22,7 @@ use crate::theme::{CaretBlockStyle, IconCursor, Srgb};
 // --------------------------------------------------------------- fixtures ---
 
 fn root() -> PathBuf {
-    // Tests run with CWD == the crate root (same convention as
-    // `icon_manifest`'s font-directory tests).
-    PathBuf::from(".")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
 fn icon_path(world: &str) -> PathBuf {

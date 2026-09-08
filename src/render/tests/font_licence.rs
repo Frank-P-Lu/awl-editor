@@ -32,19 +32,25 @@
 //! `missing_copyright` by name. Both were reverted after observing red.
 
 use std::collections::BTreeSet;
-use std::path::Path;
 
 use ttf_parser::Face;
 
 const FONTS_DIR: &str = "assets/fonts";
+
+/// `FONTS_DIR` anchored at the crate root, fixed at COMPILE time so the walk
+/// resolves identically regardless of the test process's working directory.
+fn fonts_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(FONTS_DIR)
+}
 
 /// Every `.ttf` filename physically present in `assets/fonts/`, sorted — the
 /// DIRECTORY, not a hand-kept roster. A face landing here without a matching
 /// `LICENSES.md` row, or losing its embedded copyright to a re-subset, fails
 /// below by name.
 fn bundled_ttf_files() -> Vec<String> {
-    let mut names: Vec<String> = std::fs::read_dir(FONTS_DIR)
-        .unwrap_or_else(|e| panic!("{FONTS_DIR} must be readable from the repo root: {e}"))
+    let dir = fonts_dir();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("{} is readable: {e}", dir.display()))
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .filter(|name| name.ends_with(".ttf"))
@@ -117,7 +123,7 @@ fn every_bundled_face_has_a_licenses_md_row_and_a_copyright_record() {
             continue;
         }
 
-        let path = Path::new(FONTS_DIR).join(file);
+        let path = fonts_dir().join(file);
         let bytes =
             std::fs::read(&path).unwrap_or_else(|e| panic!("{file}: could not read {path:?}: {e}"));
         let face = Face::parse(&bytes, 0)

@@ -108,9 +108,12 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
 #[test]
 fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let mut found: Vec<String> = Vec::new();
-    let mut stack = vec![PathBuf::from("src")];
+    let manifest_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut stack = vec![manifest_root.join("src")];
     while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).expect("src is readable") {
+        for entry in
+            std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("{} is readable: {e}", dir.display()))
+        {
             let path = entry.expect("dir entry").path();
             if path.is_dir() {
                 stack.push(path);
@@ -122,7 +125,11 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
             // `tests.rs` and everything under a `tests/` directory is test
             // code by this tree's convention, and a test may build a snapshot
             // freely — the cost being rationed is per FRAME, not per test.
-            let text = path.to_string_lossy().replace('\\', "/");
+            let text = path
+                .strip_prefix(&manifest_root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
             if text.ends_with("/tests.rs") || text.contains("/tests/") {
                 continue;
             }
@@ -162,7 +169,9 @@ fn semantic_snapshot_has_no_ungated_frame_side_caller() {
 /// an assistive technology is reading a stale copy of the card.
 #[test]
 fn the_renderer_composes_no_card_text_of_its_own() {
-    let source = std::fs::read_to_string("src/render/chrome/hud.rs").expect("hud.rs is readable");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/chrome/hud.rs");
+    let source = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} is readable: {e}", path.display()));
     for needle in [
         "CURRENT STREAK",
         "WRITTEN TODAY",
