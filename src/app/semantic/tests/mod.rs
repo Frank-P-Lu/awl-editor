@@ -96,21 +96,12 @@ fn raw_markdown_snapshot_has_one_focus_and_grapheme_selection() {
     assert_eq!(document.selection.unwrap().focus, 5);
 }
 
-/// `semantic_snapshot()` builds a WHOLE snapshot: every line of the document
-/// read out of the rope and segmented under UAX #29. That is the right shape
-/// for a one-shot consumer and the wrong shape for a frame, so the call sites
-/// are enumerated.
-///
-/// The live frame path is deliberately absent: `refresh_accessibility` drives
-/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
-/// touched, so `app/semantic/mod.rs` naming this function again would mean the
-/// per-frame whole-document cost had come back.
-/// The walk `semantic_snapshot_has_no_ungated_frame_side_caller` asserts
-/// over: every production `.rs` file under `src/`, relative to the crate
-/// root, that calls `semantic_snapshot()`. Anchored at
-/// `env!("CARGO_MANIFEST_DIR")` (fixed at COMPILE time) rather than a
-/// relative `"src"`, so it locates the same tree regardless of the test
-/// process's own working directory — see
+/// Every production `.rs` file under `src/`, relative to the crate root,
+/// that calls `semantic_snapshot()` — the walk
+/// `semantic_snapshot_has_no_ungated_frame_side_caller` asserts over.
+/// Anchored at `env!("CARGO_MANIFEST_DIR")` (fixed at COMPILE time) rather
+/// than a relative `"src"`, so it locates the same tree regardless of the
+/// test process's own working directory — see
 /// `semantic_snapshot_walk_resolves_from_a_different_cwd` below.
 fn ungated_frame_side_callers() -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
@@ -157,6 +148,15 @@ fn ungated_frame_side_callers() -> Vec<String> {
     found
 }
 
+/// `semantic_snapshot()` builds a WHOLE snapshot: every line of the document
+/// read out of the rope and segmented under UAX #29. That is the right shape
+/// for a one-shot consumer and the wrong shape for a frame, so the call sites
+/// are enumerated.
+///
+/// The live frame path is deliberately absent: `refresh_accessibility` drives
+/// the RETAINED `SemanticProjection`, which re-reads only the lines an edit
+/// touched, so `app/semantic/mod.rs` naming this function again would mean the
+/// per-frame whole-document cost had come back.
 #[test]
 fn semantic_snapshot_has_no_ungated_frame_side_caller() {
     let found = ungated_frame_side_callers();
@@ -189,7 +189,8 @@ fn semantic_snapshot_walk_resolves_from_a_different_cwd() {
     let _cwd = crate::fs::CwdGuard::enter(&elsewhere);
     let from_elsewhere = ungated_frame_side_callers();
     assert_eq!(
-        from_manifest_root, from_elsewhere,
+        from_manifest_root,
+        from_elsewhere,
         "the walk must resolve identically regardless of the test process's cwd \
          (ran once from {}, once from {})",
         std::env::current_dir()
