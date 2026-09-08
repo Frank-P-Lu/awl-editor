@@ -1931,3 +1931,119 @@ fn nit_underlines_count_matches_document_nits_oracle_across_edit_shapes() {
     }
     crate::nits::set_nits_on(true);
 }
+
+/// QUEUE ITEM 629's third correctness question: [`rects::NitProjection`] is
+/// refreshed from [`TextPipeline::set_text`] — once per RESHAPE — rather than
+/// lazily from `ensure_nit_protos`/`prepare`, specifically so that TWO
+/// reshapes landing before the next drawn frame both still patch the cache.
+/// A lazy-from-prepare design would instead diff the CURRENT text against
+/// whatever the last `ensure_nit_protos` call had observed, which is the
+/// WRONG band the moment a frame is skipped between two edits — exactly what
+/// this drives: `set_view` is called TWICE, fixing line0's nit and adding a
+/// brand-new one on line2, with `nit_underlines()` never called in between —
+/// then the ONE read that follows both reshapes is checked against the
+/// independent `document_nits` oracle for the FINAL text. A cache that only
+/// patched the first edit (or diffed the two edits' texts against each other
+/// instead of each against its own true predecessor) would report a stale
+/// line0 nit, a missing line2 nit, or both.
+#[test]
+fn nit_projection_patches_across_two_reshapes_before_one_read() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_patches_across_two_reshapes_before_one_read: no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Step 0: plain prose, one nit on line0 ("one  two") only.
+    let text0 = "one  two\nanchor\nthree four\n";
+    let mut v0 = view(text0, 1, 0);
+    v0.is_markdown = true;
+
+    // Step 1: line0's nit is FIXED and a brand-new nit appears on line2
+    // ("three  four") — pushed right after step 0 with no read (no
+    // `nit_underlines()` call) in between.
+    let text1 = "one two\nanchor\nthree  four\n";
+    let mut v1 = view(text1, 1, 0);
+    v1.is_markdown = true;
+
+    let reshapes_start = p.reshape_count;
+    p.set_view(&v0);
+    p.set_view(&v1);
+    assert_eq!(
+        p.reshape_count,
+        reshapes_start + 2,
+        "both edits must reshape — an unread intermediate edit is not a no-op"
+    );
+
+    let got = p.nit_underlines().len();
+    let expected = crate::nits::document_nits(text1)
+        .iter()
+        .filter(|(line, ..)| *line != 1)
+        .count();
+    assert_eq!(
+        got, expected,
+        "the one read after two un-observed reshapes must reflect the LATEST text \
+         ({text1:?}: line0's nit fixed, line2's nit new), not a stale intermediate state"
+    );
+    crate::nits::set_nits_on(true);
+}
+
+/// QUEUE ITEM 629's second correctness question: a BUFFER SWAP reuses the
+/// same live `TextPipeline` (the real app holds exactly one, per
+/// `CLAUDE.md`'s cache-key-discipline tripwire), so [`rects::NitProjection`]
+/// must never carry a stale document's spans over into a totally unrelated
+/// one. Drives that literally: after a real read has settled the cache on
+/// document A, `set_view` pushes document B — sharing NOT ONE line with A
+/// (no common prefix, no common suffix), the shape `unchanged_band` hands
+/// back as `(0, old_len, new_len)`, i.e. "replace everything" — and the very
+/// next read is checked against the independent `document_nits` oracle for B
+/// alone. A projection that kept A's slots (wrong length or wrong content)
+/// or half-merged the two would diverge from the oracle immediately.
+#[test]
+fn nit_projection_reseeds_clean_across_an_unrelated_buffer_swap() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_reseeds_clean_across_an_unrelated_buffer_swap: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Document A: plain prose, cursor on line0 (never nitting), one real nit
+    // on line1. Read once so the cache is fully settled on A before the swap.
+    let doc_a = "steady opener\ntrail \nno issue here\n";
+    let mut va = view(doc_a, 0, 0);
+    va.is_markdown = true;
+    p.set_view(&va);
+    let got_a = p.nit_underlines().len();
+    let expected_a = crate::nits::document_nits(doc_a)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(got_a, expected_a, "sanity: document A itself must read correctly");
+
+    // Document B: an entirely different manuscript — no shared line with A at
+    // any position, different length, different nits (two, on lines 1 and 3;
+    // cursor parked on line0's sibling-free own line, which never nits).
+    let doc_b = "brand new manuscript begins\nfresh  start\nmiddle line clean\nlast   line\n";
+    let mut vb = view(doc_b, 0, 0);
+    vb.is_markdown = true;
+    p.set_view(&vb);
+
+    let got_b = p.nit_underlines().len();
+    let expected_b = crate::nits::document_nits(doc_b)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(
+        got_b, expected_b,
+        "the swapped-to document must read exactly its own nits, not a residue of the \
+         document it replaced"
+    );
+    crate::nits::set_nits_on(true);
+}
