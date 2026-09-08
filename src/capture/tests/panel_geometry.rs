@@ -137,7 +137,8 @@ fn rim_enrollment_excludes_unrelated_edges_and_rejects_absent_rims() {
 }
 
 /// The card's real edges, measured off the PNG in a narrow neighborhood of
-/// each published edge, along scan lines inside the card's own pad. Sampled in the pad rather than over the text, because a
+/// each published edge, along scan lines inside the card's own pad. Sampled in
+/// the pad rather than over the text, because a
 /// glyph edge is a stronger step than a rim and would win.
 fn measured_edges(png: &std::path::Path, p: &Panel) -> ([usize; 2], [usize; 2]) {
     let img = image::open(png).expect("decode PNG").to_rgba8();
