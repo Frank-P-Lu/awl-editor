@@ -91,6 +91,24 @@ claim about "software rendering performance" needs its configuration stated, per
 standing rule that a check runs in one configuration and that configuration is itself an
 untested hypothesis.
 
+**Shape of the work, so a lane does not start tuning.** The FIRST deliverable is a profile,
+not a patch: where do those 82-184 ms actually go, per world, on the software path? Until that
+exists, every optimisation is a guess, and this codebase's own history says a bench that does
+not witness the work will happily measure nothing — one theme bench "measured" 5 ms while no
+reshape happened at all. So make the profile witness the frame, and report the breakdown
+before proposing a change.
+
+**"Documented non-target" is a legitimate answer and may be the right one.** An 84x gap that
+is uniform across every world is not a hot spot; it is the cost of the whole render meeting a
+rasteriser with no GPU under it. If the profile says that, the honest outcome is a
+RELEASING.md/WEB.md sentence naming software rendering as unsupported and saying what a user
+sees when they land on it — not a speculative optimisation pass. That is a product call and
+belongs to the user; bring them the profile and the two options rather than a patch.
+
+Whatever is measured, state the configuration in the same breath as the number: which
+rasteriser, which Mesa, which architecture. The figure above is one arm64 container with Mesa
+22.3.6 and is NOT CI's x86_64 lavapipe.
+
 ---
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
