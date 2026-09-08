@@ -2648,8 +2648,14 @@ fn footnote_ladder_mark_is_a_pure_function_of_number() {
 }
 
 /// The toggle default is OFF — a plain install renders plain first-appearance
-/// numbers, byte-identical to before this option existed.
+/// numbers, byte-identical to before this option existed. `footnote_ladder_on`
+/// itself reads the mutable global (a `const` comparison is dead by
+/// construction); a fresh `Toggle` reports the same default it was built from.
 #[test]
 fn footnote_ladder_defaults_off() {
-    assert!(!FOOTNOTE_LADDER_DEFAULT);
+    let _g = crate::testlock::serial();
+    let saved = footnote_ladder_on();
+    set_footnote_ladder_on(FOOTNOTE_LADDER_DEFAULT);
+    assert!(!footnote_ladder_on(), "the shipped default is OFF");
+    set_footnote_ladder_on(saved);
 }
