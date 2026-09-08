@@ -1651,7 +1651,10 @@ thread_local! {
 /// active world cannot move under a summon that never previews one.
 fn picker_chrome_theme() -> theme::Theme {
     let idx = PICKER_CHROME_PIN.with(|c| c.get());
-    theme::THEMES.get(idx).copied().unwrap_or_else(theme::active)
+    theme::THEMES
+        .get(idx)
+        .copied()
+        .unwrap_or_else(theme::active)
 }
 
 /// Pin the theme picker's own chrome to the world active RIGHT NOW — called
