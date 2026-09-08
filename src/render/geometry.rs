@@ -1037,12 +1037,8 @@ impl TextPipeline {
     /// (an empty or not-yet-laid line), so the synthetic-row edge case stays exactly
     /// as before.
     pub(super) fn line_rows_local_shaped(&self, line: usize) -> Option<Vec<LocalVisualRow>> {
-        let Some(bline) = self.buffer.lines.get(line) else {
-            return None;
-        };
-        let Some(layout) = bline.layout_opt() else {
-            return None;
-        };
+        let bline = self.buffer.lines.get(line)?;
+        let layout = bline.layout_opt()?;
         if layout.is_empty() {
             return None;
         }
