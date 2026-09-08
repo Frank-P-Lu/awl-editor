@@ -144,6 +144,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod insert_link_field;
 mod layout_oracle;
 mod list_surfaces;
 mod magpie_bands;

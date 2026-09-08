@@ -111,6 +111,13 @@ pub struct ValueEdit {
     pub orig: String,
 }
 
+/// LINKS V2: the fixed label the minibuffer's one row shows — a quiet click
+/// target that fires the same commit `Action::Newline` a row's Enter does,
+/// carrying the same glyph the foot hint teaches. Never the typed URL itself
+/// (that lives in the FIELD line, `OverlayState::query`) — see
+/// [`OverlayState::new_link_edit`].
+const LINK_INSERT_ROW_LABEL: &str = "\u{21B5}  insert link";
+
 /// LINKS V2: the live Cmd-K minibuffer sub-state (`Some` only for
 /// [`OverlayKind::InsertLink`], armed the instant the overlay is BUILT by
 /// [`OverlayState::new_link_edit`] — mirrors [`RenameEdit`]'s "nothing to browse
@@ -129,11 +136,15 @@ pub struct LinkEdit {
 
 impl LinkEdit {
     /// The dim PROMPT line the card shows while typing, surfaced to the sidecar's
-    /// `overlay.hint` via [`OverlayState::foot_hint`] — the exact seam
-    /// [`RenameEdit::prompt`] rides, so the URL-typing state is `--keys`-verifiable
-    /// with ZERO new sidecar plumbing.
+    /// `overlay.hint` via [`OverlayState::foot_hint`]. Unlike [`RenameEdit::prompt`]
+    /// this repeats neither the typed text NOR the commit verb: the URL already
+    /// reads back from the FIELD line (`OverlayState::query`, mirrored from
+    /// `input` on every keystroke), and "insert link" already reads off the
+    /// card's own clickable row (`OverlayState::new_link_edit`'s
+    /// `LINK_INSERT_ROW_LABEL`) — this line's one remaining job is the escape
+    /// hatch that row carries no affordance for.
     pub fn prompt(&self) -> String {
-        format!("link to: {}   Enter commit   Esc cancel", self.input.text())
+        "esc cancel".to_string()
     }
 }
 
@@ -392,7 +403,13 @@ impl OverlayState {
     pub fn new_link_edit(prefill: String, mode: LinkEditMode) -> Self {
         let mut s = Self::new_marked(
             OverlayKind::InsertLink,
-            vec![prefill.clone()],
+            // The ONE row is a fixed, quiet CLICK-TO-COMMIT affordance, not a
+            // candidate — the URL itself lives in the FIELD line (`query`,
+            // mirrored below), so this text never changes as the user types.
+            // Clicking it rides the ordinary row-accept door every other
+            // picker's row click already uses (`Action::Newline`), carrying
+            // the same binding the foot hint teaches.
+            vec![LINK_INSERT_ROW_LABEL.to_string()],
             vec![false],
             vec![false],
             Vec::new(),
@@ -403,24 +420,26 @@ impl OverlayState {
             input: TextBox::seeded(&prefill),
             mode,
         });
+        s.link_edit_mirror();
         s
     }
 
-    /// LINK MINIBUFFER: mirror the typed URL into `corpus[0]`. A no-op when no
-    /// link edit is active.
+    /// LINK MINIBUFFER: mirror the live `link_edit.input` — text AND caret —
+    /// into `query`, the ONE field the render path already tracks a
+    /// per-character caret/selection box for (mirrors
+    /// [`Self::rename_edit_mirror`]'s exact reasoning: zero new caret-geometry
+    /// plumbing). The single row's own label never changes here — see
+    /// [`Self::new_link_edit`]. A no-op when no link edit is active.
     fn link_edit_mirror(&mut self) {
         let Some(le) = self.link_edit.as_ref() else {
             return;
         };
-        let text = le.input.text().to_string();
-        if let Some(row) = self.rows.get_mut(0) {
-            row.accept = text;
-        }
+        self.query = le.input.clone();
     }
 
     /// LINK MINIBUFFER: insert `c` at the caret — NO character filter (unlike
     /// [`Self::rename_edit_push`]'s `/`-rejection: a URL legitimately contains `/`).
-    /// Mirrors the change into `corpus[0]`. A no-op when no link edit is active.
+    /// Mirrors the change into `query`. A no-op when no link edit is active.
     pub fn link_edit_push(&mut self, c: char) {
         let Some(le) = self.link_edit.as_mut() else {
             return;
@@ -430,7 +449,7 @@ impl OverlayState {
     }
 
     /// LINK MINIBUFFER: delete the char before the caret, mirroring the change
-    /// into `corpus[0]`. A no-op when no link edit is active.
+    /// into `query`. A no-op when no link edit is active.
     pub fn link_edit_pop(&mut self) {
         let Some(le) = self.link_edit.as_mut() else {
             return;
@@ -440,7 +459,7 @@ impl OverlayState {
     }
 
     /// LINK MINIBUFFER: ⌥⌫ word-delete — drop the trailing word of the URL (the
-    /// word-DELETE rule), mirroring the change into `corpus[0]`. A no-op when no
+    /// word-DELETE rule), mirroring the change into `query`. A no-op when no
     /// link edit is active.
     pub fn link_edit_pop_word(&mut self) {
         let Some(le) = self.link_edit.as_mut() else {
@@ -450,33 +469,51 @@ impl OverlayState {
         self.link_edit_mirror();
     }
 
-    /// LINK MINIBUFFER char/word motion + forward word-delete. A no-op
-    /// when no link edit is active.
+    /// LINK MINIBUFFER char/word motion + forward word-delete. Mirrors the
+    /// caret move into `query` too (mirroring [`Self::rename_edit_char_left`]'s
+    /// shape) so a pointer-placed or motion-moved caret is the SAME caret the
+    /// field paints. A no-op when no link edit is active.
     pub fn link_edit_char_left(&mut self) {
         if let Some(le) = self.link_edit.as_mut() {
             le.input.char_left();
         }
+        self.link_edit_mirror();
     }
     pub fn link_edit_char_right(&mut self) {
         if let Some(le) = self.link_edit.as_mut() {
             le.input.char_right();
         }
+        self.link_edit_mirror();
     }
     pub fn link_edit_word_left(&mut self) {
         if let Some(le) = self.link_edit.as_mut() {
             le.input.word_left();
         }
+        self.link_edit_mirror();
     }
     pub fn link_edit_word_right(&mut self) {
         if let Some(le) = self.link_edit.as_mut() {
             le.input.word_right();
         }
+        self.link_edit_mirror();
     }
     pub fn link_edit_delete_word_forward(&mut self) {
         let Some(le) = self.link_edit.as_mut() else {
             return;
         };
         le.input.delete_word_forward();
+        self.link_edit_mirror();
+    }
+
+    /// LINK MINIBUFFER: place the caret at CHAR index `at` — the pointer's
+    /// click-to-place door onto `link_edit.input`, mirroring
+    /// [`Self::rename_edit_set_caret`]'s exact shape. Reached through
+    /// [`Self::query_set_caret`], never called directly by a key intercept
+    /// (those keep using [`Self::link_edit_char_left`]/`_right`/word motion).
+    pub(super) fn link_edit_set_caret(&mut self, at: usize) {
+        if let Some(le) = self.link_edit.as_mut() {
+            le.input.set_caret(at);
+        }
         self.link_edit_mirror();
     }
 

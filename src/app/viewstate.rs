@@ -209,6 +209,7 @@ impl App {
             // every ordinary frame byte-identical.
             overlay_query_field: ov.is_none_or(|o| o.kind.offers_query()),
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
+            overlay_query_placeholder: ov.and_then(|o| o.kind.field_placeholder().map(str::to_string)),
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(crate::overlay::OverlayState::title)

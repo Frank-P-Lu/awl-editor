@@ -699,7 +699,17 @@ impl TextPipeline {
             } else {
                 spans.push((title_prefix.as_str(), hkc(muted)));
             }
-            spans.push((self.overlay_query.as_str(), hk(ink)));
+            // GHOST TEXT: an empty field with something to say about it (today
+            // only Insert-link's URL field) shows it dim in the field's own
+            // place, never a second line — a query text still overrides it the
+            // instant it exists, matching the plain text-field convention.
+            match (
+                self.overlay_query.is_empty(),
+                self.overlay_query_placeholder.as_deref(),
+            ) {
+                (true, Some(ph)) => spans.push((ph, hk(muted))),
+                _ => spans.push((self.overlay_query.as_str(), hk(ink))),
+            }
         }
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands

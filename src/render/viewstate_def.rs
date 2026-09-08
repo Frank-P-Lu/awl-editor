@@ -80,6 +80,11 @@ pub struct ViewState {
     /// TextBox::selection_range`]). `None` for every other card and field,
     /// and for Rename itself once the first keystroke or motion collapses it.
     pub overlay_query_selection: Option<(usize, usize)>,
+    /// Ghost text the query field shows in place of `overlay_query` while
+    /// it's empty — the projection of [`crate::overlay::OverlayKind::
+    /// field_placeholder`]. `None` draws nothing there, exactly as before
+    /// this field existed.
+    pub overlay_query_placeholder: Option<String>,
     pub overlay_title: String,
     pub overlay_row_path_splits: bool,
     pub overlay_items: Vec<String>,
@@ -366,6 +371,7 @@ impl ViewState {
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
             overlay_query_selection: None,
+            overlay_query_placeholder: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),

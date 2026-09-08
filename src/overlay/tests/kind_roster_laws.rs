@@ -113,7 +113,12 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     for k in OverlayKind::ALL {
         let t = k.title();
         assert!(!t.is_empty(), "{k:?} has no title");
-        assert_eq!(t, t.to_lowercase(), "{k:?}'s title {t:?} must be lowercase");
+        // Every title is a lowercase picker VERB except `InsertLink`'s, which
+        // draws as a real FIELD LABEL (`Self::draws_title_prefix`) and keeps
+        // the user-authored casing that implies.
+        if k != OverlayKind::InsertLink {
+            assert_eq!(t, t.to_lowercase(), "{k:?}'s title {t:?} must be lowercase");
+        }
         assert!(
             titles.insert(t),
             "{k:?}'s title {t:?} collides with another kind's"
@@ -121,12 +126,7 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     }
     // Prompt surfaces and the pointer-anchored context menu orient without a
     // title prefix; every other kind draws one.
-    for k in [
-        OverlayKind::Rename,
-        OverlayKind::InsertLink,
-        OverlayKind::KeepName,
-        OverlayKind::Context,
-    ] {
+    for k in [OverlayKind::Rename, OverlayKind::KeepName, OverlayKind::Context] {
         assert!(
             !k.draws_title_prefix(),
             "{k:?} should not draw the title prefix"
@@ -135,10 +135,7 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     for k in OverlayKind::ALL {
         if !matches!(
             k,
-            OverlayKind::Rename
-                | OverlayKind::InsertLink
-                | OverlayKind::KeepName
-                | OverlayKind::Context
+            OverlayKind::Rename | OverlayKind::KeepName | OverlayKind::Context
         ) {
             assert!(k.draws_title_prefix(), "{k:?} should draw the title prefix");
         }
