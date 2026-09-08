@@ -52,10 +52,8 @@ fn representative(kind: OverlayKind) -> OverlayState {
             None,
         ),
         OverlayKind::Conflict => {
-            let mut ov = OverlayState::new_conflict(
-                PathBuf::from("/proj/draft.md"),
-                Some(DISK_TEXT.into()),
-            );
+            let mut ov =
+                OverlayState::new_conflict(PathBuf::from("/proj/draft.md"), Some(DISK_TEXT.into()));
             // "Version on disk" — the view whose subject is NOT the buffer, so
             // a leaked buffer selection has somewhere unambiguous to show up.
             ov.selected = ComparisonView::ALL
@@ -117,16 +115,14 @@ fn app_with_real_buffer_and_history() -> (App, crate::fs::FsGuard) {
 /// The published DOCUMENT node's selection, read back through the same
 /// projection a real platform adapter holds — never re-derived.
 fn document_selection(app: &App) -> Option<SemanticSelection> {
-    app.frame
-        .accessibility_projection()
-        .and_then(|projection| {
-            projection
-                .snapshot()
-                .nodes
-                .iter()
-                .find(|node| node.id == DOCUMENT_ID)
-                .and_then(|node| node.selection)
-        })
+    app.frame.accessibility_projection().and_then(|projection| {
+        projection
+            .snapshot()
+            .nodes
+            .iter()
+            .find(|node| node.id == DOCUMENT_ID)
+            .and_then(|node| node.selection)
+    })
 }
 
 /// **THE LAW.** For every member of the derived read-only-prose family, a
@@ -250,7 +246,10 @@ fn set_text_selection_moves_the_transcript_never_the_hidden_buffer() {
         app.refresh_accessibility();
         assert_eq!(
             document_selection(&app),
-            Some(SemanticSelection { anchor: 0, focus: 1 }),
+            Some(SemanticSelection {
+                anchor: 0,
+                focus: 1
+            }),
             "{kind:?}: the published selection must be the transcript's own \
              offsets, exactly what was requested — \"it should select what you \
              selected\""
@@ -281,11 +280,13 @@ fn set_text_selection_clamps_to_the_transcripts_own_length() {
         .sum();
     assert!(total > 0, "Credits must publish some transcript text");
 
-    assert!(app.apply_semantic_request(SemanticRequest::SetTextSelection {
-        id: DOCUMENT_ID.to_string(),
-        anchor: total + 500,
-        focus: total + 900,
-    }));
+    assert!(
+        app.apply_semantic_request(SemanticRequest::SetTextSelection {
+            id: DOCUMENT_ID.to_string(),
+            anchor: total + 500,
+            focus: total + 900,
+        })
+    );
     app.refresh_accessibility();
     assert_eq!(
         document_selection(&app),
@@ -318,15 +319,20 @@ fn a_new_transcript_subject_starts_the_selection_over() {
     app.workspace_state.install_overlay_for_test(conflict);
     app.attach_assistive_technology_for_test();
 
-    assert!(app.apply_semantic_request(SemanticRequest::SetTextSelection {
-        id: DOCUMENT_ID.to_string(),
-        anchor: 1,
-        focus: 1,
-    }));
+    assert!(
+        app.apply_semantic_request(SemanticRequest::SetTextSelection {
+            id: DOCUMENT_ID.to_string(),
+            anchor: 1,
+            focus: 1,
+        })
+    );
     app.refresh_accessibility();
     assert_eq!(
         document_selection(&app),
-        Some(SemanticSelection { anchor: 1, focus: 1 }),
+        Some(SemanticSelection {
+            anchor: 1,
+            focus: 1
+        }),
         "the selection must move on the subject it was asked to move on"
     );
 
@@ -342,7 +348,10 @@ fn a_new_transcript_subject_starts_the_selection_over() {
 
     assert_eq!(
         document_selection(&app),
-        Some(SemanticSelection { anchor: 0, focus: 0 }),
+        Some(SemanticSelection {
+            anchor: 0,
+            focus: 0
+        }),
         "a new transcript subject must start the reader's selection over, not \
          carry the previous subject's offsets onto text they never named"
     );

@@ -52,7 +52,10 @@ impl SemanticProjection {
         // reader's own offsets from whatever the tree held before (the
         // buffer's inert zero, or a different transcript entirely) name
         // nothing here.
-        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
+        self.transcript_selection = SemanticSelection {
+            anchor: 0,
+            focus: 0,
+        };
     }
 
     /// The transcript's twin of [`Self::sync_runs`]. Returns whether the run
@@ -82,7 +85,10 @@ impl SemanticProjection {
         // for us. A stale offset into the OLD prose is not a position in the
         // new one, so it is reset here, on the one path that actually replaces
         // the text this selection names.
-        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
+        self.transcript_selection = SemanticSelection {
+            anchor: 0,
+            focus: 0,
+        };
         true
     }
 

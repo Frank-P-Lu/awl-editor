@@ -133,7 +133,10 @@ impl SemanticProjection {
             stats: ProjectionStats::default(),
             built_from_transcript: false,
             last_transcript: None,
-            transcript_selection: SemanticSelection { anchor: 0, focus: 0 },
+            transcript_selection: SemanticSelection {
+                anchor: 0,
+                focus: 0,
+            },
         }
     }
 
@@ -208,7 +211,10 @@ impl SemanticProjection {
         self.seeded = false;
         self.resolved = None;
         self.last_transcript = None;
-        self.transcript_selection = SemanticSelection { anchor: 0, focus: 0 };
+        self.transcript_selection = SemanticSelection {
+            anchor: 0,
+            focus: 0,
+        };
     }
 
     /// Bring the retained snapshot up to date. The narrow view is the whole

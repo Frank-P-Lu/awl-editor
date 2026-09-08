@@ -444,7 +444,9 @@ impl FrameRuntime {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(in crate::app) fn accessibility_projection_mut(&mut self) -> Option<&mut SemanticProjection> {
+    pub(in crate::app) fn accessibility_projection_mut(
+        &mut self,
+    ) -> Option<&mut SemanticProjection> {
         self.accessibility.projection_mut()
     }
 
