@@ -207,6 +207,7 @@ mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod pull_quote_pair;
 mod query_field;
+mod quote_close_geometry;
 mod quote_orientation;
 mod rail_ink_law;
 mod raked_location;
