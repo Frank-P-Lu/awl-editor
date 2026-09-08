@@ -30,6 +30,11 @@ mod bowerbird_breathe;
 mod bowerbird_finds;
 mod bowerbird_spacing;
 mod build_integrity;
+/// The bullet ornament's real-pixel reveal law: a selection touching a
+/// nested list row draws ONLY that row's raw dash, never the depth glyph
+/// stacked over it — the `rule_reveal_state` pixel law's sibling for the
+/// other legacy (pre-`ConcealKind`) construct.
+mod bullet_reveal_pixels;
 mod card_texture_shape;
 mod caret;
 mod caret_block;

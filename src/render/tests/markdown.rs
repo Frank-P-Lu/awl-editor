@@ -384,6 +384,229 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     );
 }
 
+/// SELECTION REVEAL, the bullet ORNAMENT half: the legacy bullet CONCEAL
+/// (`build_line_attrs`'s `line_selected` gate) widens to "caret line OR
+/// selection touch" — the raw marker correctly reveals — but the bullet
+/// ORNAMENT painter (`bullet_marks`) reads `line_is_revealed`, the exact
+/// owner `rule_lines` already reads, so a selection merely touching a bullet
+/// row (caret elsewhere) drops its depth glyph instead of drawing it over the
+/// now-revealed raw `-`/`*`/`+`: the ornament set and the conceal set are the
+/// same set by construction, never two markers on one row.
+///
+/// Swept at BOTH depth 0 and depth 1 (a depth-0 double-draw is real too, it
+/// is just harder to see — the glyph sits on top of the dash instead of
+/// beside it) and at the SKIP-GATE axis `docs/markdown.md` names for
+/// `refresh_rule_conceal`: a selection change that leaves the caret's own
+/// LINE untouched, driven as a real two-call sequence through `set_view`
+/// (not one snapshot `ViewState`), so a cache that only invalidates on a
+/// caret-line change cannot serve a stale glyph list.
+#[test]
+fn selected_bullet_row_drops_the_depth_glyph_keeps_its_dash() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping selected_bullet_row_drops_the_depth_glyph_keeps_its_dash: no wgpu adapter"
+        );
+        return;
+    };
+    // Depth 0/1/2/3 nested list — same fixture as the reveal-on-cursor law
+    // above, so this reads as its selection-driven twin.
+    let text = "- top\n  * mid\n    + deep\n      - deeper\n";
+    let all_glyphs = {
+        let mut off = view(text, 4, 0);
+        off.is_markdown = true;
+        p.set_view(&off);
+        p.bullet_glyphs()
+    };
+    assert_eq!(all_glyphs.len(), 4, "fixture must carry all four depths");
+
+    // DEPTH 0: a selection touching ONLY line 0, caret on the unrelated
+    // trailing blank line 4.
+    let mut sel0 = view(text, 4, 0);
+    sel0.is_markdown = true;
+    sel0.selection = Some(((0, 0), (0, 5)));
+    p.set_view(&sel0);
+    assert_eq!(
+        p.bullet_glyphs(),
+        vec![all_glyphs[1], all_glyphs[2], all_glyphs[3]],
+        "selection touching the depth-0 row must drop ONLY its glyph, keeping depths 1-3"
+    );
+    assert!(
+        !p.bullet_marker_concealed(0),
+        "selection touching line 0 must reveal its raw marker"
+    );
+
+    // DEPTH 1: a selection touching ONLY line 1, caret elsewhere.
+    let mut sel1 = view(text, 4, 0);
+    sel1.is_markdown = true;
+    sel1.selection = Some(((1, 0), (1, 7)));
+    p.set_view(&sel1);
+    assert_eq!(
+        p.bullet_glyphs(),
+        vec![all_glyphs[0], all_glyphs[2], all_glyphs[3]],
+        "selection touching the depth-1 row must drop ONLY its glyph, keeping depths 0, 2, 3"
+    );
+    assert!(
+        !p.bullet_marker_concealed(1),
+        "selection touching line 1 must reveal its raw marker"
+    );
+
+    // SKIP-GATE AXIS: the caret's own line never moves across this sequence
+    // (it stays on the trailing blank line 4) — only the selection changes,
+    // real `set_view` calls in order, exercising the same live path
+    // `refresh_rule_conceal`'s cache invalidation does for the conceal side.
+    let mut none_then = view(text, 4, 0);
+    none_then.is_markdown = true;
+    p.set_view(&none_then); // no selection at all
+    assert_eq!(
+        p.bullet_glyphs(),
+        all_glyphs,
+        "no selection, caret elsewhere: every depth keeps its glyph"
+    );
+    let mut touch_then = view(text, 4, 0);
+    touch_then.is_markdown = true;
+    touch_then.selection = Some(((2, 0), (2, 9))); // depth-2 line, caret still line 4
+    p.set_view(&touch_then);
+    assert_eq!(
+        p.bullet_glyphs(),
+        vec![all_glyphs[0], all_glyphs[1], all_glyphs[3]],
+        "selection added with the caret's own line UNCHANGED must still drop the newly \
+         touched row's glyph — a caret-line-only invalidation would serve the stale full set"
+    );
+    let mut cleared_then = view(text, 4, 0);
+    cleared_then.is_markdown = true;
+    p.set_view(&cleared_then); // selection cleared, caret's line still unchanged
+    assert_eq!(
+        p.bullet_glyphs(),
+        all_glyphs,
+        "clearing the selection with the caret's own line UNCHANGED must bring every glyph \
+         back — the non-vacuity companion for the drop above"
+    );
+}
+
+/// NON-VACUITY + THE SHARED OWNER:
+/// [`selected_bullet_row_drops_the_depth_glyph_keeps_its_dash`] asserts the
+/// fixed behavior; this proves the ORNAMENT and CONCEAL sets are
+/// the SAME set by construction, not two independently-correct filters that
+/// happen to agree today. A selection touching a row must show its raw
+/// marker (`!bullet_marker_concealed`) AND drop its glyph (`bullet_glyphs`)
+/// in lockstep — swept at both depths, so a fix that repairs one reader
+/// without the other (the exact shape of the original bug, applied to the
+/// wrong half) still fails.
+#[test]
+fn bullet_ornament_and_conceal_agree_on_every_selected_row() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping bullet_ornament_and_conceal_agree_on_every_selected_row: no wgpu adapter"
+        );
+        return;
+    };
+    let text = "- top\n  * mid\n    + deep\n      - deeper\n";
+    for (line, end_col) in [(0, 5), (1, 7), (2, 9), (3, 11)] {
+        let mut sel = view(text, 4, 0);
+        sel.is_markdown = true;
+        sel.selection = Some(((line, 0), (line, end_col)));
+        p.set_view(&sel);
+        let concealed = p.bullet_marker_concealed(line);
+        let glyph_count = p.bullet_glyphs().len();
+        assert!(
+            !concealed,
+            "line {line}: a touching selection must reveal the raw marker"
+        );
+        assert_eq!(
+            glyph_count,
+            3,
+            "line {line}: with its marker revealed, exactly 3 of the 4 depths still draw a \
+             glyph (glyphs={:?})",
+            p.bullet_glyphs()
+        );
+    }
+}
+
+/// NO-WILDCARD SWEEP: every LEGACY (pre-`ConcealKind`) line-scoped ornament
+/// family — the thematic-break fleuron and the bullet depth glyph — shares
+/// ONE reveal owner, `TextPipeline::line_is_revealed`. Enumerated with NO
+/// wildcard arm: a THIRD such family landing in `render/rects.rs` with its
+/// own ad hoc `li == self.cursor_line` check (exactly bullet's original bug,
+/// one family over) fails to compile into this match until someone
+/// consciously adds it here and answers "does IT drop its mark too".
+#[derive(Clone, Copy)]
+enum LegacyLineOrnament {
+    Rule,
+    Bullet,
+}
+
+impl LegacyLineOrnament {
+    const ALL: [Self; 2] = [Self::Rule, Self::Bullet];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Rule => "rule",
+            Self::Bullet => "bullet",
+        }
+    }
+
+    /// A fixture carrying exactly one instance of this construct, and the
+    /// logical line it lives on.
+    fn fixture(self) -> (&'static str, usize) {
+        match self {
+            Self::Rule => ("above\n\n---\n\nbelow\n", 2),
+            Self::Bullet => ("- top\n  - mid\n", 1),
+        }
+    }
+
+    /// How many marks this family currently draws, over `p`'s live view.
+    fn mark_count(self, p: &TextPipeline) -> usize {
+        match self {
+            Self::Rule => p.rule_tops().len(),
+            Self::Bullet => p.bullet_glyphs().len(),
+        }
+    }
+}
+
+#[test]
+fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping \
+             every_legacy_line_ornament_drops_its_mark_on_selection_touch: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    for family in LegacyLineOrnament::ALL {
+        let (text, target_line) = family.fixture();
+        let name = family.name();
+
+        // PRESENCE: caret elsewhere (line 0), no selection — the mark
+        // genuinely draws. The non-vacuity floor: a family whose fixture
+        // draws nothing here would make the drop below meaningless.
+        let mut off = view(text, 0, 0);
+        off.is_markdown = true;
+        p.set_view(&off);
+        let baseline = family.mark_count(&p);
+        assert_eq!(
+            baseline, 1,
+            "{name}: fixture must draw exactly one mark before any selection exists"
+        );
+
+        // THE CLAIM: caret still on line 0, a selection now touches ONLY
+        // the construct's own line.
+        let mut sel = view(text, 0, 0);
+        sel.is_markdown = true;
+        sel.selection = Some(((target_line, 0), (target_line, 1)));
+        p.set_view(&sel);
+        assert_eq!(
+            family.mark_count(&p),
+            0,
+            "{name}: a selection touching its line (caret elsewhere) must drop its mark to \
+             zero, exactly like `rule_lines`/`bullet_marks` share one `line_is_revealed` owner"
+        );
+    }
+}
+
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
 /// [`theme::Theme::bullets`] triple (drawn in its ornament face) — a technical
 /// world keeps `•`/`◦`/`▪`, a literary serif draws its characterful triple, and
