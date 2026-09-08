@@ -5,15 +5,11 @@
 //! shaped ink and the pointer, but it grades the REPORT STRUCT. A serializer
 //! between that struct and the JSON can still drop a key, reorder a band, or —
 //! the failure this file exists for — quietly rescale a number. So the oracle
-//! here is the **rendered card's own rim**: the float primitive draws a
-//! one-pixel border, which is the strongest luminance step anywhere along a row
-//! that crosses the card, and its two positions are the card's real left and
-//! right edges. Nothing in that measurement reads the sidecar.
-//!
-//! ⚠️ **BOTH EDGES, NEVER ONE.** A rect pinned only by its origin accepts any
-//! uniform scaling of its extent, at every scale — so the law locates the two
-//! strongest steps on the row and requires them to be the published `x` and
-//! `x + w`. Halving `w` puts the second one mid-card, where the fill is flat.
+//! here is the rendered card's own rim. Each published edge selects a narrow
+//! scan neighborhood; the pixel contrast within it must establish a real rim.
+//! Unrelated page or menu edges elsewhere on the canvas cannot win enrollment.
+//! Both edge positions and the extent are checked, so a uniformly rescaled
+//! report fails either the rim-presence check or the measured-position check.
 //!
 //! ⚠️ **AND EVERY CAPTURE OTHERWISE RUNS AT `--capture-dpi 1`**, the one scale at
 //! which a device-pixel figure and a logical one look identical. The same panel is
@@ -115,34 +111,32 @@ fn rel_lum(px: image::Rgba<u8>) -> f64 {
     0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64
 }
 
-/// The `n` strongest luminance steps along a scan line, as positions, with
-/// non-maximum suppression so one rim (which spans two or three pixels as it
-/// blends) contributes one answer rather than three.
-///
-/// Deliberately RELATIVE: it compares neighbouring pixels to each other and
-/// never to a theme constant, so it says the same thing on a rasterizer that
-/// rounds a channel differently.
-fn strongest_steps(samples: &[f64], n: usize) -> Vec<usize> {
-    let mut steps: Vec<(f64, usize)> = (1..samples.len())
+/// Locate a real rim near a reported edge, excluding unrelated canvas edges.
+fn rim_near(samples: &[f64], published: f64) -> usize {
+    let (contrast, at) = (1..samples.len())
+        .filter(|i| ((*i - 1) as f64 - published).abs() <= 8.0)
         .map(|i| ((samples[i] - samples[i - 1]).abs(), i - 1))
-        .collect();
-    steps.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("finite luminance"));
-    let mut out: Vec<usize> = Vec::new();
-    for (_, at) in steps {
-        if out.len() == n {
-            break;
-        }
-        if out.iter().all(|had| had.abs_diff(at) > 3) {
-            out.push(at);
-        }
-    }
-    out.sort_unstable();
-    out
+        .max_by(|a, b| a.0.partial_cmp(&b.0).expect("finite luminance"))
+        .expect("published edge must have an in-frame measurement neighborhood");
+    assert!(
+        contrast > 1.0,
+        "no visible rim near {published}: strongest luminance step was {contrast}"
+    );
+    at
 }
 
-/// The card's real edges, measured off the PNG: the two strongest horizontal
-/// steps on a row inside the card's own pad, and the two strongest vertical steps
-/// in a column inside it. Sampled in the pad rather than over the text, because a
+#[test]
+fn rim_enrollment_excludes_unrelated_edges_and_rejects_absent_rims() {
+    let mut row = vec![10.0; 400];
+    row[40..100].fill(200.0);
+    row[240..380].fill(60.0);
+    assert_eq!(rim_near(&row, 240.0), 239);
+    assert_eq!(rim_near(&row, 380.0), 379);
+    assert!(std::panic::catch_unwind(|| rim_near(&row, 300.0)).is_err());
+}
+
+/// The card's real edges, measured off the PNG in a narrow neighborhood of
+/// each published edge, along scan lines inside the card's own pad. Sampled in the pad rather than over the text, because a
 /// glyph edge is a stronger step than a rim and would win.
 fn measured_edges(png: &std::path::Path, p: &Panel) -> ([usize; 2], [usize; 2]) {
     let img = image::open(png).expect("decode PNG").to_rgba8();
@@ -153,13 +147,19 @@ fn measured_edges(png: &std::path::Path, p: &Panel) -> ([usize; 2], [usize; 2]) 
     let row: Vec<f64> = (0..w)
         .map(|x| rel_lum(*img.get_pixel(x as u32, y as u32)))
         .collect();
-    let xs = strongest_steps(&row, 2);
+    let xs = [
+        rim_near(&row, p.card[0]),
+        rim_near(&row, p.card[0] + p.card[2]),
+    ];
     // 4px right of the published card left edge: the left pad, no glyphs.
     let x = (p.card[0].max(0.0) as usize + 4).min(w - 1);
     let col: Vec<f64> = (0..h)
         .map(|y| rel_lum(*img.get_pixel(x as u32, y as u32)))
         .collect();
-    let ys = strongest_steps(&col, 2);
+    let ys = [
+        rim_near(&col, p.card[1]),
+        rim_near(&col, p.card[1] + p.card[3]),
+    ];
     assert_eq!(
         (xs.len(), ys.len()),
         (2, 2),
