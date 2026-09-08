@@ -65,9 +65,7 @@ fn search_matches_share_one_visible_row_gather() {
 fn search_match_geometry_is_differentially_exact_and_work_is_bounded() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping search_match_geometry_is_differentially_exact_and_work_is_bounded: no wgpu adapter"
-        );
+        eprintln!("skipping bounded search geometry law: no wgpu adapter");
         return;
     };
     let text = "é the river moves calmly. ".repeat(180);
@@ -116,7 +114,7 @@ fn search_match_geometry_is_differentially_exact_and_work_is_bounded() {
                     );
                     assert!(
                         visits <= count * 2,
-                        "width={width} scroll={scroll:?}: visits {visits} must be at most twice the {count} matches"
+                        "width={width} scroll={scroll:?}: {visits} row visits for {count} matches"
                     );
                 }
             }
