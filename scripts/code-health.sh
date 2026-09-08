@@ -90,7 +90,16 @@ scripts/test-sweep.sh
 # Wired at birth for the same reason as the line above: this file existed once,
 # unwired, and was deleted for it — and the constants it pins were tuned against
 # a sweep whose reach has since been narrowed to a single worktree.
-scripts/test-disk-preflight.sh
+#
+# Run under BOTH ambient CI branches, for the same reason native-gate.sh runs
+# the menu-bar arm this host does not run ambiently. disk-preflight.sh answers
+# a CI environment on a branch of its own, before fleet policy is consulted,
+# and a hosted runner exports CI to every step — so run one way only and the
+# fleet half is exercised here and nowhere else, the CI half nowhere but a
+# runner. That is how a suite green on this host shipped a red gating linux
+# job. Each arm is under five seconds; the suite names the branch it ran under.
+env -u CI scripts/test-disk-preflight.sh
+CI=true scripts/test-disk-preflight.sh
 scripts/test-pycache-guards.sh
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a
