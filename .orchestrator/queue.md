@@ -6,6 +6,57 @@
 
 ## Ready to build
 
+### 624 — search highlights share visible geometry (user priority, 2026-09-08)
+
+🟡 IN PROGRESS — Codex search owner, model `gpt-5.6-terra` at `medium`, branch `codex/624-search`, worktree `.worktrees/624-search`.
+
+Build: remove repeated row scanning/copying while painting search matches. Current
+release measurements report 138–150 ms median per search step for the 5,005-word
+single-paragraph corpus; headless frame measurements, not input-to-display latency.
+Verify the premise and measure a same-base before before editing. The suspected
+chain is `search_match_rects` calling `range_rects` separately per match, each
+gathering row geometry. Gather/borrow visible geometry once and resolve intersecting
+matches against it; retain all matches for counts/navigation. Preserve selection,
+current-match treatment, Unicode, concealed Markdown, tables, clipping and scroll
+behavior. No world-switch work or broad layout rewrite.
+
+Done: a material measured reduction in the long-paragraph search stall, with a
+work-count law forbidding repeated whole-row work per match. Sweep document length,
+match density and wrap width, including empty/offscreen matches and buffer swaps.
+Verify pixel/sidecar outcomes with seeded fixtures, five-shot vision smoke, targeted
+tests and a compiling mutation of the headline law. Then exact-candidate native
+gate and wasm smoke before integration. Timing/feel remains a live confirmation.
+Benchmarks run alone; typing implementation follows this item. Other queue work
+remains paused by the user's instruction.
+
+---
+
+### 625 — typing updates affected text rather than reprocessing the manuscript (user priority, 2026-09-08)
+
+🟡 IN PROGRESS — Codex typing owner, model `gpt-5.6-sol` at `high`, branch `codex/625-typing`, worktree `.worktrees/625-typing`; diagnosis first, implementation after 624.
+
+Build: reduce ordinary edit latency with the existing rope and editor model. The
+50,029-word corpus measures 18.4–18.5 ms median per typing/render step, excluding
+live spell recomputation. First profile actual edit-to-view preparation plus frame
+work, separately reporting spellcheck, parsing/layout and geometry/cache costs.
+Existing full-document passes are suspects, not a proven attribution. Establish a
+same-revision baseline and work witnesses before selecting the smallest substantial
+fix. Propagate affected text/version/identity through measured expensive owners;
+retain correct invalidation for structural Markdown edits and nonlocal dependencies.
+Do not substitute debounce, stale spelling, or dropped formatting for less work.
+No rope replacement, speculative layout tree, theme-toggle/world-switch changes.
+
+Done: materially lower manuscript edit cost, with bounded-work laws for whichever
+owners become incremental and full-recompute equivalence for edits, undo/redo,
+paste, Unicode, fences/frontmatter, and buffer switching. Measure a size ladder and
+edit-position/structure axes; distinguish rendering-only from live preparation.
+Mutation-prove headline laws, check relevant pixel/sidecar outcomes and five-shot
+vision smoke, then native gate and wasm smoke on the integration candidate.
+Source-only diagnosis may overlap 624; builds and performance runs are coordinated
+by the root. Report residual costs honestly instead of claiming constant-time typing.
+
+---
+
 ---
 
 ### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
