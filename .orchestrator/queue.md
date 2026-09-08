@@ -490,33 +490,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 607 — follow gestures: middle-click under both Linux flavors, and the gestures rebindable (user decision, 2026-09-07)
-
-⬜ DECIDED, READY. Two calls 576 left one line from the user, both now taken the other way.
-
-**(a) Middle-click follows under Linux `native` as well as `emacs`.** It collided with nothing
-under `native` and was flavor-gated only to keep the platform convention plain; the user
-wants it present. Ctrl-click stays on Linux under both flavors; ⌘-click on Mac stays;
-Ctrl-click stays absent on macOS, where the OS spends it as the secondary click.
-
-**(b) The gestures become `[keys]`-rebindable.** This is the decision 576 said was worth taking
-before the grammar had users; it is taken. Rebinding a mouse chord means a second chord
-grammar: extend `keyspec::parse_chord` (or a sibling owner beside it) to spell `click`,
-`middle-click` and `right-click` with the same modifier prefixes keys use (`C-click`,
-`M-click`, `s-click`), routed through `keymap::platform::active_follow_gestures` as the ONE
-selection point, listed on every label surface the key bindings already reach, and
-documented in docs/config.md. The keep-list stays untouched: a mouse chord remains outside
-it by construction, and the law that says so stays.
-
-Laws: every default gesture in the roster round-trips through the parser; a `[keys] follow =
-"…"` line replaces the defaults per platform and the label surfaces report it; a chord the
-grammar cannot spell keeps the default and prints a note naming the line, the same shape a
-bad key chord already gets. Keep the deferred `#heading-anchor` no-op deferred.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
-
----
-
 ### 616 — table selection: neighbouring cells flicker while the band settles (user report, 2026-09-08)
 
 ⬜ READY. The user confirmed 551's whole-row band is what they want, and reported one defect on it in their own words: "the neighbouring cells kind of flicker, I don't like that." Cells beside the selected run change appearance transiently while the selection moves. Read the cause out of the tree before fixing — 551 landed in `f740749c` (`render/rects.rs`, `render/geometry.rs`, law in `render/tests/table_selection_band_law.rs`) with a follow-up in `db90497e`; find what animates or re-paints on the untouched cells (a band ease, the table x-ray's grid float, or a cache invalidation that re-shapes the row). **The user's fallback, stated plainly: if the flicker cannot be cut out on its own, remove the animation on the table band altogether.** A calm still band beats a lively one that flickers.
@@ -526,67 +499,6 @@ Laws: over a selection that grows one cell at a time, the pixels of every cell O
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
 
 ---
-
-### 623 — the range-rail law passes with the track deleted: it is satisfied by the thumb (found mutation-testing 592's repair, 2026-09-08)
-
-⬜ READY — small, and it is the "satisfiable by deleting its own subject" shape in its purest
-form. Not introduced by 592; found while checking 592's repair, which is sound.
-
-`the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels` asserts, by name and
-by message, that "the TRACK must paint something distinct from its ground". Delete the track
-entirely and the law stays GREEN. Verified with the mutation compiled and run:
-
-```
-# in overlay_rows.rs, the track prepares with no rects at all
-self.overlay_range_track.prepare(device, queue, width, height, &[]);
-```
-```
-Compiling awl v0.12.0
-test result: ok. 1 passed; 0 failed
-```
-Green under `AWL_MENU_BAR_FORCE=on` and `=off` alike.
-
-The reason is structural. The law walks x from the track's left to its right and keeps the
-STRONGEST delta as the thumb and the WEAKEST non-zero delta as the track. Those are two
-statistics of one scan over a span that contains both marks — so with no track painted at all,
-the thumb's own pixels supply both the maximum and the minimum, `track.0 >= 4` holds, and
-`thumb.0 > track.0` holds too. Nothing in the law ever asks whether ink was found OUTSIDE the
-thumb's own extent.
-
-592's repair is orthogonal and correct: it proved the scan's edge pixel was antialiasing rather
-than fill, and `TRACK_EDGE_INSET` moves the search off that seam. That fix is measured and
-stands. This item is the second, independent way the same law fails to mean what it says.
-
-Build: make the track's assertion look at ink that is NOT the thumb — the obvious owner is the
-thumb's own reported extent, which the test already has, so sample the track strictly outside
-it. Keep the existing figure/ground relationship (`thumb.0 > track.0`) and the one-accent
-check.
-
-Law: the law must go RED when the track paints nothing, and RED when the track paints its own
-ground colour — two different mutations, because "absent" and "present but invisible" are
-different defects and this law currently catches neither. Prove both with the mutation
-compiled AND run; a mutation that silently failed to rebuild proves nothing, and this item
-exists because that check was nearly skipped.
-
-Routing: worker Sonnet medium.
-
----
-
-## `item-620-622` carries one commit that is deliberately NOT merged
-
-`4ef97e0d` sets `src/render.rs`'s `file_size_mark` to 3077. On the merged tree that file is
-3111 lines, so merging it would fail `code-health` immediately. The mark on main was derived at
-merge time with `wc -l` against the MERGED file rather than taken from either side — and both
-sides were wrong, the lane's by 34 lines and the other branch's by more.
-
-Left unmerged on purpose, recorded here because an unmerged commit on a finished lane's branch
-otherwise reads as forgotten work. Nothing is lost: its only content is a number that was
-correct on its own branch and is not correct here.
-
-The general rule this is an instance of: **`code-health.toml` conflicts are resolved by
-measuring the merged file, never by picking a side.** Two lanes touching one source file always
-collide there, and in every collision this session BOTH counts were stale — sometimes the
-merged file was longer than either claimed, once (`render.rs` under 605+617) it was shorter.
 
 ### 632 — the theme picker loses its card backing while previewing a world (found by 628's prototype, 2026-09-09)
 
