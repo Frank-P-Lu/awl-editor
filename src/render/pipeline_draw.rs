@@ -574,6 +574,7 @@ impl TextPipeline {
             md_enabled: false,
             wysiwyg_latched: crate::markdown::wysiwyg_on(),
             inline_images_latched: crate::markdown::inline_images_on(),
+            footnote_ladder_latched: crate::markdown::footnote_ladder_on(),
             md_spans: Vec::new(),
             outline_headings: Vec::new(),
             set_wants_outline_rail: false,

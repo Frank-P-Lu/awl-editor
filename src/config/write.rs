@@ -170,6 +170,11 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   code_ligatures : programming ligatures (-> => != >= :: |>) in CODE buffers on
 #                the pitch-safe monos (JetBrains Mono, Iosevka) — default on. Set
 #                false for ligature-free code. Prose fi/fl ligatures are always on.
+#   footnote_ladder : paint footnote reference/definition marks as the traditional
+#                print-shop ladder (* † ‡ § ‖ ¶, doubling
+#                when exhausted: ** †† ‡‡ …) instead of a
+#                plain first-appearance number (default false). Display only — the
+#                `[^label]` source and export stay numeric either way.
 #   cjk_priority : the Han-ambiguity tiebreak ladder — consulted only as the
 #                LAST resort, after the document's own text is checked for
 #                decisive evidence (any kana -> Japanese, a GB2312-only or
@@ -229,6 +234,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # popover = true
 # inline_images = true
 # code_ligatures = true
+# footnote_ladder = false
 # cjk_priority = \"auto\"
 # session_restore = true
 # outline = true

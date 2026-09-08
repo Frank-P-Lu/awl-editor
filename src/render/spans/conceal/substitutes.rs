@@ -90,6 +90,13 @@ impl SubstituteAdvances {
             );
             *slot = width;
         }
+        // The ladder marks shape from the bundled `Awl Marks` face (never the
+        // world's own display face): `†`/`‡`/`‖`/`¶` are absent from several
+        // bundled prose faces (the never-tofu law's own subject), while `Awl
+        // Marks` carries the whole ladder by roster construction
+        // (`assets/fonts/AwlMarks.roster.tsv`, `reference-537`) — the same
+        // guaranteed-coverage face every other Nishiki ornament already
+        // shapes from.
         let mut ladder_marks = [0.0; 6];
         for (mark, slot) in crate::markdown::FOOTNOTE_LADDER_MARKS
             .iter()
@@ -98,7 +105,7 @@ impl SubstituteAdvances {
             let (_, width) = shape_footnote_mark_text(
                 font_system,
                 metrics,
-                family,
+                crate::render::SYMBOL_FAMILY,
                 &mark.to_string(),
                 theme::muted().to_glyphon(),
             );
@@ -155,10 +162,13 @@ impl SubstituteAdvances {
     }
 }
 
-/// Shape one footnote `number`'s display text exactly as it will be painted:
-/// the document's settled face at the superscript size, over the caller's
-/// ink, choosing between the plain number and the traditional ladder mark
-/// the SAME way [`SubstituteAdvances::footnote_slot`] does
+/// Shape one footnote `number`'s display text exactly as it will be painted,
+/// at the superscript size, over the caller's ink — choosing between the
+/// plain number (the document's own settled face — every bundled display
+/// face covers plain ASCII digits) and the traditional ladder mark (the
+/// bundled `Awl Marks` face — the never-tofu guarantee for `† ‡ ‖ ¶`, which
+/// several display faces lack) the SAME way
+/// [`SubstituteAdvances::footnote_slot`] does
 /// (`crate::markdown::footnote_ladder_on`) — so the ink and the room made for
 /// it can never diverge in EITHER dimension: size/family (the shared shaping
 /// door below) or which display mode is active (this shared branch).
@@ -169,12 +179,19 @@ pub(in crate::render) fn shape_footnote_number(
     number: usize,
     color: glyphon::Color,
 ) -> (GlyphBuffer, f32) {
-    let text = if crate::markdown::footnote_ladder_on() {
-        crate::markdown::footnote_ladder_mark(number)
-    } else {
-        number.to_string()
-    };
-    shape_footnote_mark_text(font_system, metrics, family, &text, color)
+    if crate::markdown::footnote_ladder_on() {
+        // The never-tofu face, not the world's own display face — see
+        // `SubstituteAdvances::shape`'s `ladder_marks` doc.
+        let text = crate::markdown::footnote_ladder_mark(number);
+        return shape_footnote_mark_text(
+            font_system,
+            metrics,
+            crate::render::SYMBOL_FAMILY,
+            &text,
+            color,
+        );
+    }
+    shape_footnote_mark_text(font_system, metrics, family, &number.to_string(), color)
 }
 
 /// THE one shaping door a painted footnote mark's ink and its reserved slot

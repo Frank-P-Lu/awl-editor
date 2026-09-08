@@ -19,6 +19,7 @@ pub struct Config {
     pub popover: Option<bool>,
     pub inline_images: Option<bool>,
     pub code_ligatures: Option<bool>,
+    pub footnote_ladder: Option<bool>,
     pub cjk_priority: Option<Vec<crate::frontmatter::Lang>>,
     pub session_restore: Option<bool>,
     pub outline: Option<bool>,
@@ -66,6 +67,7 @@ impl Config {
             popover: None,
             inline_images: None,
             code_ligatures: None,
+            footnote_ladder: None,
             cjk_priority: None,
             session_restore: None,
             outline: None,
@@ -300,6 +302,7 @@ fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
     cfg.wysiwyg = value("wysiwyg");
     cfg.inline_images = value("inline_images");
     cfg.code_ligatures = value("code_ligatures");
+    cfg.footnote_ladder = value("footnote_ladder");
     cfg.session_restore = value("session_restore");
     cfg.outline = value("outline");
     cfg.menu_bar = value("menu_bar");

@@ -136,13 +136,13 @@ fn every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here() {
         .iter()
         .filter(|f| !covered_by_name.contains(&f.as_str()))
         .collect();
-    // The fourteen `MiscPins` toggle fields: debug, outline, menu_bar,
+    // The fifteen `MiscPins` toggle fields: debug, outline, menu_bar,
     // typewriter, nits, popover, file_visibility_all, reduced_motion,
-    // code_ligatures, wysiwyg, inline_images, whichkey_force_shown,
-    // ambient_motion_on, cjk_auto.
+    // code_ligatures, wysiwyg, inline_images, footnote_ladder,
+    // whichkey_force_shown, ambient_motion_on, cjk_auto.
     assert_eq!(
         uncovered_toggles.len(),
-        14,
+        15,
         "a `Toggle::new(` site appeared or vanished outside page.rs/spell.rs: {:?}. \
          Add (or remove) the matching field in testlock::misc::MiscPins — pins/restore/leaked \
          all need it — and update this count, or add the file to ALREADY_COVERED_ELSEWHERE \
@@ -249,6 +249,7 @@ fn every_misc_field_is_restored_not_just_the_one_that_bit_us() {
         crate::render::set_code_ligatures_on(!before.code_ligatures);
         crate::markdown::set_wysiwyg_on(!before.wysiwyg);
         crate::markdown::set_inline_images_on(!before.inline_images);
+        crate::markdown::set_footnote_ladder_on(!before.footnote_ladder);
         crate::whichkey::set_force_shown(!before.whichkey_force_shown);
         // Each discrete-valued (non-bool) field picks whichever alternative
         // ISN'T the ambient starting value, so the flip is guaranteed to

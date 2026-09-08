@@ -50,6 +50,7 @@ pub enum SettingId {
     FormatPopover,
     InlineImages,
     CodeLigatures,
+    FootnoteLadder,
     Outline,
     MenuBar,
     Spellcheck,
@@ -82,7 +83,7 @@ pub struct SettingRow {
     pub kind: SettingKind,
 }
 
-/// The 31-setting corpus, in stable display order (grouped by category). The ONE
+/// The 32-setting corpus, in stable display order (grouped by category). The ONE
 /// owner — the FacetScheme bucket + the value readout both key off this table.
 pub static SETTINGS: &[SettingRow] = &[
     SettingRow {
@@ -166,6 +167,12 @@ pub static SETTINGS: &[SettingRow] = &[
     SettingRow {
         id: SettingId::CodeLigatures,
         name: "Code ligatures",
+        category: "Appearance",
+        kind: SettingKind::Toggle,
+    },
+    SettingRow {
+        id: SettingId::FootnoteLadder,
+        name: "Footnote ladder",
         category: "Appearance",
         kind: SettingKind::Toggle,
     },
@@ -445,6 +452,7 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::FormatPopover => on_off(crate::popover::popover_on()).to_string(),
         SettingId::InlineImages => on_off(crate::markdown::inline_images_on()).to_string(),
         SettingId::CodeLigatures => on_off(crate::render::code_ligatures_on()).to_string(),
+        SettingId::FootnoteLadder => on_off(crate::markdown::footnote_ladder_on()).to_string(),
         // Outline + Menu bar read their PROCESS GLOBALS live — the SAME owners the
         // renderer reads (`outline_layout` / the bar strip) and the SAME owners
         // `App::setting_toggle` flips, like "Page mode"/"WYSIWYG"/"Spellcheck" above.
@@ -509,6 +517,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
         SettingId::FormatPopover => "popover",
         SettingId::InlineImages => "inline_images",
         SettingId::CodeLigatures => "code_ligatures",
+        SettingId::FootnoteLadder => "footnote_ladder",
         SettingId::Outline => "outline",
         SettingId::MenuBar => "menu_bar",
         SettingId::Spellcheck => "spellcheck",

@@ -153,6 +153,10 @@ const CONFIG_KEYS: &[ConfigKey] = &[
         ty: ConfigType::Bool,
     },
     ConfigKey {
+        key: "footnote_ladder",
+        ty: ConfigType::Bool,
+    },
+    ConfigKey {
         key: "cjk_priority",
         ty: ConfigType::List("language codes"),
     },
