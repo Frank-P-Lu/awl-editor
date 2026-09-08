@@ -13,6 +13,7 @@
 /bench.json
 .claude/worktrees/
 .codex/worktrees/
+.worktrees/
 .playwright-mcp/
 
 # site/check.html's data file — generated fresh at each deploy
