@@ -6,58 +6,6 @@
 
 ## Ready to build
 
-### 626 — verify macOS document text through its range interface after 584 (user follow-up, 2026-09-08)
-
-🟢 READY — initial diagnosis performed directly; native OS probe blocked by missing
-accessibility permission, not by an observed product failure. Preserve the user's existing priority order
-for 624/625; this does not authorize interrupting that work.
-
-Evidence: a live CUA session saw an editable document node with its correct filename
-but no Value although prose was visible; `selectText` could not find that prose.
-Find's accessible SetValue succeeded and its match description changed to “1 of 2
-matches”. The attempted document-switch probe did NOT complete: clipboard timeout
-and offscreen-element errors prevented opening the seeded fixture. The running
-binary was subsequently identified through About as `dbd4d2f5c415`; git ancestry
-confirms it includes 584. A user-authorized read-only native AX probe was compiled
-and run against that process, but `AXIsProcessTrusted()` returned false and no
-document node was readable. No permission changes were made. Native range results
-remain unmeasured; absence of permission is not an accessibility product defect. This is not a confirmed recurrence of 584,
-and there was no VoiceOver listening test. Earlier conversational claims that the
-live symptom proved document accessibility broken were too strong.
-
-Premise check already made: 584 (`27aa13fa`) invalidates retained projection and
-native-projector caches on RunTable identity changes, with laws over updates handed
-to the adapter. In the locked dependencies, accesskit_consumer 0.38.0
-`Node::write_value` deliberately synthesizes run text only when NOT multiline;
-accesskit_macos 0.26.3 `NodeWrapper::value` uses that value, while
-`accessibilityStringForRange:`, character count and selection use text ranges.
-awl's document is MultilineTextInput with child TextRuns and no explicit full-text
-value. Therefore absent AXValue is expected under this implementation, not proof
-of absent accessible text. TextRuns also correctly have no accessible children.
-CUA's selectText implementation was not inspected; do not assume which interface
-it uses. Do not add whole-document cloning per keystroke just to satisfy that probe.
-
-Build: establish the running bundle/revision and verify the actual macOS text
-interface on a seeded temporary document, using a native AX range probe or an
-appropriate accessible client. Read character count, StringForRange, selected text
-and selected range; exercise selection writes, edits, undo, same-revision buffer
-swaps, New, and reactivation. Compare against fixture text including multiline,
-combining characters and emoji, accounting for macOS UTF-16 versus semantic
-grapheme offsets. Keep user notes untouched. Check unlocked/foreground state at
-both ends of live runs. Separate product publication, OS range responses and
-client behavior; repair the first failing owner if a defect survives measurement.
-
-Done/Verify: record exact build and expected/actual range results. Add a repeatable
-regression at the failing seam and prove it fails under the diagnosed mutation;
-retain incremental update-cost laws. If ranges work and only the client probe is
-wrong, close as “premise false, oracle repaired”, not a product fix. If product
-code changes, run appropriate targeted tests and native/wasm gates. No headless
-snapshot proves OS delivery, and no AX probe proves VoiceOver announcement quality;
-keep the listening check explicitly separate. This queue-only entry claims no
-native receipt and does not close 584's remaining live obligation.
-
----
-
 ### 624 — search highlights share visible geometry (user priority, 2026-09-08)
 
 🟡 IN PROGRESS — Codex search owner, model `gpt-5.6-terra` at `medium`, branch `codex/624-search`, worktree `.worktrees/624-search`.
@@ -778,15 +726,21 @@ These items have MERGED and left the build queue. Each one still owes the user a
 a live look, which landing does not discharge. Full context is in
 `git log -p -- .orchestrator/queue.md`.
 
-**584 — new-document VoiceOver (merged `27aa13fa`; follow-up diagnosis in 626).** 583's pause-then-type journey was confirmed live by the user on 2026-09-08 ("seems to work"); only 584's VoiceOver listening test remains, and the user said they will do it later.
-The display was locked at both ends of the lane's round — `CGSSessionScreenIsLocked` read
-`<true/>` before it started and again after the gate launched — so it did not run the app and
-claimed no live evidence, which is the correct call: a locked display fails SILENTLY and
-writes successful-looking probe lines while presenting zero frames. Still owed to a human:
-583's pause-then-type journey in a real window (the autosave clock does not exist in ordinary
-capture), and 584's VoiceOver listening test. Stated plainly because the ceiling matters:
-584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
-through. They cannot prove the OS received it, or that VoiceOver announces it.
+**584 / 626 — live macOS text access confirmed 2026-09-08; 626 closed as
+“premise false, oracle repaired”.** On running build `dbd4d2f5c415` (contains
+`27aa13fa`), the user launched a trusted, read-only native AX recorder from Terminal;
+CUA drove the actual app. Successful `AXStringForRange` / character-count responses
+followed original document (12) → seeded alpha (39, including café and newlines) →
+beta (40, distinct text) → alpha (39) → New (0, empty). A subsequent test keystroke
+and undo also appeared as 1 → 0; returning to the original document restored its
+exact initial 12-character text. No stale document text reproduced at the OS seam.
+The missing AXValue is expected for this multiline AccessKit node; CUA's inability
+to read/select through its own helper was not proof of a product defect. No product
+fix or native-suite receipt is claimed. VoiceOver speech/announcement quality is
+UNTESTED and explicitly deferred by the user, who asked to skip that sitting; do
+not keep asking for it. This bounded switch/New check does not claim an exhaustive
+selection-write, Unicode, or reactivation audit. 583's pause-then-type journey was
+separately confirmed by the user on 2026-09-08.
 
 **553 — folder-wide search (merged `277c3717`, follow-ups `e076ddd8`/`104fb174`).** The match
 highlight's real-pixel legibility is live-only and unverified. Also flagged, not hidden:
