@@ -263,6 +263,7 @@ mod stars;
 /// each row's chord glyph reads muted beside it — the quiet-chord/full-ink-verb
 /// split `shape_overlay_right` established for a row's secondary column, reused
 /// here rather than a bespoke start-screen ink rule.
+mod start_folder_law;
 mod start_screen_ink_law;
 /// The Writing-streaks card's own drawn geometry: `streaks_card_rect` names
 /// the rect a click hit-test reads, and the ←/→ paging hint's presence is

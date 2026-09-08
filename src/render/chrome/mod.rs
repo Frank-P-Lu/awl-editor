@@ -1,6 +1,11 @@
 //! Document chrome: overlays, gutter, and corner readouts.
 use super::*;
 mod start;
+// The capture sidecar's `document.start_goto_chord` reads this — the SAME
+// derivation `prepare_start_surface`'s dim line draws, so a sidecar assertion
+// can verify the exact chord glyph a capture shows rather than recomputing a
+// second, possibly-diverging expectation.
+pub(crate) use start::goto_chord_label;
 // The scene planner owns the candidate-row geometry every overlay
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`) and adds the shared item-row HEIGHT clamp.

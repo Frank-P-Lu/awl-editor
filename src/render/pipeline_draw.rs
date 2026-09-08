@@ -257,6 +257,7 @@ impl TextPipeline {
             renderer,
             buffer,
             document_active: true,
+            start_folder: None,
             caret_pipeline,
             caret_trail_pipeline,
             caret_glyph_pipeline,

@@ -1846,6 +1846,10 @@ pub struct TextPipeline {
     pub renderer: TextRenderer,
     pub buffer: GlyphBuffer,
     document_active: bool,
+    /// Mirror of [`ViewState::start_folder`] — see that field's doc. Read by
+    /// `prepare_start_surface`'s third dim line and by the sidecar's
+    /// `document.start_folder`, both through [`Self::start_folder`].
+    start_folder: Option<String>,
     /// The GPU quad pipeline that draws the caret underline/dot (no glow/trail).
     /// This is the classic BLOCK caret; left untouched by the Morph work.
     pub caret_pipeline: CaretPipeline,
