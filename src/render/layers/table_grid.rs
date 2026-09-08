@@ -18,6 +18,11 @@ struct TableMeta {
     aligns: Vec<crate::markdown::ColAlign>,
     sep_doc_line: usize,
     revealed: bool,
+    /// Narrower than `revealed`: true only for plain single-caret editing —
+    /// caret inside the table AND no selection active. A live drag's caret
+    /// tracks the selection's moving end, so `range.contains` alone stays
+    /// true mid-drag; only this flag may drop the table's reading pan.
+    caret_inside: bool,
     visible: bool,
     grid_rows: Vec<(usize, Vec<String>)>,
 }
@@ -81,7 +86,9 @@ fn place_shaped_table<'a>(
     clip_bounds: &impl Fn(TextBounds) -> TextBounds,
 ) {
     let content_w = table_content_width(shaped);
-    let pan = if meta.revealed {
+    // Only plain caret editing drops the reading pan (`caret_inside`'s doc) —
+    // a mere selection touch must not move the OTHER rows' columns.
+    let pan = if meta.caret_inside {
         0.0
     } else {
         let requested = context
@@ -314,6 +321,8 @@ impl TextPipeline {
                     aligns,
                     sep_doc_line: *header_line + 1,
                     revealed: range.contains(&cursor_byte) || selection_reveals,
+                    // `caret_inside`'s own doc: `selection.is_none()` is load-bearing.
+                    caret_inside: range.contains(&cursor_byte) && self.selection.is_none(),
                     visible: (*header_line..=last_doc_line)
                         .any(|line| self.line_ornament_visible(line)),
                     grid_rows,

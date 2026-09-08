@@ -7,6 +7,10 @@ fn meta(revealed: bool) -> TableMeta {
         aligns: vec![crate::markdown::ColAlign::None],
         sep_doc_line: 1,
         revealed,
+        // The existing callers of this helper mean "caret inside" by
+        // `revealed` (none of them exercise the selection-only widening) --
+        // keep the two in step here so this fixture stays a faithful stand-in.
+        caret_inside: revealed,
         visible: true,
         grid_rows: vec![(0, vec![]), (2, vec![])],
     }
