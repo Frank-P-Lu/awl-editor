@@ -112,46 +112,59 @@ change is intended.
 
 ---
 
-### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
+### 579 — software rendering: profiled, and the answer is a product call (investigation complete, 2026-09-09)
 
-Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
-device.poll` over 300 timed frames, under `llvmpipe (LLVM 15.0.6, 128 bits)`: **82-184 ms
-per frame for every world** — Wagtail 82.2 at the fast end, Saltpan 184.3 at the slow. The
-same binary on this host's Metal renders Kite in 1.310 ms, so lavapipe is ~84x slower
-across the board. This is a property of the whole render, not of any one ground, and it
-predates item 564.
+🟢 **PROFILED — awaiting the user's decision. No code change is proposed and none should be
+until this is answered.**
 
-It is recorded rather than actioned because nobody has established that it MATTERS: a
-Linux user on real hardware has a real GPU, and the software path is what a VM, a
-remote-desktop session, or a machine with no working Vulkan driver falls back to. The
-question the Linux release wants answered is whether that fallback is a supported
-configuration or a documented non-target.
+The profile settles the engineering question. On the cited configuration — arm64, Debian 12,
+Mesa 22.3.6, `llvmpipe (LLVM 15.0.6, 128 bits)`, `PHYSICAL_DEVICE_TYPE_CPU`, reproduced in a
+pre-existing rig rather than a new one — every sample at every contention level has the same
+shape:
 
-⚠️ Do not repair this by measuring on Metal — no local gate sees the axis, and the number
-above is from one arm64 container with Mesa 22.3.6, not from CI's x86_64 lavapipe. Any
-claim about "software rendering performance" needs its configuration stated, per the
-standing rule that a check runs in one configuration and that configuration is itself an
-untested hypothesis.
+```
+   queue.submit + device.poll |  81.296 ms | 98.9%
+   22 other CPU-side stages   |   ~0.7 ms  | <1%
+   TOTAL (median frame)       |  82.164 ms
+```
 
-**Shape of the work, so a lane does not start tuning.** The FIRST deliverable is a profile,
-not a patch: where do those 82-184 ms actually go, per world, on the software path? Until that
-exists, every optimisation is a guess, and this codebase's own history says a bench that does
-not witness the work will happily measure nothing — one theme bench "measured" 5 ms while no
-reshape happened at all. So make the profile witness the frame, and report the breakdown
-before proposing a change.
+**There is no hot spot in awl's code.** Text shaping, layout, ornaments, table grid, chrome,
+spell squiggles and render encode together cost under 1ms per frame, under 1.5% of the frame
+even in the cleanest run. Over 99% sits inside Mesa's own rasterisation of already-encoded draw
+calls. Document size barely matters — 1943 lines and 124 lines cost nearly the same — which is
+the O(visible) principle holding.
 
-**"Documented non-target" is a legitimate answer and may be the right one.** An 84x gap that
-is uniform across every world is not a hot spot; it is the cost of the whole render meeting a
-rasteriser with no GPU under it. If the profile says that, the honest outcome is a
-RELEASING.md/WEB.md sentence naming software rendering as unsupported and saying what a user
-sees when they land on it — not a speculative optimisation pass. That is a product call and
-belongs to the user; bring them the profile and the two options rather than a patch.
+**The item's own per-world spread did NOT reproduce.** The cited 82→184ms range across worlds
+became four worlds within 2ms of each other at ~83ms, including the originally cited fastest
+and slowest. The lane could not tell whether the original spread is contention-sensitive or
+whether its own best window (load ~45-60, never this host's ~5 idle) flattened real differences
+toward a floor. Named as an open gap rather than resolved.
 
-Whatever is measured, state the configuration in the same breath as the number: which
-rasteriser, which Mesa, which architecture. The figure above is one arm64 container with Mesa
-22.3.6 and is NOT CI's x86_64 lavapipe.
+⚠️ The orchestrator told that lane it owned the measurement window and then ran a gate on top
+of it. The order-of-magnitude finding survives that easily — the signal is 99% against 1% — but
+the per-world question is exactly the kind a contended host destroys, and it should be re-asked
+on a genuinely idle machine before anyone concludes the spread was imaginary.
 
----
+**Not measurable from here:** CI's x86_64 lavapipe. This host is arm64, and a qemu-emulated
+x86_64 container would add emulation overhead indistinguishable from driver cost. Every number
+above is the arm64/Mesa-22.3.6 axis only.
+
+**THE DECISION, which is the user's:**
+
+1. **Documented non-target.** A line in RELEASING.md/WEB.md naming software rendering as
+   unsupported, stating what a person actually sees — roughly 5-12 fps at this canvas size,
+   usable for reading and light editing, visibly laggy while typing or scrolling — and pointing
+   at a working GPU driver. No code.
+2. **Supportable with named work.** A software-adapter-detected degraded mode: smaller internal
+   canvas, simplified backgrounds, fewer glyphs shaped. New mechanism, scoped as future work.
+
+The lane leans to (1) and so does this board: closing an 80-180ms gap needs a different render
+strategy, not a fix, and "more machinery for one degraded case" is the direction PHILOSOPHY.md
+leans away from. But a Linux user on a VM, a remote desktop, or a machine with no working
+Vulkan driver lands here, so it is a product-shape question and not an engineering one.
+
+Leftover: Docker volumes `awl579-cargo-registry` and `awl579-target` hold the built arm64 rig
+for a clean re-measurement without repaying the build.
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
