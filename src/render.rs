@@ -2425,6 +2425,14 @@ pub struct TextPipeline {
     /// measured 22 ms of a squiggle-dense doc's 28 ms frame). See
     /// [`rects::UnderlineCache`].
     squiggle_cache: rects::UnderlineCache,
+    /// Retained per-line SPELL-SQUIGGLE geometry backing `squiggle_cache`,
+    /// refreshed once per reshape in [`Self::set_text`] from that reshape's
+    /// own `TextChange` band (mirrors [`Self::nit_projection`]'s timing
+    /// discipline) plus reconciled lazily in `ensure_squiggle_protos` for the
+    /// no-reshape axis (a dictionary edit, a spellcheck toggle). Interior-
+    /// mutable so the read-only `ensure_squiggle_protos` can reconcile it.
+    /// See [`rects::SquiggleProjection`].
+    squiggle_projection: std::cell::RefCell<rects::SquiggleProjection>,
     nit_cache: rects::UnderlineCache,
     /// CACHED SYNTAX-WASH PROTOS — the scroll-independent comment/string wash
     /// quads, keyed on (row-geometry generation, reshape count) exactly like the

@@ -387,6 +387,7 @@ impl TextPipeline {
             asset_preview_image,
             asset_preview_text_renderer,
             squiggle_cache: rects::UnderlineCache::new(),
+            squiggle_projection: std::cell::RefCell::new(rects::SquiggleProjection::new()),
             nit_cache: rects::UnderlineCache::new(),
             wash_cache: rects::WashCache::new(),
             fence_panel_cache: rects::FencePanelCache::new(),

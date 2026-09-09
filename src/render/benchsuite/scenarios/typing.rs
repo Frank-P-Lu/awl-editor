@@ -124,6 +124,11 @@ struct LiveTimings {
     squiggle_scan_ms: f64,
     squiggle_scan_misspellings: u64,
     squiggle_scan_misses: u64,
+    /// Lines the retained `SquiggleProjection` actually re-looked-up in
+    /// `RowGeom` this key (a SUM, same convention as `nit_scan_lines` — the
+    /// win is `lines_total == KEYS` on a document with no structural edits,
+    /// not `KEYS * lines_with_a_misspelling`).
+    squiggle_lines_rebuilt: u64,
     // The two document-context owners: CJK-evidence retention (a SUM, same
     // convention as `nit_scan_lines` — the win is `lines_total == KEYS`, not
     // `KEYS * doc_lines`) and the still-unretained markdown/syntax span parse
@@ -175,6 +180,7 @@ impl LiveTimings {
             squiggle_scan_ms: 0.0,
             squiggle_scan_misspellings: 0,
             squiggle_scan_misses: 0,
+            squiggle_lines_rebuilt: 0,
             evidence_scan_ms: 0.0,
             evidence_scan_lines: 0,
             spans_scan_bytes: 0,
@@ -222,6 +228,7 @@ impl LiveTimings {
         self.squiggle_scan_misspellings += o.squiggle_scan_misspellings;
         self.squiggle_scan_misses +=
             u64::from(o.squiggle_scan_misspellings > 0 || o.squiggle_scan_ms > 0.0);
+        self.squiggle_lines_rebuilt += o.squiggle_lines_rebuilt;
         self.evidence_scan_ms += o.evidence_scan_ms;
         self.evidence_scan_lines += o.evidence_scan_lines;
         self.spans_scan_bytes = self.spans_scan_bytes.max(o.spans_scan_bytes);
@@ -272,6 +279,14 @@ impl LiveTimings {
                 self.geometry_rows_patched == KEYS as u64,
                 "typing_live novel edits must replace one visual row per key"
             );
+            ensure!(
+                self.squiggle_lines_rebuilt <= KEYS as u64,
+                "typing_live prose must retain squiggle geometry outside the \
+                 edited line, got {} lines rebuilt over {KEYS} keys — the \
+                 retained SquiggleProjection did not engage (a full-document \
+                 reseed would report far more)",
+                self.squiggle_lines_rebuilt
+            );
         }
         Ok(())
     }
@@ -310,7 +325,8 @@ impl LiveTimings {
              nit_scan_misses={} ornament_scan_ms={:.3}ms ornament_scan_lines={} \
              ornament_scan_spans={} ornament_scan_misses={} destination_join_ms={:.3}ms \
              destination_join_calls={} squiggle_scan_ms={:.3}ms squiggle_scan_misspellings={} \
-             squiggle_scan_misses={} evidence_scan_ms={:.3}ms evidence_scan_lines={}",
+             squiggle_scan_misses={} squiggle_lines_rebuilt={} evidence_scan_ms={:.3}ms \
+             evidence_scan_lines={}",
             self.nit_scan_ms,
             self.nit_scan_lines,
             self.nit_scan_misses,
@@ -323,6 +339,7 @@ impl LiveTimings {
             self.squiggle_scan_ms,
             self.squiggle_scan_misspellings,
             self.squiggle_scan_misses,
+            self.squiggle_lines_rebuilt,
             self.evidence_scan_ms,
             self.evidence_scan_lines,
         );
@@ -354,6 +371,7 @@ impl LiveTimings {
                 self.squiggle_scan_misspellings,
             ),
             ("squiggle_scan_misses", self.squiggle_scan_misses),
+            ("squiggle_lines_rebuilt", self.squiggle_lines_rebuilt),
             ("evidence_scan_lines_total", self.evidence_scan_lines),
             ("spans_scan_bytes", self.spans_scan_bytes),
             ("spans_scan_lines", self.spans_scan_lines),

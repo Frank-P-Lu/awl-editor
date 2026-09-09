@@ -3,7 +3,7 @@
 use super::*;
 
 impl TextPipeline {
-    fn destination_ranges(&self) -> Vec<std::ops::Range<usize>> {
+    pub(super) fn destination_ranges(&self) -> Vec<std::ops::Range<usize>> {
         if self.md_spans.is_empty() {
             return Vec::new();
         }
@@ -93,81 +93,6 @@ impl TextPipeline {
             .borrow()
             .iter()
             .any(|(_, r)| r.start <= line_byte && line_byte < r.end)
-    }
-
-    fn ensure_squiggle_protos(&self) {
-        let key = (self.row_geom.generation(), self.spell_gen);
-        if self.squiggle_cache.version.get() == Some(key) {
-            return;
-        }
-        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
-        let destination_ranges = self.destination_ranges();
-        let mut line_starts: Vec<usize> = Vec::new();
-        if !destination_ranges.is_empty() {
-            let mut start = 0usize;
-            for line in self.buffer.lines.iter() {
-                line_starts.push(start);
-                start += line.text().len() + 1; // +1 for the '\n'
-            }
-        }
-        let lines: std::collections::BTreeSet<usize> =
-            self.misspelled.iter().map(|sp| sp.line).collect();
-        let rows_by_line = self.visual_rows_for_lines(&lines);
-        let mut protos = Vec::with_capacity(self.misspelled.len());
-        for sp in &self.misspelled {
-            if let Some(&ls) = line_starts.get(sp.line) {
-                let text = self.buffer.lines[sp.line].text();
-                if crate::nits::span_in_prose_ranges(
-                    text,
-                    ls,
-                    sp.start_col,
-                    sp.end_col,
-                    &destination_ranges,
-                ) {
-                    continue;
-                }
-            }
-            // A misspelled span is a single word; cosmic-text wraps at spaces so
-            // the word stays on ONE visual run. Find the run owning its start
-            // column and keep that run's wrap-aware top + own x boundaries, so the
-            // squiggle sits directly under the word's glyphs at any wrap/zoom.
-            let Some(rows) = rows_by_line.get(&sp.line) else {
-                continue; // unreachable: every requested line gets rows
-            };
-            let row = pick_row(rows, sp.start_col);
-            let char_count = row.xs.len().saturating_sub(1);
-            let s = sp.start_col.min(char_count);
-            let e = sp.end_col.min(char_count);
-            if e <= s {
-                continue;
-            }
-            let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
-            let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
-            if self.line_is_inline_image(sp.line)
-                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
-            {
-                continue;
-            }
-            protos.push(UnderlineProto {
-                line: sp.line,
-                start_col: sp.start_col,
-                end_col: sp.end_col,
-                line_top: row.line_top,
-                line_height: row.line_height,
-                xs_s,
-                xs_e,
-            });
-        }
-        *self.squiggle_cache.protos.borrow_mut() = protos;
-        self.squiggle_cache.version.set(Some(key));
-        if let Some(at) = scan_at {
-            self.owner_scan
-                .squiggle_scan_ms
-                .set(at.elapsed().as_secs_f64() * 1000.0);
-            self.owner_scan
-                .squiggle_scan_misspellings
-                .set(self.misspelled.len() as u64);
-        }
     }
 
     fn word_at_caret(&self, line: usize, start_col: usize, end_col: usize) -> bool {

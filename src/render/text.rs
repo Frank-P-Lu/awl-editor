@@ -389,6 +389,15 @@ impl TextPipeline {
             self.last_text_sync_phases.shape_ms = start.elapsed().as_secs_f64() * 1000.0;
         }
         self.refresh_changed_row_geometry(change, width_stable);
+        // Refresh the retained per-line squiggle geometry HERE too, once per
+        // reshape, off this SAME reshape's changed-line band — must run AFTER
+        // `refresh_changed_row_geometry` so its `patched` witness reflects
+        // this reshape (a rejected patch can shift every row below the
+        // band, which only that call determines).
+        self.refresh_squiggle_projection(
+            (change.prefix, change.old_end, change.new_end),
+            self.last_text_sync_phases.geometry_patch_hits == 1,
+        );
     }
 
     /// BEFORE-style whole-buffer reshape: the original code path that called

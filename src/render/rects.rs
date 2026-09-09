@@ -12,7 +12,10 @@ pub(super) use ranges::intersecting_rows;
 type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
 mod reveal;
+mod squiggle_projection;
+mod squiggle_underlines;
 mod underlines;
+pub(in crate::render) use squiggle_projection::{SquigglePending, SquiggleProjection};
 
 /// A contiguous run of blockquote lines is ONE block, recorded as `(first, last)`
 /// and only ever growing downward — the two ends the hanging pull-quote pair hangs
@@ -152,6 +155,19 @@ pub(super) struct OwnerScanWork {
     /// zero either on a hit or because the misspelled list was empty (the caller,
     /// `spell_squiggles`, skips the ensure call entirely in that case).
     pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::ensure_squiggle_protos` alongside
+    /// `squiggle_scan_ms`/`_misspellings` (a `prepare`-time cache MISS, same
+    /// reset convention): LINES the retained [`SquiggleProjection`] actually
+    /// re-looked-up in `RowGeom` resolving whatever `set_text` left pending
+    /// (only the changed band on a splice; every line carrying a span on a
+    /// full reseed or a reconcile-diff hit; 0 on a cache hit or while the
+    /// document sits outside the fast-path envelope, where the ineligible
+    /// full-scan path is measured by `squiggle_scan_misspellings` instead).
+    /// NOT written from `set_text` itself — `note_reshape` there is pure
+    /// bookkeeping, deliberately deferring the actual row lookup to this
+    /// read so several reshapes with no read in between pay for it once, not
+    /// once per reshape (see [`SquiggleProjection`]'s own doc comment).
+    pub(super) squiggle_lines_rebuilt: std::cell::Cell<u64>,
     /// Written from `TextPipeline::set_text`, once per RESHAPE, by
     /// [`HanEvidenceProjection::refresh`] — the document-wide-typing-work
     /// investigation's other named owner beside `nit_scan`. Same
@@ -186,6 +202,7 @@ pub(super) struct OwnerScanSnapshot {
     pub(super) destination_join_bytes: u64,
     pub(super) squiggle_scan_ms: f64,
     pub(super) squiggle_scan_misspellings: u64,
+    pub(super) squiggle_lines_rebuilt: u64,
     pub(super) evidence_scan_ms: f64,
     pub(super) evidence_scan_lines: u64,
     pub(super) spans_scan_bytes: u64,
@@ -205,6 +222,7 @@ impl OwnerScanWork {
             destination_join_bytes: self.destination_join_bytes.get(),
             squiggle_scan_ms: self.squiggle_scan_ms.get(),
             squiggle_scan_misspellings: self.squiggle_scan_misspellings.get(),
+            squiggle_lines_rebuilt: self.squiggle_lines_rebuilt.get(),
             evidence_scan_ms: self.evidence_scan_ms.get(),
             evidence_scan_lines: self.evidence_scan_lines.get(),
             spans_scan_bytes: self.spans_scan_bytes.get(),
@@ -218,6 +236,10 @@ impl OwnerScanWork {
     /// before `prepare` even starts) and unconditionally overwritten — never
     /// accumulated — by whichever path actually ran, so resetting them here
     /// would erase what `set_text` just recorded before `prepare` ever runs.
+    /// `squiggle_lines_rebuilt` is NOT in that excluded set — unlike its
+    /// siblings it is written from `ensure_squiggle_protos` itself (a
+    /// `prepare`-time cache miss), so it resets here exactly like
+    /// `squiggle_scan_ms`/`_misspellings` beside it.
     pub(super) fn reset(&self) {
         self.ornament_scan_ms.set(0.0);
         self.ornament_scan_lines.set(0);
@@ -227,6 +249,7 @@ impl OwnerScanWork {
         self.destination_join_bytes.set(0);
         self.squiggle_scan_ms.set(0.0);
         self.squiggle_scan_misspellings.set(0);
+        self.squiggle_lines_rebuilt.set(0);
     }
 }
 
@@ -455,7 +478,8 @@ impl HanEvidenceProjection {
 /// at read time in [`TextPipeline::nit_underlines`] / [`TextPipeline::spell_squiggles`],
 /// mirroring the existing `rule_lines`/`bullet_marks` reveal-on-cursor pattern).
 /// Unused by the wash cache (no caret exclusion there) — harmlessly along for the ride.
-struct UnderlineProto {
+#[derive(Clone, Copy, Debug)]
+pub(super) struct UnderlineProto {
     line: usize,
     start_col: usize,
     end_col: usize,

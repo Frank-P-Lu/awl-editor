@@ -261,6 +261,7 @@ mod smart_punct;
 /// exhaustive style enrolment, full Add row, raking coverage and outside identity.
 mod spell_popup_diagonal;
 mod split_pane;
+mod squiggle_projection;
 mod stars;
 /// The no-document start screen: both actions read in the same full ink, and
 /// each row's chord glyph reads muted beside it — the quiet-chord/full-ink-verb
