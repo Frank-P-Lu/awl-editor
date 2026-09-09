@@ -423,6 +423,27 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
+**Eleventh train, `98254e7a` — PUSHED as `115aad53..98254e7a`.** Covers 631 and 629.
+
+```
+native-gate-receipt commit=98254e7a health=pass:277s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5108 unit_shards=6 integration_targets=18
+```
+plus `web-smoke: OK`.
+
+629's numbers, on a host verified quiet before each run: typing_live median 7.960ms to 6.859ms
+on the 50,029-word plain-prose tier (p90 8.412 to 6.910), and 10.064ms to 8.758ms on heavy
+markdown. Tiers the change cannot help are flat within noise. The counters tie those to work:
+one line retokenized per keystroke on the prose tier, and exactly the document's own line count
+per keystroke on the ineligible code tier.
+
+631's own measurement deflated its tool honestly — preflight is 290s against the 284s the gate
+already spends on the same `code-health.sh`, so it is not a lighter check, only that signal
+isolable from the GPU and full-suite work after it. Its gate rehearsal ran concurrently with
+629's test suite and incidentally validated the cpu-spin oracle rewritten today: ground truth
+92.0% of a core against a heartbeat reading 102.3%.
+
+
 **Tenth train, `d2a45d5e` — PUSHED as `4059591c..d2a45d5e`, 17 commits.** Covers 537, 632, 588.
 
 ```
