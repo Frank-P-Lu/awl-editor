@@ -831,11 +831,7 @@ impl TextPipeline {
         // `build_line_attrs` -> `add_script_spans`.
         let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
-        self.han_evidence = crate::script::cjk_evidence(text);
         let context_ms = profile_elapsed_ms(context_at);
-        let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
-        let (md_spans, syn_spans) = self.parse_doc_spans(text);
-        let spans_ms = profile_elapsed_ms(spans_at);
         let lines_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let cursor_line = self.cursor_line;
         // SELECTION REVEAL: the byte extent of every line the active selection
@@ -851,6 +847,38 @@ impl TextPipeline {
         let line_starts = &changed_lines.starts;
         let cursor_byte = changed_lines.cursor_byte;
         let selection_touch = changed_lines.selection_touch.as_ref();
+        // The exact changed-line band this reshape touches, via the SAME
+        // `unchanged_band` `classify_text_change` below independently
+        // recomputes (a pure, cheap — memcmp-driven, not char-classifying —
+        // function, so computing it here too costs nothing worth threading a
+        // second parameter for). Handed to the retained CJK-evidence
+        // projection so it rescans only the lines a fresh document diff would
+        // call CHANGED, never the unchanged prefix/suffix around them.
+        let evidence_band = self.unchanged_band(new_lines);
+        let evidence_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let evidence_scanned = self
+            .han_evidence_projection
+            .refresh(new_lines, Some(evidence_band));
+        self.han_evidence = self.han_evidence_projection.aggregate();
+        if let Some(at) = evidence_at {
+            self.owner_scan
+                .evidence_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+            self.owner_scan.evidence_scan_lines.set(evidence_scanned);
+        }
+        let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        let (md_spans, syn_spans) = self.parse_doc_spans(text);
+        let spans_ms = profile_elapsed_ms(spans_at);
+        if self.text_sync_profile {
+            // WITNESS, not a cache-hit counter: `parse_doc_spans` is not
+            // retained this round, so these two numbers should read "the
+            // whole document" on every single key, proving the un-narrowed
+            // scope this round left alone.
+            self.owner_scan.spans_scan_bytes.set(text.len() as u64);
+            self.owner_scan
+                .spans_scan_lines
+                .set(new_lines.len() as u64);
+        }
         let embeds_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let mut image_heights = self.compute_image_layout(text, &md_spans, selection_touch);
         let image_force = self.image_force.clone();

@@ -2943,6 +2943,11 @@ pub struct TextPipeline {
     /// NOT retag the text) still combines with the CURRENT evidence rather
     /// than a stale one.
     han_evidence: Option<crate::frontmatter::Lang>,
+    /// Retained per-line source of [`Self::han_evidence`], refreshed once per
+    /// reshape from that reshape's own `TextChange` band instead of
+    /// rescanning every character of the document — see
+    /// [`rects::HanEvidenceProjection`].
+    han_evidence_projection: rects::HanEvidenceProjection,
     script_fonts: text::ScriptFonts,
     /// Mirrored from [`ViewState::doc_source`]; read only by `figure_source`.
     doc_source: Option<DocSource>,
