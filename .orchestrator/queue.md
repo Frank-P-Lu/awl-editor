@@ -428,6 +428,26 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
+**Twelfth train, `4299d181`.** Covers 630.
+
+```
+native-gate-receipt commit=4299d181 health=pass:301s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5116 unit_shards=6 integration_targets=18
+```
+plus `web-smoke: OK`.
+
+630 cut document-context work from 0.656ms to 0.025ms at the 50,029-word tier and to a flat
+~0.02ms across every tier — the O(1)-against-O(document) signature rather than a tuned
+constant. It also made the cost it did NOT fix honest: `parse_doc_spans` still re-parses
+286,713 bytes on every keystroke and now says so in a counter.
+
+⚠️ **The eleventh train's own CI run was cancelled by this orchestrator**, not by a failure.
+The board commit was pushed about two minutes behind the train and
+`concurrency.cancel-in-progress` killed the in-flight run — the exact hazard recorded on this
+board earlier the same day. The superseding run on `b4e16523` covers the same tree. The fix is
+to fold the board BEFORE the train push, or to wait for the run, and it is applied from here.
+
+
 **Eleventh train, `98254e7a` — PUSHED as `115aad53..98254e7a`.** Covers 631 and 629.
 
 ```
