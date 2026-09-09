@@ -301,7 +301,11 @@ impl TextPipeline {
                         // Geometry is confirmed stable since the projection
                         // was last built — only `self.misspelled` itself can
                         // have moved, with no reshape at all.
-                        if !self.squiggle_projection.borrow().is_reconciled(self.spell_gen) {
+                        if !self
+                            .squiggle_projection
+                            .borrow()
+                            .is_reconciled(self.spell_gen)
+                        {
                             lines_rebuilt = self.reconcile_squiggle_projection();
                         }
                     } else {

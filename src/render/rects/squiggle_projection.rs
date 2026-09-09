@@ -153,8 +153,8 @@ impl SquiggleProjection {
         if self.pending == SquigglePending::FullReseed {
             return; // already the worst case for this unread stretch
         }
-        let can_splice = self.pending == SquigglePending::None
-            && self.can_splice(spans_len, change, patched);
+        let can_splice =
+            self.pending == SquigglePending::None && self.can_splice(spans_len, change, patched);
         self.pending = if can_splice {
             let (prefix, old_end, new_end) = change;
             SquigglePending::Splice {
