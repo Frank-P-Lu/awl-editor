@@ -286,43 +286,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 633 — the squiggle underline list is rebuilt whole on every keystroke, and it is bigger than 629 and 630's owners combined (found while profiling 630, 2026-09-09)
-
-⬜ READY — measured, not suspected, and the largest remaining typing cost named so far.
-
-`ensure_squiggle_protos` (`src/render/rects/underlines.rs`) rebuilds the ENTIRE
-misspelling-underline list on every keystroke. Measured on the 50,029-word manuscript at the L
-tier: about **1.5–1.7 ms per key**, `squiggle_scan_ms` totalling roughly 49.6 ms across 30
-keystrokes. For scale, item 629's two named owners were ~0.88 ms and ~1.4 ms per key, and item
-630's was ~0.66 ms — this one is larger than 629's pair combined.
-
-The suspect cache key is `(row_geom.generation(), spell_gen)`, which moves on any reshape and
-on any spelling change, so an ordinary edit invalidates the whole list.
-
-**The two adjacent retentions are already in the tree and are the shape to follow**, not to
-reinvent: `NitProjection` (629) and `HanEvidenceProjection` (630) both retain per line against
-the exact changed-line band the buffer's own committed content defines, both fall back to a
-full reseed on any shape mismatch — which is what makes a buffer swap correct for free — and
-both share their aggregate's resolver with the full-scan path so the two cannot drift. Reuse
-that plumbing and its `BENCH-OWNERS` witnesses rather than building a third mechanism.
-
-⚠️ Spelling is not nit spans. A misspelling's extent depends on the dictionary and on word
-boundaries that an edit can move from outside the changed line, so the invalidation is NOT
-obviously per-line. Establish that first, by measurement, before assuming the same band works —
-and if it does not, say so rather than forcing the shape.
-
-Build: profile the owner as 629 and 630 did, report bytes and lines actually visited, and only
-then choose. A degenerate tier where retention cannot help (the single-huge-paragraph document
-is one logical line) must be named rather than averaged away.
-
-Law: the retained list must agree with an INDEPENDENT full recompute across same-line edits, a
-word-boundary edit that changes a neighbouring word's spelling, a structural line insert and
-delete, and a buffer swap. Mutation-prove it with the mutation confirmed compiled.
-
-Routing: worker Sonnet high. Measurements run without competing builds.
-
----
-
 ## Two orchestrators share this board — renumber yourself, never the other
 
 A second orchestrator session works this board. On 2026-09-07 both queued items in the same
