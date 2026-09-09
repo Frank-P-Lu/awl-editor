@@ -6,6 +6,57 @@
 
 ## Ready to build
 
+### 634 — preflight must run the document-substitution ownership audit (user request, 2026-09-09)
+
+🟢 READY — queued only, not dispatched.
+
+Problem: `scripts/preflight.sh` selects `println_audit view_policy`. The intended
+view-text replacement audit is actually
+`card::figures::tests::only_the_substitution_door_replaces_a_view_states_text`
+in `src/card/figures/tests.rs`. The selected `view_policy` tests cover different
+rules, so the document-substitution violation that prompted preflight can still
+escape it. The current preflight tests stub the audit command and prove ordering
+and exit propagation, not enrollment of the intended test.
+
+Build: select the actual substitution audit alongside the print audit, preserve
+any still-useful view-policy coverage, and make the preflight description match
+what runs. Use existing owners; no new copy of the source rule.
+
+Verify: prove the real test is selected and a compiling forbidden document-text
+replacement fails preflight before any GPU test runs. Keep a law that rejects a
+filter regressing to `view_policy` alone; command stubs alone are insufficient.
+Run the preflight laws and affected audits, then the integrated tooling verification
+required by `docs/verification.md`. Report targeted evidence accurately.
+
+---
+
+### 635 — cached source-audit passes must account for untracked Rust files (user request, 2026-09-09)
+
+🟢 READY — queued only, not dispatched. Keep the cache outside the full-gate path.
+
+Problem: `scripts/verify_cache.py::tracked_files` hashes only `git ls-files` results,
+while `src/println_audit.rs::scan_dir` traverses the filesystem, including untracked
+Rust files. A new file with forbidden application output changes the audit result
+without changing the cache signature. A throwaway-repository probe confirmed that
+adding `src/new.rs` leaves the signature identical. Existing cache laws cover
+tracked edits but miss this input-set mismatch. The cache is not wired into the
+full gate, so this finding concerns optional cached evidence, not its receipts.
+
+Build: make reuse conservative for every file the registered audit reads. Either
+include the actual audit input inventory in the signature or refuse reuse when
+untracked/ignored inputs may affect the check. Do not silently narrow the audit's
+subject to make the cache agree. Review the other registered check for the same
+mismatch; use an explicit bounded policy, not a generic dependency framework.
+
+Verify: first record a real passing source audit, then add an untracked Rust file
+with a forbidden print and require a rerun that fails. Cover ignored Rust files
+when the scanner reads them, removal, rename, staging, and unchanged inputs.
+The law must fail against the current tracked-only signature. Run the cache laws,
+relevant source audits, and integrated tooling checks in `docs/verification.md`.
+Never relabel a stale pass as new evidence or enable full-gate reuse as part of this fix.
+
+---
+
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
 🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows
