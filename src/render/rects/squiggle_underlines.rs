@@ -1,7 +1,7 @@
-//! Retained spell-squiggle geometry lookup — split out of `underlines.rs`
-//! (item 633) to keep that file's own frozen size ratchet intact.
-//! `rects::squiggle_projection` owns the pure bookkeeping this module
-//! materializes against real row geometry.
+//! Retained spell-squiggle geometry lookup, kept in its own module so its
+//! size rides separately from `underlines.rs`. `rects::squiggle_projection`
+//! owns the pure bookkeeping this module materializes against real row
+//! geometry.
 
 use super::*;
 
@@ -370,9 +370,10 @@ impl TextPipeline {
     /// projection, or the full-scan fallback for an ineligible document). The
     /// oracle every retention law compares this against is
     /// [`Self::squiggle_full_scan_snapshot`], NOT this same value read twice —
-    /// CLAUDE.md's own standing note that 629/630 both checked against an
-    /// independent recompute rather than the thing being cached. Bit-exact
-    /// (`f32::to_bits`), like every other float oracle in this crate's tests.
+    /// grading a retained cache against an independent recompute rather than
+    /// against itself, the same discipline `NitProjection`/`HanEvidenceProjection`
+    /// are graded under. Bit-exact (`f32::to_bits`), like every other float
+    /// oracle in this crate's tests.
     #[cfg(test)]
     pub(in crate::render) fn squiggle_output_snapshot(
         &self,

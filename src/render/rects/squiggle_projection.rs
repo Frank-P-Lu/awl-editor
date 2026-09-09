@@ -1,5 +1,5 @@
-//! Retained per-line spell-squiggle geometry bookkeeping — split out of
-//! `rects.rs` (item 633) to keep that file's own frozen size ratchet intact.
+//! Retained per-line spell-squiggle geometry bookkeeping, kept in its own
+//! module so its size rides separately from the rest of `rects.rs`.
 //! [`TextPipeline`]'s squiggle methods (in `rects::underlines`) own the actual
 //! row-geometry lookup and hand finished [`UnderlineProto`]s in here; this
 //! module is pure bookkeeping over that data.
