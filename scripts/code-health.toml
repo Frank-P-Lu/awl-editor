@@ -300,7 +300,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3145
+lines = 3150
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
@@ -408,7 +408,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 598
+lines = 599
 # The exhaustive pipeline constructor initializes typing profiling and work counters.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
 # 553 -> 554: item 540's table-dims card gained one field init
@@ -436,7 +436,7 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1932
+lines = 2043
 reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns. +45: the table x-ray selection-band branch in `range_rects`, rebuilding the selection quad against the revealed row's real advances instead of the concealed geometry that collapsed it to a sliver. +20: `rule_lines` computes `selection_touch_bytes` once and widens its per-line filter with `selection_touches`, so a selection touching a thematic-break line drops out of the ornament draw set exactly as the caret's own line already does — the shape `footnote_marks`/`bare_url_marks` use, so the reveal keeps ONE owner instead of a second per-layer derivation. +13: `panel_glyph_x`, the ONE panel x lookup — the amber caret's own glyph scan, lifted out of `panel_layout` so the field's selection band cannot be placed by a different rule than the caret beside it. +47: blockquote blocks recorded as (first, last) via `push_or_grow_quote_block` keyed on the previous quote row, `QuoteSide`, the wrap-aware `line_ornament_last_top`, and `quote_marks` emitting a per-end pair whose two ends cull independently. +3: `bullet_marks` reads the shared `selection_touch`/`line_is_revealed` owner `rule_lines` already reads, dropping its own ad hoc caret-only skip so the bullet ornament and the legacy bullet conceal agree on the same reveal by construction. +6 net: `quote_marks` now returns each mark's own logical line alongside `(top, side)` so the closing mark's x and y can be resolved per-block; `line_ornament_last_baseline` and `quote_close_row_end_x` read the block's own last-row real baseline and shaped ink-right straight off the wrap-aware row geometry, the same seam `line_ornament_last_top` already reads."
 
 [[file_size_mark]]
@@ -451,7 +451,7 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1551
+lines = 1577
 # Text synchronization records profiling stages and checks local styling context; retained geometry work lives in text/change.rs.
 reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling. +42: the resize handle under the live pointer is mirrored into render state by re-deriving its rect fresh from `image_hit_rects()` each frame — never a stashed pixel rect, so it cannot go stale across a document edit — through the SAME `image_handle_at` hit-test the cursor-icon path already reads, so the drawn grip can never disagree with a clickable target. +53: `font_features` disables `rlig` per-face for Monaspace Xenon only (its GSUB routes the tilde family and ~40 other operator ligatures through that DEFAULT feature, verified directly against the font — no other bundled face registers it), and the doc's prior claim that this ligation was AAT/`morx`-driven and unsuppressable is corrected (item 552). +4: the three reshape paths compute the document's effective CJK-priority ladder (`script::effective_cjk_priority`, folding in the cached Han-ambiguity evidence) in place of the plain config-derived list."
 
@@ -537,6 +537,13 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 file = "src/theme/worlds.rs"
 lines = 1214
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki. +5: Kite authors its WarpedGrid roam/motion profile (fold, twist, forward drift, ribs) as one instance of the reusable typed data model, beside its other ground authoring."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/text.rs"
+function = "TextPipeline::set_text_incremental"
+message = "this function has too many lines (114/100)"
+reason = "The one incremental text-set path, and its length is the sequence it must perform in order: diff the committed content into a changed-line band, feed that band to each retained projection, refresh the derived representations that are still whole-document, and publish. The band is computed once and read by every consumer; splitting the function hands each consumer its own diff or threads the band through helpers that exist only to be threaded through. Two retentions already depend on this ordering, and a third is queued."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -892,7 +899,7 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (535/100)"
+message = "this function has too many lines (536/100)"
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default."
 
 [[clippy_exception]]

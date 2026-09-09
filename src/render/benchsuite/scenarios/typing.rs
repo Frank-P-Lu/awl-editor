@@ -124,7 +124,7 @@ struct LiveTimings {
     squiggle_scan_ms: f64,
     squiggle_scan_misspellings: u64,
     squiggle_scan_misses: u64,
-    // Queue item 630's two named owners: CJK-evidence retention (a SUM, same
+    // The two document-context owners: CJK-evidence retention (a SUM, same
     // convention as `nit_scan_lines` — the win is `lines_total == KEYS`, not
     // `KEYS * doc_lines`) and the still-unretained markdown/syntax span parse
     // (a size, reported as the LAST call's byte/line count like
