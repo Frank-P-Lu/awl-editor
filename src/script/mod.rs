@@ -30,8 +30,8 @@
 
 mod evidence;
 
-pub use evidence::{cjk_evidence, effective_cjk_priority};
 pub(crate) use evidence::{EvidenceCounts, LineEvidence, line_evidence};
+pub use evidence::{cjk_evidence, effective_cjk_priority};
 
 use crate::frontmatter::Lang;
 use crate::theme::FontId;

@@ -875,9 +875,7 @@ impl TextPipeline {
             // whole document" on every single key, proving the un-narrowed
             // scope this round left alone.
             self.owner_scan.spans_scan_bytes.set(text.len() as u64);
-            self.owner_scan
-                .spans_scan_lines
-                .set(new_lines.len() as u64);
+            self.owner_scan.spans_scan_lines.set(new_lines.len() as u64);
         }
         let embeds_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let mut image_heights = self.compute_image_layout(text, &md_spans, selection_touch);
