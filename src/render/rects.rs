@@ -12,7 +12,10 @@ pub(super) use ranges::intersecting_rows;
 type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
 mod reveal;
+mod squiggle_projection;
+mod squiggle_underlines;
 mod underlines;
+pub(in crate::render) use squiggle_projection::{SquigglePending, SquiggleProjection};
 
 /// A contiguous run of blockquote lines is ONE block, recorded as `(first, last)`
 /// and only ever growing downward — the two ends the hanging pull-quote pair hangs
@@ -152,15 +155,18 @@ pub(super) struct OwnerScanWork {
     /// zero either on a hit or because the misspelled list was empty (the caller,
     /// `spell_squiggles`, skips the ensure call entirely in that case).
     pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
-    /// Written from `TextPipeline::set_text`, once per RESHAPE — BEFORE
-    /// `prepare`'s reset() runs — by [`TextPipeline::refresh_squiggle_projection`],
-    /// same unconditional-overwrite convention as `nit_scan_lines`: LINES
-    /// actually re-looked-up in `RowGeom` this reshape (only the changed
-    /// band on a retained splice; every line carrying a span on a full
-    /// reseed; 0 while the document sits outside the fast-path envelope —
-    /// that document pays the unretained `squiggle_scan_misspellings` cost
-    /// instead, tracked separately since it runs from `prepare`, not
-    /// `set_text`).
+    /// Written from `TextPipeline::ensure_squiggle_protos` alongside
+    /// `squiggle_scan_ms`/`_misspellings` (a `prepare`-time cache MISS, same
+    /// reset convention): LINES the retained [`SquiggleProjection`] actually
+    /// re-looked-up in `RowGeom` resolving whatever `set_text` left pending
+    /// (only the changed band on a splice; every line carrying a span on a
+    /// full reseed or a reconcile-diff hit; 0 on a cache hit or while the
+    /// document sits outside the fast-path envelope, where the ineligible
+    /// full-scan path is measured by `squiggle_scan_misspellings` instead).
+    /// NOT written from `set_text` itself — `note_reshape` there is pure
+    /// bookkeeping, deliberately deferring the actual row lookup to this
+    /// read so several reshapes with no read in between pay for it once, not
+    /// once per reshape (see [`SquiggleProjection`]'s own doc comment).
     pub(super) squiggle_lines_rebuilt: std::cell::Cell<u64>,
     /// Written from `TextPipeline::set_text`, once per RESHAPE, by
     /// [`HanEvidenceProjection::refresh`] — the document-wide-typing-work
@@ -224,12 +230,16 @@ impl OwnerScanWork {
         }
     }
 
-    /// Resets every OWNER except the nit-scan pair, `squiggle_lines_rebuilt`,
-    /// and the evidence/spans witnesses below: all of those are written from
+    /// Resets every OWNER except the nit-scan pair and the evidence/spans
+    /// witnesses below: all of those are written from
     /// `TextPipeline::set_text`/`set_text_incremental` (once per RESHAPE,
     /// before `prepare` even starts) and unconditionally overwritten — never
     /// accumulated — by whichever path actually ran, so resetting them here
     /// would erase what `set_text` just recorded before `prepare` ever runs.
+    /// `squiggle_lines_rebuilt` is NOT in that excluded set — unlike its
+    /// siblings it is written from `ensure_squiggle_protos` itself (a
+    /// `prepare`-time cache miss), so it resets here exactly like
+    /// `squiggle_scan_ms`/`_misspellings` beside it.
     pub(super) fn reset(&self) {
         self.ornament_scan_ms.set(0.0);
         self.ornament_scan_lines.set(0);
@@ -239,6 +249,7 @@ impl OwnerScanWork {
         self.destination_join_bytes.set(0);
         self.squiggle_scan_ms.set(0.0);
         self.squiggle_scan_misspellings.set(0);
+        self.squiggle_lines_rebuilt.set(0);
     }
 }
 
@@ -452,197 +463,6 @@ impl HanEvidenceProjection {
             })
             .collect();
         lines.len() as u64
-    }
-}
-
-/// Retained per-line SPELL-SQUIGGLE geometry (the document-wide-typing-work
-/// investigation's third named owner, alongside [`NitProjection`] and
-/// [`HanEvidenceProjection`] above, and the biggest: `ensure_squiggle_protos`
-/// used to look up the shaped row and rebuild the pixel geometry for EVERY
-/// misspelling in the document on every reshape, even though a misspelling's
-/// PIXELS are a pure function of that one line's own shaped row plus its own
-/// span, and a [`crate::spell::Misspelling`] never crosses a `\n` (a word
-/// can't contain one). This keeps each line's finished [`UnderlineProto`]s and
-/// reuses them for every line OUTSIDE the exact band a reshape touched,
-/// splicing in fresh geometry only for the band `set_text`'s own `TextChange`
-/// reports — the identical shape [`NitProjection::refresh`] uses for its own
-/// per-line data.
-///
-/// UNLIKE the two siblings above, a successful splice ALSO requires the row
-/// geometry PATCH to have succeeded (`RowGeom::patch_lines_if_stable`): a
-/// rejected patch can shift every row below the edited band, so only a
-/// PATCHED reshape can trust an out-of-band line's cached pixels — an
-/// invalidated (fully rebuilt) `RowGeom` forces a full reseed here even
-/// though the misspelling SPANS themselves may not have moved at all.
-///
-/// This struct is pure bookkeeping: it knows nothing about rows, buffers, or
-/// destination-link exclusion. [`TextPipeline`]'s own squiggle methods (in
-/// `rects::underlines`) own the actual per-line geometry lookup (they alone
-/// hold `&self`) and hand the finished [`UnderlineProto`]s in; this only
-/// decides WHICH lines need that lookup and splices the results in place —
-/// mirroring [`crate::render::rowgeom::patch`]'s own split between "decide the
-/// band" and "materialize it".
-#[derive(Default)]
-pub(super) struct SquiggleProjection {
-    /// Whether `spans`/`slots` hold real per-line data at all (false before
-    /// the first successful build, and whenever the document falls out of
-    /// [`nit_fast_path_eligible`] — the exact same envelope `NitProjection`
-    /// requires, since the destination-link exclusion this cache also applies
-    /// can depend on a reference-style link definition ANYWHERE in the
-    /// document, not just the line being drawn).
-    valid: bool,
-    /// The [`rowgeom::RowGeom`] generation this projection's PIXELS were last
-    /// built against. A reshape that bypasses `set_text` entirely — a
-    /// zoom/DPI/restyle, which invalidate `RowGeom` directly — leaves this
-    /// stale; the mismatch against the CURRENT generation is what forces a
-    /// full reseed at the next read, mirroring the defensive fallback the two
-    /// siblings above take on any state mismatch.
-    generation: u64,
-    /// The `spell_gen` value `spans` was last made to agree with
-    /// `self.misspelled` under. `generation` alone cannot see a misspelling
-    /// change with NO reshape at all (a dictionary edit, a spellcheck
-    /// toggle) — comparing this catches exactly that axis.
-    reconciled_spell_gen: u64,
-    /// Per logical line, in document order: the exact `(start_col, end_col)`
-    /// misspelling spans this line's cached protos were built from — what
-    /// [`Self::diff_lines`] compares the CURRENT grouping against.
-    spans: Vec<Vec<(usize, usize)>>,
-    /// Per logical line, parallel to `spans`: the finished proto geometry.
-    slots: Vec<Vec<UnderlineProto>>,
-}
-
-impl SquiggleProjection {
-    pub(super) fn new() -> Self {
-        Self::default()
-    }
-
-    pub(super) fn is_valid_for(&self, generation: u64) -> bool {
-        self.valid && self.generation == generation
-    }
-
-    pub(super) fn is_reconciled(&self, spell_gen: u64) -> bool {
-        self.valid && self.reconciled_spell_gen == spell_gen
-    }
-
-    /// Every cached proto, in document order — the flattened view
-    /// `ensure_squiggle_protos` publishes to [`UnderlineCache`].
-    pub(super) fn iter(&self) -> impl Iterator<Item = &UnderlineProto> {
-        self.slots.iter().flatten()
-    }
-
-    /// Drop every retained line: the document fell out of the fast-path
-    /// envelope (a link/image/table/frontmatter appeared, or a code language
-    /// was recognized). The very next read takes the full-scan path and finds
-    /// this invalid; coming BACK into eligibility reseeds from scratch rather
-    /// than reconstructing history it never retained.
-    pub(super) fn clear(&mut self) {
-        self.valid = false;
-        self.spans.clear();
-        self.slots.clear();
-    }
-
-    /// Whether a splice against `change`/`patched` can retain every line
-    /// outside the band. `spans_len` is the CURRENT document's line count.
-    pub(super) fn can_splice(
-        &self,
-        spans_len: usize,
-        change: (usize, usize, usize),
-        patched: bool,
-    ) -> bool {
-        let (prefix, old_end, new_end) = change;
-        prefix <= old_end
-            && new_end <= spans_len
-            && patched
-            && self.valid
-            && self.spans.len() == old_end + (spans_len - new_end)
-            && self.slots.len() == old_end + (spans_len - new_end)
-    }
-
-    /// Replace the `[prefix, old_end)` band with freshly built lines for
-    /// `[prefix, new_end)`, keeping everything outside it untouched. `spans`
-    /// is the CURRENT full per-line grouping (used only to read the
-    /// replacement band's own spans); `built` holds the finished protos for
-    /// every line in that band that carried at least one span. Caller must
-    /// have confirmed [`Self::can_splice`] first.
-    pub(super) fn splice(
-        &mut self,
-        spans: &[Vec<(usize, usize)>],
-        change: (usize, usize, usize),
-        built: &std::collections::HashMap<usize, Vec<UnderlineProto>>,
-        generation: u64,
-        spell_gen: u64,
-    ) {
-        let (prefix, old_end, new_end) = change;
-        let replacement_spans: Vec<Vec<(usize, usize)>> = spans[prefix..new_end].to_vec();
-        let replacement_slots: Vec<Vec<UnderlineProto>> = (prefix..new_end)
-            .map(|li| built.get(&li).cloned().unwrap_or_default())
-            .collect();
-        self.spans.splice(prefix..old_end, replacement_spans);
-        self.slots.splice(prefix..old_end, replacement_slots);
-        self.generation = generation;
-        self.reconciled_spell_gen = spell_gen;
-    }
-
-    /// Rebuild every line from scratch — a structural edit, a shape mismatch,
-    /// a reshape that bypassed `set_text`, or first activation. `spans` is
-    /// the CURRENT full per-line grouping (moved in, becoming the new
-    /// baseline); `built` holds the finished protos for every line that
-    /// carries at least one span.
-    pub(super) fn reseed(
-        &mut self,
-        spans: Vec<Vec<(usize, usize)>>,
-        built: &std::collections::HashMap<usize, Vec<UnderlineProto>>,
-        generation: u64,
-        spell_gen: u64,
-    ) {
-        self.slots = (0..spans.len())
-            .map(|li| built.get(&li).cloned().unwrap_or_default())
-            .collect();
-        self.spans = spans;
-        self.valid = true;
-        self.generation = generation;
-        self.reconciled_spell_gen = spell_gen;
-    }
-
-    /// Lines whose span list differs from what is cached, or `None` when the
-    /// shape itself no longer matches (line count changed, or nothing is
-    /// cached yet) — the caller's signal to [`Self::reseed`] instead. Used
-    /// ONLY on the no-reshape axis (`generation` unchanged, so every OTHER
-    /// line's pixels are already known good): a dictionary edit or
-    /// spellcheck toggle can move `self.misspelled` on scattered lines with
-    /// no accompanying `TextChange` band at all.
-    pub(super) fn diff_lines(
-        &self,
-        spans: &[Vec<(usize, usize)>],
-    ) -> Option<std::collections::BTreeSet<usize>> {
-        if !self.valid || self.spans.len() != spans.len() {
-            return None;
-        }
-        Some(
-            (0..spans.len())
-                .filter(|&li| self.spans[li] != spans[li])
-                .collect(),
-        )
-    }
-
-    /// Apply a scattered-line reconciliation: `diff_lines` names exactly the
-    /// lines being replaced (their pixels come from `built`, empty for a line
-    /// whose spans became empty), every other line is untouched. `spans`
-    /// becomes the new baseline for the NEXT [`Self::diff_lines`] call.
-    pub(super) fn apply_diff(
-        &mut self,
-        spans: Vec<Vec<(usize, usize)>>,
-        diff_lines: &std::collections::BTreeSet<usize>,
-        built: &std::collections::HashMap<usize, Vec<UnderlineProto>>,
-        spell_gen: u64,
-    ) {
-        for &li in diff_lines {
-            if let Some(slot) = self.slots.get_mut(li) {
-                *slot = built.get(&li).cloned().unwrap_or_default();
-            }
-        }
-        self.spans = spans;
-        self.reconciled_spell_gen = spell_gen;
     }
 }
 

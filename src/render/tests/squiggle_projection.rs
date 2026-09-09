@@ -274,6 +274,63 @@ fn reseeds_clean_across_an_unrelated_buffer_swap() {
     );
 }
 
+/// COALESCED RESHAPES: several edits land back to back with NO squiggle read
+/// in between (`set_view` never eagerly materializes the retained geometry —
+/// it only records `SquigglePending` bookkeeping; the actual row lookup is
+/// deferred to the next real read, exactly so a run of several reshapes pays
+/// for it once, not once per reshape — see `SquiggleProjection`'s own doc
+/// comment, and the item's own named regression: an eager full rebuild on
+/// every reshape measurably slowed a zoom burst). The ONE read after two
+/// un-observed reshapes must still reflect the LATEST text, not a stale
+/// intermediate one, and must NOT be satisfied by composing the two reshapes'
+/// bands against each other (this law's whole point: a second unresolved
+/// reshape degrades straight to a full reseed rather than attempting that).
+#[test]
+fn squiggles_patch_across_two_reshapes_before_one_read() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping squiggles_patch_across_two_reshapes_before_one_read: no wgpu adapter");
+        return;
+    };
+    p.enable_text_sync_profile();
+
+    let text0 = "wrold opener\nkeep line\nthird line\n";
+    let mut v0 = view(text0, 0, 0);
+    v0.misspelled = vec![misspelling(0, 0, 5)];
+    p.set_view(&v0);
+    assert_matches_oracle(&p, "seed");
+
+    // Step 1: line0's misspelling is fixed.
+    let text1 = "wrold fixed opener\nkeep line\nthird line\n";
+    let v1 = view(text1, 0, 0);
+
+    // Step 2: line0 is clean, but line2 gains a NEW misspelling — pushed
+    // right after step 1 with NO squiggle read in between.
+    let text2 = "wrold fixed opener\nkeep line\nthrid line\n";
+    let mut v2 = view(text2, 2, 0);
+    v2.misspelled = vec![misspelling(2, 0, 5)];
+
+    let reshapes_before = p.reshape_count;
+    p.set_view(&v1);
+    p.set_view(&v2);
+    assert_eq!(
+        p.reshape_count,
+        reshapes_before + 2,
+        "both edits must reshape — an unread intermediate edit is not a no-op"
+    );
+    assert_matches_oracle(
+        &p,
+        "the one read after two un-observed reshapes must reflect the LATEST text",
+    );
+    let snap = p.squiggle_output_snapshot();
+    assert_eq!(
+        snap.len(),
+        1,
+        "line0's fixed misspelling must not linger, and line2's new one must \
+         be present — exactly the latest state, not a stale intermediate one"
+    );
+}
+
 /// INELIGIBLE FALLBACK: a document carrying a markdown LINK routes to the
 /// untouched full-scan algorithm unconditionally (the same envelope
 /// `NitProjection` uses), so the retained projection must simply stay out of
