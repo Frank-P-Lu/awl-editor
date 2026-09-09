@@ -391,6 +391,25 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
+**Thirteenth train, `4e225355`.** Covers 633 and the aggregate perf-doc update.
+
+```
+native-gate-receipt commit=4e225355 health=pass:304s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5123 unit_shards=6 integration_targets=18
+```
+plus `web-smoke: OK`.
+
+633 is the largest typing win measured this session: the manuscript tier's `typing_live` median
+6.419ms to 4.772ms, and the squiggle owner itself 46.815ms to 2.435ms across thirty keystrokes.
+
+Two things from it worth carrying forward. The item's warning that spelling might not take the
+per-line shape was WRONG in its specifics — a misspelling cannot cross a newline — but right in
+its instruction, because requiring the lane to establish that surfaced the real nonlocal
+dependency: a destination-link exclusion tested against reference definitions anywhere in the
+document. And the lane caught a regression it had introduced itself, in a scenario nobody asked
+it to measure, when eager materialisation cost the zoom burst about half.
+
+
 **Twelfth train, `4299d181`.** Covers 630.
 
 ```
