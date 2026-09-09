@@ -585,6 +585,7 @@ impl TextPipeline {
             syn_spans: Vec::new(),
             doc_lang: None,
             han_evidence: None,
+            han_evidence_projection: rects::HanEvidenceProjection::new(),
             script_fonts: text::ScriptFonts::default(),
             doc_source: None,
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),

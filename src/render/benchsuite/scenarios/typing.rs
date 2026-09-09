@@ -124,6 +124,16 @@ struct LiveTimings {
     squiggle_scan_ms: f64,
     squiggle_scan_misspellings: u64,
     squiggle_scan_misses: u64,
+    // Queue item 630's two named owners: CJK-evidence retention (a SUM, same
+    // convention as `nit_scan_lines` — the win is `lines_total == KEYS`, not
+    // `KEYS * doc_lines`) and the still-unretained markdown/syntax span parse
+    // (a size, reported as the LAST call's byte/line count like
+    // `destination_join_bytes`, proving the full document is what it sees on
+    // every single key).
+    evidence_scan_ms: f64,
+    evidence_scan_lines: u64,
+    spans_scan_bytes: u64,
+    spans_scan_lines: u64,
 }
 
 impl LiveTimings {
@@ -165,6 +175,10 @@ impl LiveTimings {
             squiggle_scan_ms: 0.0,
             squiggle_scan_misspellings: 0,
             squiggle_scan_misses: 0,
+            evidence_scan_ms: 0.0,
+            evidence_scan_lines: 0,
+            spans_scan_bytes: 0,
+            spans_scan_lines: 0,
         }
     }
 
@@ -208,6 +222,10 @@ impl LiveTimings {
         self.squiggle_scan_misspellings += o.squiggle_scan_misspellings;
         self.squiggle_scan_misses +=
             u64::from(o.squiggle_scan_misspellings > 0 || o.squiggle_scan_ms > 0.0);
+        self.evidence_scan_ms += o.evidence_scan_ms;
+        self.evidence_scan_lines += o.evidence_scan_lines;
+        self.spans_scan_bytes = self.spans_scan_bytes.max(o.spans_scan_bytes);
+        self.spans_scan_lines = self.spans_scan_lines.max(o.spans_scan_lines);
     }
 
     fn validate(
@@ -284,14 +302,15 @@ impl LiveTimings {
             median_ms(&self.conceal),
             median_ms(&self.caret),
         );
-        // `destination_join_bytes` is a size, not a per-key rate, so it is
-        // reported once via `witnesses()` instead of on this per-key line.
+        // `destination_join_bytes` (and `spans_scan_bytes`/`spans_scan_lines`
+        // below) are sizes, not per-key rates, so they are reported once via
+        // `witnesses()` instead of on this per-key line.
         println!(
             "BENCH-OWNERS typing_live {name} nit_scan_ms={:.3}ms nit_scan_lines={} \
              nit_scan_misses={} ornament_scan_ms={:.3}ms ornament_scan_lines={} \
              ornament_scan_spans={} ornament_scan_misses={} destination_join_ms={:.3}ms \
              destination_join_calls={} squiggle_scan_ms={:.3}ms squiggle_scan_misspellings={} \
-             squiggle_scan_misses={}",
+             squiggle_scan_misses={} evidence_scan_ms={:.3}ms evidence_scan_lines={}",
             self.nit_scan_ms,
             self.nit_scan_lines,
             self.nit_scan_misses,
@@ -304,6 +323,8 @@ impl LiveTimings {
             self.squiggle_scan_ms,
             self.squiggle_scan_misspellings,
             self.squiggle_scan_misses,
+            self.evidence_scan_ms,
+            self.evidence_scan_lines,
         );
     }
 
@@ -333,6 +354,9 @@ impl LiveTimings {
                 self.squiggle_scan_misspellings,
             ),
             ("squiggle_scan_misses", self.squiggle_scan_misses),
+            ("evidence_scan_lines_total", self.evidence_scan_lines),
+            ("spans_scan_bytes", self.spans_scan_bytes),
+            ("spans_scan_lines", self.spans_scan_lines),
         ]
     }
 }

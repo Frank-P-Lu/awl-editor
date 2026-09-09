@@ -152,6 +152,23 @@ pub(super) struct OwnerScanWork {
     /// zero either on a hit or because the misspelled list was empty (the caller,
     /// `spell_squiggles`, skips the ensure call entirely in that case).
     pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::set_text`, once per RESHAPE, by
+    /// [`HanEvidenceProjection::refresh`] — the document-wide-typing-work
+    /// investigation's other named owner beside `nit_scan`. Same
+    /// unconditional-overwrite convention as `nit_scan_ms`: this always
+    /// reflects the evidence work THIS reshape actually did.
+    pub(super) evidence_scan_ms: std::cell::Cell<f64>,
+    /// Lines actually rescanned by that same call: only the reshape's own
+    /// changed band on a retained hit (0 on a pure geometry-only reshape with
+    /// no text change), or every logical line on a full reseed.
+    pub(super) evidence_scan_lines: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::set_text_incremental`, once per RESHAPE, by
+    /// `parse_doc_spans` — NOT a retained owner (this round leaves markdown/
+    /// syntax parsing at its existing full-document recompute), so this is a
+    /// pure WITNESS that the parse really does see the whole document + line
+    /// count on every single edit, not a cache-hit/miss counter.
+    pub(super) spans_scan_bytes: std::cell::Cell<u64>,
+    pub(super) spans_scan_lines: std::cell::Cell<u64>,
 }
 
 /// A plain-data snapshot of [`OwnerScanWork`], read once per timed sample so a
@@ -169,6 +186,10 @@ pub(super) struct OwnerScanSnapshot {
     pub(super) destination_join_bytes: u64,
     pub(super) squiggle_scan_ms: f64,
     pub(super) squiggle_scan_misspellings: u64,
+    pub(super) evidence_scan_ms: f64,
+    pub(super) evidence_scan_lines: u64,
+    pub(super) spans_scan_bytes: u64,
+    pub(super) spans_scan_lines: u64,
 }
 
 impl OwnerScanWork {
@@ -184,15 +205,19 @@ impl OwnerScanWork {
             destination_join_bytes: self.destination_join_bytes.get(),
             squiggle_scan_ms: self.squiggle_scan_ms.get(),
             squiggle_scan_misspellings: self.squiggle_scan_misspellings.get(),
+            evidence_scan_ms: self.evidence_scan_ms.get(),
+            evidence_scan_lines: self.evidence_scan_lines.get(),
+            spans_scan_bytes: self.spans_scan_bytes.get(),
+            spans_scan_lines: self.spans_scan_lines.get(),
         }
     }
 
-    /// Resets every OWNER except the nit-scan pair: those are written from
-    /// `TextPipeline::set_text` (once per RESHAPE, before `prepare` even
-    /// starts) and unconditionally overwritten — never accumulated — by
-    /// whichever of the fast or full nit path actually ran, so resetting them
-    /// here would erase what `set_text` just recorded before `ensure_nit_protos`
-    /// ever got a chance to confirm or replace it.
+    /// Resets every OWNER except the nit-scan pair and the evidence/spans
+    /// witnesses below: all of those are written from
+    /// `TextPipeline::set_text`/`set_text_incremental` (once per RESHAPE,
+    /// before `prepare` even starts) and unconditionally overwritten — never
+    /// accumulated — by whichever path actually ran, so resetting them here
+    /// would erase what `set_text` just recorded before `prepare` ever runs.
     pub(super) fn reset(&self) {
         self.ornament_scan_ms.set(0.0);
         self.ornament_scan_lines.set(0);
@@ -328,6 +353,92 @@ impl NitProjection {
             .map(|line| crate::nits::line_nits(line))
             .collect();
         self.eligible = true;
+        lines.len() as u64
+    }
+}
+
+/// Retained per-line HAN-AMBIGUITY EVIDENCE (the document-wide-typing-work
+/// investigation, alongside [`NitProjection`] above): [`crate::script::cjk_evidence`]
+/// used to re-scan every character of the WHOLE document on every edit, even
+/// though its per-line contribution ([`crate::script::line_evidence`]) is a
+/// pure function of that one line's own text. This keeps each line's own
+/// flags plus a running [`crate::script::EvidenceCounts`] of how many CURRENT
+/// lines carry each signal, so [`Self::aggregate`] answers the exact
+/// priority-ordered question `cjk_evidence` would over the whole document
+/// without rescanning any line outside the band a reshape's own `TextChange`
+/// reports as touched.
+///
+/// RETRACTION: editing away or deleting a document's only decisive line
+/// decrements that line's counts before its old contribution is replaced —
+/// see [`crate::script::EvidenceCounts::remove`] — so the aggregate falls
+/// back correctly, the same way a fresh `cjk_evidence` scan of the edited
+/// text would (a design that only ever added counts would leave a stale
+/// positive answer forever).
+///
+/// SHAPE: identical splice mechanics to [`NitProjection::refresh`] — same
+/// band, same "shape mismatch -> full reseed" fallback, which is what makes
+/// a buffer swap (old and new documents typically sharing no line) reseed
+/// cleanly for free rather than needing its own buffer-identity key.
+#[derive(Default)]
+pub(super) struct HanEvidenceProjection {
+    per_line: Vec<crate::script::LineEvidence>,
+    counts: crate::script::EvidenceCounts,
+}
+
+impl HanEvidenceProjection {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+
+    /// The document aggregate exactly [`crate::script::cjk_evidence`] would
+    /// report for the CURRENT retained lines.
+    pub(super) fn aggregate(&self) -> Option<crate::frontmatter::Lang> {
+        self.counts.resolve()
+    }
+
+    /// Bring the retained per-line evidence up to date with `lines` (the
+    /// CURRENT document, one entry per logical line). `change` is the exact
+    /// changed-line band the reshape that produced `lines` reports (`prefix`,
+    /// old end, new end). Returns the number of lines actually rescanned (0
+    /// on a pure retain — the common single-line-edit case).
+    pub(super) fn refresh(&mut self, lines: &[&str], change: Option<(usize, usize, usize)>) -> u64 {
+        if let Some((prefix, old_end, new_end)) = change
+            && prefix <= old_end
+            && new_end <= lines.len()
+        {
+            let old_len = old_end + (lines.len() - new_end);
+            if self.per_line.len() == old_len {
+                for &ev in &self.per_line[prefix..old_end] {
+                    self.counts.remove(ev);
+                }
+                let mut next = Vec::with_capacity(lines.len());
+                next.extend_from_slice(&self.per_line[..prefix]);
+                let mut rescanned = 0u64;
+                for &line in &lines[prefix..new_end] {
+                    let ev = crate::script::line_evidence(line);
+                    self.counts.add(ev);
+                    next.push(ev);
+                    rescanned += 1;
+                }
+                next.extend_from_slice(&self.per_line[old_end..]);
+                self.per_line = next;
+                return rescanned;
+            }
+        }
+        // First activation, a state mismatch defensive fallback (including
+        // an unrelated buffer swap sharing no line with the prior document —
+        // `unchanged_band`'s "replace everything" shape degenerates into
+        // exactly this branch), or nothing has reshaped through this cache
+        // yet: reseed every line once.
+        self.counts = crate::script::EvidenceCounts::default();
+        self.per_line = lines
+            .iter()
+            .map(|&line| {
+                let ev = crate::script::line_evidence(line);
+                self.counts.add(ev);
+                ev
+            })
+            .collect();
         lines.len() as u64
     }
 }

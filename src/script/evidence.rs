@@ -96,7 +96,24 @@ pub fn cjk_evidence(text: &str) -> Option<Lang> {
             Some(Script::Bopomofo) | None => {}
         }
     }
-    if has_simplified_only {
+    resolve_evidence(false, has_simplified_only, has_traditional_only, has_hangul)
+}
+
+/// The module's priority resolution (rules 1-4) over four PRESENCE booleans,
+/// shared by [`cjk_evidence`]'s whole-document scan (which always passes
+/// `false` for `has_kana` here — a `true` kana presence already returned
+/// early in its own loop) and a retained per-line aggregate's "does at least
+/// one CURRENT line carry this signal" question, so the two can never drift
+/// on which signal wins when a document carries more than one.
+fn resolve_evidence(
+    has_kana: bool,
+    has_simplified_only: bool,
+    has_traditional_only: bool,
+    has_hangul: bool,
+) -> Option<Lang> {
+    if has_kana {
+        Some(Lang::Ja)
+    } else if has_simplified_only {
         Some(Lang::ZhHans)
     } else if has_traditional_only {
         Some(Lang::ZhHant)
@@ -104,6 +121,84 @@ pub fn cjk_evidence(text: &str) -> Option<Lang> {
         Some(Lang::Ko)
     } else {
         None
+    }
+}
+
+/// One line's contribution to the document-scoped evidence scan (the module
+/// doc's four decisive signals). Unlike [`cjk_evidence`], this does NOT
+/// short-circuit on a kana hit: a retained per-line projection needs every
+/// flag a line carries so it can correctly RETRACT that line's contribution
+/// when its text changes — a line that loses its only kana character must
+/// stop counting toward a "document has kana" tally, not just stop being
+/// rescanned.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LineEvidence {
+    pub(crate) kana: bool,
+    pub(crate) simplified_only: bool,
+    pub(crate) traditional_only: bool,
+    pub(crate) hangul: bool,
+}
+
+/// Scan exactly one line's text for [`LineEvidence`] — the per-line unit a
+/// retained projection re-tokenizes for only the lines a reshape's own
+/// changed band touches, instead of [`cjk_evidence`]'s whole-document scan
+/// repeated on every edit.
+pub(crate) fn line_evidence(text: &str) -> LineEvidence {
+    let mut ev = LineEvidence::default();
+    for c in text.chars() {
+        match super::classify_char(c) {
+            Some(Script::Kana) => ev.kana = true,
+            Some(Script::Han) => {
+                if is_simplified_only(c) {
+                    ev.simplified_only = true;
+                } else if is_traditional_only(c) {
+                    ev.traditional_only = true;
+                }
+            }
+            Some(Script::Hangul) => ev.hangul = true,
+            Some(Script::Bopomofo) | None => {}
+        }
+    }
+    ev
+}
+
+/// The retained mirror of [`cjk_evidence`]: four running counts of how many
+/// CURRENTLY-retained lines carry each signal, resolved through the same
+/// [`resolve_evidence`] priority order. A document-scope cache (not
+/// per-line), because the resolution itself is document-scope — module doc's
+/// rule 5 is answered once per document, not once per line.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EvidenceCounts {
+    pub(crate) kana_lines: u32,
+    pub(crate) simplified_lines: u32,
+    pub(crate) traditional_lines: u32,
+    pub(crate) hangul_lines: u32,
+}
+
+impl EvidenceCounts {
+    pub(crate) fn add(&mut self, ev: LineEvidence) {
+        self.kana_lines += u32::from(ev.kana);
+        self.simplified_lines += u32::from(ev.simplified_only);
+        self.traditional_lines += u32::from(ev.traditional_only);
+        self.hangul_lines += u32::from(ev.hangul);
+    }
+
+    pub(crate) fn remove(&mut self, ev: LineEvidence) {
+        self.kana_lines -= u32::from(ev.kana);
+        self.simplified_lines -= u32::from(ev.simplified_only);
+        self.traditional_lines -= u32::from(ev.traditional_only);
+        self.hangul_lines -= u32::from(ev.hangul);
+    }
+
+    /// The exact same answer a fresh [`cjk_evidence`] scan of the whole
+    /// document would give, derived from presence counts instead of a scan.
+    pub(crate) fn resolve(self) -> Option<Lang> {
+        resolve_evidence(
+            self.kana_lines > 0,
+            self.simplified_lines > 0,
+            self.traditional_lines > 0,
+            self.hangul_lines > 0,
+        )
     }
 }
 
@@ -390,6 +485,119 @@ mod tests {
             super::super::resolve_font_id(Some(Lang::Ja), Some(Script::Han), &effective),
             crate::theme::FontId::Ja,
             "the doc tag wins outright; the ZhHans evidence is never reached"
+        );
+    }
+
+    // --- `line_evidence` / `EvidenceCounts`: the retained-projection half ---
+
+    /// WORK-COUNT EQUIVALENCE: for every line of a multi-line document, folding
+    /// each line's own [`line_evidence`] into one [`EvidenceCounts`] and
+    /// resolving it must equal a fresh whole-document [`cjk_evidence`] scan —
+    /// the exact property [`crate::render::rects::HanEvidenceProjection`]
+    /// relies on to answer the document question from per-line data alone.
+    fn counts_for(lines: &[&str]) -> EvidenceCounts {
+        let mut counts = EvidenceCounts::default();
+        for &line in lines {
+            counts.add(line_evidence(line));
+        }
+        counts
+    }
+
+    #[test]
+    fn per_line_aggregate_matches_a_fresh_whole_document_scan() {
+        let cases: &[&str] = &[
+            "nothing but english here",
+            "这是简体中文的一段测试文字骨头直角与其内外开关门说话车站",
+            "說話",
+            "한국어",
+            "これは中文です这",
+            "是体中文的一段文字骨直角与其内外站",
+            "是体中文的一段文字骨直角与其内外站の",
+            "是体中文的一段文字骨直角与其内外站한",
+            "一\n二\n三这\n四",   // decisive character on a LATER line only
+            "한\n中\n说\n한国어", // multiple lines, multiple signals
+        ];
+        for text in cases {
+            let lines: Vec<&str> = text.split('\n').collect();
+            let whole_doc = cjk_evidence(text);
+            let retained = counts_for(&lines).resolve();
+            assert_eq!(
+                retained, whole_doc,
+                "per-line aggregate must match a fresh whole-document scan for {text:?}"
+            );
+        }
+    }
+
+    /// THE ITEM'S OWN RETRACTION LAW: deleting a document's last decisive
+    /// line must retract that line's evidence from the aggregate, not leave
+    /// a stale positive count behind. Mirrors editing away the document's
+    /// only simplified-only character and checking `cjk_evidence` on the
+    /// EDITED text resolves `None` again.
+    #[test]
+    fn removing_the_only_decisive_line_retracts_its_evidence() {
+        let mut counts = EvidenceCounts::default();
+        let decisive = line_evidence("这"); // simplified-only
+        let plain = line_evidence("shared prose, no CJK at all");
+        counts.add(decisive);
+        counts.add(plain);
+        assert_eq!(counts.resolve(), Some(Lang::ZhHans));
+
+        // The line is edited away (or deleted) — its OLD contribution is
+        // removed before the new (empty-of-evidence) text is added.
+        counts.remove(decisive);
+        assert_eq!(
+            counts.resolve(),
+            None,
+            "the aggregate must fall back to None once the only decisive line is gone, \
+             exactly like a fresh cjk_evidence scan of the edited text"
+        );
+
+        // NON-VACUITY: a design that only ever ADDED (never retracted) would
+        // leave this `Some(ZhHans)` forever — this is the exact regression
+        // the retraction call guards against.
+        let mut leaky = EvidenceCounts::default();
+        leaky.add(decisive);
+        leaky.add(plain);
+        assert_ne!(
+            leaky.resolve(),
+            None,
+            "sanity: the counts really do carry the decisive line before it's removed"
+        );
+    }
+
+    /// A document with TWO lines carrying the SAME signal must keep resolving
+    /// that signal after only ONE of them is retracted (a reference count,
+    /// not a boolean latch).
+    #[test]
+    fn one_of_two_decisive_lines_can_retract_while_the_other_still_decides() {
+        let mut counts = EvidenceCounts::default();
+        let a = line_evidence("这"); // simplified-only
+        let b = line_evidence("测"); // also simplified-only
+        counts.add(a);
+        counts.add(b);
+        assert_eq!(counts.resolve(), Some(Lang::ZhHans));
+        counts.remove(a);
+        assert_eq!(
+            counts.resolve(),
+            Some(Lang::ZhHans),
+            "the second decisive line still stands after the first is retracted"
+        );
+        counts.remove(b);
+        assert_eq!(counts.resolve(), None);
+    }
+
+    #[test]
+    fn line_evidence_does_not_short_circuit_on_kana_unlike_cjk_evidence() {
+        // A single line mixing kana AND a simplified-only character must
+        // report BOTH flags (needed for correct retraction bookkeeping),
+        // even though `cjk_evidence` itself would answer `Ja` and never learn
+        // about the simplified-only character at all.
+        let ev = line_evidence("これは中文です这");
+        assert!(ev.kana, "kana must be recorded");
+        assert!(
+            ev.simplified_only,
+            "the simplified-only character must ALSO be recorded, unlike the \
+             short-circuiting whole-document scan"
         );
     }
 }

@@ -30,6 +30,7 @@
 
 mod evidence;
 
+pub(crate) use evidence::{EvidenceCounts, LineEvidence, line_evidence};
 pub use evidence::{cjk_evidence, effective_cjk_priority};
 
 use crate::frontmatter::Lang;
