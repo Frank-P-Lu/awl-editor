@@ -44,7 +44,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_active_folder_without_other_forma
 #[test]
 fn every_theme_preview_input_door_uses_the_one_latest_wins_policy() {
     let apply = include_str!("apply.rs");
-    let mouse = include_str!("input/mouse.rs");
+    let mouse = include_str!("input/mouse/overlay.rs");
     let window = include_str!("window.rs");
     let schedule = include_str!("schedule.rs");
 

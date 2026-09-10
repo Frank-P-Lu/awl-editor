@@ -1,14 +1,9 @@
-//! src/app/input/ — INPUT handling, split by natural seam (2026-07
-//! code-organization pass) out of the former `app/input.rs` monolith:
-//! [`keys`] (the keyboard path — held-HUD/peek, whichkey, incremental
-//! search, zoom, page scroll, `KeyboardInput`/`ModifiersChanged`
-//! dispatch), [`mouse`] (the pointer path — hit-test, click/drag-select,
-//! outline/link/overlay/panel/menu-bar clicks, the cursor icon,
-//! wheel scroll/zoom/table-pan, `CursorMoved`/`MouseInput`/`MouseWheel`
-//! dispatch), and [`drags`] (the page-column and inline-image RESIZE drag
-//! state machines, incl. [`ImageDrag`]). Everything `window_event`
-//! dispatches into; every external path (`app::input::ImageDrag`) is
-//! unchanged — this file only re-exports.
+//! Keyboard and pointer input state and event handling.
+//!
+//! [`mouse`] keeps pointer event precedence visible; its children own document
+//! selection, picker interaction, surface presses, feedback, and wheel routing.
+//! [`mouse_button`] dispatches button presses and releases; [`drags`] owns resize
+//! gestures, and [`pointer_sync`] refreshes derived feedback after input changes.
 
 mod context_menu;
 mod drags;

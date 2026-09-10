@@ -189,7 +189,7 @@ impl WorkspaceState {
     ///
     /// THE ONE DELIBERATE BYPASS in this module, with exactly one call site:
     /// `sync_cursor_icon`'s popover-button hover test in
-    /// `app/input/mouse.rs`. It stays ladder-free so the cursor-icon
+    /// `app/input/mouse/feedback.rs`. It stays ladder-free so the cursor-icon
     /// composition is byte-identical to the former code; the pipeline's
     /// own popover model is already cleared when a picker is up, so the
     /// combination cannot change the resulting icon. Every other consumer must
@@ -287,7 +287,7 @@ impl WorkspaceState {
 
     /// FOCUS the summoned workspace's DETAIL stage — its content pane — leaving
     /// it there if it is already focused. The pointer's counterpart to `↵` on a
-    /// navigation-rail entry (`app/input/mouse.rs::overlay_click`): a rail click
+    /// navigation-rail entry (`app/input/mouse/overlay.rs::overlay_click`): a rail click
     /// means "show me this category, and put me in it" at every width, and a
     /// click that landed you somewhere different from the key that means the same
     /// thing would be two behaviours.
