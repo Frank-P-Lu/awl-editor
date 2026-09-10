@@ -226,61 +226,20 @@ fn files_keeps_empty_directories_and_names_three_level_outcomes() {
 
 #[test]
 fn files_names_a_real_unsupported_only_directory_instead_of_offering_its_binary() {
-    use crate::fs::{FileSystem, InMemoryFs};
-    use std::sync::Arc;
-    let _guard = crate::testlock::serial();
-    let mem = InMemoryFs::new();
-    mem.write(std::path::Path::new("/root/logo.icns"), b"\0binary")
-        .unwrap();
-    crate::fs::with_fs(Arc::new(mem), || {
-        let corpus = crate::overlay::files_corpus(
-            std::path::Path::new("/root"),
-            &["logo.icns".into()],
-            &[0],
-            &[0],
-            &["now".into()],
-        );
-        assert!(corpus.paths.is_empty());
-        assert!(corpus.open.is_empty() && corpus.recent.is_empty());
-        assert!(corpus.times.is_empty());
-        let mut files = OverlayState::new_files(corpus.paths, corpus.open, corpus.recent, None);
-        let entries = [crate::index::DirEntry {
-            name: "logo.icns".into(),
-            is_dir: false,
-            is_git: false,
-        }];
-        files.set_files_level_state(Some(&entries));
-        assert_eq!(files.notice, "no supported files in this folder");
-        assert!(
-            !files.item_strings().iter().any(|row| row == "logo.icns"),
-            "an unsupported-only Files level must not present a binary as a file choice"
-        );
-    });
-}
-
-#[test]
-fn files_byte_filter_keeps_unfamiliar_text_and_remaps_markers() {
-    use crate::fs::{FileSystem, InMemoryFs};
-    use std::sync::Arc;
-    let _guard = crate::testlock::serial();
-    let mem = InMemoryFs::new();
-    mem.write(std::path::Path::new("/root/plain.xyzzy"), b"prose\n")
-        .unwrap();
-    mem.write(std::path::Path::new("/root/logo.png"), b"\0binary")
-        .unwrap();
-    mem.write(std::path::Path::new("/root/README"), b"words\n")
-        .unwrap();
-    crate::fs::with_fs(Arc::new(mem), || {
-        let corpus = crate::overlay::files_corpus(
-            std::path::Path::new("/root"),
-            &["plain.xyzzy".into(), "logo.png".into(), "README".into()],
-            &[2],
-            &[1, 0, 2],
-            &["old".into(), "binary".into(), "new".into()],
-        );
-        assert_eq!(corpus.paths, ["plain.xyzzy", "README"]);
-        assert_eq!(corpus.open, [1]);
-        assert_eq!(corpus.recent, [0, 1]);
-        assert_eq!(corpus.times, ["old", "new"]);
-    });
+    // This is the production Files shape: the root-wide corpus contains the
+    // path, while the current level reports that same unsupported leaf.
+    // A binary-only directory needs its own calm outcome, not an openable row.
+    let mut files = OverlayState::new_files(vec!["logo.icns".into()], Vec::new(), Vec::new(), None);
+    let entries = [crate::index::DirEntry {
+        name: "logo.icns".into(),
+        is_dir: false,
+        is_git: false,
+    }];
+    files.exclude_files(&std::collections::BTreeSet::from(["logo.icns".to_string()]));
+    files.set_files_level_state(Some(&entries));
+    assert_eq!(files.notice, "no supported files in this folder");
+    assert!(
+        !files.item_strings().iter().any(|row| row == "logo.icns"),
+        "an unsupported-only Files level must not present a binary as a file choice"
+    );
 }

@@ -9,42 +9,20 @@ pub(super) struct FilesOverlayBuilder {
     corpus: Vec<String>,
     open: Vec<usize>,
     recent: Vec<usize>,
-    times: Vec<String>,
 }
 
 impl FilesOverlayBuilder {
     pub(super) fn new(root: PathBuf, ctx: &BuildCtx<'_>) -> Self {
-        let filtered = crate::overlay::files_corpus(
-            &root,
-            &ctx.goto_corpus,
-            &ctx.goto_open,
-            &ctx.goto_recent,
-            &ctx.goto_times,
-        );
         Self {
             root,
-            corpus: filtered.paths,
-            open: filtered.open,
-            recent: filtered.recent,
-            times: filtered.times,
+            corpus: ctx.goto_corpus.clone(),
+            open: ctx.goto_open.clone(),
+            recent: ctx.goto_recent.clone(),
         }
     }
 
     pub(super) fn build(&self, kind: OverlayKind, ctx: &BuildCtx<'_>) -> Option<OverlayState> {
-        let overlay = if kind == OverlayKind::Goto {
-            let mut overlay = OverlayState::new_files(
-                self.corpus.clone(),
-                self.open.clone(),
-                self.recent.clone(),
-                None,
-            );
-            overlay.set_times(self.times.clone());
-            overlay.attach_headings(ctx.goto_headings.clone());
-            overlay.attach_line_jump(ctx.goto_line_count);
-            overlay
-        } else {
-            crate::overlay::build(kind, ctx)?
-        };
+        let overlay = crate::overlay::build(kind, ctx)?;
         Some(if kind == OverlayKind::Goto {
             self.attach_level(overlay, None)
         } else {
@@ -76,6 +54,30 @@ impl FilesOverlayBuilder {
             .filter(|path| !path.is_empty())
             .map(|path| format!("{path}/"));
         let level = crate::index::try_list_dir_level(&self.root, rel);
+        let unsupported = level
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .filter(|entry| !entry.is_dir)
+            .filter_map(|entry| {
+                let path = crate::index::resolve(
+                    &self.root,
+                    &match rel {
+                        Some(rel) if !rel.is_empty() => format!("{rel}/{}", entry.name),
+                        _ => entry.name.clone(),
+                    },
+                );
+                matches!(
+                    crate::openable::classify(&path),
+                    crate::openable::Openable::Unsupported { .. }
+                )
+                .then(|| match &prefix {
+                    Some(prefix) => format!("{prefix}{}", entry.name),
+                    None => entry.name.clone(),
+                })
+            })
+            .collect();
+        overlay.exclude_files(&unsupported);
         overlay.attach_file_directories(
             level
                 .clone()

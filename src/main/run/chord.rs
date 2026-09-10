@@ -258,30 +258,24 @@ impl ReplaySession<'_> {
             search_corpus: inputs.search_corpus,
         };
         let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
-        let files = crate::overlay::files_corpus(
-            root,
-            &build_ctx.goto_corpus,
-            &build_ctx.goto_open,
-            &build_ctx.goto_recent,
-            &build_ctx.goto_times,
-        );
         let mut make_overlay = |kind: crate::overlay::OverlayKind| {
-            let mut overlay = if kind == crate::overlay::OverlayKind::Goto {
-                let mut overlay = crate::overlay::OverlayState::new_files(
-                    files.paths.clone(),
-                    files.open.clone(),
-                    files.recent.clone(),
-                    None,
-                );
-                overlay.set_times(files.times.clone());
-                overlay.attach_headings(build_ctx.goto_headings.clone());
-                overlay.attach_line_jump(build_ctx.goto_line_count);
-                overlay
-            } else {
-                crate::overlay::build(kind, &build_ctx)?
-            };
+            let mut overlay = crate::overlay::build(kind, &build_ctx)?;
             if kind == crate::overlay::OverlayKind::Goto {
                 let level = crate::index::try_list_dir_level(root, None);
+                let unsupported = level
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|entry| !entry.is_dir)
+                    .filter_map(|entry| {
+                        matches!(
+                            crate::openable::classify(&root.join(&entry.name)),
+                            crate::openable::Openable::Unsupported { .. }
+                        )
+                        .then(|| entry.name.clone())
+                    })
+                    .collect();
+                overlay.exclude_files(&unsupported);
                 overlay.attach_file_directories(
                     level
                         .clone()
@@ -295,7 +289,7 @@ impl ReplaySession<'_> {
             }
             Some(overlay)
         };
-        let files_corpus = files.paths.clone();
+        let files_corpus = self.corpus.clone();
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
             if kind == crate::overlay::OverlayKind::Goto {
                 let mut overlay = crate::overlay::OverlayState::new_files(
@@ -309,6 +303,27 @@ impl ReplaySession<'_> {
                     .filter(|s| !s.is_empty())
                     .map(|s| format!("{s}/"));
                 let level = crate::index::try_list_dir_level(root, rel.as_deref());
+                let unsupported = level
+                    .as_deref()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter(|entry| !entry.is_dir)
+                    .filter_map(|entry| {
+                        let path = match rel.as_deref() {
+                            Some(rel) if !rel.is_empty() => root.join(rel).join(&entry.name),
+                            _ => root.join(&entry.name),
+                        };
+                        matches!(
+                            crate::openable::classify(&path),
+                            crate::openable::Openable::Unsupported { .. }
+                        )
+                        .then(|| match &prefix {
+                            Some(prefix) => format!("{prefix}{}", entry.name),
+                            None => entry.name.clone(),
+                        })
+                    })
+                    .collect();
+                overlay.exclude_files(&unsupported);
                 overlay.attach_file_directories(
                     level
                         .clone()
