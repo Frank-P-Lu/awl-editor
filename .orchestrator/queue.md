@@ -245,10 +245,13 @@ Do not dispatch or claim implementation merely because this acceptance work is q
 
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
-🟡 IMPLEMENTATION ANALYSIS IN PROGRESS — `chrome_628_map` (Codex), read-only
-against current `main`, the approved direction and native prototype. The prototype
-exists on `item-628` at `e37a13ba` and is not integrated. This is not implementation
-acceptance; native edits remain serialized behind 637.
+🟡 IMPLEMENTATION ANALYSIS COMPLETE — `chrome_628_map` (Codex) mapped the
+surface-specific owners, shared-control boundary, accessibility/action routes,
+responsive geometry, roster probes and mutations. It found the prototype's intent
+salvageable but its new `Physical` spacing unsuitable for the required 1x/2x
+composition; implementation must use logical UI units and repair the Settings-cap
+law's sampling rather than bypass it. The prototype exists on `item-628` at
+`e37a13ba` and is not integrated. Native edits remain serialized behind 637.
 
 Review update (2026-09-10): the user likes the saved Settings layout and explicitly
 asked to continue Find/Replace and theme-picker refinement on the interactive design
@@ -567,6 +570,10 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
+- **615 — post-extraction outcome audit in progress.** `mouse_615_audit` is
+  sweeping pointer state × surface ownership against integrated `main`, following
+  the required identity-refactor audit. A finding must end in a missing law before
+  the audit can close; no second full gate belongs here.
 - **588 — Brolga bullet taste decision.** The current plain `•◦▪` remains the
   fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
   box. A different glyph or wider box would be a separate mechanism decision.
