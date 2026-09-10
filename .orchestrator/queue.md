@@ -613,6 +613,10 @@ check remote status before a future push rather than inheriting old push warning
 These remain unverified on the orchestration host; honor the current scope and
 release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
 
+🟡 `hardware_block_audit` is rechecking host capabilities and the exact evidence
+each journey requires so these finish with concrete blockers rather than inherited
+assumptions. It performs no release or remote mutation.
+
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
    reading, caret/selection, overlays, and an editing burst (post-v1 per
    `ACCESSIBILITY.md`).
