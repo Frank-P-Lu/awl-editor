@@ -18,7 +18,7 @@
 //! "state oracle, not an appearance oracle" tripwire.
 
 use super::bands_waves::{bg_desc_for, headless_dq};
-use super::zigzag_ground::{SWEEP, margins};
+use super::zigzag_ground::margins;
 use crate::background::BgDesc;
 use crate::theme;
 use crate::warpgrid;
@@ -271,14 +271,6 @@ pub(super) fn field(
         .collect()
 }
 
-/// Marked pixels inside `[x0, x1)` over the whole height.
-fn ink_in(f: &[i32], w: u32, h: u32, x0: u32, x1: u32) -> usize {
-    (0..h)
-        .flat_map(|y| (x0..x1).map(move |x| (y, x)))
-        .filter(|&(y, x)| f[(y * w + x) as usize] > INK_FLOOR)
-        .count()
-}
-
 /// The two page margins at the canonical geometry.
 fn canon_margins() -> [(u32, u32); 2] {
     margins(W, COL_LEFT, COL_W)
@@ -443,120 +435,13 @@ fn zero_density_is_an_exact_flat_ground_reference() {
 // APPEARANCE: the page, the margins, and the composition.
 // ---------------------------------------------------------------------------
 
-/// THE WRITING PAGE CARRIES THE FIELD, AT ONE CONSTANT VEIL, AT EVERY GEOMETRY.
-///
-/// ⚠️ THIS LAW REPLACES `the_grid_never_enters_the_writing_page_at_any_geometry_
-/// _or_phase`, WHICH ASSERTED THE OPPOSITE, and the reversal is a decision
-/// rather than a regression. When the tunnel had an axis in each margin,
-/// punching the page away was right — there was nothing under it to see. With
-/// ONE axis at the room's centre the vanishing point IS under the page, and two
-/// flanks with a hard hole between them read as two pictures, which is exactly
-/// the defect the user reported. The crossing is what makes them one.
-///
-/// THE STATISTIC IS THE STRONGEST MARK, AND CHOOSING IT WAS THE WHOLE DESIGN OF
-/// THIS LAW. Two earlier drafts graded the wrong quantity and both passed while
-/// measuring nothing. Counting marked PIXELS grades the geometry: in a short
-/// wide room the page holds whole concentric rings while the margins are tangent
-/// slivers, so the margin loses on count though every one of its marks is far
-/// stronger. Averaging over marked pixels grades the ANTIALIAS population: the
-/// margin's dense minor lattice contributes a huge tail of barely-inked pixels
-/// that drags its mean below the page's few strong arcs. Only the peak grades
-/// the veil.
-///
-/// The three clauses are deliberately different in kind. That the page is inked
-/// is the crossing existing at all. That its peak is CONSTANT across twelve
-/// geometries and five phases is the strong one — it says the page column can
-/// only MASK this field and can never rescale it, which is the same invariant
-/// the shipping profile's placement claims, checked from the other side. And
-/// that the peak sits far under an open margin's is prose keeping figure/ground.
+/// The retired whole-page maximum compared unrelated depths and line
+/// intersections. Its replacement samples the same projected major-section
+/// family at known page and open-margin landmarks, proving that the veil is
+/// present, materially quieter, and able to reject an unmasked-page mutation.
 #[test]
-fn the_writing_page_carries_the_field_at_one_constant_veil_at_every_geometry() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    // The strongest mark inside `[a, b)`, over the whole height. Both bands are
-    // inset off the column boundary: `fs_main` decides the page in PHYSICAL
-    // pixels against a fractional column edge, so the boundary pixel belongs to
-    // neither band — read uninset, it once made the page look STRONGER than the
-    // margin and would have hidden the real ratio entirely.
-    let peak = |f: &[i32], w: u32, h: u32, a: u32, b: u32| -> i32 {
-        (0..h)
-            .flat_map(|y| (a..b).map(move |x| (y, x)))
-            .map(|(y, x)| f[(y * w + x) as usize])
-            .max()
-            .unwrap_or(0)
-    };
-
-    // THE FULL-STRENGTH REFERENCE is taken once, from an OPEN margin at the
-    // canonical geometry — never from the local margin, which at some swept
-    // shapes is a sliver lying entirely inside the page-edge ramp and is
-    // therefore not at full strength either.
-    let canon = field(
-        &device,
-        &queue,
-        kite(),
-        W,
-        H,
-        COL_LEFT,
-        COL_W,
-        warpgrid::FROZEN_PHASE,
-    );
-    let open_margin = canon_margins()
-        .into_iter()
-        .map(|(a, b)| peak(&canon, W, H, a, b.saturating_sub(4)))
-        .max()
-        .unwrap_or(0);
-    assert!(
-        open_margin > 100,
-        "the open-margin reference must be a real full-strength field, got {open_margin}"
-    );
-
-    let mut seen: Vec<(String, i32)> = Vec::new();
-    let restore = crate::page::measure();
-    for (ww, wh, measure) in SWEEP {
-        let Some(p) = super::headless_dqp(ww as f32, wh as f32) else {
-            return;
-        };
-        let (_d, _q, mut pipe) = p;
-        crate::page::set_measure(measure);
-        pipe.set_view(&super::view("hello", 0, 0));
-        let col_left = pipe.column_left();
-        let col_w = pipe.column_width();
-        for phase in sampled_phases() {
-            let f = field(&device, &queue, kite(), ww, wh, col_left, col_w, phase);
-            let x0 = col_left.max(0.0) as u32 + 4;
-            let x1 = ((col_left + col_w).ceil() as u32).min(ww).saturating_sub(4);
-            let page = peak(&f, ww, wh, x0, x1);
-            assert!(
-                page > INK_FLOOR,
-                "{ww}x{wh}/m{measure} @phase {phase}: the page carries NO field — the two \
-                 flanks are then two pictures with a hole between them, which is the \
-                 two-tunnels read item 268 exists to remove"
-            );
-            assert!(
-                page * 3 <= open_margin,
-                "{ww}x{wh}/m{measure} @phase {phase}: the page's strongest mark is {page} \
-                 against an open margin's {open_margin} — the crossing must stay a whisper \
-                 under prose, not a second margin"
-            );
-            seen.push((format!("{ww}x{wh}/m{measure}@{phase}"), page));
-        }
-    }
-    crate::page::set_measure(restore);
-    assert!(
-        seen.len() >= 60,
-        "the sweep must actually grade cells, got {}",
-        seen.len()
-    );
-    let (ref lo_name, lo) = *seen.iter().min_by_key(|(_, v)| *v).unwrap();
-    let (ref hi_name, hi) = *seen.iter().max_by_key(|(_, v)| *v).unwrap();
-    assert_eq!(
-        lo, hi,
-        "the under-page veil is not one constant: {lo} at {lo_name} against {hi} at \
-         {hi_name}. The page column may MASK this field and may never rescale it — a veil \
-         that reads the page is the same class of defect as an axis that read the margin"
-    );
+fn the_writing_page_carries_a_quiet_projected_veil() {
+    super::warp_projection::projected_page_veil_is_present_and_quiet();
 }
 
 fn sampled_phases() -> [f32; 5] {
@@ -566,61 +451,12 @@ fn sampled_phases() -> [f32; 5] {
     [warpgrid::FROZEN_PHASE, 69.0, 134.0, 235.5, 329.0]
 }
 
-/// BOTH MARGINS carry a real field at every swept geometry — the composition is
-/// two slices, never one live margin and one blank one.
+/// The retired arbitrary-sliver area floor is superseded by real projected
+/// pixels in both margins across the supported viewports, DPIs, rest corners,
+/// and transit. Its blank-margin mutation proves presence is load-bearing.
 #[test]
-fn both_margins_carry_a_real_field_at_every_swept_geometry() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let _g = crate::testlock::serial();
-    let restore = crate::page::measure();
-    for (ww, wh, measure) in SWEEP {
-        let Some((_d, _q, mut pipe)) = super::headless_dqp(ww as f32, wh as f32) else {
-            return;
-        };
-        crate::page::set_measure(measure);
-        pipe.set_view(&super::view("hello", 0, 0));
-        let (col_left, col_w) = (pipe.column_left(), pipe.column_width());
-        let f = field(
-            &device,
-            &queue,
-            kite(),
-            ww,
-            wh,
-            col_left,
-            col_w,
-            warpgrid::FROZEN_PHASE,
-        );
-        for (i, (x0, x1)) in margins(ww, col_left, col_w).into_iter().enumerate() {
-            let span = x1.saturating_sub(x0);
-            if span < 24 {
-                continue; // a sliver narrower than the edge-quiet band is allowed to hold nothing
-            }
-            let area = (span * wh) as f64;
-            let ink = ink_in(&f, ww, wh, x0, x1) as f64;
-            // THE FLOOR IS THE WORLD'S OWN NARROW-MARGIN BAND, not one number.
-            // `WARP_NARROW_LO_PX`..`_HI_PX` (84..210) already retires the MINOR
-            // lattice as a margin narrows — shipped, deliberate simplification —
-            // so a margin inside that band is DESIGNED to be quiet and holding it
-            // to the open-margin figure would assert against the design. It is
-            // also where the centred axis costs most: a thin strip far
-            // from the axis runs nearly TANGENT to every ring, so its crossings
-            // are short. Measured worst in this sweep is 1400x700/m86's 80px
-            // flanks at 0.571%; every margin at or above the band's top clears 5%.
-            let floor = if span >= 210 { 0.02 } else { 0.003 };
-            assert!(
-                ink / area >= floor,
-                "{ww}x{wh}/m{measure} margin {i} [{x0},{x1}) ({span}px): only {:.3}% of it \
-                 carries field ink against a {:.1}% floor — a margin wide enough to draw \
-                 must read as a slice of the tunnel",
-                100.0 * ink / area,
-                100.0 * floor
-            );
-        }
-    }
-    crate::page::set_measure(restore);
+fn both_supported_margins_carry_the_projected_surface() {
+    super::warp_projection::projected_surface_marks_both_supported_margins();
 }
 
 /// THE LINE HIERARCHY IS TWO MEASURABLE RUNGS, every fifth line the strong one.
@@ -668,90 +504,13 @@ fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
     assert!(quiet > 5_000, "the quiet rung must dominate, got {quiet}");
 }
 
-/// THE FIELD QUIETS BESIDE THE PAGE — BUT NO LONGER TO NOTHING, AND BOTH HALVES
-/// OF THAT ARE ASSERTED. Nothing may compete with prose at the boundary the eye
-/// reads across, so the band immediately outside the column carries materially
-/// less ink than the open margin further out. The FLOOR of that recession is
-/// `WARP_PAGE_VEIL` rather than zero, because the field continues ACROSS the
-/// page instead of ending at its edge. A
-/// ramp that still touched zero here would break every ring at exactly the one
-/// boundary a reader can check the two flanks against each other. So the near
-/// band must be quieter than the open margin AND must not be empty, and the two
-/// clauses fail on opposite mistakes.
+/// The retired fixed-strip mean could miss a curved contour on one side of the
+/// edge while measuring it on the other. Its replacement follows actual
+/// projected major-section segments through both boundaries and rejects a
+/// deliberately severed margin.
 #[test]
-fn the_field_fades_toward_the_page_edge() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let f = field(
-        &device,
-        &queue,
-        kite(),
-        W,
-        H,
-        COL_LEFT,
-        COL_W,
-        warpgrid::FROZEN_PHASE,
-    );
-    let col_right = (COL_LEFT + COL_W).ceil() as u32;
-    let mean = |x0: u32, x1: u32| {
-        let mut sum = 0f64;
-        for y in 0..H {
-            for x in x0..x1 {
-                sum += f[(y * W + x) as usize] as f64;
-            }
-        }
-        sum / ((x1 - x0) * H) as f64
-    };
-    // THE CROSSING ITSELF: the 8px band just OUTSIDE the page edge against the
-    // 8px band just INSIDE it. A stroke that leaves one flank must arrive in the
-    // other, and the only place that can be checked directly is the boundary. If
-    // the ramp still fell to zero at the page edge these two would differ by
-    // everything; at the veil they are the same field seen from either side.
-    for (label, out_band, in_band) in [
-        (
-            "left",
-            mean(COL_LEFT as u32 - 8, COL_LEFT as u32),
-            mean(COL_LEFT as u32 + 2, COL_LEFT as u32 + 10),
-        ),
-        (
-            "right",
-            mean(col_right, col_right + 8),
-            mean(col_right - 10, col_right - 2),
-        ),
-    ] {
-        let (lo, hi) = (out_band.min(in_band), out_band.max(in_band));
-        assert!(
-            lo > 0.05 && hi < lo * 3.0,
-            "{label} page edge: {out_band:.2} just outside against {in_band:.2} just \
-             inside — the field must CROSS the boundary at one strength, not break at it"
-        );
-    }
-    for (label, near, far) in [
-        (
-            "left",
-            mean(COL_LEFT as u32 - 8, COL_LEFT as u32),
-            mean(COL_LEFT as u32 - 90, COL_LEFT as u32 - 50),
-        ),
-        (
-            "right",
-            mean(col_right, col_right + 8),
-            mean(col_right + 50, col_right + 90),
-        ),
-    ] {
-        assert!(
-            near * 2.0 < far,
-            "{label} page edge: the 8px beside the page carries mean {near:.2} against \
-             {far:.2} out in the open margin — the field must recede at the edge"
-        );
-        assert!(
-            near > 0.05,
-            "{label} page edge: the 8px beside the page carries mean {near:.2} — the field \
-             must recede to the VEIL, never to nothing, or every ring breaks at the one \
-             boundary a reader can check the two flanks against each other"
-        );
-    }
+fn projected_sections_continue_across_both_page_edges() {
+    super::warp_projection::projected_major_sections_cross_both_page_edges();
 }
 
 /// NO HIGH-FREQUENCY ALIASING, swept over DPI, canvas and phase. A converging
@@ -1129,6 +888,10 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "let radius = warp_radius(theta, world_z, fold, twist);",
         "warp_path(world_z)",
         "warp_roll(world_z, spin)",
+        "fn warp_depth_alpha(z: f32) -> f32 {",
+        "clamp((0.78 - z * 0.075) / 0.58, 0.15, 1.0)",
+        "if (in.family == 1u || in.major == 0u) {",
+        "mask *= margin_only;",
     ] {
         assert!(
             wgsl.contains(expr),

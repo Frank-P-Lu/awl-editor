@@ -89,7 +89,10 @@ fn shader_has_fixed_geometry_and_no_steering_path() {
     for present in [
         "@vertex\nfn vs_tunnel(",
         "let radius = warp_radius(theta, world_z, fold, twist);",
-        "return centre + (warp_path(world_z) + radius * vec2<f32>(cos(angle), sin(angle))) * scale;",
+        concat!(
+            "return centre + (warp_path(world_z) + radius * ",
+            "vec2<f32>(cos(angle), sin(angle))) * scale;"
+        ),
         "let theta = WARP_TAU * f32(rail_i) / f32(WARP_RAIL_SLOTS);",
         "const WARP_RING_SEGMENTS: u32 = 128u;",
         "const WARP_RAIL_SLOTS: u32 = 24u;",

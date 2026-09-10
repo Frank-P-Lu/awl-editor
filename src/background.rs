@@ -1,4 +1,6 @@
+mod bytes;
 mod params;
+mod tunnel;
 mod waves;
 use params::{ground_params, warp_shape_params};
 pub(crate) use waves::{env_phase, waves_drift_radians};
@@ -204,43 +206,7 @@ impl BackgroundPipeline {
             })
         });
 
-        let tunnel_pipeline =
-            crate::gpu_cache::render_pipeline("background tunnel mesh", format, || {
-                let pipeline_layout =
-                    device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                        label: Some("background tunnel pipeline layout"),
-                        bind_group_layouts: &[Some(&bind_group_layout)],
-                        immediate_size: 0,
-                    });
-                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("background tunnel pipeline"),
-                    layout: Some(&pipeline_layout),
-                    vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: Some("vs_tunnel"),
-                        buffers: &[],
-                        compilation_options: Default::default(),
-                    },
-                    fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: Some("fs_tunnel"),
-                        targets: &[Some(wgpu::ColorTargetState {
-                            format,
-                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        })],
-                        compilation_options: Default::default(),
-                    }),
-                    primitive: wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        ..Default::default()
-                    },
-                    depth_stencil: None,
-                    multisample: wgpu::MultisampleState::default(),
-                    multiview_mask: None,
-                    cache: None,
-                })
-            });
+        let tunnel_pipeline = tunnel::pipeline(device, format, &shader, &bind_group_layout);
 
         Self {
             pipeline,
@@ -301,7 +267,7 @@ impl BackgroundPipeline {
             warp_shape: self.warp_shape,
             warp_axis: [ambient.warp_axis.0, ambient.warp_axis.1, 0.0, 0.0],
         };
-        queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
+        queue.write_buffer(&self.globals_buf, 0, bytes::of(&globals));
     }
 
     /// Record the fullscreen-triangle draw into an open render pass, FIRST (right
@@ -314,12 +280,6 @@ impl BackgroundPipeline {
             pass.set_pipeline(&self.tunnel_pipeline);
             pass.draw(0..6, 0..10_528);
         }
-    }
-
-    /// Benchmark witness that the measured background takes the warped-grid
-    /// draw branch rather than timing only the common fullscreen ground.
-    pub(crate) fn is_warped_grid(&self) -> bool {
-        self.shader == 10
     }
 }
 
@@ -339,25 +299,7 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
     [lin[0], lin[1], lin[2], PATTERN_MAX_COVERAGE]
 }
 
-// ---------------------------------------------------------------------------
-// Minimal local Pod/bytemuck shim (same approach as selection.rs, no extra crate).
-// ---------------------------------------------------------------------------
-mod bytemuck_lite {
-    /// Marker for types safe to reinterpret as bytes.
-    ///
-    /// # Safety
-    /// Implementors must have a stable layout with no padding and only
-    /// plain-old-data fields.
-    pub unsafe trait Pod: Copy + 'static {}
-
-    pub fn bytes_of<T: Pod>(t: &T) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>())
-        }
-    }
-}
-
-unsafe impl bytemuck_lite::Pod for Globals {}
+unsafe impl bytes::Pod for Globals {}
 
 #[cfg(test)]
 mod tests;

@@ -39,11 +39,26 @@ fn with_density(bg: theme::Background, density: f32) -> theme::Background {
     }
 }
 
+#[derive(Clone)]
 struct Field {
     px: Vec<i32>,
     physical_w: u32,
     physical_h: u32,
     dpi: f32,
+}
+
+fn ink_in_logical_band(field: &Field, x0: f32, x1: f32) -> usize {
+    let start = (x0 * field.dpi).max(0.0).round() as u32;
+    let end = (x1 * field.dpi).min(field.physical_w as f32).round() as u32;
+    (0..field.physical_h)
+        .flat_map(|y| (start..end).map(move |x| (y, x)))
+        .filter(|&(y, x)| field.px[(y * field.physical_w + x) as usize] > INK_FLOOR)
+        .count()
+}
+
+fn percentile(values: &mut [i32], pct: usize) -> i32 {
+    values.sort_unstable();
+    values[(values.len() - 1) * pct / 100]
 }
 
 impl Field {
@@ -288,4 +303,198 @@ pub(super) fn the_visible_far_section_is_folded_not_a_circular_target() {
         folded_hits >= 42 && folded_hits >= circular_hits + 15,
         "folded section {folded_hits}/64 hits, circular substitute {circular_hits}/64"
     );
+}
+
+/// The bounded projection is not required to fill every arbitrary sliver of a
+/// panoramic page. It is required to remain one visible surface in both margins
+/// of the two supported capture geometries, at rest and in transit.
+#[test]
+pub(super) fn projected_surface_marks_both_supported_margins() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    for (w, h, col_left, col_w, dpi, axis) in [
+        (1200, 800, 312.0, 576.0, 1.0, (0.80, 0.24)),
+        (1200, 800, 312.0, 576.0, 2.0, (0.50, 0.50)),
+        (1600, 1000, 418.0, 763.2, 1.0, (0.20, 0.76)),
+        (1600, 1000, 418.0, 763.2, 2.0, (0.80, 0.24)),
+    ] {
+        let pixels = field(&device, &queue, w, h, col_left, col_w, dpi, axis);
+        let counts = [
+            ink_in_logical_band(&pixels, 0.0, col_left),
+            ink_in_logical_band(&pixels, col_left + col_w, w as f32),
+        ];
+        for (side, count) in ["left", "right"].into_iter().zip(counts) {
+            assert!(
+                count >= 500,
+                "{w}x{h}@{dpi} axis={axis:?} {side} margin has only {count} projected pixels"
+            );
+        }
+
+        // Non-vacuity: the same detector rejects the exact blank-margin defect.
+        let mut blank_left = pixels.clone();
+        let left_end = (col_left * dpi).round() as u32;
+        for y in 0..blank_left.physical_h {
+            for x in 0..left_end {
+                blank_left.px[(y * blank_left.physical_w + x) as usize] = 0;
+            }
+        }
+        assert_eq!(ink_in_logical_band(&blank_left, 0.0, col_left), 0);
+    }
+}
+
+fn projected_edge_crossings(
+    pixels: &Field,
+    p: Projection,
+    edge: f32,
+    page_is_right: bool,
+) -> (usize, usize) {
+    let step_z = (FAR_Z - NEAR_Z) / 58.0;
+    let mut enrolled = 0usize;
+    let mut confirmed = 0usize;
+    for ring_i in (5..=55).step_by(5) {
+        let z = NEAR_Z + ring_i as f32 * step_z;
+        for theta_i in 0..128 {
+            let a = p.point(std::f32::consts::TAU * theta_i as f32 / 128.0, z);
+            let b = p.point(std::f32::consts::TAU * (theta_i + 1) as f32 / 128.0, z);
+            if (a.x - edge) * (b.x - edge) > 0.0 || (b.x - a.x).abs() < 2.0 {
+                continue;
+            }
+            let t = (edge - a.x) / (b.x - a.x);
+            let y = a.y + (b.y - a.y) * t;
+            if !(8.0..p.height - 8.0).contains(&y) {
+                continue;
+            }
+            let slope = (b.y - a.y) / (b.x - a.x);
+            let left = Point {
+                x: edge - 4.0,
+                y: y - 4.0 * slope,
+            };
+            let right = Point {
+                x: edge + 4.0,
+                y: y + 4.0 * slope,
+            };
+            let (outside, inside) = if page_is_right {
+                (left, right)
+            } else {
+                (right, left)
+            };
+            enrolled += 1;
+            confirmed += usize::from(
+                pixels.strongest_near(outside, 2) > 0 && pixels.strongest_near(inside, 2) > 0,
+            );
+        }
+    }
+    (enrolled, confirmed)
+}
+
+/// Continuity is evaluated where projected major sections actually cross each
+/// page edge, not by averaging a fixed horizontal strip that a curved contour
+/// may legitimately miss.
+#[test]
+pub(super) fn projected_major_sections_cross_both_page_edges() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let (w, h, col_left, col_w, axis) = (1200, 800, 312.0, 576.0, (0.80, 0.24));
+    let pixels = field(&device, &queue, w, h, col_left, col_w, 1.0, axis);
+    let p = projection(w, h, axis);
+    for (name, edge, page_is_right) in
+        [("left", col_left, true), ("right", col_left + col_w, false)]
+    {
+        let (enrolled, confirmed) = projected_edge_crossings(&pixels, p, edge, page_is_right);
+        assert!(
+            enrolled >= 2 && confirmed * 4 >= enrolled * 3,
+            "{name} edge: only {confirmed}/{enrolled} projected section crossings continue"
+        );
+
+        let mut severed = pixels.clone();
+        let edge_px = (edge * severed.dpi).round() as u32;
+        let (x0, x1) = if page_is_right {
+            (0, edge_px)
+        } else {
+            (edge_px, severed.physical_w)
+        };
+        for y in 0..severed.physical_h {
+            for x in x0..x1 {
+                severed.px[(y * severed.physical_w + x) as usize] = 0;
+            }
+        }
+        let (_, mutated) = projected_edge_crossings(&severed, p, edge, page_is_right);
+        assert!(
+            mutated * 4 < enrolled * 3,
+            "{name} edge detector did not reject a deliberately severed margin"
+        );
+    }
+}
+
+fn page_and_margin_strengths(
+    pixels: &Field,
+    p: Projection,
+    col_left: f32,
+    col_w: f32,
+) -> (Vec<i32>, Vec<i32>) {
+    let mut page = Vec::new();
+    let mut margin = Vec::new();
+    let step_z = (FAR_Z - NEAR_Z) / 58.0;
+    for ring_i in (5..=55).step_by(5) {
+        let z = NEAR_Z + ring_i as f32 * step_z;
+        for theta_i in (0..128).step_by(2) {
+            let point = p.point(std::f32::consts::TAU * theta_i as f32 / 128.0, z);
+            if !on_canvas(point, p.width as u32, p.height as u32) {
+                continue;
+            }
+            let strength = pixels.strongest_near(point, 2);
+            if point.x > col_left + 24.0 && point.x < col_left + col_w - 24.0 {
+                page.push(strength);
+            } else if point.x < col_left - 48.0 || point.x > col_left + col_w + 48.0 {
+                margin.push(strength);
+            }
+        }
+    }
+    (page, margin)
+}
+
+/// The under-page major-section veil is present but materially quieter than
+/// the same projected family in open margin. Percentiles over known landmarks
+/// avoid grading accidental line intersections as the entire treatment.
+#[test]
+pub(super) fn projected_page_veil_is_present_and_quiet() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    for (w, h, col_left, col_w, dpi, axis) in [
+        (1200, 800, 312.0, 576.0, 1.0, (0.80, 0.24)),
+        (1200, 800, 312.0, 576.0, 2.0, (0.50, 0.50)),
+        (1600, 1000, 418.0, 763.2, 1.0, (0.20, 0.76)),
+    ] {
+        let pixels = field(&device, &queue, w, h, col_left, col_w, dpi, axis);
+        let p = projection(w, h, axis);
+        let (mut page, mut margin) = page_and_margin_strengths(&pixels, p, col_left, col_w);
+        assert!(page.len() >= 20 && margin.len() >= 20);
+        let page_p90 = percentile(&mut page, 90);
+        let margin_p90 = percentile(&mut margin, 90);
+        assert!(
+            page_p90 > 0 && page_p90 * 3 <= margin_p90 * 2,
+            "{w}x{h}@{dpi}: projected page p90 {page_p90}, open margin p90 {margin_p90}"
+        );
+
+        let mut unmasked = pixels.clone();
+        let x0 = (col_left * dpi).round() as u32;
+        let x1 = ((col_left + col_w) * dpi).round() as u32;
+        for y in 0..unmasked.physical_h {
+            for x in x0..x1.min(unmasked.physical_w) {
+                unmasked.px[(y * unmasked.physical_w + x) as usize] = 255;
+            }
+        }
+        let (mut loud_page, mut same_margin) =
+            page_and_margin_strengths(&unmasked, p, col_left, col_w);
+        assert!(
+            percentile(&mut loud_page, 90) * 3 > percentile(&mut same_margin, 90) * 2,
+            "page-quiet detector accepted a deliberately unmasked page"
+        );
+    }
 }
