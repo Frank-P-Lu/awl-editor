@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**12 open numbered tasks.** Ready: 641, 642, 637, 634.
+**11 open numbered tasks.** Ready: 641, 642, 637.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -237,30 +237,6 @@ pixel presence and legibility, and the standing five-shot vision smoke. Validate
 supported web behavior without claiming desktop chooser parity. Distinguish live
 feel/taste still owed to the user from mechanically proven state and geometry.
 Do not dispatch or claim implementation merely because this acceptance work is queued.
-
----
-
-### 634 — preflight must run the document-substitution ownership audit (user request, 2026-09-09)
-
-🟡 IN PROGRESS — `preflight_634` (Codex), branch `codex/634-preflight`.
-
-Problem: `scripts/preflight.sh` selects `println_audit view_policy`. The intended
-view-text replacement audit is actually
-`card::figures::tests::only_the_substitution_door_replaces_a_view_states_text`
-in `src/card/figures/tests.rs`. The selected `view_policy` tests cover different
-rules, so the document-substitution violation that prompted preflight can still
-escape it. The current preflight tests stub the audit command and prove ordering
-and exit propagation, not enrollment of the intended test.
-
-Build: select the actual substitution audit alongside the print audit, preserve
-any still-useful view-policy coverage, and make the preflight description match
-what runs. Use existing owners; no new copy of the source rule.
-
-Verify: prove the real test is selected and a compiling forbidden document-text
-replacement fails preflight before any GPU test runs. Keep a law that rejects a
-filter regressing to `view_policy` alone; command stubs alone are insufficient.
-Run the preflight laws and affected audits, then the integrated tooling verification
-required by `docs/verification.md`. Report targeted evidence accurately.
 
 ---
 
