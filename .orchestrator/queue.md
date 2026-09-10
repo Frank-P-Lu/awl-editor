@@ -6,6 +6,216 @@
 
 ## Ready to build
 
+### 636 — file navigation: shared interaction and information-hierarchy contract (user approval, 2026-09-10)
+
+🟢 READY — queue only, not dispatched. First dependency for 637–639; no native
+implementation is claimed by the approved HTML prototype.
+
+Decision: organize navigation around folder → file → writing. The bottom-left
+working set answers what is already open; Files / Recent answers what to open;
+the document outline answers where in the document; Commands answers what to do;
+Settings controls behavior; History explains changes to the named document.
+Retire mixed Go-to-everything as the primary file-opening experience. Preserve
+access to heading/line navigation and existing rebindings through deliberate
+routes and compatibility, rather than silently deleting capabilities.
+
+Reference: [approved interactive direction](https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/),
+study 03. This brief is self-contained: the reference is mutable, may require
+owner access, and is not the implementation contract. The user explicitly allowed
+HTML design exploration and visual improvement after inspection of actual awl.
+Earlier screenshot-only proposals that retained all five Go-to lenses are superseded
+by the Files / Recent flow. Keep awl's page, compact summoned navigation, and
+bottom-left stack; no permanent tree, top tab strip, or generic application shell.
+
+Build: write the concrete focus/action table and information hierarchy in the
+existing design/feature docs before dependent implementation. Context comes first,
+then query/views, choices, and actions. Names lead; paths disambiguate. Distinguish
+selected, hovered, keyboard-focused, previewed, and committed states. The picker
+names its browsing root independently of the background document's remembered
+root; switching an existing buffer preserves awl's root-restoration semantics.
+
+Accepted keyboard direction: Up/Down selects; Enter opens a file or enters a
+folder; Esc leaves the summoned surface (a child chooser cancels back to its
+parent); Tab/Shift-Tab provides the path between Files and Recent or workspace
+regions. Left/Right edits a focused query, traverses a focused folder list, or
+adjusts a focused value; it must not secretly change file-picker lenses while
+browsing. New document uses the existing platform/rebound New document action
+(Cmd-N on the advertised Mac map), creating in the destination its label names.
+Footers use the current verb: enter folder, open file, apply, restore, etc.
+
+Detail to resolve here, not an excuse to block all work: specify the ENTIRE Tab
+route, initial focus, focus transfer from typing to list navigation, reverse
+traversal, and access to Change folder/New document. Do not implement a two-view
+Tab loop that strands other controls, or let a hidden focus mode change arrows.
+Show the table and small native interaction proof; ask the user only if a genuine
+conflict with the accepted direction remains. Do not treat the HTML demo's missing
+Cmd-N/folder-arrow support or ordinary DOM tab order as approved native behavior.
+
+Coordination: 628 remains owner of shared chrome measurements and its outstanding
+Find/Settings/theme composition review; 589 remains the Commands implementation
+owner. This item supplies interaction/semantic requirements, not a competing skin.
+Preserve 628's explicit stable-theme-preview exception. Native prototypes and
+implementation use existing renderer/rowlayout and theme-data owners; the HTML
+reference does not authorize hardcoded Potoroo colors or a universal centered panel.
+
+Verify: review every entry/exit and key against the table, including pointer,
+accessibility, menu Actions, native/Emacs maps, and narrow layouts. Inspect current
+dispatch before asserting a defect. Read PHILOSOPHY.md, DESIGN.md, docs/config.md,
+docs/render.md, docs/verification.md and docs/harness-reach.md. This design-document
+step uses diff/link checks; product proofs belong to its dependent items.
+
+---
+
+### 637 — implement the folder-to-file-to-writing journey (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 636 — queue only, not dispatched. Coordinate renderer changes with
+628; preserve its shared visual review requirement rather than reopening this
+approved navigation direction.
+
+Build: dedicated Files / Recent navigation in the existing summoned-surface
+system. Files with an empty query shows immediate subfolders and files; folder
+rows have a folder affordance and trailing disclosure and descend inside the
+same browser without changing the writing root. Breadcrumbs/Up expose the current
+location. Typing searches names/paths throughout the explicitly named root,
+including descendants; show root-relative paths for results and duplicate names.
+Clearing search restores the browse location. Recent contains recently opened
+files in the named root, not folder-switch destinations. Preserve useful selection
+and scroll state through focus changes; never reorder the open-document stack by MRU.
+
+Open folder/Change folder is explicit root selection: macOS keeps its system chooser,
+Linux its internal chooser. Success immediately shows that root's Files contents;
+cancellation/failure preserves valid prior context. Folder browsing, root selection,
+and file activation must have separate state transitions. Loading/partial search,
+no matches, truly empty, unsupported-only, and unavailable/permission-denied are
+distinct states. Use short existing-surface status/empty treatments, not large
+cards, duplicate New actions, or success copy telling an empty folder to choose a file.
+
+Connect home, Welcome's entry point, and the bottom-left folder heading to the same
+Files owner. Keep the stack's placement, stable order, active mark, close/drag
+behavior, and per-file remembered roots; it lists only open documents. A folder
+heading needs a discoverable affordance and matching hit target. Choosing a file
+dismisses Files and opens/activates its existing buffer, preserving edits/undo and
+position. No arbitrary file is opened merely because a folder was chosen.
+
+New document and its actual bound shortcut name the destination. While searching
+or viewing Recent, the destination is explicitly the root; while browsing it is
+the displayed directory. Home without a root creates recoverable unsaved work.
+Preserve existing files' save paths and autosave/recovery guarantees. Implement
+the focus/arrow/Tab rules from 636, including action-level menu interception.
+Align menu, palette, home, hints and user docs on Files terminology while keeping
+intentional legacy config keys/aliases functional. Keep heading/line actions reachable.
+
+Verify: pure transition laws first, then seeded --screenshot-app journeys with
+--seed-tree and explicit config: home → folder → nested file → edit → another
+file → original buffer; root A/B switch and cancellation; search/clear; duplicate
+names; long paths; empty/missing/read-only roots; New document through key AND menu
+Action. State proofs include root, buffer identity, save destination, undo, selection
+and scroll. Native chooser and pointer timing need real-window checks; do not claim
+headless keys exercise AppKit key equivalents. Capture real geometry/pixel presence
+across worlds, narrow/wide and DPI 1/2 with five-shot vision smoke and mutation-proven
+headline laws. Targeted checks here; integrated gate belongs to 640.
+
+---
+
+### 638 — one location-navigation owner for Open, Move, Save As and Export (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 636 and 637 — queue only, not dispatched. Integrate overlapping
+navigation/render ownership sequentially, not as independent browser rewrites.
+
+Build: reuse the agreed folder-row, location/breadcrumb, scope, focus, search and
+back-navigation rules wherever awl chooses a location. Inspect existing MoveDest,
+ExportDest, Browse, ProjectBrowse and save/copy platform routes first; converge
+their common location behavior at one owner. Keep platform-native dialogs where
+they already own the interaction. The operation's typed purpose owns the final
+action and side effects: Open file, Move here, Save here, Export here. Do not make
+a navigation-row activation move/save/export before explicit commitment.
+
+Make source document and destination unambiguous. Preserve rename/overwrite
+confirmation, read-only handling, extension/format policy, recovery and original
+file identity for copy/export. Retain operation-specific constraints rather than
+forcing every chooser into file-opening semantics. No new filesystem manager,
+general-purpose dialog framework, or public filesystem writes for demo purposes.
+
+Verify: a roster-derived test enumerates every location consumer and its commit
+verb. Exercise browse/back/search/cancel and valid/invalid destination per operation
+in hermetic fixtures. Cancellation must perform no file operation; commit changes
+only the promised files. Mutation proof must catch a bypass or premature commit.
+Check Mac native boundaries and Linux fallback separately, and report live-only
+coverage honestly. Use shared chrome checks and targeted operation tests; 640 owns
+the integrated gate.
+
+---
+
+### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 636; use 637 as the navigation reference. Queue only, not dispatched.
+Coordinate with 628 and 589 rather than launching another shared-chrome rewrite.
+
+Build: apply context → query/views → choices → actions across the actual surface
+roster, preserving task-specific composition. Commands remains actions, the outline
+remains document navigation, Settings remains behavior, History remains changes
+to the named document. Make scope visible when an action depends on it: Search in
+Writing, Move September.md to…, Export September.md, History of September.md.
+Use readable names and disambiguating paths without repeating the same location
+throughout a panel. Document search and folder-content search retain distinct scope;
+filename/path search does not silently become content search.
+
+Use 636's common focus/action grammar, not identical key meanings in hidden focus
+states. Row selection, keyboard focus and pointer hover remain visibly different.
+Footers/buttons announce the actual action and real rebound/platform keys. Unify
+labels and routing across keyboard, menu, context menu and palette through existing
+Action owners. Preserve focus/editor restoration and accessible roles/states.
+
+Explicitly distinguish selection from preview and commitment: Files opens only on
+accept; world/caret movement can preview, accept keeps and cancel restores; History
+selection can compare without restoring document bytes. Preserve existing immediate
+Settings semantics unless a separately approved decision changes them. Esc is not
+a blanket rollback of already committed settings or a successful root selection.
+
+Visual ownership stays with 628/589: shared hierarchy, controls, nearby label/value
+relationships, meaningful states and legibility within each world's face, palette,
+placement, material and motion. Keep Settings/History's sustained-workspace structure;
+do not shrink them to the Files picker or copy the HTML mock's warm skin everywhere.
+
+Verify: enumerate surface × focus region × action × scope/preview state from the
+production roster. Test keys and direct Actions, canceled versus committed changes,
+search scoping, narrow-layout focus and restoration. Reuse shared native render
+probes with selected/focused/hovered states and the standing world/DPI/pixel checks;
+five-shot vision smoke asks concrete affordance questions. Findings get missing law
+tests. Do not duplicate 628's prototype work or relabel its pending review as passed.
+
+---
+
+### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 637–639 and their relevant 628/589 integration — queue only, not dispatched.
+
+Build: review the combined native experience as one journey, remove obsolete parallel
+entry points/contradictory teaching, and update the existing contracts, GUIDE,
+Welcome/tour, keybinding reference and accessibility documentation to verified behavior.
+Keep stable user config compatibility deliberate; no silent binding migrations.
+The approved study is a design reference, not a shipped-behavior or performance receipt.
+
+Acceptance journey: no-document/Welcome → choose writing root → Files → enter
+subfolder → search/clear → open/edit → switch open documents → reopen/cancel → New
+document via button and actual shortcut → Move/Save a Copy/Export in hermetic paths →
+folder-content search → Settings → world preview/cancel → History compare/cancel.
+Include two roots, duplicate names, unsaved edits, unavailable/empty folders, narrow
+windows, and focus moved away from a still-selected row. Verify that path ownership,
+buffer identity and save behavior remain understandable throughout. Include a Mac
+menu-key-equivalent journey and real Linux fallback coverage; headless keys alone
+do not certify either. Preserve the screen-lock checks at both ends of live runs.
+
+Verify: follow docs/verification.md: cheap/targeted checks in each owning item, outcome
+audits and mutation proofs on the integrated candidate, then one full native gate
+and web smoke after commit/freeze. Use seeded captures, world/geometry/DPI coverage,
+pixel presence and legibility, and the standing five-shot vision smoke. Validate
+supported web behavior without claiming desktop chooser parity. Distinguish live
+feel/taste still owed to the user from mechanically proven state and geometry.
+Do not dispatch or claim implementation merely because this acceptance work is queued.
+
+---
+
 ### 634 — preflight must run the document-substitution ownership audit (user request, 2026-09-09)
 
 🟢 READY — queued only, not dispatched.
