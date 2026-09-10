@@ -287,7 +287,7 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
 }
 
 /// THE CLICK-TARGET FOLD-SPACE BUG, FIXED: `App::outline_click`
-/// (`app/input/mouse.rs`) used to hand `outline_hit_line`'s row `line` — FOLD-
+/// (`app/input/mouse/document.rs`) used to hand `outline_hit_line`'s row `line` — FOLD-
 /// FILTERED space, as `section_b.line == 5` above proves — straight to
 /// `jump_to_line`, which expects a RAW document line (the same contract Go-to's
 /// Headings lens jumps by, off the unfiltered `buffer.text()` parse). So clicking a

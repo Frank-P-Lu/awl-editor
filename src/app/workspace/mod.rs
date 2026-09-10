@@ -23,9 +23,9 @@
 //! Before this module the ladder did not exist as a thing. It was three
 //! independent `App` fields (`overlay: Option<_>`, `search: Option<_>`,
 //! `popover_open: bool`) plus the SAME conjunction re-typed at five sites
-//! (`app/viewstate.rs`'s popover gate, `app/input/mouse.rs`'s Cmd-click link
-//! follow, its popover-button press, its popover summon-on-release, and the
-//! overlay-before-search `else if` in its press dispatch) and five independent
+//! (`app/viewstate.rs`'s popover gate, `app/input`'s Cmd-click link follow,
+//! popover-button press, popover summon-on-release, and overlay-before-search
+//! `else if` in its press dispatch) and five independent
 //! writers spread over five files. Nothing stopped a sixth site from spelling
 //! the rule differently, and nothing recorded that the two "impossible"
 //! combinations (an overlay open on top of a summoned popover; a search panel

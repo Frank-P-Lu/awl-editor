@@ -96,7 +96,7 @@ The three summoned surfaces. Not one field is independent: they form a
 **precedence ladder** — a modal overlay outranks the find/replace panel, which
 outranks the reveal-on-select format popover, which outranks the editor. Before
 this round the ladder was five hand-written conjunctions — `sync_view`'s
-popover gate, and in `app/input/mouse.rs` the Cmd-click link follow, the
+popover gate, and in `app/input/` the Cmd-click link follow, the
 popover-button press, the summon-on-release, and the overlay-before-search
 `else if` in the press dispatch — plus five independent writers of
 `self.overlay = None` / `self.search = None` / `self.popover_open = false`.
@@ -411,8 +411,8 @@ what the view names.
    be misread for each other.
 2. **"More than twenty modules can reach the whole live application state" is
    true but not the whole defect.** Reach is not the cost; *dispersion per
-   invariant* is. `app/input/mouse.rs` reaches 40 fields and is fine, because 14
-   of them are its own and the rest are read once. `overlay` is reached by 13
+   invariant* is. The focused `app/input/mouse/` handlers reach their direct
+   input state and one responsibility each. `overlay` is reached by 13
    files and is not fine, because five of them re-derive the same precedence
    rule. The initial map correctly prioritized `WorkspaceState`; the later
    `InputRuntime` extraction is deliberately a locality-preserving handle plus

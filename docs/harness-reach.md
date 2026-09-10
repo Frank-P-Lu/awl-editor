@@ -389,8 +389,8 @@ needs human confirmation. Threading the ladder into the capture pipeline would
 move this to tier 2, and is a real follow-up.
 
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
-`app/input/keys.rs`, `app/input/mouse.rs`, `app/input/drags.rs`, `app/menu.rs`,
-`app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter
+`app/input/keys.rs`, `app/input/mouse.rs` and its children, `app/input/drags.rs`,
+`app/menu.rs`, `app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter
 re-blinds every transition reachable through it, in one line, and nothing else
 in the suite would notice.
 

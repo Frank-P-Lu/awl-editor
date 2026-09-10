@@ -4,7 +4,7 @@
 //! advanced `scroll`). These laws cover the two pure/pipeline-testable halves
 //! of the fix: the overshoot-to-rate curve on its own, then the composed tick
 //! (overshoot -> rate -> `scroll_by_px` -> `hit_test_scroll`) that
-//! `App::step_drag_scroll` (`app/input/mouse.rs`) drives — the App-level wire
+//! `App::step_drag_scroll` (`app/input/mouse/document.rs`) drives — the App-level wire
 //! itself has no GPU in a hermetic `App` test, so its own law is that it
 //! degrades to a no-op without one (`app/input/tests.rs`).
 

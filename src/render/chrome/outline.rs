@@ -477,8 +477,7 @@ impl TextPipeline {
     ///
     /// A benign, user-approved navigation affordance (DESIGN.md outline amendment:
     /// "click-to-jump only") — NOT a resizable/focusable sidebar. The live App wires
-    /// it in `app/input/mouse.rs` (`outline_click`) and lights the pointing-hand cursor over
-    /// a row (`cursor_shape`), both gated on the outline actually being drawn.
+    /// it in `input/mouse/document.rs` (`outline_click`) and lights the pointing hand over rows.
     pub fn outline_hit_line(&self, px: f32, py: f32, height: u32) -> Option<usize> {
         let layout = self.outline_layout(height)?;
         if px < self.edge_pad() || px > layout.right_edge {

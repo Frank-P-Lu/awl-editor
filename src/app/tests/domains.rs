@@ -647,6 +647,31 @@ impl InputConsumer {
     }
 }
 
+/// Pointer-event precedence stays at the one small dispatcher. Gesture and
+/// surface behavior belongs to its named children, so a new handler cannot
+/// silently turn this file back into the input monolith.
+#[test]
+fn mouse_dispatcher_keeps_only_the_three_event_entries() {
+    let source = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/input/mouse.rs"),
+    )
+    .expect("mouse dispatcher source must be readable");
+    let entries = ["on_cursor_moved", "on_cursor_left", "on_mouse_wheel"];
+    assert_eq!(
+        source.matches("pub(in crate::app) fn ").count(),
+        entries.len(),
+        "mouse.rs is the event-precedence dispatcher only; put new pointer behavior in \
+         document, feedback, overlay, scroll, or surfaces"
+    );
+    for entry in entries {
+        assert_eq!(
+            source.matches(&format!("fn {entry}(")).count(),
+            1,
+            "mouse.rs must keep exactly one {entry} event entry"
+        );
+    }
+}
+
 /// KeyboardInput and PointerInput are the only raw state projections. Every
 /// sibling consumer must use an InputRuntime observation or transition.
 #[test]

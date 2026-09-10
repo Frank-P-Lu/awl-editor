@@ -87,6 +87,10 @@ lines = 508
 reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel now falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses."
 
 [[file_size_mark]]
+file = "src/app/input/mouse.rs"
+lines = 104
+
+[[file_size_mark]]
 file = "src/app/session.rs"
 lines = 526
 reason = "Session restore enrolls every surviving background file into the working set, in session-file order, before the idempotent active-file enrolment lands — closing a real gap where a multi-file session silently collapsed to one margin row on restart. session_buffers() now reads the working set's own order rather than the registry's MRU order, the one honest round trip a drag-reordered stack can pass through a restart."
@@ -337,7 +341,7 @@ reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangl
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
-lines = 928
+lines = 927
 reason = "The persistent outline publishes its interactive geometry to the shared toast-obstacle roster so authored anchors cannot overlap active outline chrome. +3: the draw gate resolves \"has this document rows to draw?\" through the shared `active_wants_rail` owner the reservation's active half already reads, so a rail reserved for the room can never make an empty outline draw."
 
 [[file_size_mark]]
