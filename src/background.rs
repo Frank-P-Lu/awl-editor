@@ -315,6 +315,12 @@ impl BackgroundPipeline {
             pass.draw(0..6, 0..10_528);
         }
     }
+
+    /// Benchmark witness that the measured background takes the warped-grid
+    /// draw branch rather than timing only the common fullscreen ground.
+    pub(crate) fn is_warped_grid(&self) -> bool {
+        self.shader == 10
+    }
 }
 
 /// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader (the
