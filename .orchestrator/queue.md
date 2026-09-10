@@ -610,20 +610,28 @@ check remote status before a future push rather than inheriting old push warning
 
 ## Needs specific hardware
 
-These remain unverified on the orchestration host; honor the current scope and
-release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
-
-🟡 `hardware_block_audit` is rechecking host capabilities and the exact evidence
-each journey requires so these finish with concrete blockers rather than inherited
-assumptions. It performs no release or remote mutation.
+🔴 BLOCKED on the orchestration host (audited 2026-09-11). It is Apple-silicon
+macOS with Metal: there is no Linux graphical/AT-SPI/D-Bus session, Orca, X11 or
+Wayland compositor, Linux awl executable, AppImage/tarball, or FUSE runtime.
+Headless capture cannot substitute for any missing live door. Honor the current
+scope and release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
    reading, caret/selection, overlays, and an editing burst (post-v1 per
-   `ACCESSIBILITY.md`).
+   `ACCESSIBILITY.md`). **Blocked by external Linux UI hardware/session and
+   intrinsic user listening:** needs Orca, an active AT-SPI2/D-Bus bus, audio,
+   current native Linux awl, and a person; current mechanical CI cannot close it.
 2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
-   the rendered menu's Export action reaches its destination.
+   the rendered menu's Export action reaches its destination. **Blocked by an
+   external Linux compositor and real pointer door:** needs current native awl on
+   X11 or Wayland, then a genuine File → Export click and destination/file check.
 3. **Current Linux release artifacts** — launch both the tarball and AppImage
    on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
+   **Blocked twice:** no current artifacts are present, and this arm64 Mac cannot
+   run or judge x86_64 Linux launcher/FUSE behavior. A dry-run/download can supply
+   artifacts without release authority; acceptance still needs an x86_64 Linux
+   desktop, supported DE, real Vulkan driver, runtime libraries, and FUSE plus
+   `--appimage-extract-and-run` fallback checks. A new tag remains unauthorized.
 
 ## Release authority
 
