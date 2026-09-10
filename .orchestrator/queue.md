@@ -4,7 +4,12 @@
 > remain in `git log -p -- .orchestrator/queue.md`. Execution protocol lives in
 > `.orchestrator/README.md`.
 
-## Ready to build
+## Open build and design tasks
+
+**15 open numbered tasks.** Ready: 643, 641, 642, 636, 634, 635.
+Dependencies/coordination: 637–640 and 589. Native prototype/candidate review:
+628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
+Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 643 — use frank@awl.md for awl contact details (user request, 2026-09-10)
 
@@ -485,7 +490,10 @@ do not settle taste or live motion. This board-only decision claims no receipt.
 
 ### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
 
-🟡 IN PROGRESS — Codex (codex), branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
+🟡 WORKTREE CHANGES PRESENT — branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
+Checked 2026-09-11: staged, uncommitted extraction; no branch-only commits.
+Not integrated. Confirm the worker's status before resuming; this is not evidence
+of an agent currently running.
 
 `app/input/mouse.rs` combines document hit testing and selection, overlay navigation,
 search/menu clicks, cursor feedback, and wheel routing in one oversized module.
@@ -695,340 +703,63 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-## Two orchestrators share this board — renumber yourself, never the other
+## Outstanding review of landed work
 
-A second orchestrator session works this board. On 2026-09-07 both queued items in the same
-window and **both used 605 and 606**, because this session appended by number without
-re-reading a board that had moved under it. Theirs landed first (`35177829`); mine were the
-duplicates and mine were renumbered to 612 and 613, along with the one cross-reference that
-pointed at the wrong 605.
+These are follow-ups, not additional unimplemented build tasks. Completed work and
+past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-The rule that prevents it: **re-read the board immediately before choosing an item number, and
-if two numbers collide, the LATER writer renumbers.** Their commit is the tiebreak, not
-seniority and not who noticed. Fix the cross-references in the same commit — a renumber that
-leaves a stale pointer is worse than the collision, because the pointer still resolves to a
-real item and reads as deliberate.
+- **588 — Brolga bullet taste decision.** The current plain `•◦▪` remains the
+  fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
+  box. A different glyph or wider box would be a separate mechanism decision.
+  The twenty-theme gallery still needs a taste review; legibility checks alone
+  do not supply it.
+- **553 — folder-search highlight review.** Real-pixel match-highlight legibility
+  remains unverified. Retain the known boundaries: results use summon-time disk
+  contents, grouping differs from lens headers, and CRLF matches can retain a
+  cosmetic trailing carriage return. Review with 639/640 rather than treating
+  the original implementation as unfinished.
+- **561 / 618 — ornament follow-up.** The requested ~15% reduction is merged
+  (`760f4f43`, merge `b3e8d2aa`). Outstanding: live proportions and the inherited
+  star/underscore ink-to-em check; those share the dash's scale dial. Do not
+  requeue the already-landed size reduction.
 
-Related and cheaper: this session also spent several turns listing questions the user had
-ALREADY answered through the other session — 603, 568, 570's placement, 576's gestures and
-572's four taste calls were all decided in `35177829` while this one was mid-wave. Read the
-board's own Owed section before telling the user what they owe you.
+Kite's unresolved appearance and live motion review belong to **582** above;
+there is no separate 564 build item. Its review must include convergence near
+page edges at common window sizes as well as several-minute motion comfort.
+For current accessibility acceptance and deferred work, use `ACCESSIBILITY.md`;
+the resolved 584/626 investigation does not require another confirmation sitting.
 
-## GATED AND PUSHED — and the CI run nobody read
+## Latest recorded verification
 
-Resolved. `main` is receipted and pushed through `8f7c628f`, covering 596, 597, 598, 602, 595
-and 604. The exact-main gate ran with HEAD verified unmoved end to end:
+The latest recorded native/wasm baseline is **`4e225355`** (633 and the aggregate
+perf documentation), already on main:
 
-```
-native-gate-receipt commit=8f7c628f health=pass:280s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=4979 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`. The two-writer worry that held this back was overstated: the gate
-happened to catch a quiet window, and the user's answer was to push.
-
-⚠️ **What actually cost something was not the missing receipt — it was a CI run this session
-never opened.** The push before it (`437e6280`, carrying 600/601) failed the GATING
-`linux (build + test)` job, and this session recorded the wave as landed without reading the
-result. **A push is not finished when it succeeds; it is finished when its run is read.** The
-concurrency setting makes that worse, not better: pushing over an in-flight run cancels it, so
-a run can vanish without ever having been looked at.
-
-The failure itself is recorded under the ambient-environment entry in CLAUDE.md's principles
-and fixed in `d57f1d93`. In one line: `disk-preflight.sh` answers a CI environment on a branch
-of its own, every hosted runner exports `CI`, and `test-disk-preflight.sh` let its fleet laws
-inherit that variable — so each half of the suite ran in exactly one place and never the
-other. Green here, red there, for the whole life of the law.
-
-## Owed to the user — landed work awaiting a live eye
-
-**588 — Brolga has no working bullet triple, and this is a real choice, not a defect.** The
-lane swept `bullet_scale` from 0.55 to 0.95 and found NO value where all three Dovecote
-members clear the 2.5:1 contrast floor AND stay clear of the following text: under about 0.68
-at least one dove falls below the floor, and by about 0.75 — where contrast finally clears —
-the widest dove fills the fixed-width bullet box edge to edge. Brolga therefore keeps the
-plain `•◦▪`, documented in the world, beside the scale constant, and in the law's exception
-list.
-
-The two ways out are both mechanism changes and neither is this item's: **a different single
-glyph for Brolga**, or **a wider bullet box**. A twenty-world gallery and contact sheet are at
-`/tmp/claude-588-gallery/` for the taste pass — the harness proved legibility, distinctness
-and derivation, and none of those is taste.
-
-These items have MERGED and left the build queue. Each one still owes the user an answer or
-a live look, which landing does not discharge. Full context is in
-`git log -p -- .orchestrator/queue.md`.
-
-**584 / 626 — live macOS text access confirmed 2026-09-08; 626 closed as
-“premise false, oracle repaired”.** On running build `dbd4d2f5c415` (contains
-`27aa13fa`), the user launched a trusted, read-only native AX recorder from Terminal;
-CUA drove the actual app. Successful `AXStringForRange` / character-count responses
-followed original document (12) → seeded alpha (39, including café and newlines) →
-beta (40, distinct text) → alpha (39) → New (0, empty). A subsequent test keystroke
-and undo also appeared as 1 → 0; returning to the original document restored its
-exact initial 12-character text. No stale document text reproduced at the OS seam.
-The missing AXValue is expected for this multiline AccessKit node; CUA's inability
-to read/select through its own helper was not proof of a product defect. No product
-fix or native-suite receipt is claimed. VoiceOver speech/announcement quality is
-UNTESTED and explicitly deferred by the user, who asked to skip that sitting; do
-not keep asking for it. This bounded switch/New check does not claim an exhaustive
-selection-write, Unicode, or reactivation audit. 583's pause-then-type journey was
-separately confirmed by the user on 2026-09-08.
-
-**553 — folder-wide search (merged `277c3717`, follow-ups `e076ddd8`/`104fb174`).** The match
-highlight's real-pixel legibility is live-only and unverified. Also flagged, not hidden:
-grouping does not use the lens-strip header mechanism (a deliberate scope call); a CRLF
-source file's matched line keeps a cosmetic trailing `\r`; and the corpus is summon-time
-only, like Assets and Go to — a file edited on disk while the picker stays open is not
-re-read until the next summon.
-
-**561 — answered 2026-09-08: proportionate, a little tall; 618 takes it down ~15%.** Original note kept for the star/underscore caveat, which 618 inherits. Ornament scale equalized upward (merged `5f90cb6d`, follow-ups `1b22a1c1`/`fd2f5894`).**
-Gumtree's dash is a 4-glyph snake run, so equalizing its height also grew its width (~119px →
-~252px against a 1008px column); it reads proportionate in capture, unconfirmed live.
-Unmeasured: star and underscore share one `ornament_scale` dial with dash, so they grew
-proportionally without being checked against their own ink-to-em ratios.
-
-**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed). REJECTED AGAIN LIVE, 2026-09-08:** the user looked and said "Kite is still really wrong" — the live rejection remains unresolved. Status reconciled 2026-09-10: 582 has an unintegrated candidate, with live review still owed. The next dispatch wave should take 582 ahead of new taste work; the user asked whether it was finished and the answer is no.
-Live human sign-off is owed for the several-minute drift and contortion feel — the harness
-verifies single-frame trajectories and the motion-safe still, not wall-clock feel over
-minutes. Also owed: at the default 1200×800 capture geometry the roaming vanishing point can
-land closer to the page edge than at the 1600×1000 geometry the pixel laws sweep, so it is
-worth a live look at whether the convergence ever reads as landing inside the page itself at
-common window sizes rather than staying a margin phenomenon. Item 582 (open, above) revises
-this ground's geometry and inherits the same sign-off.
-
----
-
-## Green train — the exact-main receipts
-
-**Thirteenth train, `4e225355`.** Covers 633 and the aggregate perf-doc update.
-
-```
+```text
 native-gate-receipt commit=4e225355 health=pass:304s conventions=mac,linux scope=all-targets
   menubar=full:on unit_tests=5123 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`.
-
-633 is the largest typing win measured this session: the manuscript tier's `typing_live` median
-6.419ms to 4.772ms, and the squiggle owner itself 46.815ms to 2.435ms across thirty keystrokes.
-
-Two things from it worth carrying forward. The item's warning that spelling might not take the
-per-line shape was WRONG in its specifics — a misspelling cannot cross a newline — but right in
-its instruction, because requiring the lane to establish that surfaced the real nonlocal
-dependency: a destination-link exclusion tested against reference definitions anywhere in the
-document. And the lane caught a regression it had introduced itself, in a scenario nobody asked
-it to measure, when eager materialisation cost the zoom burst about half.
-
-
-**Twelfth train, `4299d181`.** Covers 630.
-
-```
-native-gate-receipt commit=4299d181 health=pass:301s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5116 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`.
-
-630 cut document-context work from 0.656ms to 0.025ms at the 50,029-word tier and to a flat
-~0.02ms across every tier — the O(1)-against-O(document) signature rather than a tuned
-constant. It also made the cost it did NOT fix honest: `parse_doc_spans` still re-parses
-286,713 bytes on every keystroke and now says so in a counter.
-
-⚠️ **The eleventh train's own CI run was cancelled by this orchestrator**, not by a failure.
-The board commit was pushed about two minutes behind the train and
-`concurrency.cancel-in-progress` killed the in-flight run — the exact hazard recorded on this
-board earlier the same day. The superseding run on `b4e16523` covers the same tree. The fix is
-to fold the board BEFORE the train push, or to wait for the run, and it is applied from here.
-
-
-**Eleventh train, `98254e7a` — PUSHED as `115aad53..98254e7a`.** Covers 631 and 629.
-
-```
-native-gate-receipt commit=98254e7a health=pass:277s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5108 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`.
-
-629's numbers, on a host verified quiet before each run: typing_live median 7.960ms to 6.859ms
-on the 50,029-word plain-prose tier (p90 8.412 to 6.910), and 10.064ms to 8.758ms on heavy
-markdown. Tiers the change cannot help are flat within noise. The counters tie those to work:
-one line retokenized per keystroke on the prose tier, and exactly the document's own line count
-per keystroke on the ineligible code tier.
-
-631's own measurement deflated its tool honestly — preflight is 290s against the 284s the gate
-already spends on the same `code-health.sh`, so it is not a lighter check, only that signal
-isolable from the GPU and full-suite work after it. Its gate rehearsal ran concurrently with
-629's test suite and incidentally validated the cpu-spin oracle rewritten today: ground truth
-92.0% of a core against a heartbeat reading 102.3%.
-
-
-**Tenth train, `d2a45d5e` — PUSHED as `4059591c..d2a45d5e`, 17 commits.** Covers 537, 632, 588.
-
-```
-native-gate-receipt commit=d2a45d5e health=pass:284s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5100 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`.
-
-Two failures the train caught that no worker gate would have, both worth naming because they
-argue for where the full suite belongs.
-
-**537's sixteenth settings toggle** turned two roster sweeps red — sweeps whose own message is
-"the toggle roster changed size, update this sweep deliberately". They live in
-`app::tests::files` and `actions::tests::overlay_drive`, and no reasonable reading of a
-footnote-ladder diff selects those modules. A census reached from an unrelated module is
-exactly what only a whole-suite run finds.
-
-**607's follow-override note** (previous train) had no fate in the println audit — a
-whole-tree census, invisible to any branch-local run by construction.
-
-Under the retired policy both would have been found by a per-branch gate at the cost of one
-serialized full gate per lane; under the current one they were found once, at the point where
-the tree they share actually exists.
-
-
-**Ninth train, `4059591c` — PUSHED as `07959082..4059591c`, 18 commits.**
-
-```
-native-gate-receipt commit=4059591c health=pass:294s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5089 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`. Covers 623, 607, the pointer-roster extraction, 627 and 616.
-
-First train gated under the new verification policy: one gate on the integrated candidate
-rather than a full gate per worker branch. Five lanes delivered targeted evidence instead, and
-the single gate found the one thing they could not — 607's `[keys] follow` note had no fate in
-the println audit, which is a whole-tree census no branch-local run reaches.
-
-The eighth train's CI (run 34249325854) passed all four gating jobs, including both hosted-mac
-arms — the only place the virtualised-GPU axis is ever exercised.
-
-
-**Eighth train, `07959082` — PUSHED as `127ab8b1..07959082`, 103 commits.**
-
-```
-native-gate-receipt commit=07959082 health=pass:303s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5074 unit_shards=6 integration_targets=18
-```
-plus `web-smoke: OK`, HEAD verified unmoved across the run.
-
-This one is unusual in what it covers. The push had been blocked for hours on a token scope —
-577's merge touches `.github/workflows/ci.yml` and the session's OAuth token carried no
-`workflow` scope — so the backlog grew to 103 commits, of which roughly fifty were the peer
-session's merges carrying no receipt of their own. The last receipt recorded on this board
-before it was the seventh train at `984a9975`. So this receipt is the first end-to-end
-verification that stretch has had.
-
-A machine reboot in the middle destroyed every earlier gate log in `/tmp`, which is why the
-seventh train's evidence cannot be re-read: a receipt is a claim about a commit, and the
-commit survives, but the transcript proving it does not. Worth knowing before anyone tries to
-audit an older train from its log.
-
-
-**Seventh train, `984a9975`** — covers 608, 600, 577, 611, 618, 590, 609, 606, 605+617 and
-619, HEAD verified unmoved across the run.
-
-```
-native-gate-receipt commit=984a9975 health=pass:345s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5007 unit_shards=6 integration_targets=18
+web-smoke: OK
 ```
 
-⚠️ **NOT PUSHED, and not for any reason in the tree.** GitHub refuses the push because 577's
-merge touches `.github/workflows/ci.yml` and this session's token carries no `workflow` scope.
-That is a credential scope on the user's own account: `gh auth refresh -h github.com -s
-workflow`. Nearly fifty commits wait behind it.
-
-Two items were REVERTED out of this train rather than shipped: 591 (a sidecar publishing a
-card rim 560 units from where it draws, plus a summoned-layer bypass in mouse.rs) and 592 (a
-menu-bar-axis regression in the range rail). Both branches are intact and both are back with
-their lanes. **Both were merged un-gated** because this orchestrator told every lane to skip
-the full gate so the train could hold the capacity=1 arbiter. That protocol bought arbiter
-time and cost two defects reaching main and two gate cycles removing them. It is not obviously
-a bad trade at eleven lanes, but it is a trade, and it should be made deliberately rather than
-inherited.
-
-
-**Sixth train, `8f7c628f`** — covers 596, 597, 598, 602, 595 and 604, HEAD verified unmoved
-across the run. `health=pass:280s unit_tests=4979`, web-smoke OK. **CI run 34173463828 was
-cancelled by the push that followed it** (`concurrency.cancel-in-progress`), so this train's
-own CI verdict does not exist; `d57f1d93` on top of it carries the linux fix and is the run to
-read. Recorded rather than quietly inherited from the local receipt.
-
-⚠️ **The train before this one, `437e6280`, was pushed and its CI never read. It was RED** on
-`linux (build + test)`. See the section above.
-
-
-**Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run. Pushed as
-`2ce630d5`; **CI run 34076734681 passed all four gating jobs** (39 min wall, the linux job the
-long pole at 38m54s — in line with the ~37-minute warm baseline 566 established).
-
-
-```
-native-gate-receipt commit=a7076b323c8ac462399edbb71789b7269ad85887 health=pass:247s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4964 unit_shards=6
-  integration_targets=18
-```
-plus `web-smoke: OK`. No mark raised — the branch LOWERED `render/geometry.rs` to 1323 after
-`caret_band` moved into its own module.
-
-**Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run.
-Pushed as `297ed802`; **CI run 34072883296 passed all four gating jobs.**
-
-
-```
-native-gate-receipt commit=0e19557466c341138fbc5e7d87295f4e00947020 health=pass:249s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4953 unit_shards=6
-  integration_targets=18
-```
-plus `web-smoke: OK`. No marks raised — 580's census closed a bypass by making four mutators
-module-private, and 581 split `projection.rs` at the ceiling rather than asking for room.
-
-**Third train, `555fa5d6`** — covered 570, 558 and 576. `health=pass:254s unit_tests=4946`,
-web-smoke OK. Pushed as `afda18f4`; CI run 34062997740 passed all four gating jobs.
-
-**Second train, `72e922e1`** — covered 583/584 and 585. `health=pass:251s unit_tests=4917`,
-web-smoke OK. Pushed as `c3d26d08`; CI run 34050443205 passed all four gating jobs.
-
-**First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587. `health=pass:271s
-unit_tests=4903`, web-smoke OK. Pushed as `a7ad4c68`; CI run 34047161907 passed all four
-gating jobs, including the hosted-mac pair — the only arm that has ever seen the
-virtualised-GPU axis, and therefore the half of the verification no local receipt supplies.
-
-⚠️ **Hardware bound, restated because a green receipt is exactly when it gets forgotten:** a
-local receipt certifies the dev host's real Apple Silicon Metal. A wedge once stayed green
-here while red on hosted macOS for ~140 commits, and CI's lavapipe job stayed green through
-that entire streak, so a software adapter is not a stand-in for that axis.
-
-⚠️ **No receipt covers a live journey.** Five items merged this wave with live confirmation
-explicitly NOT obtained, because the display was locked; they are in the owed section rather
-than silently absorbed into a green line.
-
-## Watch — verification that only a future run can supply
-
-**566's oracle: ANSWERED 2026-09-07, and the wiring works.** The item asked whether the linux
-job's `native-gate-env` line would read `budget_source=deadline` rather than
-`budget_source=none`, because nothing local can test the `$GITHUB_ENV` hop. Read out of run
-34039686854's own linux log:
-
-```
-native-gate-env cpus=4 mem_bytes=16766414848 conventions=2 test_threads=2
-  budget_seconds=3686 budget_source=deadline deadline_epoch=1788709583
-```
-
-`budget_source=deadline`, a real 61-minute budget, and `linux (build + test)` green. The
-runner death clock is armed, so an over-run now ends as a readable FAILURE instead of a
-cancellation that verifies nothing and discards the cold `target/`. Nothing further is owed
-here; 566 is closed.
+This is the original baseline receipt, not verification of later code. Subsequent
+queue/policy-only commits use diff/link checks under `docs/verification.md`.
+Older receipts, resolved CI investigations and completed train summaries are in Git
+history. Local hardware receipts do not establish hosted-GPU or live-journey results;
+check remote status before a future push rather than inheriting old push warnings.
 
 ## Needs specific hardware
 
-🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
+These remain unverified on the orchestration host; honor the current scope and
+release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
-   reading, caret/selection, overlays, and an editing burst.
+   reading, caret/selection, overlays, and an editing burst (post-v1 per
+   `ACCESSIBILITY.md`).
 2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
    the rendered menu's Export action reaches its destination.
 3. **Current Linux release artifacts** — launch both the tarball and AppImage
    on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
 
-## Needs release authority
+## Release authority
 
-🔴 BLOCKED on the user's release word only. The user reports (2026-09-08) that Apple signing and notarisation are set up and have shipped a release already — tags `v0.9.0` through `v0.12.0` exist — so the secrets line is retired. What remains: every tag waits for the user's explicit word.
+Signing/notarisation setup is complete; it is not an open setup task. Every new
+tag/release still requires the user's explicit instruction per `RELEASING.md`.

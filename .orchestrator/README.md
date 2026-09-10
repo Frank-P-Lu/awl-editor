@@ -7,6 +7,10 @@
 Always edit `.orchestrator`, and preserve active entries across tools and
 worktrees.
 
+Re-read the current board immediately before assigning an item number. If concurrent
+writes collide, the later committed item is renumbered with all its cross-references;
+preserve the earlier writer's number.
+
 ## Taste calls: LAND the easy ones, don't park them (user decision 2026-08-08)
 
 ‼ **THE USER'S STANDING PREFERENCE, in their own words: *"if it's easy to change, just
