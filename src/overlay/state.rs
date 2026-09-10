@@ -967,6 +967,9 @@ impl OverlayState {
             use FilesFocus::*;
             match self.files_focus {
                 Files => return "Files view   ↵ show   tab next   esc close".into(),
+                Recent if self.recent.is_empty() => {
+                    return "no recent files yet   tab next   esc close".into();
+                }
                 Recent => return "Recent view   ↵ show   tab next   esc close".into(),
                 Up => return "Up   ↵ ascend   tab next   esc close".into(),
                 Query => {}
