@@ -6,30 +6,10 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks.** Ready: 643, 641, 642, 637, 634.
+**12 open numbered tasks.** Ready: 641, 642, 637, 634.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 643 — use frank@awl.md for awl contact details (user request, 2026-09-10)
-
-🟡 IN PROGRESS — `contact_643` (Codex), branch `codex/643-contact`.
-
-Build: replace the user's personal email with `frank@awl.md` wherever awl publishes
-or embeds the maintainer's contact address: app/About, first-party documentation,
-website source, package metadata and maintained release/contact templates. Inventory
-actual occurrences first; update displayed text and mailto targets together, including
-source generators where applicable. Do not copy the old personal address into this
-board. Preserve third-party attribution addresses and historical Git authorship;
-this is a public contact-detail change, not history rewriting or mailbox setup.
-
-Verify: check the scoped diff and search maintained first-party contact surfaces for
-remaining personal-address occurrences. Confirm email links target `frank@awl.md`
-and apply docs/verification.md checks appropriate to any embedded/generated inputs.
-Record external published surfaces that need a separate update rather than claiming
-that changing repository source updates them automatically.
-
----
 
 ### 641 — picker-specific construction inputs (user request, 2026-09-10)
 
