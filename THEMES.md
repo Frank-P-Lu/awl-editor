@@ -1201,39 +1201,40 @@ user sees, and every taste call on a ground was quietly density-dependent.
 ### The warped-grid law (`Background::WarpedGrid`)
 
 Kite is the roster’s only travelling margin field. The writing page remains
-flat, opaque, and still. Two room-fixed windows crop one straight projected
-tube; changing the page width reveals or covers the field but never rescales,
-flattens, or repositions it.
+flat and still while one low-alpha major-section veil crosses beneath it. The
+margins and page reveal the same bounded projected tube; changing page geometry
+changes only masking and never the tube's camera, centreline, or scale.
 
-- **Fixed framing.** `WARP_SECTION_ROOM_FRAC` sizes a circular section from
-  the room height. `warp_window_axis` reads only the viewport and side.
-  Page geometry is used only for cropping and legibility masks. The outer
-  bands are therefore byte-identical across centred, asymmetric, narrow, and
-  wide page columns. `Tunnel::PageScaled` and `Tunnel::MarginPlaced` keep
-  the rejected page-owned mechanisms as mutation arms.
-- **Forward travel.** The tube itself is straight: `w = q`. Rings are level
-  sets of `rpo*log2(anchor/u) + forward_cells`, so increasing travel grows
-  their projected radius at exactly `1/rpo` octaves per cell. The
-  `Tunnel::Reversed` mutation flips that sign and makes the rings recede.
-  Every fifth line is stronger, and `FORWARD_CELLS_PER_LOOP = 65` is a
-  multiple of five, so both the lattice and its hierarchy wrap exactly.
+- **Projected geometry.** One procedural mesh draws 58 depth sections and 24
+  fixed-theta longitudinal rails. Section centres bend from the room centre
+  toward the roaming vanishing point with depth. A separate world-space path,
+  roll, and full multiplicative radius profile preserve the folded silhouette;
+  the rails sample those same points, so longitudinal curvature is not inferred
+  from a polar field. `Tunnel::PageScaled` and `Tunnel::MarginPlaced` retain the
+  rejected page-owned mechanisms as mutation arms.
+- **Forward travel.** Sections advance linearly in world z and recycle only
+  their bounded mesh slots. Rotation is a separate slow phase; it is never
+  folded into the section radius or centreline. `Tunnel::Reversed` remains the
+  direction mutation. Every fifth section and every sixth rail are stronger.
 - **One motion owner.** `src/warpgrid.rs` owns a linear 406-second loop.
   Ambient motion off, Reduce Motion, lost focus, and headless capture all
   resolve to the same frozen frame. Delayed wakes advance one bounded step
   rather than catching up.
 - **Legibility.** The page-edge fade and narrow-margin simplification are masks
-  on the one room field. A core radius and far-end retirement keep projected
-  lines resolvable instead of packing into moiré.
+  on the one room field. Minor sections and all rails retire under the page;
+  projected-pitch fades retire geometry before it packs into moiré at either
+  supported device scale.
 - **Headless evidence.** `AWL_WARP_PHASE=still|settled|start|wrap|<seconds>`
   selects a deterministic phase for captures. The sidecar reports
   `forward_cells`; appearance claims come from PNG arithmetic.
 
-The headline pixel laws are in `render/tests/warp_tunnel_item194.rs`. They
-sweep page width and offset, prove the fixed outer field, track one projected
-ring through forward travel at the authored rate, and turn red under the three
-mutation arms. Item 132’s inherited laws continue to cover page exclusion,
-value hierarchy, edge fade, narrow simplification, no-moiré, freeze paths, and
-the exact pixel wrap.
+The headline geometry and pixel laws are in `warpgrid::projection` and
+`render/tests/warp_projection.rs`. They sweep depth, angle, viewport, roam pose,
+and device scale; prove the section-centre displacement, 42–45%-class radial
+span, independent roll, fixed-theta curvature, transit non-circularity, and
+visible projected landmarks; and reject a compiling concentric regression.
+The inherited ground laws continue to cover page masking, value hierarchy,
+edge fade, narrow simplification, no-moiré, and frozen motion paths.
 
 Live review still owns taste: whether the travel feels calm over real time and
 whether the fixed framing remains comfortable during a long writing session.

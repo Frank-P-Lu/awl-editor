@@ -96,37 +96,6 @@ pub(super) fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme
     }
 }
 
-/// Override just the fold amplitude — a `fold: 0.0` reference is a perfect
-/// circle, which isolates the harmonic wall shape from every other claim.
-pub(super) fn with_fold(bg: theme::Background, fold: f32) -> theme::Background {
-    match bg {
-        theme::Background::WarpedGrid {
-            ground,
-            minor,
-            major,
-            tunnel,
-            spacing_px,
-            density,
-            twist,
-            forward_drift,
-            ribs,
-            ..
-        } => theme::Background::WarpedGrid {
-            ground,
-            minor,
-            major,
-            tunnel,
-            spacing_px,
-            density,
-            fold,
-            twist,
-            forward_drift,
-            ribs,
-        },
-        other => other,
-    }
-}
-
 /// The room-owned axis every pre-roaming law in this file was written
 /// against — dead centre, which makes the roaming BEND an exact no-op
 /// (mixing two identical points) so these laws keep grading exactly what
@@ -990,55 +959,17 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 // MOTION: determinism, the invisible wrap, and the composed still.
 // ---------------------------------------------------------------------------
 
-/// THE RING HIERARCHY'S OWN REPEAT IS INVISIBLE IN REAL PIXELS, and the claim
-/// is made where it can actually fail.
-///
-/// Forward travel no longer wraps a fixed-length stored phase — the roaming
-/// vanishing point retired that loop (see `warpgrid::forward_cells`'s own
-/// doc: the field is continuous, `fract()` inside the shader's own level
-/// sets is what stays seamless). What DOES still have to repeat exactly is
-/// the major/minor HIERARCHY: a whole `MAJOR_EVERY` cells of forward travel
-/// must land the field back on its own lattice and its own line hierarchy,
-/// which happens if and only if the travel is a multiple of the major
-/// modulus — `warpgrid::wrap_seconds` is the phase that produces exactly
-/// that travel for a given profile, and is what a capture names via
-/// `AWL_WARP_PHASE=wrap`.
-///
-/// `fold: 0.0` for the EXACT-repeat half of this claim — see
-/// `warp_one_tunnel.rs::circular_kite`'s doc for why: the fold's own
-/// `turn = theta + depth*twist` does not return to itself after any small
-/// integer number of cells (`2*PI/twist` cells for Kite's `twist: 0.72` is
-/// irrational-ish against `MAJOR_EVERY`), so exact repetition is a claim
-/// about the RING/RAIL machinery alone. The REAL, folded profile gets its
-/// own, weaker claim below: CONTINUITY across the same boundary (no visible
-/// jump), which is the property that actually matters for a viewer.
+/// The retired log-polar hierarchy-repeat assertion is superseded by the
+/// projected surface's actual motion invariant: linear-z travel is continuous
+/// through the old named wrap instant, and costs no more than the same small
+/// time step at ordinary positions. This grades the real folded surface; it
+/// does not flatten the subject to manufacture a periodic circular lattice.
 #[test]
-fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
+fn projected_linear_z_travel_is_continuous_at_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    let circular = with_fold(kite(), 0.0);
-    let at = |forward: f32| {
-        render_travel(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            forward,
-        )
-    };
-    let start = at(0.0);
-    // The comparison is a per-pixel BOUND, not byte equality. The ring
-    // coordinate is `depth*k - forward`, so a whole loop of travel is an exact
-    // integer shift of a lattice whose period divides it — the lattice and the
-    // hierarchy are mathematically unmoved — but `fwidth` of a coordinate offset
-    // by several cells loses a few f32 bits, so the antialiased edge of a line
-    // can land one 8-bit step away. One step is not a visible seam; a shifted
-    // lattice is, and the two are orders of magnitude apart.
     let worst = |a: &[[u8; 4]], b: &[[u8; 4]]| {
         a.iter()
             .zip(b.iter())
@@ -1051,94 +982,6 @@ fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
             .max()
             .unwrap_or(0)
     };
-    let loop_delta = worst(&at(warpgrid::MAJOR_EVERY), &start);
-    assert!(
-        loop_delta <= 3,
-        "{} cells of forward travel (one hierarchy repeat) must land the field back on its \
-         own lattice and hierarchy — worst channel delta {loop_delta}, which is a moved \
-         line, not rounding",
-        warpgrid::MAJOR_EVERY
-    );
-    // NON-VACUITY, both ways: a travel that is a whole number of MINOR cells but
-    // not of MAJOR ones rotates the hierarchy, and a fractional one moves the
-    // lattice itself. Both must be far outside the rounding bound.
-    let off_by_one = worst(&at(warpgrid::MAJOR_EVERY - 1.0), &start);
-    assert!(
-        off_by_one > 20,
-        "one cell short of a hierarchy repeat must rotate it visibly (delta {off_by_one})"
-    );
-    let fractional = worst(&at(0.4), &start);
-    assert!(
-        fractional > 20,
-        "a fractional travel must move the lattice visibly (delta {fractional})"
-    );
-    // And the phase-level resolution agrees, which is what the App actually
-    // drives: `wrap_seconds` is defined to be exactly the phase that produces
-    // `MAJOR_EVERY` cells of travel for this profile. A BOUND, not byte
-    // equality — same reasoning as `loop_delta` above: `wrap_seconds` reaches
-    // its target cell count through a seconds -> speed -> cells round trip
-    // rather than the raw cell count `at(MAJOR_EVERY)` uses directly, and
-    // that indirection can land the antialiased edge of a line one 8-bit
-    // step away without moving the lattice (measured: 70 of 1.6M pixels
-    // differ, every one by exactly 1 level — ordinary AA rounding, not a
-    // shifted ring).
-    let wrap = warpgrid::wrap_seconds(circular.forward_drift());
-    let wrap_delta = worst(
-        &render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            0.0,
-        ),
-        &render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            wrap,
-        ),
-    );
-    assert!(
-        wrap_delta <= 3,
-        "AWL_WARP_PHASE=wrap must reproduce the hierarchy at fold: 0.0 — worst channel delta \
-         {wrap_delta}, which is a moved line, not rounding"
-    );
-    assert_ne!(
-        render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            wrap * 0.37
-        ),
-        start,
-        "the travel clock must actually move the field"
-    );
-
-    // THE REAL, FOLDED PROFILE: not exact repetition, but CONTINUITY — the
-    // field just before and just after the same boundary must change by
-    // materially the SAME amount a tiny travel step changes it ANYWHERE ELSE,
-    // not by an absolute pixel bound. Kite's own lattice is dense (60 rings),
-    // so EVERY tiny continuous travel step moves dozens of antialiased edges
-    // at once and a worst-single-pixel delta saturates almost immediately —
-    // measured directly: an arbitrary travel point far from any boundary
-    // produces a worst-channel delta of 62 for the SAME +/-0.02-cell window,
-    // materially the same magnitude the boundary itself produces, so an
-    // absolute "<= 8" floor was never satisfiable for this ground and would
-    // have flagged ordinary continuous motion as a jump. What IS diagnostic
-    // of a genuine jump is the boundary costing MUCH more than an arbitrary
-    // point does for the identical tiny step; this compares the two directly
-    // rather than trusting one hand-picked absolute number.
     let wrap_folded = warpgrid::wrap_seconds(kite().forward_drift());
     let wrap_cells = warpgrid::forward_cells(wrap_folded, kite().forward_drift());
     let step_delta = |cells: f32| -> i32 {
