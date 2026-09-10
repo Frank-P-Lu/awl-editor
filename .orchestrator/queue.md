@@ -13,7 +13,9 @@ Outstanding review of landed work and hardware checks are listed separately belo
 
 ### 641 — picker-specific construction inputs (user request, 2026-09-10)
 
-🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+🟡 IN PROGRESS — `buildctx_641` (Codex), based on current `main` after the
+Files journey and projected-tunnel integrations. Behavior-preserving ownership
+refactor; overlapping picker/UI work remains serialized behind it.
 
 Build: replace the catch-all `overlay::BuildCtx` with focused input types so each
 picker receives only the data it consumes. Start by mapping the current
