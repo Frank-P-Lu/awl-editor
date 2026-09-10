@@ -2,6 +2,9 @@
 
 use super::*;
 
+mod helpers;
+use helpers::{apply_living_row_spans, row_focus_rgba};
+
 #[derive(Default)]
 pub(super) struct OverlaySelectionRects {
     pub(super) selected: Vec<[f32; 4]>,
@@ -24,20 +27,6 @@ pub(super) struct OverlayBarLayout {
     /// The frame's `zoom * dpi`, so every span this layout resolves reads the
     /// one scale the card was placed at.
     scale: f32,
-}
-
-/// Apply each travelling band's own planned two-sided span. This stays beside
-/// the selection emitter so no choreography can smuggle in a second row-offset
-/// calculation.
-fn apply_living_row_spans(plan: &OverlayRowPlan, rects: &mut [[f32; 4]]) {
-    for r in rects {
-        if let Some(row) = plan.display_nearest(r[1] + r[3] * 0.5) {
-            let dx = plan.row_dx(row);
-            let dw = plan.row_dw(row);
-            r[0] += dx;
-            r[2] += dw - dx;
-        }
-    }
 }
 
 impl OverlayBarLayout {
@@ -493,48 +482,6 @@ impl TextPipeline {
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card
             .prepare(device, queue, width, height, &scrims);
-    }
-}
-
-fn row_focus_rgba(band: crate::theme::Srgb, focused: bool) -> [u8; 4] {
-    if focused {
-        band.rgba_bytes()
-    } else {
-        super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA)
-    }
-}
-
-#[cfg(test)]
-mod files_focus_law {
-    use super::*;
-
-    #[test]
-    fn unfocused_selection_stays_present_and_its_label_ink_stays_legible_in_every_world() {
-        let _guard = crate::testlock::serial();
-        for (index, world) in crate::theme::THEMES.iter().enumerate() {
-            crate::theme::set_active(index);
-            let band = super::super::overlay_selected_band_srgb();
-            let full = row_focus_rgba(band, true);
-            let quiet = row_focus_rgba(band, false);
-            assert!(
-                quiet[3] >= 80,
-                "{}: focus cue disappeared: {quiet:?}",
-                world.name
-            );
-            assert!(
-                quiet[3] < full[3],
-                "{}: focused and selected collapsed",
-                world.name
-            );
-            let ink = super::super::overlay_selected_label_ink();
-            assert_eq!(
-                ink.a(),
-                255,
-                "{}: selected label ink lost opacity",
-                world.name
-            );
-        }
-        crate::theme::set_active(crate::theme::DEFAULT_THEME);
     }
 }
 

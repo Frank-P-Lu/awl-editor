@@ -563,14 +563,4 @@ impl OverlayKind {
     pub const SETTINGS_MARKER_PREFIX: &'static str = "§ ";
 
     pub const HEADING_MARKER_PREFIX: &'static str = "❡ ";
-
-    pub fn empty_lens_message(self, lens: &str) -> Option<&'static str> {
-        match (self, lens) {
-            (OverlayKind::Goto, "files") => Some("this folder is empty"),
-            (OverlayKind::Goto, "recent") => Some("no recent files yet"),
-            (OverlayKind::Project, "recent") => Some("no recent projects yet"),
-            (_, "all") => None,
-            _ => Some("nothing here"),
-        }
-    }
 }

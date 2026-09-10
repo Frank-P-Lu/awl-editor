@@ -7,7 +7,8 @@ fn every_defaults_toml_slug_names_a_real_catalog_command() {
             COMMAND_SEED
                 .iter()
                 .any(|c| &command_slug(c) == slug_in_file),
-            "assets/keymap-defaults.toml names {slug_in_file:?}, which is not a commands::COMMAND_SEED slug"
+            "assets/keymap-defaults.toml names {slug_in_file:?}, which is not a \
+             commands::COMMAND_SEED slug"
         );
     }
 }

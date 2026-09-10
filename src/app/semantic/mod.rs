@@ -21,6 +21,7 @@ const NO_DOCUMENT_STATE: (u64, u64) = (u64::MAX, u64::MAX);
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod bench;
+mod files_overlay;
 mod passive;
 mod projection;
 mod requests;

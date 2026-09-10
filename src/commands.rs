@@ -9,7 +9,9 @@ mod menu_section;
 mod task_category;
 #[cfg(test)]
 use crate::facets::FacetItem;
+#[cfg(test)]
 use catalog::COMMAND_SEED;
+pub use catalog::{action_for_name, command_slug};
 #[cfg(any(not(target_arch = "wasm32"), test))]
 pub use chords::resolved_native_label;
 pub use chords::{
@@ -110,16 +112,18 @@ pub static COMMANDS: std::sync::LazyLock<Vec<Command>> = std::sync::LazyLock::ne
     let defaults = crate::keymap_defaults::command_defaults();
     assert_eq!(
         defaults.len(),
-        COMMAND_SEED.len(),
+        catalog::COMMAND_SEED.len(),
         "assets/keymap-defaults.toml must contain exactly one entry for every catalog command"
     );
     for key in defaults.keys() {
         assert!(
-            COMMAND_SEED.iter().any(|seed| command_slug(seed) == *key),
+            catalog::COMMAND_SEED
+                .iter()
+                .any(|seed| command_slug(seed) == *key),
             "assets/keymap-defaults.toml names unknown command slug {key:?}"
         );
     }
-    COMMAND_SEED
+    catalog::COMMAND_SEED
         .iter()
         .map(|seed| {
             let seed_slug = command_slug(seed);
@@ -162,29 +166,6 @@ pub fn slug(name: &str) -> String {
         .trim()
         .to_ascii_lowercase()
         .replace(' ', "_")
-}
-
-/// Stable configuration identity for a catalog row. Files is the visible
-/// successor to Go to, but `go_to` remains its permanent config/API slug.
-pub fn command_slug(command: &Command) -> String {
-    match &command.action {
-        Action::OpenGoto => "go_to".to_string(),
-        Action::OpenFolder => "open_folder".to_string(),
-        _ => slug(command.name),
-    }
-}
-
-pub fn action_for_name(name: &str) -> Option<Action> {
-    let want = slug(name);
-    match want.as_str() {
-        "go_to" => return Some(Action::OpenGoto),
-        "open_folder" => return Some(Action::OpenFolder),
-        _ => {}
-    }
-    COMMANDS
-        .iter()
-        .find(|c| command_slug(c) == want || slug(c.name) == want)
-        .map(|c| c.action.clone())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

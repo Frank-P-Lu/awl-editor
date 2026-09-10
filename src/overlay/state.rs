@@ -1,6 +1,6 @@
 use super::{
-    Capture, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell, RenameEdit, RowMeta,
-    TableDimsEdit, ValueEdit,
+    Capture, FilesFocus, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell,
+    RenameEdit, RowMeta, TableDimsEdit, ValueEdit,
 };
 use crate::textbox::TextBox;
 use std::sync::Arc;
@@ -19,19 +19,6 @@ pub struct HugRoster {
 }
 
 pub use super::add_to_dictionary_label;
-
-/// The keyboard target inside the Files card. Selection remains a separate
-/// fact: moving through the chrome never discards the useful file row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FilesFocus {
-    Query,
-    Files,
-    Recent,
-    Up,
-    Choices,
-    ChangeFolder,
-    NewDocument,
-}
 
 #[derive(Debug, Clone)]
 pub struct OverlayState {
@@ -151,19 +138,11 @@ impl OverlayState {
             self.move_dest_title(name)
         } else if self.kind == OverlayKind::ExportDest {
             self.with_browse_dir_suffix(self.kind.title().to_string())
-        } else if self.kind == OverlayKind::Goto {
-            match self.browse_dir.as_deref().filter(|dir| !dir.is_empty()) {
-                Some(dir) => format!("files  /  {}/", dir.replace('/', "  /  ")),
-                None => "files  /".to_string(),
-            }
+        } else if let Some(title) = self.files_title() {
+            title
         } else {
             self.kind.title().to_string()
         }
-    }
-
-    /// Root-relative directory where Files' New document action lands.
-    pub fn files_destination(&self) -> Option<String> {
-        (self.kind == OverlayKind::Goto).then(|| self.browse_dir.clone().unwrap_or_default())
     }
 
     /// `title`'s composition for [`OverlayKind::MoveDest`]: `"move {name}"`
@@ -340,124 +319,6 @@ impl OverlayState {
         s
     }
 
-    /// Build one Files level from the root-wide file index. The complete file
-    /// corpus stays on every level so typing can search descendants; an empty
-    /// query is projected to the immediate children of `browse_dir` by the
-    /// filter owner. Directory rows are derived from file parents, so browsing
-    /// never changes the writing root and never needs a second tree model.
-    pub fn new_files(
-        files: Vec<String>,
-        open: Vec<usize>,
-        recent: Vec<usize>,
-        browse_dir: Option<String>,
-    ) -> Self {
-        use std::collections::BTreeSet;
-
-        let mut rows = Vec::new();
-        for file in &files {
-            rows.push(OverlayRow {
-                accept: file.clone(),
-                secondary: String::new(),
-                is_dir: false,
-                git: false,
-                meta: RowMeta::GotoFile {
-                    time: String::new(),
-                },
-                range: None,
-            });
-        }
-        let mut dirs = BTreeSet::new();
-        for file in &files {
-            let mut path = std::path::Path::new(file).parent();
-            while let Some(parent) = path {
-                let rel = parent.to_string_lossy().replace('\\', "/");
-                if rel.is_empty() || rel == "." {
-                    break;
-                }
-                dirs.insert(rel);
-                path = parent.parent();
-            }
-        }
-        rows.extend(dirs.into_iter().map(|dir| OverlayRow {
-            accept: dir,
-            secondary: "folder".to_string(),
-            is_dir: true,
-            git: false,
-            meta: RowMeta::GotoFolder,
-            range: None,
-        }));
-        let mut change = OverlayRow::plain("Change folder…".to_string());
-        change.meta = RowMeta::FolderChooser;
-        rows.push(change);
-        let destination = browse_dir
-            .as_deref()
-            .filter(|dir| !dir.is_empty())
-            .unwrap_or("root");
-        let mut new_doc = OverlayRow::plain(format!("New document — {destination}/"));
-        new_doc.meta = RowMeta::NewDocument;
-        rows.push(new_doc);
-
-        let mut s = Self::new_marked(
-            OverlayKind::Goto,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            browse_dir,
-        );
-        s.rows = rows;
-        s.files_mode = true;
-        s.open = open;
-        s.recent = recent;
-        s.refilter();
-        s.refresh_hug_roster();
-        s
-    }
-
-    /// Add directory identities supplied by the level reader. File ancestors
-    /// cover ordinary folders; this seam is what keeps genuinely empty
-    /// directories present too.
-    pub fn attach_file_directories(&mut self, directories: Vec<String>) {
-        if !self.files_mode {
-            return;
-        }
-        for path in directories {
-            if self.rows.iter().any(|row| row.is_dir && row.accept == path) {
-                continue;
-            }
-            let mut row = OverlayRow::plain(path);
-            row.is_dir = true;
-            row.meta = RowMeta::GotoFolder;
-            row.secondary = "folder".into();
-            self.rows.push(row);
-        }
-        self.refilter();
-        self.refresh_hug_roster();
-    }
-
-    /// Name the readable-level outcome independently of the always-present
-    /// action rows.
-    pub fn set_files_level_state(&mut self, level: Option<&[crate::index::DirEntry]>) {
-        if !self.files_mode {
-            return;
-        }
-        self.notice = match level {
-            None => "folder unavailable — check access and try again".into(),
-            Some([]) => "this folder is empty".into(),
-            Some(entries)
-                if entries.iter().any(|entry| !entry.is_dir)
-                    && !self
-                        .items
-                        .iter()
-                        .any(|&i| matches!(self.rows[i].meta, RowMeta::GotoFile { .. })) =>
-            {
-                "no supported files in this folder".into()
-            }
-            Some(_) => String::new(),
-        };
-    }
-
     /// CARRY the facts a directory LEVEL cannot know onto the next level — the
     /// one owner of the [`super::Journey::relevel`] hand-off (see its doc).
     /// Today that is exactly [`Self::export_format`]: the level supplier reads a
@@ -498,17 +359,6 @@ impl OverlayState {
         for (row, c) in self.rows.iter_mut().zip(cells) {
             row.range = c;
         }
-    }
-
-    pub fn set_times(&mut self, times: Vec<String>) {
-        let mut file_index = 0;
-        for row in self.rows.iter_mut() {
-            if let RowMeta::GotoFile { time } = &mut row.meta {
-                *time = times.get(file_index).cloned().unwrap_or_default();
-                file_index += 1;
-            }
-        }
-        self.refresh_hug_roster();
     }
 
     pub fn new_theme(names: Vec<String>, active_index: usize) -> Self {
@@ -963,35 +813,8 @@ impl OverlayState {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
             return "type to filter   ↵ save a copy here   → open   ← up".to_string();
         }
-        if self.kind == OverlayKind::Goto && !self.goto_outline_only {
-            use FilesFocus::*;
-            match self.files_focus {
-                Files => return "Files view   ↵ show   tab next   esc close".into(),
-                Recent if self.recent.is_empty() => {
-                    return "no recent files yet   tab next   esc close".into();
-                }
-                Recent => return "Recent view   ↵ show   tab next   esc close".into(),
-                Up => return "Up   ↵ ascend   tab next   esc close".into(),
-                Query => {}
-                Choices | ChangeFolder | NewDocument => {}
-            }
-            let verb = self
-                .selected_corpus_index()
-                .and_then(|i| self.rows.get(i))
-                .map(|row| match row.meta {
-                    RowMeta::GotoFolder => "enter folder",
-                    RowMeta::GotoFile { .. } => "open file",
-                    RowMeta::FolderChooser => "change folder",
-                    RowMeta::NewDocument => "new document",
-                    _ => "choose",
-                })
-                .unwrap_or("choose");
-            let up = if self.browse_dir.is_some() {
-                "   ← up"
-            } else {
-                ""
-            };
-            return format!("type to search   ↵ {verb}{up}   esc close");
+        if let Some(hint) = self.files_hint() {
+            return hint;
         }
         self.kind.hint()
     }
@@ -1010,54 +833,6 @@ impl OverlayState {
                 range: None,
             });
         }
-        self.refilter();
-        self.refresh_hug_roster();
-    }
-
-    /// Enter the compatibility heading/line route without returning those
-    /// destinations to Files' visible roster.
-    pub fn focus_headings(&mut self) {
-        self.goto_outline_only = true;
-        self.facet_lens = 0;
-        self.query = crate::textbox::TextBox::new();
-        self.selected = 0;
-        self.scroll = 0;
-        self.refilter();
-    }
-
-    /// Fold authored folder destinations into Go-to. `recent_paths` is ordered
-    /// newest-first and is translated into corpus indices here, beside the rows
-    /// it ranks, so Files and Folders share one Recent lens without parallel
-    /// index arithmetic at callers.
-    #[allow(dead_code)] // compatibility constructor for older focused overlay laws
-    pub fn attach_folders(&mut self, folders: Vec<(String, bool)>, recent_paths: &[String]) {
-        if self.kind != OverlayKind::Goto {
-            return;
-        }
-        let start = self.rows.len();
-        for (path, is_git) in folders {
-            self.rows.push(OverlayRow {
-                accept: path,
-                secondary: String::new(),
-                is_dir: true,
-                git: is_git,
-                meta: RowMeta::GotoFolder,
-                range: None,
-            });
-        }
-        for path in recent_paths {
-            if let Some(ci) = self.rows[start..]
-                .iter()
-                .position(|row| &row.accept == path)
-                .map(|i| start + i)
-                && !self.recent.contains(&ci)
-            {
-                self.recent.push(ci);
-            }
-        }
-        let mut chooser = OverlayRow::plain("Choose another folder…".to_string());
-        chooser.meta = RowMeta::FolderChooser;
-        self.rows.push(chooser);
         self.refilter();
         self.refresh_hug_roster();
     }

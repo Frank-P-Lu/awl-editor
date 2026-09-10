@@ -5,6 +5,11 @@ use crate::clock::SystemTime;
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::{Path, PathBuf};
 
+mod files_facets;
+mod level;
+pub use files_facets::FILES_FACETS;
+pub use level::{DirEntry, list_dir_level, resolve_dir_level, try_list_dir_level};
+
 /// Directory names pruned from EVERY index (git and non-git alike). These are
 /// build output / vendored deps / VCS internals — never go-to targets, and
 /// walking them would swamp the corpus.
@@ -51,44 +56,6 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 // folder tags plus its `recent` flag (the recently-opened destination MRU,
 // [`crate::recent_files`]), and Browse's `is_dir` / `is_git` flags. No filesystem
 // read, no clock inside the bucket.
-
-/// Files' two explicit views. The stable `Goto` kind and `go_to` config slug
-/// remain compatibility identities; the visible product vocabulary is Files.
-const FILES_FACET_STRIP: [Facet; 2] = [
-    Facet {
-        label: "Files",
-        id: "files",
-        sections: &[],
-    },
-    Facet {
-        label: "Recent",
-        id: "recent",
-        sections: &["Recent"],
-    },
-];
-
-/// Go-to's [`FacetScheme::bucket`], keyed by the strip index (see [`GOTO_FACET_STRIP`]).
-/// `Recent` shows only destinations actually used recently — files from the persisted
-/// recently-opened-files store and folders from the persisted workspace roots. An
-/// item opts in iff `item.recent`; a fresh session therefore shows the honest empty
-/// state. MRU order (most-recent first) is applied by `refilter`'s tiebreak, not here.
-/// Files excludes headings and folders, Headings keeps only document-heading rows,
-/// and Folders keeps authored folder rows plus the explicit chooser action.
-fn files_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
-    match lens_idx {
-        1 if matches!(item.accept, "Change folder…") => Some("Recent"),
-        1 if item.accept.starts_with("New document — ") => Some("Recent"),
-        1 => item.recent.then_some("Recent"),
-        _ => None, // 0 = Files (never grouped)
-    }
-}
-
-/// Go-to's registered [`FacetScheme`], handed back by [`crate::facets::scheme`] for
-/// [`crate::overlay::OverlayKind::Goto`].
-pub static FILES_FACETS: FacetScheme = FacetScheme {
-    strip: &FILES_FACET_STRIP,
-    bucket: files_bucket,
-};
 
 const GOTO_FACET_STRIP: [Facet; 5] = [
     Facet {
@@ -389,70 +356,6 @@ pub fn with_recency(
         names.push(rel);
     }
     (names, times)
-}
-
-/// One entry of a single directory LEVEL (for the browse navigator). `name` is
-/// the leaf name; `is_dir` distinguishes a folder (Enter descends) from a file
-/// (Enter opens); `is_git` marks a folder that is itself a git repo.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DirEntry {
-    pub name: String,
-    pub is_dir: bool,
-    pub is_git: bool,
-}
-
-/// The absolute directory `list_dir_level` (and any caller that needs the
-/// SAME resolved level, e.g. `overlay::build::browse_level`'s per-file
-/// [`crate::openable::classify`] calls) lists: `root` joined with `rel`, or
-/// `root` itself when `rel` is `None`/empty. The ONE owner of that join, so
-/// the two call sites can never resolve a level to two different paths.
-pub fn resolve_dir_level(root: &Path, rel: Option<&str>) -> PathBuf {
-    match rel {
-        Some(r) if !r.is_empty() => root.join(r),
-        _ => root.to_path_buf(),
-    }
-}
-
-/// List ONE directory level under `root`/`rel` (rel `None` = the root itself) for
-/// the browse navigator: directories first (sorted), then files (sorted). Junk
-/// dirs are skipped so the level stays clean. Each directory is probed (cheaply,
-/// `<dir>/.git`) for a git marker. Returns an empty list if the path can't be
-/// read (e.g. an ascend/descend past a vanished dir).
-pub fn list_dir_level(root: &Path, rel: Option<&str>) -> Vec<DirEntry> {
-    try_list_dir_level(root, rel).unwrap_or_default()
-}
-
-/// The diagnostic-preserving twin of [`list_dir_level`]. `None` means the
-/// level could not be read, which Files must not misreport as an empty folder.
-pub fn try_list_dir_level(root: &Path, rel: Option<&str>) -> Option<Vec<DirEntry>> {
-    let dir = resolve_dir_level(root, rel);
-    let mut dirs: Vec<DirEntry> = Vec::new();
-    let mut files: Vec<DirEntry> = Vec::new();
-    let entries = crate::fs::active().read_dir(&dir).ok()?;
-    for entry in entries {
-        let name = entry.name;
-        if entry.is_dir {
-            if is_junk_dir(&name) {
-                continue;
-            }
-            let is_git = crate::fs::active().exists(&entry.path.join(".git"));
-            dirs.push(DirEntry {
-                name,
-                is_dir: true,
-                is_git,
-            });
-        } else if entry.is_file {
-            files.push(DirEntry {
-                name,
-                is_dir: false,
-                is_git: false,
-            });
-        }
-    }
-    dirs.sort_by(|a, b| a.name.cmp(&b.name));
-    files.sort_by(|a, b| a.name.cmp(&b.name));
-    dirs.extend(files);
-    Some(dirs)
 }
 
 #[cfg(test)]

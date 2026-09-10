@@ -91,8 +91,7 @@ impl SemanticView<'_> {
         query.focusable = true;
         query.editable = true;
         query.actions = vec![SemanticAction::SetValue];
-        let files_focus = overlay.files_mode.then_some(overlay.files_focus);
-        query.focused = files_focus == Some(crate::overlay::FilesFocus::Query);
+        query.focused = files_overlay::query_focused(overlay);
 
         let mut list = SemanticNode::new(&list_id, SemanticRole::ListBox, overlay.title());
         let labels = overlay.item_strings();
@@ -109,24 +108,7 @@ impl SemanticView<'_> {
             row.value = values.get(visible).filter(|v| !v.is_empty()).cloned();
             row.selected = Some(visible == overlay.selected);
             row.focusable = true;
-            row.focused = visible == overlay.selected
-                && match files_focus {
-                    Some(crate::overlay::FilesFocus::Choices) => !matches!(
-                        overlay.rows[corpus].meta,
-                        crate::overlay::RowMeta::FolderChooser
-                            | crate::overlay::RowMeta::NewDocument
-                    ),
-                    Some(crate::overlay::FilesFocus::ChangeFolder) => matches!(
-                        overlay.rows[corpus].meta,
-                        crate::overlay::RowMeta::FolderChooser
-                    ),
-                    Some(crate::overlay::FilesFocus::NewDocument) => matches!(
-                        overlay.rows[corpus].meta,
-                        crate::overlay::RowMeta::NewDocument
-                    ),
-                    Some(_) => false,
-                    None => true,
-                };
+            row.focused = files_overlay::row_focused(overlay, corpus, visible);
             row.actions = actions;
             list.children.push(row_id);
             nodes.push(row);
@@ -146,40 +128,7 @@ impl SemanticView<'_> {
             ));
         }
         dialog.children.push(query_id.clone());
-        if overlay.files_mode {
-            for (id, name, target, active) in [
-                (
-                    "files",
-                    "Files",
-                    crate::overlay::FilesFocus::Files,
-                    overlay.facet_lens == 0,
-                ),
-                (
-                    "recent",
-                    "Recent",
-                    crate::overlay::FilesFocus::Recent,
-                    overlay.facet_lens == 1,
-                ),
-                (
-                    "up",
-                    "Up",
-                    crate::overlay::FilesFocus::Up,
-                    overlay.browse_dir.is_some(),
-                ),
-            ] {
-                if id == "up" && !active {
-                    continue;
-                }
-                let node_id = format!("{dialog_id}.{id}");
-                let mut node = SemanticNode::new(&node_id, SemanticRole::Button, name);
-                node.focusable = true;
-                node.focused = overlay.files_focus == target;
-                node.selected = (id != "up").then_some(active);
-                node.actions = vec![SemanticAction::Focus, SemanticAction::Click];
-                dialog.children.push(node_id);
-                nodes.push(node);
-            }
-        }
+        files_overlay::append_controls(overlay, &dialog_id, &mut dialog, nodes);
         dialog.children.push(list_id.clone());
         if labels.is_empty() && !overlay.files_mode {
             query.focused = true;
@@ -189,23 +138,7 @@ impl SemanticView<'_> {
         nodes.push(dialog);
         nodes[0].children.push(dialog_id.clone());
 
-        if overlay.files_mode {
-            match overlay.files_focus {
-                crate::overlay::FilesFocus::Query => query_id,
-                crate::overlay::FilesFocus::Files => format!("{dialog_id}.files"),
-                crate::overlay::FilesFocus::Recent => format!("{dialog_id}.recent"),
-                crate::overlay::FilesFocus::Up => format!("{dialog_id}.up"),
-                _ => overlay
-                    .selected_corpus_index()
-                    .map(|corpus| format!("{dialog_id}.row.{corpus}"))
-                    .unwrap_or(query_id),
-            }
-        } else {
-            overlay
-                .selected_corpus_index()
-                .map(|corpus| format!("{dialog_id}.row.{corpus}"))
-                .unwrap_or(query_id)
-        }
+        files_overlay::focus_id(overlay, &dialog_id, query_id)
     }
 
     pub(super) fn fold_popover(&self, nodes: &mut Vec<SemanticNode>) -> String {

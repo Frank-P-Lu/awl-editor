@@ -42,7 +42,10 @@ mod assets;
 mod build;
 mod capture;
 pub(crate) mod comparison;
+mod empty;
 mod facet;
+mod files;
+mod files_focus;
 mod filter;
 mod hint;
 mod journey;
@@ -71,6 +74,7 @@ pub use build::{
 pub(crate) use build::recent::is_remembered_root;
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
+pub use files::FilesFocus;
 #[allow(unused_imports)]
 // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use hint::{ARROWS_LR, ARROWS_UD, HINT_SEP, HintAction, PIN_TAG, RANGE_LR_LABEL, format_hint};
@@ -86,7 +90,7 @@ pub use rename_edit::RenameEdit;
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};
-pub use state::{FilesFocus, HugRoster, OverlayState};
+pub use state::{HugRoster, OverlayState};
 #[allow(unused_imports)]
 // DEFAULT_COLS/DEFAULT_ROWS/MIN_DIM: read only by test-only journeys
 // (actions::tests::insert_table, main/tests::minibuffers), never by a
