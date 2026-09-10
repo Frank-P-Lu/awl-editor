@@ -444,6 +444,7 @@ impl TextPipeline {
         self.overlay_context_anchor = view.overlay_context_anchor;
         self.overlay_asset_preview = view.overlay_asset_preview.clone();
         self.overlay_detail_focus = view.overlay_detail_focus;
+        self.overlay_rows_focused = view.overlay_rows_focused;
         self.overlay_spell_w = if self.overlay_spell.is_some() {
             self.measure_spell_content_w()
         } else {

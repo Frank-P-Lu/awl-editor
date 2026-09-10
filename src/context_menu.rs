@@ -188,11 +188,10 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
             rows
         }
         Filename => Vec::new(),
-        Folder if platform == Platform::Native => vec![
-            row("Go to folders…", OpenProject),
-            row("Open file…", OpenBrowse),
-        ],
-        Folder => vec![row("Go to folders…", OpenProject)],
+        Folder if platform == Platform::Native => {
+            vec![row("Files…", OpenProject), row("Open file…", OpenBrowse)]
+        }
+        Folder => vec![row("Files…", OpenProject)],
         LeftEdge | RightEdge => vec![
             row("Narrow", PageNarrower),
             row("Widen", PageWider),

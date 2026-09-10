@@ -2,7 +2,7 @@
 
 use super::*;
 
-const START_ACTIONS: [&str; 2] = ["New document", "Go to"];
+const START_ACTIONS: [&str; 2] = ["New document", "Files"];
 /// The two actions' real bound chords (`assets/keymap-defaults.toml`'s
 /// `new_document`/`go_to` slugs — Cmd-N, Cmd-O), hardcoded as mac glyphs like
 /// every other render-side hint string (`panel.rs`'s replace-hint, `whichkey.rs`):
@@ -149,7 +149,7 @@ impl TextPipeline {
                 || base.clone().color(muted),
                 || sym(muted),
             );
-            spans.push((" Go to\n", base.clone().color(muted)));
+            spans.push((" Files\n", base.clone().color(muted)));
         }
         push_symbol_split(
             &mut spans,

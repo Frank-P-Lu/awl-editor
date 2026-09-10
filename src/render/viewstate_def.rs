@@ -268,6 +268,10 @@ pub struct ViewState {
     /// byte-identical.
     pub popover: Option<crate::popover::PopoverModel>,
     pub overlay_detail_focus: bool,
+    /// Whether the row region owns keyboard focus. Generic summoned-surface
+    /// signal: render selection remains present but quieter when another
+    /// control owns keys.
+    pub overlay_rows_focused: bool,
     /// COLLAPSED SECTIONS (folds): the FULL-document logical lines of the ATX
     /// headings whose sections are folded, ascending. VIEW state only — the rope is
     /// untouched. `text` above is already the FOLD-FILTERED document (hidden lines
@@ -428,6 +432,7 @@ impl ViewState {
             eol: crate::buffer::Eol::Lf,
             popover: None,
             overlay_detail_focus: false,
+            overlay_rows_focused: true,
             folds: Vec::new(),
             fold_tails: Vec::new(),
             folded_headings: Vec::new(),

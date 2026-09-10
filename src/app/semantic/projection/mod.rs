@@ -277,7 +277,7 @@ impl SemanticProjection {
         self.snapshot.nodes = vec![
             root,
             button(START_NEW_ID, "New document"),
-            button(START_GOTO_ID, "Go to"),
+            button(START_GOTO_ID, "Files"),
         ];
         let focus_id = view.fold_surfaces(&mut self.snapshot.nodes);
         self.snapshot.focus_id = focus_id.clone();

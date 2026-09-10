@@ -20,13 +20,13 @@ pub(super) static COMMANDS: &[Command] = &[
         description: Some("Summon the command palette, searchable across every catalog command."),
     },
     Command {
-        name: "Go to…",
+        name: "Files…",
         action: Action::OpenGoto,
         native: "",
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Find files, headings, folders, and recent destinations."),
+        description: Some("Browse or search files in the current writing folder."),
     },
     Command {
         name: "Open file…",
@@ -38,7 +38,7 @@ pub(super) static COMMANDS: &[Command] = &[
         description: Some("Choose a file with the platform file chooser."),
     },
     Command {
-        name: "Open folder…",
+        name: "Change folder…",
         action: Action::OpenFolder,
         native: "",
         emacs: "",

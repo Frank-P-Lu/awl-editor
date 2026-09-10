@@ -203,6 +203,7 @@ impl OverlayState {
         // The folder chooser is a fallback action belonging only to Folders.
         ranked.retain(|&i| {
             !matches!(self.rows[i].meta, RowMeta::FolderChooser)
+                || self.kind == OverlayKind::Goto
                 || self.active_facet_id() == Some("folders")
         });
         ranked.retain(|&i| {
@@ -226,11 +227,38 @@ impl OverlayState {
                 ranked.retain(|&i| self.rows[i].is_dir || self.rows[i].secondary.is_empty());
             }
         }
-        if self.kind == OverlayKind::Goto
-            && self.facet_lens != 0
-            && self.active_facet_id() != Some("headings")
-        {
-            ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
+        if self.kind == OverlayKind::Goto && self.files_mode {
+            if self.goto_outline_only {
+                ranked.retain(|&i| {
+                    matches!(
+                        self.rows[i].meta,
+                        RowMeta::GotoHeading { .. } | RowMeta::GotoLine { .. }
+                    )
+                });
+            } else {
+                ranked.retain(|&i| {
+                    !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. })
+                        && (!matches!(self.rows[i].meta, RowMeta::GotoLine { .. })
+                            || self.goto_line_target().is_some())
+                });
+                // At rest Files is a real directory level. Once text is
+                // entered, the same root-wide corpus becomes a flat path
+                // search; clearing restores this exact browse location.
+                if self.query.is_empty() && self.active_facet_id() == Some("files") {
+                    let here = self.browse_dir.as_deref().unwrap_or("");
+                    ranked.retain(|&i| {
+                        let row = &self.rows[i];
+                        if matches!(row.meta, RowMeta::FolderChooser | RowMeta::NewDocument) {
+                            return true;
+                        }
+                        let parent = std::path::Path::new(&row.accept)
+                            .parent()
+                            .map(|p| p.to_string_lossy().replace('\\', "/"))
+                            .unwrap_or_default();
+                        parent == here
+                    });
+                }
+            }
         }
         // The line-jump row lives ONLY on the flat `All` lens -- it owns no
         // dedicated lens of its own (unlike Headings), and the generic
@@ -238,7 +266,10 @@ impl OverlayState {
         // it too. Also hide it outright while the query names no valid
         // target, so a stale/placeholder label never shows.
         if self.kind == OverlayKind::Goto {
-            let visible = self.facet_lens == 0 && self.goto_line_target().is_some();
+            let visible = self.goto_line_target().is_some()
+                && (self.goto_outline_only
+                    || self.files_mode
+                    || self.active_facet_id() == Some("all"));
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoLine { .. }) || visible);
         }
         // `New folder…` is the quiet create-on-unmatched-name row: present

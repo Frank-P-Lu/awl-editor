@@ -501,8 +501,24 @@ impl App {
             search_root,
             search_corpus,
         };
-        let mut make_overlay =
-            |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
+        let browse_root_for_build = location.root.clone();
+        let mut make_overlay = |kind: crate::overlay::OverlayKind| {
+            let mut overlay = crate::overlay::build(kind, &build_ctx)?;
+            if kind == crate::overlay::OverlayKind::Goto {
+                let level = crate::index::try_list_dir_level(&browse_root_for_build, None);
+                overlay.attach_file_directories(
+                    level
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|entry| entry.is_dir)
+                        .map(|entry| entry.name)
+                        .collect(),
+                );
+                overlay.set_files_level_state(level.as_deref());
+            }
+            Some(overlay)
+        };
         // Browse rebuild hook: list ONE level via the shared `overlay::browse_level`
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
         // `MoveDest` (C-x m) walks the SAME active root and shows FOLDERS only (you
@@ -510,6 +526,9 @@ impl App {
         // workspace by absolute path. Cloned roots dodge the &mut self.document.buffer()
         // borrow.
         let browse_root = location.root.clone();
+        let files_corpus = build_ctx.goto_corpus.clone();
+        let files_open = build_ctx.goto_open.clone();
+        let files_recent = build_ctx.goto_recent.clone();
         let workspace = location.workspace_root.clone();
         let recent_projects: Vec<String> = location
             .recent_projects
@@ -517,6 +536,33 @@ impl App {
             .map(|p| p.display().to_string())
             .collect();
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
+            if kind == crate::overlay::OverlayKind::Goto {
+                let mut overlay = crate::overlay::OverlayState::new_files(
+                    files_corpus.clone(),
+                    files_open.clone(),
+                    files_recent.clone(),
+                    rel.clone(),
+                );
+                let prefix = rel
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| format!("{s}/"));
+                let level = crate::index::try_list_dir_level(&browse_root, rel.as_deref());
+                overlay.attach_file_directories(
+                    level
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|entry| entry.is_dir)
+                        .map(|entry| match &prefix {
+                            Some(prefix) => format!("{prefix}{}", entry.name),
+                            None => entry.name,
+                        })
+                        .collect(),
+                );
+                overlay.set_files_level_state(level.as_deref());
+                return Some(overlay);
+            }
             crate::overlay::browse_level(
                 kind,
                 rel,
@@ -577,6 +623,7 @@ impl App {
             actions::Effect::OpenPathAtLine { path, line, col } => {
                 self.open_path_at_line(&path, line, col)
             }
+            actions::Effect::NewDocumentAt(path) => self.new_document_at(&path),
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
             actions::Effect::RebindCommit {
                 slug,

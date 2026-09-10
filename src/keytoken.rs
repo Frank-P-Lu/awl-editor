@@ -121,7 +121,7 @@ pub fn key_token_spec(
 ) -> Option<String> {
     if let Some(c) = commands::COMMANDS
         .iter()
-        .find(|c| commands::slug(c.name) == slug_want)
+        .find(|c| commands::command_slug(c) == slug_want)
     {
         return Some(commands::resolved_native_truthful(c, convention, platform));
     }
@@ -156,7 +156,7 @@ pub(crate) fn synthetic_mac_glyphs() -> Vec<String> {
 pub fn cmd_token_label(slug_want: &str) -> Option<String> {
     commands::COMMANDS
         .iter()
-        .find(|c| commands::slug(c.name) == slug_want)
+        .find(|c| commands::command_slug(c) == slug_want)
         .map(|c| c.name.to_string())
 }
 

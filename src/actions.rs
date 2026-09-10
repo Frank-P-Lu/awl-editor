@@ -565,10 +565,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // Settings folder-VALUE picker, which shares this kind's card shape and
         // already walks the whole tree, deliberately does not.
         Action::OpenProject => {
-            let mut ov = (ctx.make_overlay)(OverlayKind::Goto);
-            if let Some(o) = ov.as_mut() {
-                o.focus_facet_id("folders");
-            }
+            let ov = (ctx.make_overlay)(OverlayKind::Goto);
             ctx.journey.enter(ov);
         }
         Action::OpenRecentProjects => {
@@ -621,7 +618,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenOutline => {
             let mut ov = (ctx.make_overlay)(OverlayKind::Goto);
             if let Some(o) = ov.as_mut() {
-                o.focus_facet_id("headings");
+                o.focus_headings();
             }
             ctx.journey.enter(ov);
         }

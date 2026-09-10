@@ -71,6 +71,9 @@ impl<'a> ReplaySession<'a> {
                 self.buffer.set_cursor(idx);
                 self.buffer.reveal_placement();
             }
+            actions::Effect::NewDocumentAt(path) => {
+                self.start_fresh_document_at(&path);
+            }
             actions::Effect::RunAction(action) => {
                 *pending_return_to = Some(crate::overlay::OverlayKind::Command);
                 work.descend(action);

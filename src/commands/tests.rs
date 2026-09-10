@@ -4,7 +4,9 @@ use super::*;
 fn every_defaults_toml_slug_names_a_real_catalog_command() {
     for slug_in_file in crate::keymap_defaults::command_defaults().keys() {
         assert!(
-            COMMAND_SEED.iter().any(|c| &slug(c.name) == slug_in_file),
+            COMMAND_SEED
+                .iter()
+                .any(|c| &command_slug(c) == slug_in_file),
             "assets/keymap-defaults.toml names {slug_in_file:?}, which is not a commands::COMMAND_SEED slug"
         );
     }
@@ -15,11 +17,11 @@ fn every_catalog_command_appears_in_the_defaults_toml_or_is_unbound() {
     let defaults = crate::keymap_defaults::command_defaults();
     for c in COMMAND_SEED.iter() {
         assert!(
-            defaults.contains_key(&slug(c.name)),
+            defaults.contains_key(&command_slug(c)),
             "{:?} (slug {:?}) has no entry in assets/keymap-defaults.toml — every catalog \
                  command must appear there, even if unbound (both slots empty)",
             c.name,
-            slug(c.name)
+            command_slug(c)
         );
     }
 }
@@ -43,7 +45,7 @@ fn commands_splices_the_embedded_defaults_verbatim() {
     // `""` placeholders in both slots by construction).
     let defaults = crate::keymap_defaults::command_defaults();
     for c in COMMANDS.iter() {
-        let (native, emacs) = defaults.get(&slug(c.name)).cloned().unwrap_or_default();
+        let (native, emacs) = defaults.get(&command_slug(c)).cloned().unwrap_or_default();
         assert_eq!(
             c.native, native,
             "{:?}'s native slot must come from the embedded defaults",
@@ -116,7 +118,7 @@ fn catalog_non_empty_and_named() {
         "Search in folder…",
         "Compare with version…",
         "Open file…",
-        "Open folder…",
+        "Change folder…",
         "Move…",
         "Rename note…",
         "Duplicate note",
@@ -173,9 +175,9 @@ fn catalog_non_empty_and_named() {
 }
 
 #[test]
-fn public_destination_catalog_has_one_goto_and_no_retired_project_wording() {
+fn public_destination_catalog_has_one_files_door_and_no_retired_project_wording() {
     let names: Vec<&str> = COMMANDS.iter().map(|command| command.name).collect();
-    for required in ["Go to…", "Open file…", "Open folder…"] {
+    for required in ["Files…", "Open file…", "Change folder…"] {
         assert!(
             names.contains(&required),
             "missing public destination door {required}"
@@ -194,7 +196,7 @@ fn public_destination_catalog_has_one_goto_and_no_retired_project_wording() {
         );
     }
     assert_eq!(
-        names.iter().filter(|name| **name == "Go to…").count(),
+        names.iter().filter(|name| **name == "Files…").count(),
         1,
         "the catalog has one unified typed destination surface"
     );
@@ -460,7 +462,7 @@ fn effective_bindings_show_both_slots() {
     assert_eq!(bindings()[i], "⌘S");
     let z = COMMANDS.iter().position(|c| c.name == "Zoom in").unwrap();
     assert_eq!(bindings()[z], "⌘=");
-    let g = COMMANDS.iter().position(|c| c.name == "Go to…").unwrap();
+    let g = COMMANDS.iter().position(|c| c.name == "Files…").unwrap();
     assert_eq!(bindings()[g], "⌘O");
     let cut = COMMANDS.iter().position(|c| c.name == "Cut").unwrap();
     assert_eq!(bindings()[cut], "⌘X · C-w");
@@ -948,7 +950,7 @@ fn no_two_catalog_commands_share_a_default_chord() {
             if chord.trim().is_empty() {
                 continue;
             }
-            if let Some(other) = binding_conflict(chord, &slug(c.name), &[]) {
+            if let Some(other) = binding_conflict(chord, &command_slug(c), &[]) {
                 let allowlisted = INTENTIONALLY_SHARED
                     .iter()
                     .any(|(a, b)| (*a == c.name && *b == other) || (*a == other && *b == c.name));
@@ -999,8 +1001,8 @@ fn peek_row_resolves_native_chord_and_name_or_none_for_palette_only() {
     assert_eq!(
         peek_row_for_slug("go_to"),
         Some(crate::peek::PeekRow {
-            chord: label_for("Go to…"),
-            name: "Go to".into()
+            chord: label_for("Files…"),
+            name: "Files".into()
         })
     );
     assert_eq!(
@@ -1383,7 +1385,7 @@ fn visible_corpus_index_coherence_holds_on_both_platforms() {
         );
         assert_eq!(
             visible_slug_of(i),
-            slug(command.name),
+            command_slug(command),
             "row {i}: visible_slug_of drift"
         );
         assert_eq!(

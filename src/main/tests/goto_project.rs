@@ -153,13 +153,14 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             &Config::empty(),
             None,
         );
-        let ov = res.journey.card().expect("Go-to folder lens open");
+        let ov = res.journey.card().expect("Files open");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Goto);
-        assert_eq!(ov.active_facet_id(), Some("folders"));
+        assert_eq!(ov.active_facet_id(), Some("files"));
+        assert!(ov.files_mode);
         assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
         assert!(
-            shown.iter().any(|s| s == "Choose another folder…"),
+            shown.iter().any(|s| s == "Change folder…"),
             "platform folder fallback kept: {shown:?}"
         );
         assert!(
@@ -171,26 +172,21 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "junk .git hidden: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s.ends_with("/plain/")),
+            shown.iter().any(|s| s == "plain/  ›"),
             "plain shown: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s.ends_with("/repo/")),
+            shown.iter().any(|s| s == "repo/  ›"),
             "repo shown: {shown:?}"
         );
         assert!(
             shown.iter().all(|s| !s.contains('•')),
             "no name bullet: {shown:?}"
         );
-        let tags = ov.item_git_tags();
-        let ipos = |name: &str| {
-            shown
-                .iter()
-                .position(|s| s.ends_with(&format!("/{name}/")))
-                .unwrap()
-        };
-        assert_eq!(tags[ipos("repo")], "git", "repo is git-tagged");
-        assert_eq!(tags[ipos("plain")], "", "plain folder has no tag");
+        assert!(
+            ov.item_git_tags().is_empty(),
+            "Files does not add project identity tags"
+        );
 
         // File visibility All reveals the overlay-hidden dotfolder (`.claude`);
         // junk `.git` stays hidden (it never reaches the overlay corpus).
@@ -213,11 +209,11 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         );
         let revealed = ov.item_strings();
         assert!(
-            revealed.iter().any(|s| s.ends_with("/.claude/")),
+            revealed.iter().any(|s| s == ".claude/  ›"),
             "revealed: {revealed:?}"
         );
         assert!(
-            revealed.iter().any(|s| s == "Choose another folder…"),
+            revealed.iter().any(|s| s == "Change folder…"),
             "the platform folder fallback is still present after reveal"
         );
     });

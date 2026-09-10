@@ -324,6 +324,15 @@ impl App {
             eol: self.document.buffer().eol(),
             popover,
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
+            overlay_rows_focused: ov.is_none_or(|o| {
+                !o.files_mode
+                    || matches!(
+                        o.files_focus,
+                        crate::overlay::FilesFocus::Choices
+                            | crate::overlay::FilesFocus::ChangeFolder
+                            | crate::overlay::FilesFocus::NewDocument
+                    )
+            }),
             folds: Vec::new(),
             fold_tails: Vec::new(),
             folded_headings: Vec::new(),

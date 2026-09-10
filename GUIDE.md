@@ -207,9 +207,9 @@ drift into this page silently.
 | Command | macOS | Linux |
 |---|---|---|
 | Command palette… | ⌘P | Ctrl+P |
-| Go to… | ⌘O | Ctrl+O |
+| Files… | ⌘O | Ctrl+O |
 | Open file… |  |  |
-| Open folder… |  |  |
+| Change folder… |  |  |
 | Spell suggestions… | ⌘; | Ctrl+; |
 | Version history… | ⌘⇧H | Ctrl+Shift+H |
 | Compare with version… |  |  |

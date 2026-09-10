@@ -1051,9 +1051,9 @@ fn folder_deep_link_opens_the_unified_goto_folders_lens() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut make_overlay = |kind: OverlayKind| {
-        let mut ov = OverlayState::new(kind, vec!["notes.md".into()], vec![], vec![]);
-        ov.attach_folders(vec![("/ws/notes".into(), false)], &[]);
+    let mut make_overlay = |_kind: OverlayKind| {
+        let mut ov = OverlayState::new_files(vec!["notes.md".into()], vec![], vec![], None);
+        ov.attach_file_directories(vec!["notes".into()]);
         Some(ov)
     };
     let mut browse_to = |_k: OverlayKind, _rel: Option<String>| None;
@@ -1073,11 +1073,8 @@ fn folder_deep_link_opens_the_unified_goto_folders_lens() {
     }
     let ov = overlay.card().expect("folder deep link opens Go to");
     assert_eq!(ov.kind, OverlayKind::Goto);
-    assert_eq!(
-        ov.active_facet_id(),
-        Some("folders"),
-        "pre-lensed onto the Folders lens"
-    );
+    assert_eq!(ov.active_facet_id(), Some("files"));
+    assert!(ov.files_mode, "folder entry point shares the Files owner");
 }
 
 #[test]

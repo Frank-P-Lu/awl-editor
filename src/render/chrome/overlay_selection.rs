@@ -129,10 +129,10 @@ impl TextPipeline {
         // say "this one is live". It stays the SAME rect in the SAME place and
         // only loses presence — figure/ground by value, not a second decoration
         // bolted on (DESIGN.md §5). Off a workspace this is the identity.
-        let rgba = match geom.workspace && !geom.rows_focused {
-            true => super::workspace::dimmed(band_color, super::workspace::UNFOCUSED_MARK_ALPHA),
-            false => band_color.rgba_bytes(),
-        };
+        let rgba = row_focus_rgba(
+            band_color,
+            self.overlay_rows_focused && (!geom.workspace || geom.rows_focused),
+        );
         self.overlay_rows.set_color(rgba);
         let rects = self.overlay_selection_rects(geom, plan, vis, list_style);
         if backing == theme::ListBacking::BarePlates {
@@ -493,6 +493,48 @@ impl TextPipeline {
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card
             .prepare(device, queue, width, height, &scrims);
+    }
+}
+
+fn row_focus_rgba(band: crate::theme::Srgb, focused: bool) -> [u8; 4] {
+    if focused {
+        band.rgba_bytes()
+    } else {
+        super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA)
+    }
+}
+
+#[cfg(test)]
+mod files_focus_law {
+    use super::*;
+
+    #[test]
+    fn unfocused_selection_stays_present_and_its_label_ink_stays_legible_in_every_world() {
+        let _guard = crate::testlock::serial();
+        for (index, world) in crate::theme::THEMES.iter().enumerate() {
+            crate::theme::set_active(index);
+            let band = super::super::overlay_selected_band_srgb();
+            let full = row_focus_rgba(band, true);
+            let quiet = row_focus_rgba(band, false);
+            assert!(
+                quiet[3] >= 80,
+                "{}: focus cue disappeared: {quiet:?}",
+                world.name
+            );
+            assert!(
+                quiet[3] < full[3],
+                "{}: focused and selected collapsed",
+                world.name
+            );
+            let ink = super::super::overlay_selected_label_ink();
+            assert_eq!(
+                ink.a(),
+                255,
+                "{}: selected label ink lost opacity",
+                world.name
+            );
+        }
+        crate::theme::set_active(crate::theme::DEFAULT_THEME);
     }
 }
 

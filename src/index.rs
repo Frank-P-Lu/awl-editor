@@ -52,13 +52,44 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 // [`crate::recent_files`]), and Browse's `is_dir` / `is_git` flags. No filesystem
 // read, no clock inside the bucket.
 
-/// Go-to's typed destination strip: **All** (flat home — files, the current doc's
-/// headings, and authored folders in one fuzzy-ranked list) · **Files** ·
-/// **Headings** · **Folders** · **Recent** (recent files and folders together).
-/// All is the landing lens; the other four are explicit type / recency refinements.
-/// Headings remains present over a non-markdown buffer, where its honest empty state
-/// reads "no headings yet"; a static strip keeps the generic lens IDs and positions
-/// stable for rendering, pointing, capture, and sidecar reporting.
+/// Files' two explicit views. The stable `Goto` kind and `go_to` config slug
+/// remain compatibility identities; the visible product vocabulary is Files.
+const FILES_FACET_STRIP: [Facet; 2] = [
+    Facet {
+        label: "Files",
+        id: "files",
+        sections: &[],
+    },
+    Facet {
+        label: "Recent",
+        id: "recent",
+        sections: &["Recent"],
+    },
+];
+
+/// Go-to's [`FacetScheme::bucket`], keyed by the strip index (see [`GOTO_FACET_STRIP`]).
+/// `Recent` shows only destinations actually used recently — files from the persisted
+/// recently-opened-files store and folders from the persisted workspace roots. An
+/// item opts in iff `item.recent`; a fresh session therefore shows the honest empty
+/// state. MRU order (most-recent first) is applied by `refilter`'s tiebreak, not here.
+/// Files excludes headings and folders, Headings keeps only document-heading rows,
+/// and Folders keeps authored folder rows plus the explicit chooser action.
+fn files_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
+    match lens_idx {
+        1 if matches!(item.accept, "Change folder…") => Some("Recent"),
+        1 if item.accept.starts_with("New document — ") => Some("Recent"),
+        1 => item.recent.then_some("Recent"),
+        _ => None, // 0 = Files (never grouped)
+    }
+}
+
+/// Go-to's registered [`FacetScheme`], handed back by [`crate::facets::scheme`] for
+/// [`crate::overlay::OverlayKind::Goto`].
+pub static FILES_FACETS: FacetScheme = FacetScheme {
+    strip: &FILES_FACET_STRIP,
+    bucket: files_bucket,
+};
+
 const GOTO_FACET_STRIP: [Facet; 5] = [
     Facet {
         label: "All",
@@ -87,25 +118,16 @@ const GOTO_FACET_STRIP: [Facet; 5] = [
     },
 ];
 
-/// Go-to's [`FacetScheme::bucket`], keyed by the strip index (see [`GOTO_FACET_STRIP`]).
-/// `Recent` shows only destinations actually used recently — files from the persisted
-/// recently-opened-files store and folders from the persisted workspace roots. An
-/// item opts in iff `item.recent`; a fresh session therefore shows the honest empty
-/// state. MRU order (most-recent first) is applied by `refilter`'s tiebreak, not here.
-/// Files excludes headings and folders, Headings keeps only document-heading rows,
-/// and Folders keeps authored folder rows plus the explicit chooser action.
 fn goto_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
     match lens_idx {
         1 => (!item.heading && !item.is_dir).then_some("Files"),
         2 => item.heading.then_some("Headings"),
         3 => (item.is_dir || item.accept == "Choose another folder…").then_some("Folders"),
         4 => item.recent.then_some("Recent"),
-        _ => None, // 0 = All (never grouped)
+        _ => None,
     }
 }
 
-/// Go-to's registered [`FacetScheme`], handed back by [`crate::facets::scheme`] for
-/// [`crate::overlay::OverlayKind::Goto`].
 pub static GOTO_FACETS: FacetScheme = FacetScheme {
     strip: &GOTO_FACET_STRIP,
     bucket: goto_bucket,
@@ -397,12 +419,16 @@ pub fn resolve_dir_level(root: &Path, rel: Option<&str>) -> PathBuf {
 /// `<dir>/.git`) for a git marker. Returns an empty list if the path can't be
 /// read (e.g. an ascend/descend past a vanished dir).
 pub fn list_dir_level(root: &Path, rel: Option<&str>) -> Vec<DirEntry> {
+    try_list_dir_level(root, rel).unwrap_or_default()
+}
+
+/// The diagnostic-preserving twin of [`list_dir_level`]. `None` means the
+/// level could not be read, which Files must not misreport as an empty folder.
+pub fn try_list_dir_level(root: &Path, rel: Option<&str>) -> Option<Vec<DirEntry>> {
     let dir = resolve_dir_level(root, rel);
     let mut dirs: Vec<DirEntry> = Vec::new();
     let mut files: Vec<DirEntry> = Vec::new();
-    let Ok(entries) = crate::fs::active().read_dir(&dir) else {
-        return Vec::new();
-    };
+    let entries = crate::fs::active().read_dir(&dir).ok()?;
     for entry in entries {
         let name = entry.name;
         if entry.is_dir {
@@ -426,7 +452,7 @@ pub fn list_dir_level(root: &Path, rel: Option<&str>) -> Vec<DirEntry> {
     dirs.sort_by(|a, b| a.name.cmp(&b.name));
     files.sort_by(|a, b| a.name.cmp(&b.name));
     dirs.extend(files);
-    dirs
+    Some(dirs)
 }
 
 #[cfg(test)]

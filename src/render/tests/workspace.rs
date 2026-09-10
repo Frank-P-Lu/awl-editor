@@ -421,6 +421,54 @@ fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
     );
 }
 
+/// Files reuses the same generic row-focus signal as a workspace. This is a
+/// pixel oracle: the selected band must remain physically present while query
+/// or view chrome owns focus, yet carry less energy than when Choices owns it.
+#[test]
+fn files_selected_band_stays_present_but_recedes_when_another_control_has_focus() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1000u32, 720u32);
+    let (device, queue, mut p) =
+        headless_dqp(w as f32, h as f32).expect("Files focus law requires a wgpu adapter");
+    let mut v = view("background\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_title = "files  /".into();
+    v.overlay_items = vec!["alpha.md".into(), "notes/  ›".into()];
+    v.overlay_lens = vec![("Files".into(), true), ("Recent".into(), false)];
+    v.overlay_hint = "type to search".into();
+    v.overlay_rows_focused = true;
+    p.set_view(&v);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let focused = render_frame(&mut p, &device, &queue, w, h);
+
+    v.overlay_rows_focused = false;
+    p.set_view(&v);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let unfocused = render_frame(&mut p, &device, &queue, w, h);
+    let report = super::pixeldiff::diff_region(
+        &focused,
+        &unfocused,
+        w as i64,
+        h as i64,
+        Region::canvas(w as i64, h as i64),
+    );
+    assert!(
+        report.differing > 300,
+        "the focus cue emitted no real pixel population: {report:?}"
+    );
+    assert!(
+        report.max_channel_delta >= 20,
+        "focused and selected were not visibly distinct: {report:?}"
+    );
+
+    let ground = unfocused[4];
+    let presence = unfocused.iter().filter(|px| **px != ground).count();
+    assert!(
+        presence > 1_000,
+        "the unfocused card/selection vanished: {presence} pixels"
+    );
+}
+
 /// A CONTEXTUAL OVERLAY IS UNTOUCHED. The workspace family is entered only by a
 /// card whose kind asks for it, so every other picker's geometry is byte-for-byte
 /// what it was — asserted by rendering the command palette with the workspace

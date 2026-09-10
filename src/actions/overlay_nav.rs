@@ -247,6 +247,107 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     if let Some(effect) = value_edit_intercept(ctx, action) {
         return effect;
     }
+    // An Action can arrive without a key (menu key equivalent, menu click or
+    // palette continuation). Files therefore owns New document here, at the
+    // action gate, and names the same destination as its visible row.
+    if matches!(action, Action::NewDocument)
+        && ctx
+            .journey
+            .card()
+            .is_some_and(|card| card.kind == OverlayKind::Goto && card.files_mode)
+    {
+        let dest = ctx
+            .journey
+            .card()
+            .and_then(OverlayState::files_destination)
+            .unwrap_or_default();
+        ctx.journey.dismiss();
+        return Effect::NewDocumentAt(dest);
+    }
+    if ctx
+        .journey
+        .card()
+        .is_some_and(|card| card.kind == OverlayKind::Goto && card.files_mode)
+    {
+        use crate::overlay::FilesFocus;
+        let prior_focus = ctx.journey.card().unwrap().files_focus;
+        match action {
+            Action::InsertTab => {
+                ctx.journey.card_mut().unwrap().files_focus_step(1);
+                return Effect::None;
+            }
+            Action::Outdent => {
+                ctx.journey.card_mut().unwrap().files_focus_step(-1);
+                return Effect::None;
+            }
+            Action::InsertChar(_) => {
+                ctx.journey.card_mut().unwrap().files_focus = FilesFocus::Query;
+            }
+            Action::NextLine | Action::PreviousLine => {
+                ctx.journey.card_mut().unwrap().files_select_choices();
+                if prior_focus != FilesFocus::Choices {
+                    return Effect::None;
+                }
+            }
+            Action::Newline => {
+                let focus = ctx.journey.card().unwrap().files_focus;
+                match focus {
+                    FilesFocus::Files => {
+                        ctx.journey.card_mut().unwrap().focus_facet_id("files");
+                        return Effect::None;
+                    }
+                    FilesFocus::Recent => {
+                        ctx.journey.card_mut().unwrap().focus_facet_id("recent");
+                        return Effect::None;
+                    }
+                    FilesFocus::Up => {
+                        let ov = ctx.journey.card().unwrap();
+                        if let Some(parent) = ascend_target(ov)
+                            && let Some(next) = (ctx.browse_to)(ov.kind, parent)
+                        {
+                            ctx.journey.relevel(next);
+                        }
+                        return Effect::None;
+                    }
+                    _ => {}
+                }
+            }
+            Action::ForwardChar | Action::BackwardChar => match prior_focus {
+                FilesFocus::Query => {
+                    let ov = ctx.journey.card_mut().unwrap();
+                    if matches!(action, Action::ForwardChar) {
+                        ov.query_char_right();
+                    } else {
+                        ov.query_char_left();
+                    }
+                    return Effect::None;
+                }
+                FilesFocus::Files | FilesFocus::Recent => {
+                    let focus = if matches!(action, Action::ForwardChar) {
+                        FilesFocus::Recent
+                    } else {
+                        FilesFocus::Files
+                    };
+                    ctx.journey.card_mut().unwrap().files_focus = focus;
+                    return Effect::None;
+                }
+                FilesFocus::Up if matches!(action, Action::BackwardChar) => {
+                    let ov = ctx.journey.card().unwrap();
+                    if let Some(parent) = ascend_target(ov)
+                        && let Some(next) = (ctx.browse_to)(ov.kind, parent)
+                    {
+                        ctx.journey.relevel(next);
+                    }
+                    return Effect::None;
+                }
+                FilesFocus::ChangeFolder | FilesFocus::NewDocument | FilesFocus::Up => {
+                    return Effect::None;
+                }
+                FilesFocus::Choices => {}
+            },
+            _ => {}
+        }
+    }
     if ctx.journey.card().unwrap().kind == crate::overlay::OverlayKind::Keybindings
         && let Some(eff) = keybindings_intercept(ctx, action)
     {
@@ -425,7 +526,17 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
                 return Some(effect);
             }
             let ov = ctx.journey.card().unwrap();
-            if ov.is_faceting() {
+            if ov.kind == crate::overlay::OverlayKind::Goto
+                && ov.files_mode
+                && ov.query.is_empty()
+                && ov.selected_is_dir()
+            {
+                if let Some(path) = ov.selected_value().map(str::to_string)
+                    && let Some(next) = (ctx.browse_to)(ov.kind, Some(path))
+                {
+                    ctx.journey.relevel(next);
+                }
+            } else if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(1);
                 preview_move(ctx.journey.card_mut().unwrap());
             } else if ov.kind.is_folder_destination() {
@@ -447,7 +558,17 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
                 return Some(effect);
             }
             let ov = ctx.journey.card().unwrap();
-            if ov.is_faceting() {
+            if ov.kind == crate::overlay::OverlayKind::Goto
+                && ov.files_mode
+                && ov.query.is_empty()
+                && ov.browse_dir.is_some()
+            {
+                if let Some(parent) = ascend_target(ov)
+                    && let Some(next) = (ctx.browse_to)(ov.kind, parent)
+                {
+                    ctx.journey.relevel(next);
+                }
+            } else if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(-1);
                 preview_move(ctx.journey.card_mut().unwrap());
             } else if ov.kind.is_folder_destination() {
@@ -672,24 +793,34 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
-    if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_goto_folder() {
-        let eff = ov
-            .selected_value()
-            .map(|path| {
-                Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path.to_string())
-            })
-            .unwrap_or(Effect::None);
-        dispose_after_accept(ctx);
-        return eff;
+    if ov.kind == crate::overlay::OverlayKind::Goto && ov.files_mode && ov.selected_is_goto_folder()
+    {
+        if let Some(path) = ov.selected_value().map(str::to_string)
+            && let Some(next) = (ctx.browse_to)(ov.kind, Some(path))
+        {
+            ctx.journey.relevel(next);
+        }
+        return Effect::None;
     }
     if ov.kind == crate::overlay::OverlayKind::Goto
+        && ov.files_mode
         && ov
             .selected_corpus_index()
             .and_then(|i| ov.rows.get(i))
             .is_some_and(|row| matches!(row.meta, crate::overlay::RowMeta::FolderChooser))
     {
-        dispose_after_accept(ctx);
         return Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser);
+    }
+    if ov.kind == crate::overlay::OverlayKind::Goto
+        && ov.files_mode
+        && ov
+            .selected_corpus_index()
+            .and_then(|i| ov.rows.get(i))
+            .is_some_and(|row| matches!(row.meta, crate::overlay::RowMeta::NewDocument))
+    {
+        let dest = ov.files_destination().unwrap_or_default();
+        dispose_after_accept(ctx);
+        return Effect::NewDocumentAt(dest);
     }
     if ov.kind == crate::overlay::OverlayKind::SearchFolder {
         let eff = ov

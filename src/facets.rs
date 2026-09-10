@@ -68,6 +68,7 @@ pub struct FacetItem<'a> {
     /// retired the standalone Outline picker). `false` for pickers with no headings
     /// notion (the vast majority) and for a Go-to's ordinary FILE rows — only an
     /// appended heading row opts IN under Go-to's Headings lens.
+    #[allow(dead_code)] // compatibility metadata consumed by legacy heading routes
     pub heading: bool,
     /// This entry's wall-clock stamp in millis since the epoch (History: the Session
     /// / Today lenses). `None` for a picker with no temporal notion.

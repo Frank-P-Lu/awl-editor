@@ -23,7 +23,12 @@ impl OverlayState {
     }
 
     fn display_of(&self, i: usize) -> String {
-        super::build::row_display(self.kind, &self.rows[i], self.browse_dir.as_deref())
+        super::build::row_display(
+            self.kind,
+            &self.rows[i],
+            self.browse_dir.as_deref(),
+            !self.files_mode || !self.query.is_empty() || self.active_facet_id() == Some("recent"),
+        )
     }
 
     pub fn item_strings(&self) -> Vec<String> {

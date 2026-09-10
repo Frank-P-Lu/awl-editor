@@ -82,12 +82,12 @@ const APP_ITEMS: &[Routed] = &[
 const FILE_ITEMS: &[Routed] = &[
     ri("awl.new_document", "New document"),
     r("awl.command_palette", "Command palette…"),
-    r("awl.goto", "Go to…"),
+    r("awl.goto", "Files…"),
     ri("awl.open", "Open file…"),
     Routed {
         id: "awl.open_folder",
-        command: "Open folder…",
-        label: "Open folder…",
+        command: "Change folder…",
+        label: "Change folder…",
         icon: true,
     },
     // "Recent projects" is a SINGLE File item that opens the SWITCH-PROJECT
@@ -399,9 +399,9 @@ fn roster_all() -> Vec<RosterMenu> {
             items: vec![
                 routed(&FILE_ITEMS[0]), // New document
                 routed(&FILE_ITEMS[1]), // Command palette
-                routed(&FILE_ITEMS[2]), // Go to…
+                routed(&FILE_ITEMS[2]), // Files…
                 routed(&FILE_ITEMS[3]), // Open file…
-                routed(&FILE_ITEMS[4]), // Open folder…
+                routed(&FILE_ITEMS[4]), // Change folder…
                 RosterItem::Separator,
                 routed(&FILE_ITEMS[5]), // Rename file…
                 routed(&FILE_ITEMS[6]), // Move file…
@@ -871,9 +871,9 @@ mod tests {
             vec![
                 "New document",
                 "Command palette…",
-                "Go to…",
+                "Files…",
                 "Open file…",
-                "Open folder…",
+                "Change folder…",
                 "Rename file…",
                 "Move file…",
                 "Duplicate file",
@@ -1044,9 +1044,9 @@ mod tests {
             vec![
                 "New document",
                 "Command palette…",
-                "Go to…",
+                "Files…",
                 "Open file…",
-                "Open folder…",
+                "Change folder…",
                 "Rename file…",
                 "Move file…",
                 "Duplicate file",

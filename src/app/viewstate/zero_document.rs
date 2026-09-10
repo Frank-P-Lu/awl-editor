@@ -43,6 +43,15 @@ impl App {
         view.overlay_times = ov.map(|o| o.item_times()).unwrap_or_default();
         view.overlay_git = ov.map(|o| o.item_git_tags()).unwrap_or_default();
         view.overlay_selected = ov.map(|o| o.selected).unwrap_or(0);
+        view.overlay_rows_focused = ov.is_none_or(|o| {
+            !o.files_mode
+                || matches!(
+                    o.files_focus,
+                    crate::overlay::FilesFocus::Choices
+                        | crate::overlay::FilesFocus::ChangeFolder
+                        | crate::overlay::FilesFocus::NewDocument
+                )
+        });
         view.overlay_scroll = ov.map(|o| o.scroll).unwrap_or(0);
         view.overlay_window_rows = ov.map(|o| o.window_rows()).unwrap_or(12);
         view.overlay_hint = self.workspace_state.journey().foot_hint();

@@ -1,8 +1,100 @@
-use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
+use super::{OverlayKind, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
 impl OverlayState {
+    pub fn files_focus_step(&mut self, delta: isize) {
+        use super::state::FilesFocus::*;
+        if self.kind != OverlayKind::Goto || self.goto_outline_only {
+            return;
+        }
+        let mut route = vec![Query, Files, Recent];
+        if self.facet_lens == 0 && self.browse_dir.is_some() {
+            route.push(Up);
+        }
+        if self.items.iter().any(|&i| {
+            !matches!(
+                self.rows[i].meta,
+                RowMeta::FolderChooser | RowMeta::NewDocument
+            )
+        }) {
+            route.push(Choices);
+        }
+        if self
+            .items
+            .iter()
+            .any(|&i| matches!(self.rows[i].meta, RowMeta::FolderChooser))
+        {
+            route.push(ChangeFolder);
+        }
+        if self
+            .items
+            .iter()
+            .any(|&i| matches!(self.rows[i].meta, RowMeta::NewDocument))
+        {
+            route.push(NewDocument);
+        }
+        let at = route
+            .iter()
+            .position(|focus| *focus == self.files_focus)
+            .unwrap_or(0) as isize;
+        let next = (at + delta).rem_euclid(route.len() as isize) as usize;
+        self.files_focus = route[next];
+        match self.files_focus {
+            ChangeFolder => self.files_select_meta(RowMetaTag::FolderChooser),
+            NewDocument => self.files_select_meta(RowMetaTag::NewDocument),
+            Choices => {
+                if self.selected_corpus_index().is_some_and(|i| {
+                    matches!(
+                        self.rows[i].meta,
+                        RowMeta::FolderChooser | RowMeta::NewDocument
+                    )
+                }) && let Some(pos) = self.items.iter().position(|&i| {
+                    !matches!(
+                        self.rows[i].meta,
+                        RowMeta::FolderChooser | RowMeta::NewDocument
+                    )
+                }) {
+                    self.selected = pos;
+                    self.scroll_to_selected();
+                }
+            }
+            Query | Files | Recent | Up => {}
+        }
+    }
+
+    pub fn files_select_choices(&mut self) {
+        if self.kind != OverlayKind::Goto || self.goto_outline_only {
+            return;
+        }
+        self.files_focus = super::state::FilesFocus::Choices;
+        if self.selected_corpus_index().is_some_and(|i| {
+            matches!(
+                self.rows[i].meta,
+                RowMeta::FolderChooser | RowMeta::NewDocument
+            )
+        }) && let Some(pos) = self.items.iter().position(|&i| {
+            !matches!(
+                self.rows[i].meta,
+                RowMeta::FolderChooser | RowMeta::NewDocument
+            )
+        }) {
+            self.selected = pos;
+            self.scroll_to_selected();
+        }
+    }
+
+    fn files_select_meta(&mut self, tag: RowMetaTag) {
+        if let Some(pos) = self
+            .items
+            .iter()
+            .position(|&i| self.rows[i].meta.tag() == tag)
+        {
+            self.selected = pos;
+            self.scroll_to_selected();
+        }
+    }
+
     /// The per-row SECTION labels the grouped card draws as faint headers above
     /// each bucket.
     ///
@@ -399,6 +491,16 @@ impl OverlayState {
     pub fn empty_message(&self) -> String {
         if !self.query.is_empty() {
             return "no matches".to_string();
+        }
+        if self.kind == OverlayKind::Goto && !self.files_mode {
+            return match self.active_facet_id() {
+                Some("files") => "no files here",
+                Some("headings") => "no headings yet",
+                Some("folders") => "no folders here",
+                Some("recent") => "no recent destinations",
+                _ => self.kind.empty_corpus_message(),
+            }
+            .to_string();
         }
         if let Some(lens) = self.active_facet_id()
             && let Some(msg) = self.kind.empty_lens_message(lens)

@@ -19,7 +19,7 @@ use crate::testscratch::ScratchDir;
 /// would (`OpenGoto` has no direct default binding) — mirrors
 /// `diagonal_transition_geometry.rs`'s own `open_goto` helper.
 fn open_goto(session: &mut crate::run::ReplaySession) {
-    let chords = crate::keyspec::parse_chords("s-p g o Space t o Enter").expect("chords");
+    let chords = crate::keyspec::parse_chords("s-p f i l e s Enter").expect("chords");
     for c in &chords {
         session.apply_chord(c).expect("chord applies");
     }

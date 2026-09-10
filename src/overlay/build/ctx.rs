@@ -29,8 +29,10 @@ pub struct BuildCtx<'a> {
     /// Current buffer line count for Go to Line; zero disables the row.
     pub goto_line_count: usize,
     /// Absolute Go-to folder destinations and their Git markers.
+    #[allow(dead_code)] // retained while older capture fixtures build this context
     pub goto_folders: Vec<(String, bool)>,
     /// Newest-first folder MRU for Go-to's Recent lens.
+    #[allow(dead_code)] // retained while older capture fixtures build this context
     pub goto_recent_folders: Vec<String>,
     /// Spell-picker input; `None` leaves a spell summon unopened.
     pub spell_target: Option<SpellSuggestTarget>,

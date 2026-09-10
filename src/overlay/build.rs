@@ -59,18 +59,17 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // relative "last edited" labels are caller-supplied (live-only; empty in
         // headless capture, so `set_times([])` is a no-op there).
         OverlayKind::Goto => {
-            let mut ov = OverlayState::new(
-                kind,
+            let mut ov = OverlayState::new_files(
                 ctx.goto_corpus.clone(),
                 ctx.goto_open.clone(),
                 ctx.goto_recent.clone(),
+                None,
             );
             ov.set_times(ctx.goto_times.clone());
             // Fold the current doc's HEADINGS in as the Headings lens's corpus (the
             // retired Outline picker). Appended after the files; empty for a
             // non-markdown buffer (the lens then reads "no headings yet").
             ov.attach_headings(ctx.goto_headings.clone());
-            ov.attach_folders(ctx.goto_folders.clone(), &ctx.goto_recent_folders);
             ov.attach_line_jump(ctx.goto_line_count);
             Some(ov)
         }
@@ -294,6 +293,10 @@ pub fn browse_level(
     workspace: Option<&Path>,
     recent_projects: &[String],
 ) -> Option<OverlayState> {
+    if kind == OverlayKind::Goto {
+        let files = crate::index::build_index(active_root);
+        return Some(OverlayState::new_files(files, Vec::new(), Vec::new(), rel));
+    }
     if kind == OverlayKind::Project {
         let dir = rel
             .clone()
