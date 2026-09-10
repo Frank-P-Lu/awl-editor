@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks.** Ready: 641 and 637. Analysis in progress: 642.
+**10 open numbered tasks.** Ready: 641 and 637. Analysis complete: 642.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -51,8 +51,10 @@ full worker gates. Read docs/harness-reach.md before choosing any render capture
 
 ### 642 — animation state owns complete transitions (user request, 2026-09-10)
 
-🟡 ANALYSIS IN PROGRESS — `animation_642_map` (Codex), read-only census against
-current `main`. Implementation remains serialized behind 637 and shared UI work.
+🟡 ANALYSIS COMPLETE — `animation_642_map` (Codex) mapped the exact private
+overlay entrance/band boundary, live input-epoch bridge, scheduler boundary,
+transition matrix, target laws and compiling close/reopen mutation. No code was
+changed. Implementation remains serialized behind 637 and shared UI work.
 
 Build: census related animation fields and their writers, starting with the
 TextPipeline overlay entrance/selection-band fields in render.rs and their input,
@@ -243,9 +245,10 @@ Do not dispatch or claim implementation merely because this acceptance work is q
 
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
-🟡 PROTOTYPE REVIEW IN PROGRESS — native prototype exists on `item-628` at
-`e37a13ba`; verified not integrated into main (2026-09-10). The earlier “not
-dispatched” status was stale. This is not implementation acceptance.
+🟡 IMPLEMENTATION ANALYSIS IN PROGRESS — `chrome_628_map` (Codex), read-only
+against current `main`, the approved direction and native prototype. The prototype
+exists on `item-628` at `e37a13ba` and is not integrated. This is not implementation
+acceptance; native edits remain serialized behind 637.
 
 Review update (2026-09-10): the user likes the saved Settings layout and explicitly
 asked to continue Find/Replace and theme-picker refinement on the interactive design
