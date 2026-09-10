@@ -422,6 +422,8 @@ for a clean re-measurement without repaying the build.
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
 🟡 REPAIR IN PROGRESS — `kite_582_repair` (Codex), based on current `main`.
+Independent reference comparison is in progress with `kite_582_judge` against
+committed repair `b0081fe7`; it is review evidence, not integration approval.
 The `item-582` candidate was rejected by independent visual review on 2026-09-11
 and remains unintegrated. It improved rail curvature and retained clean haze,
 legibility, static character and DPI behavior, but did not reach the approved
