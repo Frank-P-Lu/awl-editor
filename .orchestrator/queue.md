@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks.** Ready: 641, 642, 637.
+**10 open numbered tasks.** Ready: 641 and 637. Analysis in progress: 642.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -51,7 +51,8 @@ full worker gates. Read docs/harness-reach.md before choosing any render capture
 
 ### 642 — animation state owns complete transitions (user request, 2026-09-10)
 
-🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+🟡 ANALYSIS IN PROGRESS — `animation_642_map` (Codex), read-only census against
+current `main`. Implementation remains serialized behind 637 and shared UI work.
 
 Build: census related animation fields and their writers, starting with the
 TextPipeline overlay entrance/selection-band fields in render.rs and their input,
