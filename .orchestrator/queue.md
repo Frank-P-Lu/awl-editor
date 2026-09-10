@@ -570,7 +570,8 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-- **588 — Brolga bullet taste decision.** The current plain `•◦▪` remains the
+- **588 — Brolga bullet taste decision (visual audit in progress,
+  `landed_visual_review`).** The current plain `•◦▪` remains the
   fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
   box. A different glyph or wider box would be a separate mechanism decision.
   The twenty-theme gallery still needs a taste review; legibility checks alone
@@ -580,7 +581,8 @@ past verification reports remain in `git log -p -- .orchestrator/queue.md`.
   contents, grouping differs from lens headers, and CRLF matches can retain a
   cosmetic trailing carriage return. Review with 639/640 rather than treating
   the original implementation as unfinished.
-- **561 / 618 — ornament follow-up.** The requested ~15% reduction is merged
+- **561 / 618 — ornament follow-up (visual audit in progress,
+  `landed_visual_review`).** The requested ~15% reduction is merged
   (`760f4f43`, merge `b3e8d2aa`). Outstanding: live proportions and the inherited
   star/underscore ink-to-em check; those share the dash's scale dial. Do not
   requeue the already-landed size reduction.
