@@ -6,6 +6,8 @@
 //! seam after gathering the caller-owned overlay inputs it needs.
 
 use super::*;
+#[path = "chord/files_overlay.rs"]
+mod files_overlay;
 
 struct ResolvedChord {
     action: Action,
@@ -257,57 +259,10 @@ impl ReplaySession<'_> {
             search_root: self.root.clone(),
             search_corpus: inputs.search_corpus,
         };
-        let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
-        let mut make_overlay = |kind: crate::overlay::OverlayKind| {
-            let mut overlay = crate::overlay::build(kind, &build_ctx)?;
-            if kind == crate::overlay::OverlayKind::Goto {
-                let level = crate::index::try_list_dir_level(root, None);
-                overlay.attach_file_directories(
-                    level
-                        .clone()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter(|entry| entry.is_dir)
-                        .map(|entry| entry.name)
-                        .collect(),
-                );
-                overlay.set_files_level_state(level.as_deref());
-            }
-            Some(overlay)
-        };
-        let files_corpus = self.corpus.clone();
-        let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
-            if kind == crate::overlay::OverlayKind::Goto {
-                let mut overlay = crate::overlay::OverlayState::new_files(
-                    files_corpus.clone(),
-                    Vec::new(),
-                    Vec::new(),
-                    rel.clone(),
-                );
-                let prefix = rel
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| format!("{s}/"));
-                let level = crate::index::try_list_dir_level(root, rel.as_deref());
-                overlay.attach_file_directories(
-                    level
-                        .clone()
-                        .unwrap_or_default()
-                        .into_iter()
-                        .filter(|entry| entry.is_dir)
-                        .map(|entry| match &prefix {
-                            Some(prefix) => format!("{prefix}{}", entry.name),
-                            None => entry.name,
-                        })
-                        .collect(),
-                );
-                overlay.set_files_level_state(level.as_deref());
-                return Some(overlay);
-            }
-            // Recent projects are persisted live-only state; replay supplies an
-            // empty roster so captures remain deterministic.
-            crate::overlay::browse_level(kind, rel, root, workspace, &[])
-        };
+        let files_builder =
+            files_overlay::ReplayFilesBuilder::new(&self.root, &self.workspace, &self.corpus);
+        let mut make_overlay = |kind| files_builder.build(kind, &build_ctx);
+        let mut browse_to = |kind, rel| files_builder.browse(kind, rel);
         let mut ctx = actions::ActionCtx {
             buffer: &mut *self.buffer,
             shift_selecting: &mut self.shift_selecting,

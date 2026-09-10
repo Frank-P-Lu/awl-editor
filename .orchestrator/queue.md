@@ -136,6 +136,13 @@ Use readable names and disambiguating paths without repeating the same location
 throughout a panel. Document search and folder-content search retain distinct scope;
 filename/path search does not silently become content search.
 
+The landed Files audit deliberately keeps byte classification bounded to the
+displayed directory: summoning a 288-file deep corpus reads only the two visible
+root leaves, and a deep binary surfaced by raw-index name search is safely refused
+without changing document, root or disk bytes. This item owns the remaining
+presentation refinement: classify deeper name/path results through an observable
+budgeted/loading path rather than an eager full-tree read or extension allow-list.
+
 Use 636's common focus/action grammar, not identical key meanings in hidden focus
 states. Row selection, keyboard focus and pointer hover remain visibly different.
 Footers/buttons announce the actual action and real rebound/platform keys. Unify
@@ -521,12 +528,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-- **637 — audit defect repair in progress.** `files_637_audit` found a binary-only
-  root rendered as an ordinary file list instead of the named unsupported-only
-  state. A focused failing law exists on `codex/637-files-audit-law`; repair must
-  preserve path-based text classification and open/recent index alignment. Its
-  first repair was rejected in integration because it fully read the root-wide
-  corpus on every summon; the replacement must keep classification bounded/lazy.
 - **588 — mechanically complete; blocked on user taste.** The current plain
   `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
   all three Brolga depths are present, distinct, aligned, contained, unclipped and

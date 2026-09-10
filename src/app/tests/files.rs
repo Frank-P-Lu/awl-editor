@@ -1,5 +1,83 @@
 use super::*;
 
+/// A transparent filesystem probe used to make Files' I/O boundary observable:
+/// directory walks remain free, while every whole-file read is recorded.
+#[derive(Clone)]
+struct CountingFs {
+    inner: crate::fs::InMemoryFs,
+    reads: Arc<std::sync::Mutex<Vec<PathBuf>>>,
+}
+
+impl CountingFs {
+    fn new(inner: crate::fs::InMemoryFs) -> Self {
+        Self {
+            inner,
+            reads: Arc::new(std::sync::Mutex::new(Vec::new())),
+        }
+    }
+
+    fn clear_reads(&self) {
+        self.reads.lock().unwrap().clear();
+    }
+
+    fn reads(&self) -> Vec<PathBuf> {
+        self.reads.lock().unwrap().clone()
+    }
+}
+
+impl crate::fs::FileSystem for CountingFs {
+    fn read_to_string(&self, path: &std::path::Path) -> std::io::Result<String> {
+        self.reads.lock().unwrap().push(path.to_path_buf());
+        self.inner.read_to_string(path)
+    }
+
+    fn read(&self, path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+        self.reads.lock().unwrap().push(path.to_path_buf());
+        self.inner.read(path)
+    }
+
+    fn write(&self, path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
+        self.inner.write(path, data)
+    }
+
+    fn create_dir_all(&self, path: &std::path::Path) -> std::io::Result<()> {
+        self.inner.create_dir_all(path)
+    }
+
+    fn rename(&self, from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+        self.inner.rename(from, to)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn rename_no_replace(
+        &self,
+        from: &std::path::Path,
+        to: &std::path::Path,
+    ) -> std::io::Result<()> {
+        self.inner.rename_no_replace(from, to)
+    }
+
+    fn exists(&self, path: &std::path::Path) -> bool {
+        self.inner.exists(path)
+    }
+
+    fn is_dir(&self, path: &std::path::Path) -> bool {
+        self.inner.is_dir(path)
+    }
+
+    fn read_dir(&self, path: &std::path::Path) -> std::io::Result<Vec<crate::fs::DirEntry>> {
+        self.inner.read_dir(path)
+    }
+
+    fn metadata(&self, path: &std::path::Path) -> std::io::Result<crate::fs::Metadata> {
+        self.inner.metadata(path)
+    }
+
+    fn remove_file(&self, path: &std::path::Path) -> std::io::Result<()> {
+        self.inner.remove_file(path)
+    }
+}
+
 // ── GOTO FILE-INDEX FRESHNESS (queue: "file picker freshness") ──────────
 //
 // The go-to overlay (`C-x f`) corpus comes from `App.file_index`, a CACHED
@@ -70,6 +148,147 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     let ov = crate::overlay::build(crate::overlay::OverlayKind::Goto, &build_ctx)
         .expect("Goto always summons");
     assert!(ov.accepts().contains(&"b.txt"), "the new file is listed");
+}
+
+#[test]
+fn every_files_entry_action_rescans_before_building_its_goto_corpus() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _serial = crate::testlock::serial();
+    for action in [
+        Action::OpenGoto,
+        Action::OpenProject,
+        Action::OpenRecentProjects,
+    ] {
+        let mem = InMemoryFs::new().with_file("/proj/old.md", "old\n");
+        crate::fs::with_fs(Arc::new(mem.clone()), || {
+            let mut app = app_on(None, "/proj", Config::empty());
+            mem.write(std::path::Path::new("/proj/new.md"), b"new\n")
+                .unwrap();
+            let exit = crate::app::schedule::RecordingExit::new();
+            app.apply(action.clone(), false, &exit, crate::stats::Door::Chord);
+            assert!(
+                app.project_location
+                    .file_index
+                    .contains(&"new.md".to_string()),
+                "{action:?} must rescan before its Files/Goto card is built"
+            );
+        });
+    }
+}
+
+/// THE SCALE LAW: summoning Files indexes the root recursively, but only
+/// classifies file bytes for the directory currently on screen. The root has
+/// two visible leaves; the deliberately large deep corpus is raw-index-only.
+/// A whole-corpus `files_corpus` pass fails the exact-read assertion below.
+#[test]
+fn files_summon_reads_only_the_displayed_directory_not_every_deep_candidate() {
+    use crate::fs::{FileSystem, InMemoryFs};
+
+    let mem = InMemoryFs::new();
+    mem.write(std::path::Path::new("/proj/visible.md"), b"visible\n")
+        .unwrap();
+    mem.write(std::path::Path::new("/proj/visible.bin"), b"\0binary")
+        .unwrap();
+    for dir in 0..24 {
+        for file in 0..12 {
+            mem.write(
+                &PathBuf::from(format!("/proj/deep-{dir}/binary-{file}.blob")),
+                b"\0deep binary",
+            )
+            .unwrap();
+        }
+    }
+    let fs = CountingFs::new(mem);
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app_on(None, "/proj", Config::empty());
+    fs.clear_reads(); // exclude startup; measure one real Files summon.
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
+
+    let reads = fs.reads();
+    assert_eq!(
+        reads,
+        vec![
+            PathBuf::from("/proj/visible.bin"),
+            PathBuf::from("/proj/visible.md"),
+        ],
+        "Files may classify two displayed leaves, never the {} deep raw-index candidates: \
+         {reads:?}",
+        24 * 12,
+    );
+    assert!(
+        !app.workspace_state
+            .overlay()
+            .unwrap()
+            .item_strings()
+            .iter()
+            .any(|row| row == "visible.bin"),
+        "the visible binary is classified and excluded rather than offered"
+    );
+}
+
+/// A deep binary can remain a raw-index search candidate until later loading
+/// work, but accepting it still crosses `open_rel` → `load_path` → the one
+/// capability owner. Its bytes, root, and active document must survive.
+#[test]
+fn raw_index_deep_binary_query_is_refused_without_changing_context_or_bytes() {
+    use crate::fs::{FileSystem, InMemoryFs};
+
+    let mem = InMemoryFs::new()
+        .with_file("/proj/keep.md", "keep this document\n")
+        .with_file("/proj/deep/logo.png", "not used: overwritten below");
+    let binary = b"\x89PNG\r\n\x1a\n\0deep asset";
+    mem.write(std::path::Path::new("/proj/deep/logo.png"), binary)
+        .unwrap();
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/keep.md")),
+        "/proj",
+        Config::empty(),
+    );
+    let before_root = app.project_location.root.clone();
+    let before_path = app.document.buffer().path().map(PathBuf::from);
+    let before_text = app.document.buffer().text();
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
+    let overlay = app.workspace_state.overlay_mut().unwrap();
+    for ch in "logo".chars() {
+        overlay.push(ch);
+    }
+    assert_eq!(
+        overlay.selected_value(),
+        Some("deep/logo.png"),
+        "the raw index can surface the deep candidate through query"
+    );
+
+    app.apply(Action::Newline, false, &exit, crate::stats::Door::Chord);
+    assert_eq!(
+        app.project_location.root, before_root,
+        "root survives refusal"
+    );
+    assert_eq!(
+        app.document.buffer().path().map(PathBuf::from),
+        before_path,
+        "active document survives refusal"
+    );
+    assert_eq!(
+        app.document.buffer().text(),
+        before_text,
+        "document bytes survive refusal"
+    );
+    assert_eq!(
+        mem.read(std::path::Path::new("/proj/deep/logo.png"))
+            .unwrap(),
+        binary,
+        "accepting a raw-index binary never changes its disk bytes"
+    );
+    assert_eq!(
+        app.frame.notice().text(),
+        Some("PNG \u{b7} not editable in awl"),
+        "the capability owner names the calm refusal"
+    );
 }
 
 // ── THE KEYMAP FLAVOR ROUND — the "Keymap…" picker's accept round-trip ────

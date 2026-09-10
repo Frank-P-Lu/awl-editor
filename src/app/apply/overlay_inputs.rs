@@ -50,7 +50,11 @@ impl App {
     pub(super) fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
         if matches!(
             action,
-            Action::OpenGoto | Action::OpenAssetClean | Action::OpenSearchFolder
+            Action::OpenGoto
+                | Action::OpenProject
+                | Action::OpenRecentProjects
+                | Action::OpenAssetClean
+                | Action::OpenSearchFolder
         ) {
             self.rescan_file_index();
         }

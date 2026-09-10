@@ -1,6 +1,6 @@
 //! Files card construction, presentation, and directory-level outcomes.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::Path};
 
 use super::{OverlayKind, OverlayRow, OverlayState, RowMeta};
 
@@ -16,7 +16,64 @@ pub enum FilesFocus {
     NewDocument,
 }
 
+/// Byte-classify only the displayed directory level, returning the same
+/// root-relative identities the Files corpus uses. Live App and replay call
+/// this owner so the bounded-I/O and path-spelling rules cannot drift.
+pub(crate) fn unsupported_level_files(
+    root: &Path,
+    rel: Option<&str>,
+    entries: &[crate::index::DirEntry],
+) -> BTreeSet<String> {
+    let prefix = rel
+        .filter(|path| !path.is_empty())
+        .map(|path| format!("{path}/"));
+    entries
+        .iter()
+        .filter(|entry| !entry.is_dir)
+        .filter_map(|entry| {
+            let relative = match &prefix {
+                Some(prefix) => format!("{prefix}{}", entry.name),
+                None => entry.name.clone(),
+            };
+            matches!(
+                crate::openable::classify(&crate::index::resolve(root, &relative)),
+                crate::openable::Openable::Unsupported { .. }
+            )
+            .then_some(relative)
+        })
+        .collect()
+}
+
 impl OverlayState {
+    /// Remove binary leaves discovered at the currently displayed directory
+    /// level.  The root-wide index stays unread until a level reaches it;
+    /// ranking indices follow the surviving rows rather than drifting.
+    pub fn exclude_files(&mut self, paths: &BTreeSet<String>) {
+        if !self.files_mode || paths.is_empty() {
+            return;
+        }
+        let mut remap = vec![None; self.rows.len()];
+        let mut rows = Vec::with_capacity(self.rows.len());
+        for (old, row) in self.rows.drain(..).enumerate() {
+            if matches!(row.meta, RowMeta::GotoFile { .. }) && paths.contains(&row.accept) {
+                continue;
+            }
+            remap[old] = Some(rows.len());
+            rows.push(row);
+        }
+        let remap_indices = |indices: &[usize]| {
+            indices
+                .iter()
+                .filter_map(|&old| remap.get(old).and_then(|new| *new))
+                .collect()
+        };
+        self.open = remap_indices(&self.open);
+        self.recent = remap_indices(&self.recent);
+        self.rows = rows;
+        self.refilter();
+        self.refresh_hug_roster();
+    }
+
     pub fn new_files(
         files: Vec<String>,
         open: Vec<usize>,

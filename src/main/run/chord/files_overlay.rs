@@ -1,23 +1,21 @@
-//! Live filesystem inputs for constructing and releveling the Files surface.
+//! Hermetic filesystem inputs for constructing and releveling replay's Files surface.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::overlay::{BuildCtx, OverlayKind, OverlayState};
 
-pub(super) struct FilesOverlayBuilder {
-    root: PathBuf,
-    corpus: Vec<String>,
-    open: Vec<usize>,
-    recent: Vec<usize>,
+pub(super) struct ReplayFilesBuilder<'a> {
+    root: &'a Path,
+    workspace: &'a Path,
+    corpus: &'a [String],
 }
 
-impl FilesOverlayBuilder {
-    pub(super) fn new(root: PathBuf, ctx: &BuildCtx<'_>) -> Self {
+impl<'a> ReplayFilesBuilder<'a> {
+    pub(super) fn new(root: &'a Path, workspace: &'a Path, corpus: &'a [String]) -> Self {
         Self {
             root,
-            corpus: ctx.goto_corpus.clone(),
-            open: ctx.goto_open.clone(),
-            recent: ctx.goto_recent.clone(),
+            workspace,
+            corpus,
         }
     }
 
@@ -30,32 +28,24 @@ impl FilesOverlayBuilder {
         })
     }
 
-    pub(super) fn browse(
-        &self,
-        kind: OverlayKind,
-        rel: Option<String>,
-        workspace: Option<&Path>,
-        recent_projects: &[String],
-    ) -> Option<OverlayState> {
+    pub(super) fn browse(&self, kind: OverlayKind, rel: Option<String>) -> Option<OverlayState> {
         if kind == OverlayKind::Goto {
-            let overlay = OverlayState::new_files(
-                self.corpus.clone(),
-                self.open.clone(),
-                self.recent.clone(),
-                rel.clone(),
-            );
+            let overlay =
+                OverlayState::new_files(self.corpus.to_vec(), Vec::new(), Vec::new(), rel.clone());
             return Some(self.attach_level(overlay, rel.as_deref()));
         }
-        crate::overlay::browse_level(kind, rel, &self.root, workspace, recent_projects)
+        // Recent projects are persisted live-only state; replay supplies an
+        // empty roster so captures remain deterministic.
+        crate::overlay::browse_level(kind, rel, self.root, Some(self.workspace), &[])
     }
 
     fn attach_level(&self, mut overlay: OverlayState, rel: Option<&str>) -> OverlayState {
         let prefix = rel
             .filter(|path| !path.is_empty())
             .map(|path| format!("{path}/"));
-        let level = crate::index::try_list_dir_level(&self.root, rel);
+        let level = crate::index::try_list_dir_level(self.root, rel);
         let unsupported = crate::overlay::unsupported_level_files(
-            &self.root,
+            self.root,
             rel,
             level.as_deref().unwrap_or_default(),
         );

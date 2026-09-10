@@ -223,3 +223,23 @@ fn files_keeps_empty_directories_and_names_three_level_outcomes() {
         "folder unavailable — check access and try again"
     );
 }
+
+#[test]
+fn files_names_a_real_unsupported_only_directory_instead_of_offering_its_binary() {
+    // This is the production Files shape: the root-wide corpus contains the
+    // path, while the current level reports that same unsupported leaf.
+    // A binary-only directory needs its own calm outcome, not an openable row.
+    let mut files = OverlayState::new_files(vec!["logo.icns".into()], Vec::new(), Vec::new(), None);
+    let entries = [crate::index::DirEntry {
+        name: "logo.icns".into(),
+        is_dir: false,
+        is_git: false,
+    }];
+    files.exclude_files(&std::collections::BTreeSet::from(["logo.icns".to_string()]));
+    files.set_files_level_state(Some(&entries));
+    assert_eq!(files.notice, "no supported files in this folder");
+    assert!(
+        !files.item_strings().iter().any(|row| row == "logo.icns"),
+        "an unsupported-only Files level must not present a binary as a file choice"
+    );
+}
