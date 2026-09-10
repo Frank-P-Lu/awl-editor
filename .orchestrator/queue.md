@@ -570,10 +570,6 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-- **615 — post-extraction outcome audit in progress.** `mouse_615_audit` is
-  sweeping pointer state × surface ownership against integrated `main`, following
-  the required identity-refactor audit. A finding must end in a missing law before
-  the audit can close; no second full gate belongs here.
 - **588 — Brolga bullet taste decision.** The current plain `•◦▪` remains the
   fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
   box. A different glyph or wider box would be a separate mechanism decision.
