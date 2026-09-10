@@ -278,7 +278,7 @@ mod tests {
             "seeded C-x C-s must teach Save; rows: {rows:?}"
         );
         assert!(
-            has("C-f", "Go to…"),
+            has("C-f", "Files…"),
             "seeded C-x C-f must teach Go to…; rows: {rows:?}"
         );
         assert!(

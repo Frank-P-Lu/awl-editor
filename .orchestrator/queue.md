@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks.** Ready: 641 and 637. Analysis complete: 642.
-Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
+**9 open numbered tasks.** Ready: 641, 642, 638, and 628. Dependencies/coordination:
+639–640 and 589. Native candidate review:
 628 and 582. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
@@ -51,10 +51,10 @@ full worker gates. Read docs/harness-reach.md before choosing any render capture
 
 ### 642 — animation state owns complete transitions (user request, 2026-09-10)
 
-🟡 ANALYSIS COMPLETE — `animation_642_map` (Codex) mapped the exact private
+🟢 READY — `animation_642_map` (Codex) mapped the exact private
 overlay entrance/band boundary, live input-epoch bridge, scheduler boundary,
 transition matrix, target laws and compiling close/reopen mutation. No code was
-changed. Implementation remains serialized behind 637 and shared UI work.
+changed. Implementation remains serialized with shared UI work.
 
 Build: census related animation fields and their writers, starting with the
 TextPipeline overlay entrance/selection-band fields in render.rs and their input,
@@ -92,60 +92,9 @@ wall-clock feel; identify any remaining live timing checks honestly.
 
 ---
 
-### 637 — implement the folder-to-file-to-writing journey (user approval, 2026-09-10)
-
-🟡 IN PROGRESS — `navigation_637` (Codex), branch `codex/637-files`.
-Coordinate renderer changes with 628; preserve its shared visual review requirement
-rather than reopening this approved navigation direction.
-
-Build: dedicated Files / Recent navigation in the existing summoned-surface
-system. Files with an empty query shows immediate subfolders and files; folder
-rows have a folder affordance and trailing disclosure and descend inside the
-same browser without changing the writing root. Breadcrumbs/Up expose the current
-location. Typing searches names/paths throughout the explicitly named root,
-including descendants; show root-relative paths for results and duplicate names.
-Clearing search restores the browse location. Recent contains recently opened
-files in the named root, not folder-switch destinations. Preserve useful selection
-and scroll state through focus changes; never reorder the open-document stack by MRU.
-
-Open folder/Change folder is explicit root selection: macOS keeps its system chooser,
-Linux its internal chooser. Success immediately shows that root's Files contents;
-cancellation/failure preserves valid prior context. Folder browsing, root selection,
-and file activation must have separate state transitions. Loading/partial search,
-no matches, truly empty, unsupported-only, and unavailable/permission-denied are
-distinct states. Use short existing-surface status/empty treatments, not large
-cards, duplicate New actions, or success copy telling an empty folder to choose a file.
-
-Connect home, Welcome's entry point, and the bottom-left folder heading to the same
-Files owner. Keep the stack's placement, stable order, active mark, close/drag
-behavior, and per-file remembered roots; it lists only open documents. A folder
-heading needs a discoverable affordance and matching hit target. Choosing a file
-dismisses Files and opens/activates its existing buffer, preserving edits/undo and
-position. No arbitrary file is opened merely because a folder was chosen.
-
-New document and its actual bound shortcut name the destination. While searching
-or viewing Recent, the destination is explicitly the root; while browsing it is
-the displayed directory. Home without a root creates recoverable unsaved work.
-Preserve existing files' save paths and autosave/recovery guarantees. Implement
-the focus/arrow/Tab rules from 636, including action-level menu interception.
-Align menu, palette, home, hints and user docs on Files terminology while keeping
-intentional legacy config keys/aliases functional. Keep heading/line actions reachable.
-
-Verify: pure transition laws first, then seeded --screenshot-app journeys with
---seed-tree and explicit config: home → folder → nested file → edit → another
-file → original buffer; root A/B switch and cancellation; search/clear; duplicate
-names; long paths; empty/missing/read-only roots; New document through key AND menu
-Action. State proofs include root, buffer identity, save destination, undo, selection
-and scroll. Native chooser and pointer timing need real-window checks; do not claim
-headless keys exercise AppKit key equivalents. Capture real geometry/pixel presence
-across worlds, narrow/wide and DPI 1/2 with five-shot vision smoke and mutation-proven
-headline laws. Targeted checks here; integrated gate belongs to 640.
-
----
-
 ### 638 — one location-navigation owner for Open, Move, Save As and Export (user approval, 2026-09-10)
 
-🟡 DEPENDS ON 636 and 637 — queue only, not dispatched. Integrate overlapping
+🟢 READY — 636 and 637 have landed; queue only, not dispatched. Integrate overlapping
 navigation/render ownership sequentially, not as independent browser rewrites.
 
 Build: reuse the agreed folder-row, location/breadcrumb, scope, focus, search and
@@ -245,13 +194,13 @@ Do not dispatch or claim implementation merely because this acceptance work is q
 
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
-🟡 IMPLEMENTATION ANALYSIS COMPLETE — `chrome_628_map` (Codex) mapped the
+🟢 READY — `chrome_628_map` (Codex) mapped the
 surface-specific owners, shared-control boundary, accessibility/action routes,
 responsive geometry, roster probes and mutations. It found the prototype's intent
 salvageable but its new `Physical` spacing unsuitable for the required 1x/2x
 composition; implementation must use logical UI units and repair the Settings-cap
 law's sampling rather than bypass it. The prototype exists on `item-628` at
-`e37a13ba` and is not integrated. Native edits remain serialized behind 637.
+`e37a13ba` and is not integrated. Native implementation is now unblocked.
 
 Review update (2026-09-10): the user likes the saved Settings layout and explicitly
 asked to continue Find/Replace and theme-picker refinement on the interactive design

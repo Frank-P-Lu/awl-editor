@@ -548,6 +548,7 @@ impl TextPipeline {
             overlay_context_anchor: None,
             overlay_asset_preview: None,
             overlay_detail_focus: false,
+            overlay_rows_focused: true,
             overlay_workspace: false,
             overlay_rows_primary: false,
             overlay_comparison: false,

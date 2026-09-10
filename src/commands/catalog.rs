@@ -1,4 +1,4 @@
-use super::Command;
+use super::{Action, Command};
 use std::sync::LazyLock;
 
 mod editing;
@@ -16,6 +16,23 @@ fn clone_command(command: &Command) -> Command {
         web_only: command.web_only,
         description: command.description,
     }
+}
+
+/// Stable configuration identity for renamed catalog rows.
+pub fn command_slug(command: &Command) -> String {
+    match &command.action {
+        Action::OpenGoto => "go_to".to_string(),
+        Action::OpenFolder => "open_folder".to_string(),
+        _ => super::slug(command.name),
+    }
+}
+
+pub fn action_for_name(name: &str) -> Option<Action> {
+    let want = super::slug(name);
+    super::COMMANDS
+        .iter()
+        .find(|command| command_slug(command) == want || super::slug(command.name) == want)
+        .map(|command| command.action.clone())
 }
 
 /// The one ordered catalog source. The three slices are intentionally

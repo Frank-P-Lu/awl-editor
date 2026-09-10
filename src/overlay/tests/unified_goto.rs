@@ -1,136 +1,225 @@
 use super::super::*;
 
-fn unified() -> OverlayState {
-    let mut ov = OverlayState::new(
-        OverlayKind::Goto,
-        vec!["notes/alpha.md".into(), "zebra.txt".into()],
-        vec![],
-        vec![1],
-    );
-    ov.attach_headings(vec![("Alpha heading".into(), 7)]);
-    ov.attach_folders(
+fn files_level(dir: Option<&str>) -> OverlayState {
+    OverlayState::new_files(
         vec![
-            ("/work/notes".into(), true),
-            ("/work/archive".into(), false),
+            "alpha.md".into(),
+            "notes/draft.md".into(),
+            "notes/deep/draft.md".into(),
+            "notes/deep/plan.md".into(),
         ],
-        &["/work/archive".into()],
-    );
-    ov
+        vec![0],
+        vec![3, 1],
+        dir.map(str::to_string),
+    )
 }
 
 #[test]
-fn goto_lenses_are_the_exact_typed_destination_roster() {
-    let mut ov = unified();
+fn files_and_recent_are_the_exact_visible_views() {
+    let mut ov = files_level(None);
     assert_eq!(
         ov.lens_strip()
             .into_iter()
             .map(|(label, _)| label)
             .collect::<Vec<_>>(),
-        ["All", "Files", "Headings", "Folders", "Recent"]
+        ["Files", "Recent"]
+    );
+    assert_eq!(
+        ov.item_strings(),
+        [
+            "alpha.md",
+            "notes/  ›",
+            "Change folder…",
+            "New document — root/"
+        ]
     );
 
-    let cells = [
-        ("all", 5usize),
-        ("files", 2),
-        ("headings", 1),
-        // two destinations plus the direct chooser fallback
-        ("folders", 3),
-        // one recent file + one recent folder, preserving source MRU order
-        ("recent", 2),
-    ];
-    for (lens, expected) in cells {
-        ov.focus_facet_id(lens);
-        assert_eq!(ov.items.len(), expected, "{lens} must enrol its real rows");
-    }
-    ov.focus_facet_id("folders");
-    assert_eq!(ov.item_times(), ["folder", "folder", ""]);
-    assert!(
-        ov.item_strings()
-            .iter()
-            .take(2)
-            .all(|row| row.ends_with('/')),
-        "folder rows carry visible path identity: {:?}",
-        ov.item_strings()
+    ov.focus_facet_id("recent");
+    assert_eq!(
+        ov.item_strings(),
+        [
+            "notes/deep/plan.md",
+            "notes/draft.md",
+            "Change folder…",
+            "New document — root/"
+        ]
     );
-    assert_eq!(ov.item_strings().last().unwrap(), "Choose another folder…");
 }
 
 #[test]
-fn goto_all_fuzzy_ranks_across_types_and_empty_states_are_specific() {
-    let mut ov = unified();
-    for c in "archive".chars() {
-        ov.push(c);
-    }
-    assert_eq!(ov.selected_value(), Some("/work/archive"));
-    assert!(ov.selected_is_goto_folder());
+fn files_searches_the_whole_root_and_clear_restores_the_browse_level() {
+    let mut ov = files_level(Some("notes"));
+    assert_eq!(
+        ov.item_strings(),
+        [
+            "draft.md",
+            "deep/  ›",
+            "Change folder…",
+            "New document — notes/"
+        ]
+    );
 
-    ov.focus_facet_id("headings");
-    assert_eq!(ov.empty_message(), "no matches");
-    while !ov.query.is_empty() {
-        ov.pop();
+    for c in "draft".chars() {
+        ov.push(c);
     }
     assert_eq!(
         ov.item_strings(),
-        [format!(
-            "{}Alpha heading",
-            OverlayKind::HEADING_MARKER_PREFIX
-        )]
+        [
+            "notes/draft.md",
+            "notes/deep/draft.md",
+            "Change folder…",
+            "New document — notes/"
+        ],
+        "duplicate names must retain root-relative path identity"
     );
-
-    let mut empty = OverlayState::new(OverlayKind::Goto, Vec::new(), vec![], vec![]);
-    empty.focus_facet_id("files");
-    assert_eq!(empty.empty_message(), "no files here");
-    empty.focus_facet_id("headings");
-    assert_eq!(empty.empty_message(), "no headings yet");
-    empty.focus_facet_id("recent");
-    assert_eq!(empty.empty_message(), "no recent destinations");
+    while !ov.query.is_empty() {
+        ov.pop();
+    }
+    assert_eq!(ov.item_strings()[..2], ["draft.md", "deep/  ›"]);
 }
 
 #[test]
-fn typed_goto_rows_emit_file_heading_and_folder_effects() {
+fn folder_accept_descends_without_emitting_a_root_switch() {
     use crate::actions::{ActionCtx, Effect, apply_transition};
     use crate::keymap::Action;
 
-    let run = |mut ov: OverlayState, query: &str| {
-        for c in query.chars() {
-            ov.push(c);
-        }
-        let mut journey = Journey::seeded(Some(ov));
-        let mut buffer = crate::buffer::Buffer::scratch();
-        let mut shift = false;
-        let mut zoom = 1.0;
-        let mut search = None;
-        let mut make_overlay = |_| None;
-        let mut browse_to = |_, _| None;
-        let mut ctx = ActionCtx {
-            buffer: &mut buffer,
-            shift_selecting: &mut shift,
-            zoom: &mut zoom,
-            search: &mut search,
-            scroll_page_lines: 1,
-            journey: &mut journey,
-            make_overlay: &mut make_overlay,
-            browse_to: &mut browse_to,
-            oracle: None,
-        };
-        apply_transition(&mut ctx, &Action::Newline, false).primary()
+    let mut journey = Journey::seeded(Some(files_level(None)));
+    journey.card_mut().unwrap().move_sel(1);
+    let mut buffer = crate::buffer::Buffer::scratch();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make_overlay = |_| None;
+    let mut browse_to = |kind, rel: Option<String>| {
+        assert_eq!(kind, OverlayKind::Goto);
+        Some(files_level(rel.as_deref()))
     };
-
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
+    assert_eq!(effect, Effect::None);
     assert_eq!(
-        run(unified(), "zebra"),
-        Effect::OverlayAccept(OverlayKind::Goto, "zebra.txt".into())
+        ctx.journey.card().unwrap().browse_dir.as_deref(),
+        Some("notes")
     );
-    assert_eq!(run(unified(), "heading"), Effect::JumpToLine(7));
     assert_eq!(
-        run(unified(), "archive"),
-        Effect::OverlayAccept(OverlayKind::Project, "/work/archive".into())
+        ctx.journey.card().unwrap().item_strings()[..2],
+        ["draft.md", "deep/  ›"]
     );
+}
 
-    let mut fallback = unified();
-    fallback.focus_facet_id("folders");
-    fallback.select_last();
+#[test]
+fn files_intercepts_direct_new_document_actions_at_the_browse_destination() {
+    use crate::actions::{ActionCtx, Effect, apply_transition};
+    use crate::keymap::Action;
+
+    let mut journey = Journey::seeded(Some(files_level(Some("notes/deep"))));
+    let mut buffer = crate::buffer::Buffer::scratch();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make_overlay = |_| None;
+    let mut browse_to = |_, _| None;
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
     assert_eq!(
-        run(fallback, ""),
-        Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser)
+        apply_transition(&mut ctx, &Action::NewDocument, false).primary(),
+        Effect::NewDocumentAt("notes/deep".into())
+    );
+    assert!(ctx.journey.card().is_none());
+}
+
+#[test]
+fn heading_and_line_routes_remain_separate_from_files() {
+    let mut ov = files_level(None);
+    ov.attach_headings(vec![("Chapter".into(), 7)]);
+    ov.attach_line_jump(20);
+    assert!(!ov.item_strings().iter().any(|row| row.contains("Chapter")));
+    ov.focus_headings();
+    assert_eq!(
+        ov.item_strings(),
+        [format!("{}Chapter", OverlayKind::HEADING_MARKER_PREFIX)]
+    );
+    ov.push('9');
+    assert!(ov.item_strings().iter().any(|row| row == "Go to line 9"));
+}
+
+#[test]
+fn files_tab_route_is_complete_reversible_and_keeps_selection_separate() {
+    let mut ov = files_level(Some("notes"));
+    let selected = ov.selected_value().map(str::to_string);
+    let forward = [
+        FilesFocus::Files,
+        FilesFocus::Recent,
+        FilesFocus::Up,
+        FilesFocus::Choices,
+        FilesFocus::ChangeFolder,
+        FilesFocus::NewDocument,
+        FilesFocus::Query,
+    ];
+    for expected in forward {
+        ov.files_focus_step(1);
+        assert_eq!(ov.files_focus, expected);
+    }
+    let backward = [
+        FilesFocus::NewDocument,
+        FilesFocus::ChangeFolder,
+        FilesFocus::Choices,
+        FilesFocus::Up,
+        FilesFocus::Recent,
+        FilesFocus::Files,
+        FilesFocus::Query,
+    ];
+    for expected in backward {
+        ov.files_focus_step(-1);
+        assert_eq!(ov.files_focus, expected);
+    }
+    assert_eq!(ov.selected_value(), selected.as_deref());
+
+    ov.focus_facet_id("recent");
+    ov.files_focus = FilesFocus::Recent;
+    ov.files_focus_step(1);
+    assert_eq!(ov.files_focus, FilesFocus::Choices, "Recent skips Up");
+}
+
+#[test]
+fn files_keeps_empty_directories_and_names_three_level_outcomes() {
+    let mut ov = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
+    ov.attach_file_directories(vec!["empty".into()]);
+    assert_eq!(ov.item_strings()[0], "empty/  ›");
+
+    let mut empty = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
+    empty.set_files_level_state(Some(&[]));
+    assert_eq!(empty.notice, "this folder is empty");
+
+    let unsupported = [crate::index::DirEntry {
+        name: "movie.bin".into(),
+        is_dir: false,
+        is_git: false,
+    }];
+    empty.set_files_level_state(Some(&unsupported));
+    assert_eq!(empty.notice, "no supported files in this folder");
+    empty.set_files_level_state(None);
+    assert_eq!(
+        empty.notice,
+        "folder unavailable — check access and try again"
     );
 }

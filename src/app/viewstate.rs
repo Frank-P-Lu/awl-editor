@@ -324,6 +324,7 @@ impl App {
             eol: self.document.buffer().eol(),
             popover,
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
+            overlay_rows_focused: ov.is_none_or(crate::overlay::OverlayState::files_rows_focused),
             folds: Vec::new(),
             fold_tails: Vec::new(),
             folded_headings: Vec::new(),

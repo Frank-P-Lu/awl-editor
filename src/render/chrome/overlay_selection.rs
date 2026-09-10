@@ -2,6 +2,9 @@
 
 use super::*;
 
+mod helpers;
+use helpers::{apply_living_row_spans, row_focus_rgba};
+
 #[derive(Default)]
 pub(super) struct OverlaySelectionRects {
     pub(super) selected: Vec<[f32; 4]>,
@@ -24,20 +27,6 @@ pub(super) struct OverlayBarLayout {
     /// The frame's `zoom * dpi`, so every span this layout resolves reads the
     /// one scale the card was placed at.
     scale: f32,
-}
-
-/// Apply each travelling band's own planned two-sided span. This stays beside
-/// the selection emitter so no choreography can smuggle in a second row-offset
-/// calculation.
-fn apply_living_row_spans(plan: &OverlayRowPlan, rects: &mut [[f32; 4]]) {
-    for r in rects {
-        if let Some(row) = plan.display_nearest(r[1] + r[3] * 0.5) {
-            let dx = plan.row_dx(row);
-            let dw = plan.row_dw(row);
-            r[0] += dx;
-            r[2] += dw - dx;
-        }
-    }
 }
 
 impl OverlayBarLayout {
@@ -129,10 +118,10 @@ impl TextPipeline {
         // say "this one is live". It stays the SAME rect in the SAME place and
         // only loses presence — figure/ground by value, not a second decoration
         // bolted on (DESIGN.md §5). Off a workspace this is the identity.
-        let rgba = match geom.workspace && !geom.rows_focused {
-            true => super::workspace::dimmed(band_color, super::workspace::UNFOCUSED_MARK_ALPHA),
-            false => band_color.rgba_bytes(),
-        };
+        let rgba = row_focus_rgba(
+            band_color,
+            self.overlay_rows_focused && (!geom.workspace || geom.rows_focused),
+        );
         self.overlay_rows.set_color(rgba);
         let rects = self.overlay_selection_rects(geom, plan, vis, list_style);
         if backing == theme::ListBacking::BarePlates {

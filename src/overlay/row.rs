@@ -58,6 +58,9 @@ pub enum RowMeta {
     /// older folder picker.
     GotoFolder,
     FolderChooser,
+    /// Files' destination-aware create action. Its accept string is display
+    /// copy only; the destination comes from the card's browse location.
+    NewDocument,
     CommandSetting {
         id: crate::settings::SettingId,
     },
@@ -114,6 +117,7 @@ pub enum RowMetaTag {
     GotoLine,
     GotoFolder,
     FolderChooser,
+    NewDocument,
     CommandSetting,
     CommandHidden,
     SpellAdd,
@@ -135,6 +139,7 @@ impl RowMeta {
             RowMeta::GotoLine { .. } => RowMetaTag::GotoLine,
             RowMeta::GotoFolder => RowMetaTag::GotoFolder,
             RowMeta::FolderChooser => RowMetaTag::FolderChooser,
+            RowMeta::NewDocument => RowMetaTag::NewDocument,
             RowMeta::CommandSetting { .. } => RowMetaTag::CommandSetting,
             RowMeta::CommandHidden => RowMetaTag::CommandHidden,
             RowMeta::SpellAdd => RowMetaTag::SpellAdd,
@@ -158,6 +163,7 @@ impl RowMeta {
             RowMeta::SpellAdd
             | RowMeta::ProjectDoor
             | RowMeta::FolderChooser
+            | RowMeta::NewDocument
             | RowMeta::NewFolder
             | RowMeta::GotoLine { .. } => true,
             RowMeta::Plain

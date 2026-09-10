@@ -15,7 +15,11 @@ impl OverlayState {
     /// for a non-faceting picker. GENERIC — keyed by [`Self::kind`] through the one
     /// owner [`crate::facets::scheme`], so every facet method below is picker-agnostic.
     pub fn facet_scheme(&self) -> Option<&'static crate::facets::FacetScheme> {
-        crate::facets::scheme(self.kind)
+        if self.kind == OverlayKind::Goto && self.files_mode {
+            Some(&crate::index::FILES_FACETS)
+        } else {
+            crate::facets::scheme(self.kind)
+        }
     }
 
     /// Whether this picker facets (has a lens strip). Drives the LEFT/RIGHT

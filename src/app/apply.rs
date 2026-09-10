@@ -2,6 +2,7 @@
 //! The no-document admission gate lives beside the overlay transition buffer,
 //! keeping this interpreter focused on effect ordering.
 
+mod files_overlay;
 mod no_document;
 mod overlay_inputs;
 mod overlay_sync;
@@ -501,30 +502,23 @@ impl App {
             search_root,
             search_corpus,
         };
-        let mut make_overlay =
-            |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
+        let files_builder =
+            files_overlay::FilesOverlayBuilder::new(location.root.clone(), &build_ctx);
+        let mut make_overlay = |kind| files_builder.build(kind, &build_ctx);
         // Browse rebuild hook: list ONE level via the shared `overlay::browse_level`
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
         // `MoveDest` (C-x m) walks the SAME active root and shows FOLDERS only (you
         // move a document into a folder within it); `Project` (C-x p) walks the
         // workspace by absolute path. Cloned roots dodge the &mut self.document.buffer()
         // borrow.
-        let browse_root = location.root.clone();
         let workspace = location.workspace_root.clone();
         let recent_projects: Vec<String> = location
             .recent_projects
             .iter()
             .map(|p| p.display().to_string())
             .collect();
-        let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
-            crate::overlay::browse_level(
-                kind,
-                rel,
-                &browse_root,
-                workspace.as_deref(),
-                &recent_projects,
-            )
-        };
+        let mut browse_to =
+            |kind, rel| files_builder.browse(kind, rel, workspace.as_deref(), &recent_projects);
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
         // the shaped wrap geometry. A shared borrow of `self.frame.gpu()` (disjoint from the
         // `&mut self.document.buffer()` below), so the same transition seam sees the SAME
@@ -577,6 +571,7 @@ impl App {
             actions::Effect::OpenPathAtLine { path, line, col } => {
                 self.open_path_at_line(&path, line, col)
             }
+            actions::Effect::NewDocumentAt(path) => self.new_document_at(&path),
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
             actions::Effect::RebindCommit {
                 slug,

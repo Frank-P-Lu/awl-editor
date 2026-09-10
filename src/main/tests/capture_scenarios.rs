@@ -440,8 +440,8 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
             v["project"]["root"].as_str().unwrap(),
             // Through the sidecar's own home redaction: the subject is WHICH
             // root the accept re-derived, not how an under-home path is spelled.
-            crate::capture::redact::redact(&dir.join("old-ws/sibling").to_string_lossy()),
-            "[{convention:?}] the sidecar's accepted root is the new project (item 183's half)"
+            crate::capture::redact::redact(&dir.join("old-ws/proj-a").to_string_lossy()),
+            "[{convention:?}] Files browsing does not switch the writing root"
         );
         let items: Vec<String> = v["overlay"]["items"]
             .as_array()
@@ -449,11 +449,10 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
             .iter()
             .map(|s| s.as_str().unwrap().to_string())
             .collect();
-        assert_eq!(items.first().map(String::as_str), Some("target.md"));
+        assert_eq!(items.first().map(String::as_str), Some("keep.md"));
         assert!(
-            !items.iter().any(|item| item == "keep.md"),
-            "[{convention:?}] Cmd-O after the folder switch must list the NEW root's \
-             file, while its additional rows are typed folder destinations: {items:?}"
+            !items.iter().any(|item| item == "target.md"),
+            "[{convention:?}] Files keeps the current root until Change folder commits: {items:?}"
         );
     }
 }

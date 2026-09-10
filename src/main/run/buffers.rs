@@ -40,4 +40,10 @@ impl ReplaySession<'_> {
         self.park_active_buffer();
         self.buffer.start_fresh_doc(self.root.clone());
     }
+
+    pub(super) fn start_fresh_document_at(&mut self, rel: &str) {
+        self.park_active_buffer();
+        self.buffer
+            .start_fresh_doc(crate::index::resolve(&self.root, rel));
+    }
 }

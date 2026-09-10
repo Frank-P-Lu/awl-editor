@@ -7,6 +7,35 @@ use super::*;
 use crate::render::plan::{OverlayRowPlanInput, plan_overlay_rows};
 
 #[test]
+fn unfocused_selection_stays_present_and_its_label_ink_stays_legible_in_every_world() {
+    let _guard = crate::testlock::serial();
+    for (index, world) in crate::theme::THEMES.iter().enumerate() {
+        crate::theme::set_active(index);
+        let band = super::super::overlay_selected_band_srgb();
+        let full = row_focus_rgba(band, true);
+        let quiet = row_focus_rgba(band, false);
+        assert!(
+            quiet[3] >= 80,
+            "{}: focus cue disappeared: {quiet:?}",
+            world.name
+        );
+        assert!(
+            quiet[3] < full[3],
+            "{}: focused and selected collapsed",
+            world.name
+        );
+        let ink = super::super::overlay_selected_label_ink();
+        assert_eq!(
+            ink.a(),
+            255,
+            "{}: selected label ink lost opacity",
+            world.name
+        );
+    }
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}
+
+#[test]
 fn twoshape_echo_uses_its_own_nearest_planned_row_span() {
     let plan = plan_overlay_rows(&OverlayRowPlanInput {
         card_x: 100.0,

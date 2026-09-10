@@ -138,6 +138,7 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         // buffer-switch door Goto's own accept uses (`switch_to_goto_target`)
         // then sets the cursor, exactly mirroring live's `open_path_at_line`.
         Effect::OpenPathAtLine { .. } => c("open_path_at_line", applied),
+        Effect::NewDocumentAt(_) => c("new_document_at", applied),
         Effect::Persistence(persistence) => classify_persistence(persistence, filesystem),
         Effect::Clipboard(clipboard) => classify_clipboard(clipboard),
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished) => {

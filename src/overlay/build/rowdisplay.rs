@@ -19,6 +19,7 @@ pub(in crate::overlay) fn row_display(
     kind: OverlayKind,
     row: &OverlayRow,
     browse_dir: Option<&str>,
+    show_path: bool,
 ) -> String {
     // The accept-this-folder row's corpus string is not a name at all: it
     // carries `.` so the path math and the dotfile exemption have one stable
@@ -37,11 +38,23 @@ pub(in crate::overlay) fn row_display(
         return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
     }
     if matches!(row.meta, RowMeta::GotoFolder) {
-        let mut display = super::recent::label(&row.accept, None);
-        if !display.ends_with('/') {
-            display.push('/');
-        }
-        return display;
+        let name = if show_path {
+            row.accept.as_str()
+        } else {
+            row.accept.rsplit('/').next().unwrap_or(&row.accept)
+        };
+        return format!("{name}/  ›");
+    }
+    if kind == OverlayKind::Goto && matches!(row.meta, RowMeta::GotoFile { .. }) {
+        return if show_path {
+            row.accept.clone()
+        } else {
+            row.accept
+                .rsplit('/')
+                .next()
+                .unwrap_or(&row.accept)
+                .to_string()
+        };
     }
     // A REMEMBERED root carries its whole absolute path (that path IS the
     // project, wherever it lives), so it is the one switch-project row that

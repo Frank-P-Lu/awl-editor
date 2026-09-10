@@ -218,7 +218,7 @@ pub fn web_alternate_keys(
         .iter()
         .filter_map(|c| {
             let alt = web_alternate_for(c, convention)?;
-            let want = slug(c.name);
+            let want = super::command_slug(c);
             if existing.iter().any(|(name, _)| slug(name) == want) {
                 return None; // a `[keys]` override already claims this command
             }

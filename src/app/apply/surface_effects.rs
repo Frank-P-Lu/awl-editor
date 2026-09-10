@@ -40,6 +40,17 @@ impl App {
             )
         {
             self.apply_folder_choice(Some(path));
+            self.rescan_file_index();
+            let files = self.project_location.file_index.clone();
+            self.workspace_state
+                .core_slots()
+                .1
+                .relevel(crate::overlay::OverlayState::new_files(
+                    files,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                ));
         }
         #[cfg(not(target_os = "macos"))]
         self.open_fallback_chooser(crate::overlay::OverlayKind::ProjectBrowse);
@@ -54,6 +65,19 @@ impl App {
             self.project_location.workspace_root.as_deref(),
             &[],
         );
-        self.workspace_state.core_slots().1.enter(overlay);
+        if self
+            .workspace_state
+            .overlay()
+            .is_some_and(|card| card.kind == crate::overlay::OverlayKind::Goto)
+        {
+            if let Some(child) = overlay {
+                self.workspace_state
+                    .core_slots()
+                    .1
+                    .descend(child, crate::overlay::Bind::Value);
+            }
+        } else {
+            self.workspace_state.core_slots().1.enter(overlay);
+        }
     }
 }

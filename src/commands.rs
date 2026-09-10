@@ -9,7 +9,9 @@ mod menu_section;
 mod task_category;
 #[cfg(test)]
 use crate::facets::FacetItem;
+#[cfg(test)]
 use catalog::COMMAND_SEED;
+pub use catalog::{action_for_name, command_slug};
 #[cfg(any(not(target_arch = "wasm32"), test))]
 pub use chords::resolved_native_label;
 pub use chords::{
@@ -110,19 +112,21 @@ pub static COMMANDS: std::sync::LazyLock<Vec<Command>> = std::sync::LazyLock::ne
     let defaults = crate::keymap_defaults::command_defaults();
     assert_eq!(
         defaults.len(),
-        COMMAND_SEED.len(),
+        catalog::COMMAND_SEED.len(),
         "assets/keymap-defaults.toml must contain exactly one entry for every catalog command"
     );
     for key in defaults.keys() {
         assert!(
-            COMMAND_SEED.iter().any(|seed| slug(seed.name) == *key),
+            catalog::COMMAND_SEED
+                .iter()
+                .any(|seed| command_slug(seed) == *key),
             "assets/keymap-defaults.toml names unknown command slug {key:?}"
         );
     }
-    COMMAND_SEED
+    catalog::COMMAND_SEED
         .iter()
         .map(|seed| {
-            let seed_slug = slug(seed.name);
+            let seed_slug = command_slug(seed);
             let (native, emacs) = defaults
                 .get(seed_slug.as_str())
                 .cloned()
@@ -164,27 +168,19 @@ pub fn slug(name: &str) -> String {
         .replace(' ', "_")
 }
 
-pub fn action_for_name(name: &str) -> Option<Action> {
-    let want = slug(name);
-    COMMANDS
-        .iter()
-        .find(|c| slug(c.name) == want)
-        .map(|c| c.action.clone())
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 pub fn slug_for_action(action: &Action) -> Option<String> {
     COMMANDS
         .iter()
         .find(|c| &c.action == action)
-        .map(|c| slug(c.name))
+        .map(command_slug)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn has_native_chord(slug_want: &str) -> bool {
     COMMANDS
         .iter()
-        .any(|c| slug(c.name) == slug_want && !c.native.trim().is_empty())
+        .any(|c| command_slug(c) == slug_want && !c.native.trim().is_empty())
 }
 
 /// The DISCOVERABILITY row for a command `slug`: its NATIVE (macOS) chord as modifier
@@ -199,7 +195,7 @@ pub fn has_native_chord(slug_want: &str) -> bool {
 /// Native-only, matching [`slug_for_action`]: called only from `app/stats.rs`.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn peek_row_for_slug(slug_want: &str) -> Option<crate::peek::PeekRow> {
-    let c = COMMANDS.iter().find(|c| slug(c.name) == slug_want)?;
+    let c = COMMANDS.iter().find(|c| command_slug(c) == slug_want)?;
     if c.native.trim().is_empty() {
         return None;
     }
@@ -483,7 +479,7 @@ pub(crate) fn effective_chords(c: &Command, keys: &[(String, Vec<String>)]) -> V
 
 fn override_chords(c: &Command, keys: &[(String, Vec<String>)]) -> Option<Vec<String>> {
     keys.iter()
-        .find(|(name, _)| slug(name) == slug(c.name) && action_for_name(name).is_some())
+        .find(|(name, _)| slug(name) == command_slug(c) && action_for_name(name).is_some())
         .map(|(_, chords)| {
             chords
                 .iter()
@@ -546,7 +542,7 @@ pub fn binding_conflict(
     let want = crate::keyspec::canonical_binding(binding)?;
     COMMANDS
         .iter()
-        .filter(|c| slug(c.name) != exclude_slug)
+        .filter(|c| command_slug(c) != exclude_slug)
         .find(|c| {
             effective_chords(c, keys)
                 .iter()
@@ -659,7 +655,7 @@ pub fn visible_action_of(corpus_i: usize) -> Action {
 }
 
 pub fn visible_slug_of(corpus_i: usize) -> String {
-    slug(visible()[corpus_i].name)
+    command_slug(visible()[corpus_i])
 }
 
 pub fn visible_name_of(corpus_i: usize) -> &'static str {

@@ -1,6 +1,7 @@
 //! Modal navigation-overlay actions, shared by live input and `--keys` replay.
 
 use super::*;
+mod files;
 const OVERLAY_PAGE: isize = 12;
 
 /// Journey rebuilds a parked parent fresh and re-aims it. Because the core
@@ -230,21 +231,28 @@ fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     Some(Effect::None)
 }
 
-/// Modal overlay input shared by the live app and `--keys` replay.
-pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect {
+fn field_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if let Some(effect) = rename_edit_intercept(ctx, action) {
-        return effect;
+        return Some(effect);
     }
     if let Some(effect) = link_edit_intercept(ctx, action) {
-        return effect;
+        return Some(effect);
     }
     if let Some(effect) = keep_edit_intercept(ctx, action) {
-        return effect;
+        return Some(effect);
     }
     if let Some(effect) = table_dims_intercept(ctx, action) {
+        return Some(effect);
+    }
+    value_edit_intercept(ctx, action)
+}
+
+/// Modal overlay input shared by the live app and `--keys` replay.
+pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect {
+    if let Some(effect) = field_edit_intercept(ctx, action) {
         return effect;
     }
-    if let Some(effect) = value_edit_intercept(ctx, action) {
+    if let Some(effect) = files::intercept(ctx, action) {
         return effect;
     }
     if ctx.journey.card().unwrap().kind == crate::overlay::OverlayKind::Keybindings
@@ -393,6 +401,9 @@ fn mid_query_motion(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 
 fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if let Some(effect) = mid_query_motion(ctx, action) {
+        return Some(effect);
+    }
+    if let Some(effect) = files::navigate(ctx, action) {
         return Some(effect);
     }
     match action {
@@ -633,6 +644,9 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
     if let Some(effect) = accept_process_value(ctx) {
         return effect;
     }
+    if let Some(effect) = files::accept(ctx) {
+        return effect;
+    }
     let ov = ctx.journey.card().unwrap();
     if ov.kind == crate::overlay::OverlayKind::Command {
         let eff = ov
@@ -671,25 +685,6 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         };
         dispose_after_accept(ctx);
         return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_goto_folder() {
-        let eff = ov
-            .selected_value()
-            .map(|path| {
-                Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path.to_string())
-            })
-            .unwrap_or(Effect::None);
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Goto
-        && ov
-            .selected_corpus_index()
-            .and_then(|i| ov.rows.get(i))
-            .is_some_and(|row| matches!(row.meta, crate::overlay::RowMeta::FolderChooser))
-    {
-        dispose_after_accept(ctx);
-        return Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser);
     }
     if ov.kind == crate::overlay::OverlayKind::SearchFolder {
         let eff = ov

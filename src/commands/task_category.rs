@@ -47,9 +47,9 @@ use TaskCategory::{Files, Format, Navigate, Settings, Tools, View};
 /// it receives exactly one category here.
 const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Command palette…", Navigate),
-    ("Go to…", Navigate),
+    ("Files…", Navigate),
     ("Open file…", Files),
-    ("Open folder…", Files),
+    ("Change folder…", Files),
     ("Spell suggestions…", Tools),
     ("Version history…", Files),
     ("Compare with version…", Files),

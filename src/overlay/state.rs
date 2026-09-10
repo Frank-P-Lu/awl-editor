@@ -1,6 +1,6 @@
 use super::{
-    Capture, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell, RenameEdit, RowMeta,
-    TableDimsEdit, ValueEdit,
+    Capture, FilesFocus, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell,
+    RenameEdit, RowMeta, TableDimsEdit, ValueEdit,
 };
 use crate::textbox::TextBox;
 use std::sync::Arc;
@@ -85,6 +85,14 @@ pub struct OverlayState {
     /// buffer known", so the line-jump row never offers a target
     /// (`OverlayState::goto_line_target`).
     pub goto_line_count: usize,
+    /// Compatibility route for the dedicated heading/line navigator. Files
+    /// keeps these rows in its source corpus, but never mixes them into the
+    /// folder-to-file journey.
+    pub goto_outline_only: bool,
+    /// Dedicated Files/Recent presentation. Bare `Goto` construction remains
+    /// the compatibility shape used by the heading/line APIs.
+    pub files_mode: bool,
+    pub files_focus: FilesFocus,
     /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
     /// know this -- only the summon did -- so `title()` reads it to name the
     /// errand ("move welcome.md") instead of the generic kind title, and it
@@ -130,6 +138,8 @@ impl OverlayState {
             self.move_dest_title(name)
         } else if self.kind == OverlayKind::ExportDest {
             self.with_browse_dir_suffix(self.kind.title().to_string())
+        } else if let Some(title) = self.files_title() {
+            title
         } else {
             self.kind.title().to_string()
         }
@@ -275,6 +285,9 @@ impl OverlayState {
             save_copy: false,
             save_copy_dest: None,
             goto_line_count: 0,
+            goto_outline_only: false,
+            files_mode: false,
+            files_focus: FilesFocus::Query,
             move_filename: None,
             search_root: None,
             search_corpus: Vec::new(),
@@ -320,6 +333,9 @@ impl OverlayState {
         self.save_copy = prev.save_copy;
         self.save_copy_dest = prev.save_copy_dest.clone();
         self.move_filename = prev.move_filename.clone();
+        self.goto_outline_only = prev.goto_outline_only;
+        self.files_mode = prev.files_mode;
+        self.files_focus = prev.files_focus;
     }
 
     pub fn accepts(&self) -> Vec<&str> {
@@ -343,15 +359,6 @@ impl OverlayState {
         for (row, c) in self.rows.iter_mut().zip(cells) {
             row.range = c;
         }
-    }
-
-    pub fn set_times(&mut self, times: Vec<String>) {
-        for (i, row) in self.rows.iter_mut().enumerate() {
-            row.meta = RowMeta::GotoFile {
-                time: times.get(i).cloned().unwrap_or_default(),
-            };
-        }
-        self.refresh_hug_roster();
     }
 
     pub fn new_theme(names: Vec<String>, active_index: usize) -> Self {
@@ -806,6 +813,9 @@ impl OverlayState {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
             return "type to filter   ↵ save a copy here   → open   ← up".to_string();
         }
+        if let Some(hint) = self.files_hint() {
+            return hint;
+        }
         self.kind.hint()
     }
 
@@ -823,42 +833,6 @@ impl OverlayState {
                 range: None,
             });
         }
-        self.refilter();
-        self.refresh_hug_roster();
-    }
-
-    /// Fold authored folder destinations into Go-to. `recent_paths` is ordered
-    /// newest-first and is translated into corpus indices here, beside the rows
-    /// it ranks, so Files and Folders share one Recent lens without parallel
-    /// index arithmetic at callers.
-    pub fn attach_folders(&mut self, folders: Vec<(String, bool)>, recent_paths: &[String]) {
-        if self.kind != OverlayKind::Goto {
-            return;
-        }
-        let start = self.rows.len();
-        for (path, is_git) in folders {
-            self.rows.push(OverlayRow {
-                accept: path,
-                secondary: String::new(),
-                is_dir: true,
-                git: is_git,
-                meta: RowMeta::GotoFolder,
-                range: None,
-            });
-        }
-        for path in recent_paths {
-            if let Some(ci) = self.rows[start..]
-                .iter()
-                .position(|row| &row.accept == path)
-                .map(|i| start + i)
-                && !self.recent.contains(&ci)
-            {
-                self.recent.push(ci);
-            }
-        }
-        let mut chooser = OverlayRow::plain("Choose another folder…".to_string());
-        chooser.meta = RowMeta::FolderChooser;
-        self.rows.push(chooser);
         self.refilter();
         self.refresh_hug_roster();
     }

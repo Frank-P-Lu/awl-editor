@@ -391,31 +391,6 @@ impl OverlayState {
             .collect()
     }
 
-    /// The calm EMPTY-STATE line to show when NO rows match — a QUERY that filtered
-    /// everything out reads the universal "no matches"; an empty CORPUS reads the
-    /// per-kind [`OverlayKind::empty_corpus_message`] ("no history yet", "no
-    /// suggestions", …). The ONE owner of the empty-state text, shared by the render
-    /// message row AND the sidecar `overlay.empty` field so pixels + sidecar agree.
-    pub fn empty_message(&self) -> String {
-        if !self.query.is_empty() {
-            return "no matches".to_string();
-        }
-        if let Some(lens) = self.active_facet_id()
-            && let Some(msg) = self.kind.empty_lens_message(lens)
-        {
-            return msg.to_string();
-        }
-        self.kind.empty_corpus_message().to_string()
-    }
-
-    pub fn empty_notice(&self) -> Option<String> {
-        if self.items.is_empty() {
-            Some(self.empty_message())
-        } else {
-            None
-        }
-    }
-
     pub fn item_bindings(&self) -> Vec<String> {
         self.items
             .iter()

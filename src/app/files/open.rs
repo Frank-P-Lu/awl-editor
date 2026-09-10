@@ -483,4 +483,12 @@ impl App {
         let _ = crate::fs::active().create_dir_all(&self.project_location.root);
         self.start_fresh_document();
     }
+
+    pub(in crate::app) fn new_document_at(&mut self, rel: &str) {
+        let destination = crate::index::resolve(&self.project_location.root, rel);
+        let _ = crate::fs::active().create_dir_all(&destination);
+        self.document.start_fresh_document(destination);
+        self.sync_view(true);
+        self.request_frame();
+    }
 }

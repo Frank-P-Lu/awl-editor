@@ -218,6 +218,9 @@ pub enum Effect {
         line: usize,
         col: usize,
     },
+    /// Create a fresh document in this root-relative Files destination without
+    /// changing the named writing root or touching the background buffer.
+    NewDocumentAt(String),
     AddToDictionary(String),
     RebindCommit {
         slug: String,

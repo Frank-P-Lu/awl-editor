@@ -10,6 +10,42 @@ use super::*;
 use crate::fs::FileSystem;
 use std::sync::Arc;
 
+#[test]
+fn files_menu_action_creates_in_the_browsed_directory_without_switching_root() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_dir(root.join("drafts")),
+    );
+    crate::fs::with_fs(mem.clone(), || {
+        let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+        app.workspace_state
+            .install_overlay_for_test(crate::overlay::OverlayState::new_files(
+                vec!["drafts/existing.md".into()],
+                Vec::new(),
+                Vec::new(),
+                Some("drafts".into()),
+            ));
+        let exit = crate::app::schedule::RecordingExit::new();
+        app.apply(Action::NewDocument, false, &exit, crate::stats::Door::Menu);
+        app.document.set_text("Destination proof");
+        app.manual_save();
+
+        assert_eq!(app.project_location.root, root);
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/notes/drafts/destination-proof.md"))
+        );
+        assert_eq!(
+            mem.read_to_string(Path::new("/notes/drafts/destination-proof.md"))
+                .unwrap(),
+            "Destination proof"
+        );
+    });
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn successful_naming_rekeys_every_app_owner_and_sidecar_consumer() {

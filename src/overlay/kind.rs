@@ -114,7 +114,14 @@ impl OverlayKind {
     pub fn row_meta_roster(self) -> &'static [super::RowMetaTag] {
         use super::RowMetaTag::*;
         match self {
-            OverlayKind::Goto => &[GotoFile, GotoHeading, GotoLine, GotoFolder, FolderChooser],
+            OverlayKind::Goto => &[
+                GotoFile,
+                GotoHeading,
+                GotoLine,
+                GotoFolder,
+                FolderChooser,
+                NewDocument,
+            ],
             OverlayKind::Command => &[Plain, CommandHidden, CommandSetting],
             OverlayKind::Context => &[Plain],
             OverlayKind::Spell => &[Plain, SpellAdd],
@@ -399,7 +406,7 @@ impl OverlayKind {
 
     pub fn title(self) -> &'static str {
         match self {
-            OverlayKind::Goto => "go to",
+            OverlayKind::Goto => "files",
             OverlayKind::Project => "switch project",
             // The DOOR's own card. Names the errand you are on rather than the
             // surface you left, so the title and the row you pressed read as one
@@ -556,16 +563,4 @@ impl OverlayKind {
     pub const SETTINGS_MARKER_PREFIX: &'static str = "§ ";
 
     pub const HEADING_MARKER_PREFIX: &'static str = "❡ ";
-
-    pub fn empty_lens_message(self, lens: &str) -> Option<&'static str> {
-        match (self, lens) {
-            (OverlayKind::Goto, "files") => Some("no files here"),
-            (OverlayKind::Goto, "headings") => Some("no headings yet"),
-            (OverlayKind::Goto, "folders") => Some("no folders here"),
-            (OverlayKind::Goto, "recent") => Some("no recent destinations"),
-            (OverlayKind::Project, "recent") => Some("no recent projects yet"),
-            (_, "all") => None,
-            _ => Some("nothing here"),
-        }
-    }
 }

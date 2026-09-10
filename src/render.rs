@@ -2823,6 +2823,7 @@ pub struct TextPipeline {
     /// gates the contextual spell popup's own geometry.
     overlay_asset_preview: Option<std::path::PathBuf>,
     overlay_detail_focus: bool,
+    overlay_rows_focused: bool,
     /// Whether the summoned card is drawn as a workspace (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes
     /// `overlay_geometry` to its third family.
