@@ -3,9 +3,10 @@
 # edit, the same shape as println_audit.rs's own EXPECTED table. A check not
 # listed here is never cached (scripts/verify_cache.py run <name> refuses it).
 #
-# `source_globs` / `tests` / `config` are git-pathspecs resolved against
-# tracked files only (scripts/verify_cache.py's tracked_files) — an untracked
-# or gitignored file can never invalidate or validate a cached result.
+# `source_globs` / `tests` / `config` are git-pathspecs resolved against every
+# matching file present in the working tree, including untracked and ignored
+# files (scripts/verify_cache.py's input_files). This mirrors source audits that
+# walk the filesystem rather than Git's index.
 # `env_branches` names environment variables this check's OWN behavior
 # depends on; naming none is a checked claim that the command reads none, not
 # an oversight (see verify_cache.py's env_branch_values docstring).
@@ -13,7 +14,7 @@
 [[check]]
 name = "println_audit"
 command = ["cargo", "test", "--bin", "awl", "--", "println_audit"]
-# The audit scans every tracked file under src/ (src/println_audit.rs::scan_dir),
+# The audit scans every Rust file under src/ (src/println_audit.rs::scan_dir),
 # so its whole input set IS src/**/*.rs — a change anywhere in the tree can
 # add, move, or remove a println!/eprintln! the audit must see.
 source_globs = [":(glob)src/**/*.rs"]
@@ -25,10 +26,9 @@ env_branches = []
 name = "view_policy"
 command = ["cargo", "test", "--bin", "awl", "--", "view_policy"]
 source_globs = [
-  "src/capture.rs",
-  ":(glob)src/capture/**/*.rs",
-  "src/view_policy.rs",
-  "src/app/viewstate.rs",
+  # view_policy's ownership rosters recursively scan all of src/, including
+  # files outside capture/ and app/viewstate.rs.
+  ":(glob)src/**/*.rs",
 ]
 tests = ["src/view_policy.rs"]
 config = ["Cargo.toml", "Cargo.lock"]

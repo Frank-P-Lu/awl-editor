@@ -14,8 +14,9 @@ independence." This module is that mechanism, and nothing more:
     is a hard error), and a glob that does not list a file gives that file no
     power to invalidate anything — enrollment is a conscious, reviewed edit
     to the manifest, the same shape as println_audit.rs's own table.
-  - The reuse decision hashes every GIT-TRACKED file the check's globs match
-    (source, tests, and config are recorded as separate categories, so a
+  - The reuse decision hashes every PRESENT file the check's globs match,
+    including tracked, untracked, and ignored files (source, tests, and config
+    are recorded as separate categories, so a
     change in any one is visible, but they fold into one signature — a test
     file IS a source file for this purpose, and changing it invalidates the
     result exactly because it changed a file the signature covers), plus the
@@ -116,19 +117,51 @@ def validate_globs(globs: list[str], check_name: str, field: str) -> None:
             )
 
 
-def tracked_files(root: Path, globs: list[str]) -> list[str]:
-    """Git-tracked files under root matching any of globs. Untracked files —
-    build output, local scratch, an ignored fixture — can never contribute to
-    a signature: only what git would commit is evidence."""
+def input_files(root: Path, globs: list[str]) -> list[str]:
+    """Every present file matching the registered git pathspecs.
+
+    Source audits walk the working tree, not Git's index. Their reusable
+    evidence must therefore include tracked, untracked, and ignored files. A
+    deleted tracked path is absent from the scanner too, so it is deliberately
+    filtered from this inventory rather than handed to ``read_bytes``.
+    """
     if not globs:
         return []
-    out = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z", "--", *globs],
-        capture_output=True,
-        check=True,
-    )
-    names = [n for n in out.stdout.decode("utf-8", "surrogateescape").split("\0") if n]
-    return sorted(set(names))
+    commands = [
+        ["git", "-C", str(root), "ls-files", "-z", "--cached", "--", *globs],
+        [
+            "git",
+            "-C",
+            str(root),
+            "ls-files",
+            "-z",
+            "--others",
+            "--exclude-standard",
+            "--",
+            *globs,
+        ],
+        [
+            "git",
+            "-C",
+            str(root),
+            "ls-files",
+            "-z",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--",
+            *globs,
+        ],
+    ]
+    names: set[str] = set()
+    for command in commands:
+        out = subprocess.run(command, capture_output=True, check=True)
+        names.update(
+            n
+            for n in out.stdout.decode("utf-8", "surrogateescape").split("\0")
+            if n and (root / n).is_file()
+        )
+    return sorted(names)
 
 
 def file_hash(root: Path, relpath: str) -> str:
@@ -179,7 +212,7 @@ def compute_signature(
         "config": list(check.get("config", [])),
     }
     all_globs = [g for globs in categories.values() for g in globs]
-    files = tracked_files(root, all_globs)
+    files = input_files(root, all_globs)
     file_hashes = {f: file_hash(root, f) for f in files}
     payload = {
         "command": check["command"],
@@ -276,7 +309,7 @@ def run_check(
                     f"verify-cache: REUSED {name} — inputs unchanged since it last ran "
                     f"at commit {record.get('commit', '?')[:12]} (now at "
                     f"{current_commit(root)[:12]}); not rerun. "
-                    f"{evidence['files_hashed']} tracked files, toolchain {toolchain}, "
+                    f"{evidence['files_hashed']} filesystem files, toolchain {toolchain}, "
                     f"hardware {hw}.",
                     file=out,
                 )

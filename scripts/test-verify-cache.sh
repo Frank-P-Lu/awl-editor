@@ -3,7 +3,8 @@
 # throwaway fixture repo and fake fast commands — never the real cargo tests,
 # so this runs in well under a second and can sweep every invalidation axis
 # docs/verification.md names (source, tests, config, toolchain, hardware,
-# environment branches) plus missing/corrupt records, cancellation, failure,
+# environment branches) plus the tracked/untracked/ignored input inventory,
+# removal, rename, staging, missing/corrupt records, cancellation, failure,
 # concurrency, and unrecognised inputs.
 set -euo pipefail
 
@@ -63,6 +64,100 @@ expect_count() {
     exit 1
   fi
 }
+
+# ── Filesystem input inventory ──────────────────────────────────────────
+# A source audit that reads the FILESYSTEM, like println_audit itself. Keeping
+# this fixture separate makes the input-inventory law prove an actual cached
+# PASS can be invalidated by a forbidden untracked/ignored Rust file without
+# perturbing the general invalidation counter below.
+AUDIT_COUNTER="$WORK/audit-run-count"
+: >"$AUDIT_COUNTER"
+AUDIT_CMD="$WORK/auditcmd.sh"
+cat >"$AUDIT_CMD" <<EOF
+#!/usr/bin/env bash
+echo x >>"$AUDIT_COUNTER"
+while IFS= read -r -d '' source; do
+  if grep -q 'println!' "\$source"; then
+    exit 1
+  fi
+done < <(find "$REPO/src" -type f -name '*.rs' -print0)
+exit 0
+EOF
+chmod +x "$AUDIT_CMD"
+AUDIT_MANIFEST="$WORK/audit-manifest.toml"
+cat >"$AUDIT_MANIFEST" <<EOF
+[[check]]
+name = "source-audit"
+command = ["$AUDIT_CMD"]
+source_globs = [":(glob)src/**/*.rs"]
+EOF
+
+audit_vc() {
+  python3 "$VC" --manifest "$AUDIT_MANIFEST" --root "$REPO" --cache-dir "$CACHE" "$@"
+}
+
+audit_count() { wc -l <"$AUDIT_COUNTER" | tr -d ' '; }
+
+expect_audit_count() {
+  local want="$1" got
+  got="$(audit_count)"
+  if [[ "$got" != "$want" ]]; then
+    echo "test-verify-cache: expected $want real source-audit run(s), got $got" >&2
+    exit 1
+  fi
+}
+
+# The first run is a real passing filesystem audit; unchanged input reuses it.
+audit_vc run source-audit >/dev/null
+expect_audit_count 1
+audit_vc run source-audit | grep -q REUSED
+expect_audit_count 1
+
+# Untracked and ignored Rust files are both visible to the audit and therefore
+# must invalidate the cached PASS. Their removal invalidates the failure again.
+echo 'fn bad() { println!("forbidden"); }' >"$REPO/src/untracked.rs"
+if audit_vc run source-audit >/dev/null 2>&1; then
+  echo "test-verify-cache: an untracked forbidden Rust file reused a stale PASS" >&2
+  exit 1
+fi
+expect_audit_count 2
+rm -f "$REPO/src/untracked.rs"
+audit_vc run source-audit >/dev/null
+expect_audit_count 3
+
+echo 'ignored.rs' >"$REPO/src/.gitignore"
+echo 'fn bad() { println!("forbidden"); }' >"$REPO/src/ignored.rs"
+git -C "$REPO" check-ignore -q src/ignored.rs
+if audit_vc run source-audit >/dev/null 2>&1; then
+  echo "test-verify-cache: an ignored forbidden Rust file reused a stale PASS" >&2
+  exit 1
+fi
+expect_audit_count 4
+rm -f "$REPO/src/ignored.rs"
+audit_vc run source-audit >/dev/null
+expect_audit_count 5
+
+# Path membership is evidence: addition, rename and removal rerun. Staging the
+# same path and bytes does not change what the filesystem audit reads, so it
+# correctly reuses the current PASS.
+echo 'fn safe() {}' >"$REPO/src/new.rs"
+audit_vc run source-audit >/dev/null
+expect_audit_count 6
+audit_vc run source-audit | grep -q REUSED
+expect_audit_count 6
+mv "$REPO/src/new.rs" "$REPO/src/renamed.rs"
+audit_vc run source-audit >/dev/null
+expect_audit_count 7
+git -C "$REPO" add src/renamed.rs
+audit_vc run source-audit | grep -q REUSED
+expect_audit_count 7
+git -C "$REPO" mv src/renamed.rs src/staged-renamed.rs
+audit_vc run source-audit >/dev/null
+expect_audit_count 8
+rm -f "$REPO/src/staged-renamed.rs"
+audit_vc run source-audit >/dev/null
+expect_audit_count 9
+echo "test-verify-cache: filesystem audit inputs cover untracked, ignored, removal, rename, staging, and unchanged states"
 
 # ── 1. Cold run executes; unchanged inputs reuse ────────────────────────────
 vc run fake >/dev/null

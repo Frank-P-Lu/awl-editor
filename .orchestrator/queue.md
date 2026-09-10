@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks.** Ready: 643, 641, 642, 637, 634, 635.
+**13 open numbered tasks.** Ready: 643, 641, 642, 637, 634.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -111,9 +111,9 @@ wall-clock feel; identify any remaining live timing checks honestly.
 
 ### 637 — implement the folder-to-file-to-writing journey (user approval, 2026-09-10)
 
-🟢 READY — queue only, not dispatched. Coordinate renderer changes with
-628; preserve its shared visual review requirement rather than reopening this
-approved navigation direction.
+🟡 IN PROGRESS — `navigation_637` (Codex), branch `codex/637-files`.
+Coordinate renderer changes with 628; preserve its shared visual review requirement
+rather than reopening this approved navigation direction.
 
 Build: dedicated Files / Recent navigation in the existing summoned-surface
 system. Files with an empty query shows immediate subfolders and files; folder
@@ -281,33 +281,6 @@ replacement fails preflight before any GPU test runs. Keep a law that rejects a
 filter regressing to `view_policy` alone; command stubs alone are insufficient.
 Run the preflight laws and affected audits, then the integrated tooling verification
 required by `docs/verification.md`. Report targeted evidence accurately.
-
----
-
-### 635 — cached source-audit passes must account for untracked Rust files (user request, 2026-09-09)
-
-🟢 READY — queued only, not dispatched. Keep the cache outside the full-gate path.
-
-Problem: `scripts/verify_cache.py::tracked_files` hashes only `git ls-files` results,
-while `src/println_audit.rs::scan_dir` traverses the filesystem, including untracked
-Rust files. A new file with forbidden application output changes the audit result
-without changing the cache signature. A throwaway-repository probe confirmed that
-adding `src/new.rs` leaves the signature identical. Existing cache laws cover
-tracked edits but miss this input-set mismatch. The cache is not wired into the
-full gate, so this finding concerns optional cached evidence, not its receipts.
-
-Build: make reuse conservative for every file the registered audit reads. Either
-include the actual audit input inventory in the signature or refuse reuse when
-untracked/ignored inputs may affect the check. Do not silently narrow the audit's
-subject to make the cache agree. Review the other registered check for the same
-mismatch; use an explicit bounded policy, not a generic dependency framework.
-
-Verify: first record a real passing source audit, then add an untracked Rust file
-with a forbidden print and require a rerun that fails. Cover ignored Rust files
-when the scanner reads them, removal, rename, staging, and unchanged inputs.
-The law must fail against the current tracked-only signature. Run the cache laws,
-relevant source audits, and integrated tooling checks in `docs/verification.md`.
-Never relabel a stale pass as new evidence or enable full-gate reuse as part of this fix.
 
 ---
 
@@ -509,10 +482,9 @@ for a clean re-measurement without repaying the build.
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
-🟡 CANDIDATE EXISTS, REVIEW PENDING — corrective follow-up to 564. Branch
-`item-582` contains candidate `c82e4b53`, verified not integrated into main on
-2026-09-10. The previous “not dispatched” status was stale. Candidate existence does
-not establish live motion parity or human acceptance; those checks remain owed.
+🟡 VISUAL REVIEW IN PROGRESS — `kite_582_judge` (Codex), candidate branch
+`item-582` at `c82e4b53`. Verified not integrated into main. Candidate existence
+does not establish live motion parity or human acceptance; those checks remain owed.
 
 **Outcome.** The user rejected the delivered appearance: regular concentric
 circles and straight spokes, unlike the approved organic tunnel prototype.
