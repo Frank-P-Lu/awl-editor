@@ -42,8 +42,10 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
 | Bowerbird | midnight-navy         | IBM Sans    | Awl Marks pinwheel star lozenge   | Night | Everyday |\n\
 \n\
 prose after\n";
-    let wide_fixture =
-        std::fs::read_to_string("samples/wide-table.md").expect("samples/wide-table.md exists");
+    let wide_fixture_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples/wide-table.md");
+    let wide_fixture = std::fs::read_to_string(&wide_fixture_path)
+        .unwrap_or_else(|e| panic!("{} exists: {e}", wide_fixture_path.display()));
 
     let widths_at = |p: &mut TextPipeline,
                      device: &wgpu::Device,

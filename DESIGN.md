@@ -184,8 +184,9 @@ because it grew.
 ### Contextual overlays
 
 An overlay belongs to the current writing action. It keeps the document visible
-because the user still needs that context. Examples include Commands, Goto,
-Find/Replace, Theme, Caret, spelling, links, and formatting.
+because the user still needs that context. Examples include Commands, Files and
+Recent, document navigation, Find/Replace, Themes, Caret, spelling, links, and
+formatting.
 
 Overlays:
 
@@ -266,10 +267,23 @@ panel grouped by project — but it remains orientation, never a persistent
 file-tree or project-manager sidebar. The expanded panel is summoned and
 dismissed (Esc, click-away, choosing a row), not a standing surface.
 
+File navigation follows **folder → file → writing**. The working set answers
+what is already open. **Files** and **Recent** answer what to open from the named
+writing root. The Outline answers where the caret is in the current document.
+Commands answers what to do; Settings controls behaviour; History explains
+changes to the named document. These tasks do not share one mixed result list.
+Names lead and paths disambiguate.
+
+The Files surface names its own browsing root even when the document behind it
+remembers another root. Browsing never changes that document. Opening an
+already-open file restores the file's buffer, edits, undo state, position, and
+remembered root as one commitment. The focus and action grammar for this surface
+lives in `docs/render.md`; the visible hierarchy above is the product rule.
+
 When the last document closes, the Room is absent rather than replaced by a
 fake scratch page. The Frame keeps the remembered folder context and offers a
 centered, calm start surface with exactly two actions: **New document** and
-**Go to**. There is no caret, page, filename, outline, count, or document node
+**Files**. There is no caret, page, filename, outline, count, or document node
 until one of those actions creates or opens a real document. A first launch is
 unchanged: it still begins with the ordinary scratch document.
 

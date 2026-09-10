@@ -7,6 +7,10 @@
 Always edit `.orchestrator`, and preserve active entries across tools and
 worktrees.
 
+Re-read the current board immediately before assigning an item number. If concurrent
+writes collide, the later committed item is renumbered with all its cross-references;
+preserve the earlier writer's number.
+
 ## Taste calls: LAND the easy ones, don't park them (user decision 2026-08-08)
 
 ‼ **THE USER'S STANDING PREFERENCE, in their own words: *"if it's easy to change, just
@@ -127,6 +131,21 @@ Say instead: run code-health and web-smoke in the foreground; expect
 the turn** — ending the turn is the actual failure, because nothing wakes a
 worker but the orchestrator. Committing before any wait remains mandatory
 regardless.
+
+‼ **A FINISHED WORKER CAN WAKE ITSELF, SO REPLACING ONE IS NOT THE SAME AS RETIRING IT.**
+An agent that ended its turn while a background child was still running reports as
+`completed` — and then reports again, `running`, when that child finishes. So an orchestrator
+that responds to the first notification by spawning a REPLACEMENT into the same worktree can
+end up with two agents editing one tree, each unaware of the other. This happened on
+2026-09-08: a replacement lane and the original it replaced were both live in
+`.claude/worktrees/item-611`, and only a routine `ListAgents` caught it. Neither had committed
+yet, so nothing was lost, and that was luck rather than design.
+
+The rule: **stop the original explicitly before spawning its replacement, and stop it even
+when it reads `completed`** — that status describes its turn, not its children. `ListAgents`
+is the only thing that shows the true set; a completion notification does not mean the agent
+is retired. When you do replace a lane, tell the replacement that the inherited work is
+unreviewed, because it now owns work nobody has read.
 
 **A turn must never end on the word "holding".** On 2026-08-01 one lane ended
 four consecutive turns saying it was waiting for a monitor to notify it that a
@@ -268,7 +287,7 @@ worktree's `sweep.sh 1`, which is **3 GiB**. Two facts bound it and neither is
 tunable: `cargo sweep --time` keeps every artifact whose fingerprint was used
 inside the window, and the one worktree this door may prune is the one that is
 building right now; and cargo-sweep never touches `target/debug/incremental`,
-measured at **61-69%** of every `target/` on this fleet. Sampled 2026-09-07 across
+measured at **46-86%** of every `target/` on this fleet. Sampled 2026-09-07 across
 worktrees spanning 1.2-25.4 GiB and one to fourteen days old, `--time 1` reclaimed
 **nothing at all**, and so did every threshold up to 60 days; the largest sweepable
 pool anywhere was 2.8 GiB of deps and fingerprints in a lane that had just rebuilt.
@@ -278,6 +297,18 @@ a day idle with its deps intact, which an active lane never has. Every receipt n
 prints `sweep_yield_bytes=` and `reclaimed_bytes=`, so the next tuning pass reads
 numbers off a run instead of remembering. `scripts/test-disk-preflight.sh` pins the
 derivation and runs in `code-health.sh`.
+
+`scripts/sweep.sh` now also prunes `target/{debug,release}/incremental` itself,
+by the same `DAYS` age rule it already applies to deps and fingerprints — the
+pool above had no owner at all until this, and rustc treats a missing session
+as nothing worse than one non-incremental recompile. This does not move
+`SWEEP_YIELD_BYTES`: sampled across four active lanes, every one showed zero
+`--time 1`-stale incremental content, because a building lane keeps touching
+its own session directories — the same reason its deps/fingerprints don't
+sweep either. The new door pays off on a manual, fleet-wide, longer-window
+pass over IDLE worktrees (`scripts/sweep.sh --all-worktrees 7`), which is where
+this fleet's ~90 GiB of orphaned incremental caches actually sits, not on the
+automatic one-lane door this band models.
 The serializer is a kernel advisory lock held through inherited file descriptor
 9. The lock file may persist, but its contents carry no authority; the kernel
 releases ownership when a process exits or is killed.
@@ -665,13 +696,19 @@ report shas and outcomes.
 
 ## Gates and landing
 
+`docs/verification.md` owns check scope, ordering, and evidence reuse. It takes
+precedence over older full-gate wording in worker-report examples and queue briefs.
+Workers normally deliver targeted checks; the merge train runs the full set once
+on the bounded integrated candidate. A worker full gate needs a stated risk reason.
+
 Run the cheapest thing that can falsify the current claim; run the full set
 once, at landing.
 
 - **While working:** rustfmt, the narrowest affected clippy/health arm, the
   targeted tests. Expected to run often, so keep it small.
-- **Before landing, on the exact combined-main candidate:** code health,
-  `scripts/native-gate.sh`, wasm smoke, and the item's required captures. Only
+- **Before landing, on the exact combined-main candidate:**
+  `scripts/native-gate.sh` (includes code health), wasm smoke, and the item's
+  required captures. Only
   that script's receipt authorizes “full native suite”; it names the exact
   commit and both conventions. **What it does not name is the GPU.** The gate
   runs on the host's own adapter — real Apple Silicon Metal here — so a receipt
@@ -796,8 +833,9 @@ about to move still means wait, or commit deliberately and accept that the
 holder's receipt will refuse itself (`HEAD changed while the suite ran`) and
 need a rerun. No marker, or a dead PID, means commit freely.
 
-Integrate one branch at a time. Two branches each green alone can be red
-together — a roster or ownership law is designed to cause exactly that. For
+Inspect and compile one branch integration at a time, then gate the bounded
+combined candidate once. Two branches each green alone can be red together — a
+roster or ownership law is designed to cause exactly that. For
 structs with per-call-site initializers, grep the construction sites before
 declaring a merge done: git merges a missing field cleanly and fails to
 compile later.
@@ -903,8 +941,9 @@ times it fires.**
 ## Non-negotiable operational facts
 
 - **Preserve gate truth.** Never pipe a gate through something that hides its
-  exit status. Always run the wasm gate: a change can look native-only and
-  still break it.
+  exit status. Run the wasm gate for executable changes on the integrated
+  candidate: a change can look native-only and still break it. Prose-only
+  policy and queue edits follow `docs/verification.md`.
 - **Never claim a tier that did not run**, and never hide a failure by
   selecting a smaller one. Formatting-, docs-, and board-only changes use only
   the applicable arms.
@@ -986,18 +1025,45 @@ times it fires.**
 
 ## Model routing
 
-- **Production** — current Sonnet at medium, or `gpt-5.6-terra` at `medium`:
-  implementation, structured research, routine diagnosis, merges, audits.
-- **Deep** — current Opus, or `gpt-5.6-sol` at `high`: ownership and state
-  maps, ambiguous high-value work, adversarial verification. `xhigh` when
-  several plausible candidates must be eliminated. `xhigh` is the ceiling;
-  do not dispatch workers at `max`.
-- **Repeatable** — `gpt-5.6-luna` at `low`/`medium`: bounded extraction,
-  classification, mechanical transformation, deterministic probes.
+- **Production (default)** — current Sonnet at medium, or `gpt-5.6-terra`
+  at `medium`: implementation, structured research, routine diagnosis, merges
+  and audits. Routine orchestration — status reads, dispatching agreed briefs
+  and board updates — also uses this tier.
+- **Difficult implementation** — current Opus, or `gpt-5.6-sol` at `high`:
+  complex refactors and debugging with a concrete objective and understood scope.
+- **Architecture and hard diagnosis** — current Opus, or `gpt-6-astra` at
+  `high`: ambiguous ownership/state design, interacting failures, consequential
+  design decisions and adversarial analysis that needs this tier's judgment.
+  Prefer a bounded analysis with a concrete handoff to Production or Difficult
+  implementation once the uncertainty is resolved; do not require a second agent
+  when that would merely repeat the work.
+- **Repeatable** — `gpt-5.6-luna` at `medium`: bounded extraction,
+  classification, mechanical edits, contact-detail changes and deterministic
+  inventories. Do not use this tier for ownership decisions or production audits.
 - **Visual judge** — Fable, or `gpt-5.6-sol` at `xhigh`: receives real
   captures and returns a verdict only; the implementer applies it and owns the
-  gates. Taste work is judged at the deep tier, not below it.
+  gates. Escalate an unresolved, consequential design question to the Architecture
+  tier rather than routinely using Astra for every screenshot review.
 
-Use full model IDs. Choose by failure cost, not task size. When weekly usage
-runs well ahead of the reset cycle, cut concurrency and optional dispatch
-before cutting the tier where failure is expensive.
+Use full model IDs and an explicit effort in every dispatch. `high` is the starting
+point for difficult implementation and architecture; use `xhigh` only when several
+plausible candidates must be eliminated. `xhigh` remains the worker ceiling; do not
+dispatch workers at `max` or above. Astra's availability does not promote ordinary
+workers or routine orchestration to Astra, and this policy does not change the model
+of an already-running conversation.
+
+Choose by failure cost and uncertainty, not task size. Keep briefs/context focused,
+avoid duplicate investigation and speculative delegation, and follow
+`docs/verification.md`: targeted worker checks, then one full gate on the integrated
+candidate. When weekly usage runs well ahead of the reset cycle, cut concurrency
+and optional dispatch before cutting the tier where failure is expensive.
+
+This routing is a workload recommendation, not an awl-specific model benchmark or a
+promise of lower allowance consumption. Official guidance describes Astra's stronger
+multistep capabilities and possible task-level API savings, while Codex allowances
+also depend on context, reasoning, tools and caching. Reassess from actual outcomes
+and usage rather than assuming that per-token price or message estimates alone
+predict cost per completed task.
+
+References: [Astra guidance](https://developers.openai.com/api/docs/guides/latest-model),
+[Codex usage guidance](https://learn.chatgpt.com/docs/pricing#what-are-the-usage-limits-for-my-plan).

@@ -123,6 +123,13 @@ impl Config {
         if let Some(on) = self.code_ligatures {
             crate::render::set_code_ligatures_on(on);
         }
+        // FOOTNOTE LADDER: same pattern (no CLI flag) — the remembered on/off
+        // applies when present; absent = the built-in default (OFF), which
+        // `markdown::FOOTNOTE_LADDER_ON` already carries. Paint-time only: the
+        // `[^label]` source and export stay numeric either way.
+        if let Some(on) = self.footnote_ladder {
+            crate::markdown::set_footnote_ladder_on(on);
+        }
         // PERSISTENT MARGIN OUTLINE: like the toggles above, the built-in default
         // is ON (`outline::OUTLINE_ON` starts true — flipped 2026-07-09, a
         // user-decided taste reversal of the original opt-in-off call; see
@@ -160,12 +167,19 @@ impl Config {
         // CJK AMBIGUITY LADDER: seed the live process global (`frontmatter::
         // cjk_priority()`, read by the Settings menu's "Ambiguous CJK reads as"
         // row) from a configured list, normalized to a well-formed 4-member
-        // permutation. Absent config leaves the global at its own built-in
-        // default (`DEFAULT_CJK_PRIORITY`), so a plain launch (and a default
-        // `--screenshot`) is unaffected. The RENDER ladder is unaffected either
-        // way — it stays `self.cjk_priority_or_default()`, read fresh.
+        // permutation, AND flip the Auto flag beside it (`frontmatter::
+        // cjk_priority_is_auto`) to Explicit. Absent config — or the literal
+        // `cjk_priority = "auto"`, which parses to the SAME `None` (`Config::
+        // parse`'s doc) — leaves BOTH globals untouched, exactly like
+        // `dictionary` above: their own built-in defaults are already
+        // correct (`DEFAULT_CJK_PRIORITY`, Auto), so a plain launch (and a
+        // default `--screenshot`) is unaffected, and a config reload that
+        // drops the key doesn't silently undo an in-session picker choice.
+        // The RENDER ladder is unaffected by either global either way — it
+        // stays `self.cjk_priority_or_default()`, read fresh every reshape.
         if let Some(v) = &self.cjk_priority {
             crate::frontmatter::set_cjk_priority(v);
+            crate::frontmatter::set_cjk_priority_auto(false);
         }
     }
 }

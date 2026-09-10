@@ -1,8 +1,8 @@
 //! src/theme/ornament.rs — the per-world SECTION-BREAK ornament trio + the
-//! per-world LIST-BULLET pair (the ornament trio, one level down): the shared
-//! [`Ornaments`] type, the ornament FACE constants, the three ornament
-//! SCALE tiers, and the two bullet-scale tiers. See [`crate::theme::worlds`]
-//! for how each world picks from this data.
+//! per-world LIST-BULLET triple (the ornament trio, one level down, drawn
+//! from the same worn set): the shared [`Ornaments`] type, the ornament FACE
+//! constants, the three ornament SCALE tiers, and the two bullet-scale tiers.
+//! See [`crate::theme::worlds`] for how each world picks from this data.
 
 // --- The PER-SYNTAX thematic-break ornament set -----------------------------
 
@@ -57,12 +57,18 @@ pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
 //
 // The section-break/About ornament cabinet is Nishiki-derived in every live
 // world. Keycaps (⌘⌥⇧) and the plain typographic marks (§ † ‡ …) stay on the
-// derived marks face (`render::SYMBOL_FAMILY`). List bullets deliberately retain
-// their previous per-world face until their own fitting-room decision is made.
+// derived marks face (`render::SYMBOL_FAMILY`). List bullets moved onto the
+// same Nishiki register once a later fitting round derived most worlds'
+// bullet triples from the ornament set that world already wears — no world's
+// `bullet_face` names a legacy face any longer, even the one named exception
+// that kept its plain glyphs (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`).
 //
-// The legacy faces remain bundled and registered because the bullet transition
-// still uses them. Section-break glyph coverage is derived from the live Nishiki
-// assignments and pinned against the font manifest by render laws.
+// [`ORNAMENT_GARAMOND`]/[`ORNAMENT_JUNICODE`] remain bundled and registered
+// because the exhaustive [`OrnamentRegister`] fold-mark vocabulary still names
+// them (see `fold_mark_for`), not because any live world's bullet or
+// section-break glyph reads from them today. Section-break AND bullet glyph
+// coverage are both derived from the live Nishiki assignments and pinned
+// against the font manifest by render laws.
 
 /// The EB Garamond ornament face — Renaissance fleurons for the literary serif
 /// worlds, registered from `EBGaramond-Regular.ttf`. Covers ❧ ❦ ☙ and NOTHING
@@ -305,22 +311,29 @@ pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 // --- The per-world LIST BULLET triple + scale (the ornament trio, one level down) --
 //
 // The unordered-list bullet ([`crate::theme::Theme::bullets`], drawn over a
-// concealed `-`/`*`/`+` the caret is off) is PER-WORLD DATA drawn in the world's
-// own [`crate::theme::Theme::bullet_face`]. That transitional face preserves
-// the already-approved pairs until their separate fitting round; a bullet can
-// only use glyphs that face actually ships.
+// concealed `-`/`*`/`+` the caret is off) is PER-WORLD DATA drawn in the
+// world's own [`crate::theme::Theme::bullet_face`] — [`ORNAMENT_NISHIKI`] on
+// every world, the same face that already carries that world's own
+// section-break trio. Every world but one derives its triple from the very
+// ornament SET it wears for `---`/`***`/`___`: a bullet is never invented
+// vocabulary, only a smaller reach into a set already adopted for that world.
 // `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`
-// holds every pick to that.
+// holds every pick to that face; `theme::tests::ornament::
+// every_world_has_a_bullet_pair` holds every pick to that world's own set,
+// and names the one exception (`assert_bullet_pair_law`'s
+// `BULLET_PAIR_EXCEPTION`, real-pixel evidence in its own doc).
 //
 // [`crate::theme::Theme::bullet_for_depth`] cycles `.0`/`.1`/`.2` every THREE
-// nesting levels, composing the LEVEL axis with the per-WORLD one. Bombora's
-// manicule is deliberately exclusive to depth 0 — a pointing hand on every
-// bullet is loud — so that world's `.2` comes from the fleuron pool instead.
+// nesting levels, composing the LEVEL axis with the per-WORLD one. The old
+// manicule showpiece (Bombora, exclusive to depth 0) retired with the rest of
+// the pre-Nishiki bullet vocabulary — it named no world's worn ornament set.
 
 /// The plain geometric bullet triple — `•` filled / `◦` hollow / `▪` small
-/// square, all three in the merged [`ORNAMENT_MARKS`] face. Restraint IS the
-/// modern/technical worlds' character; a bullet is not the place to decorate
-/// them for symmetry with the ornate worlds.
+/// square, all three in the merged [`ORNAMENT_MARKS`] face. Every world's
+/// bullet now derives from its own worn ornament set, save the one named,
+/// evidenced exception (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`);
+/// the constant stays as the historical restraint tier, that exception's
+/// value, and a documented shape for [`crate::theme::Theme::bullets`].
 pub const BULLETS_PLAIN: (char, char, char) = ('•', '◦', '▪');
 
 /// PLAIN bullet scale — the geometric worlds' bullets sit at body size.
@@ -347,6 +360,26 @@ pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
 /// face rather than from a world-name list, which is what keeps the next world
 /// to adopt that face from failing the padding law.
 pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
+
+/// The HANAMI bullet scale — a real-pixel LEGIBILITY exception, not a
+/// crowding one: Bilby's own cherry blossom (part of the Hanami set it
+/// already wears for `---`) is a thin five-petal outline whose peak rendered
+/// contrast falls short of the shared floor at the ordinary ORNAMENT tier,
+/// measured by `render::tests::awl_marks_pixels::
+/// every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size`
+/// (a real GPU pixel law, not a guess). More ink area at the SAME position
+/// clears the floor without leaving the world's own worn set for a different
+/// glyph. Pinned by name and value exactly like [`BULLET_SCALE_GARAMOND`], so
+/// a bullet_scale here is a proven exception, never a stray literal.
+pub const BULLET_SCALE_HANAMI: f32 = 0.60;
+
+// Brolga's Dovecote set was AUDITIONED at this same exception shape and
+// rejected: real-pixel measurement across the ordinary scale range found no
+// value where every dove both clears the legibility floor and stays clear of
+// the following text (the widest dove already fills the bullet's reserved
+// box before its own contrast clears the floor). See the comment on
+// `worlds::BROLGA`'s `bullets` field and `assert_bullet_pair_law`'s named
+// carve-out — a real per-glyph finding, not a skipped measurement.
 
 // --- The per-world LIST-ITEM INDENT scale (the other half of bullet-
 // level readability) ---------------------------------------------------------

@@ -35,13 +35,20 @@ impl App {
             "popover" => self.config.popover = Some(value == "true"),
             "inline_images" => self.config.inline_images = Some(value == "true"),
             "code_ligatures" => self.config.code_ligatures = Some(value == "true"),
+            "footnote_ladder" => self.config.footnote_ladder = Some(value == "true"),
             "outline" => self.config.outline = Some(value == "true"),
             "menu_bar" => self.config.menu_bar = Some(value == "true"),
             "reduce_motion" => self.config.reduce_motion = Some(value == "true"),
             "file_visibility" => self.config.file_visibility = Some(value == "true"),
             "keymap" => self.config.keymap = Some(value.trim_matches('"').to_string()),
             "date_format" => self.config.date_format = Some(value.trim_matches('"').to_string()),
-            "cjk_priority" => self.config.cjk_priority = Some(crate::frontmatter::cjk_priority()),
+            "cjk_priority" => {
+                self.config.cjk_priority = if crate::frontmatter::cjk_priority_is_auto() {
+                    None
+                } else {
+                    Some(crate::frontmatter::cjk_priority())
+                }
+            }
             _ => {}
         }
     }
@@ -106,6 +113,7 @@ impl App {
                 self.sync_view(true);
             }
             "code_ligatures" => self.sync_view(true),
+            "footnote_ladder" => self.sync_view(true),
             "spellcheck" => self.run_spellcheck_now(),
             "writing_nits" => self.sync_view(false),
             "outline" => self.sync_view(false),

@@ -125,6 +125,15 @@ mod lifetime;
 // like `mac_chrome` beside it (which owns every other AppKit door).
 mod mac_about;
 mod mac_chrome;
+// Finder "Open With" + cold-launch document handoff: injects
+// `application:openURLs:` onto winit's own `NSApplicationDelegate` class (the
+// one AppKit door `mac_chrome`'s own module doc explicitly does NOT cover —
+// this is a second entry point INTO `App`, not another call FROM it). macOS,
+// non-MAS desktop only by its own inner `cfg`; the grep-law living beside it
+// is NOT gated, so a Linux CI run still catches a second such door opening
+// anywhere else in the tree.
+mod mac_open_documents;
+mod mac_open_documents_law;
 // The macOS PRODUCT-IDENTITY laws: the bundle contract lives in
 // shell, and the surfaces it governs are live-only, so its structure is
 // asserted here. Test-only by its own inner `cfg`.

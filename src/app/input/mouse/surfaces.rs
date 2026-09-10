@@ -3,34 +3,37 @@
 use crate::app::*;
 
 impl App {
-    /// Handle the search panel's case toggle and field focus. Interior gaps consume
-    /// the press; `false` allows an off-panel press to reach the document.
-    pub(in crate::app) fn panel_click(&mut self) -> bool {
+    /// Route every panel control through the shared search action door. Interior
+    /// gaps consume the press; `false` allows an off-panel press to reach text.
+    pub(in crate::app) fn panel_click(&mut self, exit: &dyn schedule::Exit) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
-        match hit {
+        let control = match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
-                let hay = self.document.buffer().text();
-                let target = self.workspace_state.search_mut().map(|st| {
-                    st.toggle_case(&hay);
-                    st.current_match()
-                });
-                if let Some(Some(m)) = target {
-                    self.document.set_cursor(m.start);
-                }
+                Some(crate::search::PanelControl::CaseToggle)
             }
-            Some(crate::render::PanelHit::Find) => {
-                if let Some(st) = self.workspace_state.search_mut() {
-                    st.focus_query();
-                }
+            Some(crate::render::PanelHit::NavPrev) => Some(crate::search::PanelControl::NavPrev),
+            Some(crate::render::PanelHit::NavNext) => Some(crate::search::PanelControl::NavNext),
+            Some(crate::render::PanelHit::ReplaceButton) => {
+                Some(crate::search::PanelControl::ReplaceButton)
             }
+            Some(crate::render::PanelHit::ReplaceAllButton) => {
+                Some(crate::search::PanelControl::ReplaceAllButton)
+            }
+            Some(crate::render::PanelHit::Find) => Some(crate::search::PanelControl::FocusFind),
             Some(crate::render::PanelHit::Replace) => {
-                if let Some(st) = self.workspace_state.search_mut() {
-                    st.focus_replacement();
-                }
+                Some(crate::search::PanelControl::FocusReplace)
             }
-            Some(crate::render::PanelHit::Elsewhere) => {}
+            Some(crate::render::PanelHit::Elsewhere) => None,
             None => return false,
+        };
+        if let Some(control) = control {
+            self.apply(
+                Action::SearchPanel(control),
+                false,
+                exit,
+                crate::stats::Door::Chord,
+            );
         }
         self.sync_view(true);
         self.request_frame();

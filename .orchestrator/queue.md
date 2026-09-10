@@ -4,13 +4,365 @@
 > remain in `git log -p -- .orchestrator/queue.md`. Execution protocol lives in
 > `.orchestrator/README.md`.
 
-## Ready to build
+## Open build and design tasks
+
+**11 open numbered tasks.** Ready: 641, 642, 637.
+Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
+628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
+Outstanding review of landed work and hardware checks are listed separately below.
+
+### 641 — picker-specific construction inputs (user request, 2026-09-10)
+
+🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+
+Build: replace the catch-all `overlay::BuildCtx` with focused input types so each
+picker receives only the data it consumes. Start by mapping the current
+`overlay/build/ctx.rs` fields to `overlay/build.rs` consumers and the live App,
+replay, tests and benchmark construction sites. Choose typed constructors or a
+request enum carrying per-picker inputs; avoid a picker kind plus an unrelated
+payload, or another all-purpose bag hidden behind defaults. Share genuinely common
+binding/config inputs through one small owner. Preserve the single construction
+path shared by live and replay, including deliberate differences in recency,
+history clocks, dictionary and filesystem data. Keep absent spell-target behavior,
+row gates, ranking, labels, search budgets and navigable-explorer routing unchanged.
+
+Done: production callers cannot supply irrelevant picker inputs or need to fill
+unrelated fields with empty values. Remove redundant gathering and explanatory
+bookkeeping where the new types make it unnecessary; retain comments about units,
+lifetimes and real invariants. Do not introduce eager I/O, extra copying, new
+picker behavior or a generic construction framework. No speedup is claimed without
+release measurements at the affected work owner.
+
+Coordination: separate from 615's mouse extraction. Integrate overlapping changes
+serially with 637–639 and 628/589; rebase on their actual current state rather than
+freezing the old Go-to shape or changing the approved UI contract. This refactor is
+not an additional product-design approval gate.
+
+Verify: read docs/render.md and docs/verification.md; enumerate every picker variant
+with exhaustive handling, update all construction sites and source-law enrollment,
+and compare observable construction results against base (rows/order, selection,
+labels, gates, missing inputs and live/replay differences). Run targeted picker,
+action and replay laws plus compiler checks for native and wasm consumers. Follow
+any identity comparison with an outcome audit; repair missing laws for findings.
+Use the verification policy's single integrated native/wasm gate, not duplicate
+full worker gates. Read docs/harness-reach.md before choosing any render captures.
+
+---
+
+### 642 — animation state owns complete transitions (user request, 2026-09-10)
+
+🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+
+Build: census related animation fields and their writers, starting with the
+TextPipeline overlay entrance/selection-band fields in render.rs and their input,
+prepare, advance and dismissal paths. Group fields by the animation whose invariant
+they share, with private state and named shared transitions for start, retarget,
+advance, settle and reset as applicable. Migrate every live, replay and test caller
+so callers cannot reset the phase while leaving an old origin, target, pending
+input epoch or active flag behind. Existing cohesive animation owners stay intact;
+do not combine unrelated animations into one global state machine or generic engine.
+
+Preserve authored curves, durations, retarget behavior, first-open/close behavior,
+preview commit/revert and Reduce Motion endpoints. Preserve FrameSample's shared
+presentation time, input-epoch accounting, pause/occlusion/failed-present semantics,
+post-prepare activity reporting and clock-free capture deltas. This changes state
+ownership, not animation feel or redraw policy. Reduce bookkeeping/comments only
+where the type and transitions now express the invariant; retain meaningful units
+and temporal contracts. Runtime performance claims require release before/after
+measurements, not fewer fields or lines.
+
+Coordination: separate from 615; serialize edits to shared callers with that branch
+and the UI/picker work in 628/637–639. Reconcile against the current frame-clock and
+theme-preview owners before implementation. No dependence on 641 unless the actual
+call graph exposes one; do not require both refactors to land in one large change.
+
+Verify: map animation state × transition × input sequence, including interrupted
+retargets, repeated resets, close/reopen, buffer/world changes and Reduce Motion
+mid-animation. Use injected time to compare poses and activity against base at
+start, intermediate and settled samples; test stale pending-state removal and
+prove a headline partial-reset regression law fails under a compiling mutation.
+Run targeted motion/frame-clock/scheduling laws and an independent outcome audit;
+read docs/render.md, docs/verification.md and docs/harness-reach.md before selecting
+render probes. Apply the required render vision-smoke when rendering is touched,
+then one integrated native/wasm gate. Deterministic state/pose checks do not verify
+wall-clock feel; identify any remaining live timing checks honestly.
+
+---
+
+### 637 — implement the folder-to-file-to-writing journey (user approval, 2026-09-10)
+
+🟡 IN PROGRESS — `navigation_637` (Codex), branch `codex/637-files`.
+Coordinate renderer changes with 628; preserve its shared visual review requirement
+rather than reopening this approved navigation direction.
+
+Build: dedicated Files / Recent navigation in the existing summoned-surface
+system. Files with an empty query shows immediate subfolders and files; folder
+rows have a folder affordance and trailing disclosure and descend inside the
+same browser without changing the writing root. Breadcrumbs/Up expose the current
+location. Typing searches names/paths throughout the explicitly named root,
+including descendants; show root-relative paths for results and duplicate names.
+Clearing search restores the browse location. Recent contains recently opened
+files in the named root, not folder-switch destinations. Preserve useful selection
+and scroll state through focus changes; never reorder the open-document stack by MRU.
+
+Open folder/Change folder is explicit root selection: macOS keeps its system chooser,
+Linux its internal chooser. Success immediately shows that root's Files contents;
+cancellation/failure preserves valid prior context. Folder browsing, root selection,
+and file activation must have separate state transitions. Loading/partial search,
+no matches, truly empty, unsupported-only, and unavailable/permission-denied are
+distinct states. Use short existing-surface status/empty treatments, not large
+cards, duplicate New actions, or success copy telling an empty folder to choose a file.
+
+Connect home, Welcome's entry point, and the bottom-left folder heading to the same
+Files owner. Keep the stack's placement, stable order, active mark, close/drag
+behavior, and per-file remembered roots; it lists only open documents. A folder
+heading needs a discoverable affordance and matching hit target. Choosing a file
+dismisses Files and opens/activates its existing buffer, preserving edits/undo and
+position. No arbitrary file is opened merely because a folder was chosen.
+
+New document and its actual bound shortcut name the destination. While searching
+or viewing Recent, the destination is explicitly the root; while browsing it is
+the displayed directory. Home without a root creates recoverable unsaved work.
+Preserve existing files' save paths and autosave/recovery guarantees. Implement
+the focus/arrow/Tab rules from 636, including action-level menu interception.
+Align menu, palette, home, hints and user docs on Files terminology while keeping
+intentional legacy config keys/aliases functional. Keep heading/line actions reachable.
+
+Verify: pure transition laws first, then seeded --screenshot-app journeys with
+--seed-tree and explicit config: home → folder → nested file → edit → another
+file → original buffer; root A/B switch and cancellation; search/clear; duplicate
+names; long paths; empty/missing/read-only roots; New document through key AND menu
+Action. State proofs include root, buffer identity, save destination, undo, selection
+and scroll. Native chooser and pointer timing need real-window checks; do not claim
+headless keys exercise AppKit key equivalents. Capture real geometry/pixel presence
+across worlds, narrow/wide and DPI 1/2 with five-shot vision smoke and mutation-proven
+headline laws. Targeted checks here; integrated gate belongs to 640.
+
+---
+
+### 638 — one location-navigation owner for Open, Move, Save As and Export (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 636 and 637 — queue only, not dispatched. Integrate overlapping
+navigation/render ownership sequentially, not as independent browser rewrites.
+
+Build: reuse the agreed folder-row, location/breadcrumb, scope, focus, search and
+back-navigation rules wherever awl chooses a location. Inspect existing MoveDest,
+ExportDest, Browse, ProjectBrowse and save/copy platform routes first; converge
+their common location behavior at one owner. Keep platform-native dialogs where
+they already own the interaction. The operation's typed purpose owns the final
+action and side effects: Open file, Move here, Save here, Export here. Do not make
+a navigation-row activation move/save/export before explicit commitment.
+
+Make source document and destination unambiguous. Preserve rename/overwrite
+confirmation, read-only handling, extension/format policy, recovery and original
+file identity for copy/export. Retain operation-specific constraints rather than
+forcing every chooser into file-opening semantics. No new filesystem manager,
+general-purpose dialog framework, or public filesystem writes for demo purposes.
+
+Verify: a roster-derived test enumerates every location consumer and its commit
+verb. Exercise browse/back/search/cancel and valid/invalid destination per operation
+in hermetic fixtures. Cancellation must perform no file operation; commit changes
+only the promised files. Mutation proof must catch a bypass or premature commit.
+Check Mac native boundaries and Linux fallback separately, and report live-only
+coverage honestly. Use shared chrome checks and targeted operation tests; 640 owns
+the integrated gate.
+
+---
+
+### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
+
+🟡 COORDINATE WITH 637 and 628/589 — queue only, not dispatched. The 636
+interaction contract is now in DESIGN.md and docs/render.md; use 637 as the native
+navigation reference rather than launching another shared-chrome rewrite.
+
+Build: apply context → query/views → choices → actions across the actual surface
+roster, preserving task-specific composition. Commands remains actions, the outline
+remains document navigation, Settings remains behavior, History remains changes
+to the named document. Make scope visible when an action depends on it: Search in
+Writing, Move September.md to…, Export September.md, History of September.md.
+Use readable names and disambiguating paths without repeating the same location
+throughout a panel. Document search and folder-content search retain distinct scope;
+filename/path search does not silently become content search.
+
+Use 636's common focus/action grammar, not identical key meanings in hidden focus
+states. Row selection, keyboard focus and pointer hover remain visibly different.
+Footers/buttons announce the actual action and real rebound/platform keys. Unify
+labels and routing across keyboard, menu, context menu and palette through existing
+Action owners. Preserve focus/editor restoration and accessible roles/states.
+
+Explicitly distinguish selection from preview and commitment: Files opens only on
+accept; world/caret movement can preview, accept keeps and cancel restores; History
+selection can compare without restoring document bytes. Preserve existing immediate
+Settings semantics unless a separately approved decision changes them. Esc is not
+a blanket rollback of already committed settings or a successful root selection.
+
+Visual ownership stays with 628/589: shared hierarchy, controls, nearby label/value
+relationships, meaningful states and legibility within each world's face, palette,
+placement, material and motion. Keep Settings/History's sustained-workspace structure;
+do not shrink them to the Files picker or copy the HTML mock's warm skin everywhere.
+
+Verify: enumerate surface × focus region × action × scope/preview state from the
+production roster. Test keys and direct Actions, canceled versus committed changes,
+search scoping, narrow-layout focus and restoration. Reuse shared native render
+probes with selected/focused/hovered states and the standing world/DPI/pixel checks;
+five-shot vision smoke asks concrete affordance questions. Findings get missing law
+tests. Do not duplicate 628's prototype work or relabel its pending review as passed.
+
+---
+
+### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
+
+🟡 DEPENDS ON 637–639 and their relevant 628/589 integration — queue only, not dispatched.
+
+Build: review the combined native experience as one journey, remove obsolete parallel
+entry points/contradictory teaching, and update the existing contracts, GUIDE,
+Welcome/tour, keybinding reference and accessibility documentation to verified behavior.
+Keep stable user config compatibility deliberate; no silent binding migrations.
+The approved study is a design reference, not a shipped-behavior or performance receipt.
+
+Acceptance journey: no-document/Welcome → choose writing root → Files → enter
+subfolder → search/clear → open/edit → switch open documents → reopen/cancel → New
+document via button and actual shortcut → Move/Save a Copy/Export in hermetic paths →
+folder-content search → Settings → world preview/cancel → History compare/cancel.
+Include two roots, duplicate names, unsaved edits, unavailable/empty folders, narrow
+windows, and focus moved away from a still-selected row. Verify that path ownership,
+buffer identity and save behavior remain understandable throughout. Include a Mac
+menu-key-equivalent journey and real Linux fallback coverage; headless keys alone
+do not certify either. Preserve the screen-lock checks at both ends of live runs.
+
+Verify: follow docs/verification.md: cheap/targeted checks in each owning item, outcome
+audits and mutation proofs on the integrated candidate, then one full native gate
+and web smoke after commit/freeze. Use seeded captures, world/geometry/DPI coverage,
+pixel presence and legibility, and the standing five-shot vision smoke. Validate
+supported web behavior without claiming desktop chooser parity. Distinguish live
+feel/taste still owed to the user from mechanically proven state and geometry.
+Do not dispatch or claim implementation merely because this acceptance work is queued.
+
+---
+
+### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
+
+🟡 PROTOTYPE REVIEW IN PROGRESS — native prototype exists on `item-628` at
+`e37a13ba`; verified not integrated into main (2026-09-10). The earlier “not
+dispatched” status was stale. This is not implementation acceptance.
+
+Review update (2026-09-10): the user likes the saved Settings layout and explicitly
+asked to continue Find/Replace and theme-picker refinement on the interactive design
+site alongside it. Preserve the bounded Settings label/value column and category
+rail. The site extends the approved Files study with separated find/navigation/
+replacement groups and stable theme preview; the Switch/Cancel refinement below supersedes Keep/Cancel. This HTML
+review is explicitly user-authorized for this study; it does not replace the native
+composition, accessibility, world/DPI checks or final taste review below.
+Reference: https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05; earlier study 04 reviewed the initial composition).
+
+Approved theme-picker refinement (2026-09-11; study 05): use **Themes** in
+user-facing labels, not Worlds. Keep the same top-right placement, size and layout
+across all themes at a given viewport/UI scale, including when reopened under a
+different theme. Narrow windows use one shared centered layout. This is stronger
+than merely freezing the opening theme's anchor during a preview. Select to preview;
+**Switch** / Enter commits and closes, **Cancel** / Esc restores the prior theme.
+Keep the quieter, opaque bordered chrome and hold its appearance steady during
+preview. Remove “Preview on the page”, the explanatory chooser subtitle, palette
+blurbs and redundant Keep wording. Remove background/partial blur from these
+reviewed picker surfaces; keep the document sharp behind them. This does not remove
+unrelated authored theme backgrounds or motion. Use actual effective shortcut labels.
+
+Verify the placement contract across opening themes as well as preview destinations,
+normal/narrow viewports and UI scale/DPI. Check Switch/Cancel through keyboard,
+pointer and direct Actions, with focus restored to the invoking surface (including
+Settings). The approved direction is queued for native implementation; it does not
+mark the existing native prototype integrated or its outstanding checks passed.
+
+The native prototype report flags an existing workspace-width law as failing and
+leaves theme composition untouched. Re-measure against current main before integration;
+prototype captures are neither a gate receipt nor evidence that the running app has
+these changes. Continue through 636/639's interaction contract without duplicating
+this item's visual ownership. No native implementation dispatched by this review.
+
+Problem: the user rejected the live Find strip as crowded and the live Settings
+workspace as a huge surface with a tiny, tightly packed cluster and distant values.
+They expected Find, Settings and the theme picker to share the approved bordered
+form's family. Individual feature briefs reproduced controls but lost composition.
+This item owns the coordinated correction; it is awl-rendered chrome, not a request
+for OS-native widgets.
+
+Coordination: supersedes conflicting visual choices in 591 (landed), 592 (reverted),
+and 609 (landed). 589's shared-control work must use this language; retain its Commands
+scope, but do not independently land overlapping visual changes ahead of this review.
+592's separate visual implementation waits for this prototype; retain its correctness
+findings and tests. 622/623's test-integrity repairs remain valid independently. Read
+current tree/status before implementation; do not reapply a reverted branch wholesale.
+
+Shared foundations (initial prototype measurements, not frozen final constants):
+- Interface scale and display DPI control chrome, independently of document zoom.
+  One UI face per world; labels/values share a readable size, titles about 1.25x and
+  quieter hints about 0.85x. Respect font metrics and readable minimum sizes.
+- Four-unit spacing rhythm: 8 within groups, 16 between groups, 20–24 panel padding.
+  Controls start at 32 logical units high, growing for font metrics. One corner family
+  per world, inner controls smaller-radius than their enclosing panel.
+- Figure/ground by value; caret retains the accent. Clear focus outline/selection;
+  distinguish selected, focused, pressed and disabled. Selection stays visible when
+  keyboard focus moves away. Hints use actual platform/rebound keys for the focus.
+- Start with opaque backing. Frost may express a world but cannot be necessary to
+  read its controls; ambient background effects are outside this item's scope.
+
+Shared components, one owner each: bounded text fields with persistent labels and
+placeholders distinct from labels; bounded named buttons with optional shortcuts;
+a checkbox plus label as one clickable group (no separate Aa beside Match case);
+choice rows with nearby values and a choice affordance; consistent selectable list
+rows; modest section headings with deliberate gaps and only useful dividers.
+Route interactions through existing Action owners and expose real accessibility
+roles/states/actions. Shared render components remain driven by theme data.
+
+Surface compositions:
+1. Find/Replace: compact form at the EXISTING top-right inset, starting 420–480 logical
+   units wide and clamped to the window. Find field, optional Replace field, then
+   count + previous/next + Match case group, optional Replace/Replace all actions,
+   then quiet hints. Labels beside fields where roomy, above where narrow. Find-only
+   shrinks vertically; never flatten all groups into one strip. Approved bordered
+   reference: `references/find-replace-chrome.png` beside this board.
+2. Settings: modest title and identifiable search; category rail around 140–180 units,
+   gap 24, bounded detail column around 360–520. Labels left, controls in a consistent
+   nearby column, rows initially 36–40 high. Extra window space surrounds useful
+   content rather than separating labels/values. Full-workspace backing is allowed;
+   composition still needs deliberate proportion. Narrow mode uses successive
+   category/detail views and preserves search/focus/editor restoration.
+3. Theme picker: stable chooser using the same fields/rows/surface family. Explicit
+   stable panel composition and cross-theme placement per the approved refinement above.
+   Freeze position, width, UI face/size, row height/count, border geometry and
+   selection treatment throughout preview. For the FIRST PROTOTYPE also freeze
+   picker colors until dismissal; everything behind it continues live theme preview.
+   Reopening adopts the chosen world's chrome styling. Preserve commit/cancel semantics.
+
+World contract: grouping, hierarchy, behavior, label/value relationships, minimum
+spacing/legibility, state meanings and responsive behavior are common. Worlds author
+UI face, palette, corner/border character, plates/rules, state styling and optional
+frost/motion. Plate/rule worlds retain identity while preserving recognizable controls
+and grouping. Theme picker's stable composition is the explicit layout exception.
+
+Phase 1 / review: show all THREE surfaces together in Kite and Mopoke, at normal and
+narrow actual window sizes, including focused fields, selected rows and replacement
+mode. Prototype in awl with headless captures per repo policy; no HTML artifacts.
+Measure useful content, hierarchy and spacing, not merely panel/control presence.
+User approves these coordinated compositions before Phase 2's shared implementation.
+Do not call an image-generation approximation a product screenshot.
+
+Phase 2 / done: implement reviewed measurements through shared owners; compare real
+awl captures against the approved compositions before declaring completion. Read
+`docs/render.md`, `docs/config.md`, `docs/harness-reach.md` and CAPTURE.md before
+choosing probes. Sweep roster compositions, narrow/wide, UI scale, 1x/2x DPI, keyboard
+and pointer routing, theme preview stability and cancel/restore. Assert real geometry
+and relative rendered-pixel presence/legibility, with mutation proof and five-shot
+vision smoke; appropriate native/wasm gates follow implementation. Headless captures
+do not settle taste or live motion. This board-only decision claims no receipt.
 
 ---
 
 ### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
 
-🟡 IN PROGRESS — Codex (codex), branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
+🟡 IN PROGRESS — `mouse_615` (Codex), branch `codex/615-mouse`, worktree
+`.worktrees/615-mouse`. Recovery owner was instructed to commit the staged extraction
+before any further work. Not integrated.
 
 `app/input/mouse.rs` combines document hit testing and selection, overlay navigation,
 search/menu clicks, cursor feedback, and wheel routing in one oversized module.
@@ -30,90 +382,65 @@ change is intended.
 
 ---
 
-### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
+### 579 — software rendering: profiled, and the answer is a product call (investigation complete, 2026-09-09)
 
-⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
-per-document ladder scope** — the ladder follows first-reference order across
-the whole document, matching today's numbering; awl has no pages, so per-page
-recycling has nothing coherent to recycle on. **(b) The definition list
-follows the option** — when the ladder is on, definitions wear the same mark
-as their references; pairing them is the ladder's function. U+2016 ‖ coverage
-in the adopted subset remains the lane's engineering verification, enrolled in
-the glyph-presence law before landing.
+🟢 **PROFILED — awaiting the user's decision. No code change is proposed and none should be
+until this is answered.**
 
-DECIDED direction, from the user's own connection during 536's heritage
-round: "the daggers were used for footnotes — we still have a chance to
-use them, cuz we support footnotes." awl's footnote references already
-paint their DISPLAY NUMBER as a painted ornament slot
-(`footnote_number_slot` / the `FootnoteNumbers` ornament family,
-docs/markdown.md — the same painted-substitute shape the bare-URL
-ellipsis reuses), and display numbers already follow first-reference
-order. This item adds a display OPTION (config + Settings row, default
-staying numeric) that paints the TRADITIONAL REFERENCE LADDER instead:
-* † ‡ § ‖ ¶, in that canonical order, doubling when exhausted (** ††
-‡‡ …) per print tradition. Display-only, exactly like smart punctuation:
-the file keeps `[^label]`; export unchanged (numeric) unless a later
-item decides otherwise. The glyphs come from the symbol face — with
-Nishiki adopted (529), † ‡ § ¶ are the celebrated cabinet's own
-drawings, so the heritage is in SERVICE, not decoration: the daggers do
-the same job they have done since the hand-press. Open sub-decisions
-for the lane to put to the user before landing: (a) ladder scope —
-per-document order (matching today's numbering) is the working
-hypothesis; per-page recycling is print tradition but awl has no
-pages; (b) whether the footnote DEFINITION list's markers follow the
-same option; (c) ‖ DOUBLE VERTICAL LINE (U+2016) coverage in the
-adopted subset must be verified and enrolled in the glyph-presence law.
-Laws: ladder order pinned against the historical sequence; overflow
-doubling; option off ⇒ byte-identical render to today.
+The profile settles the engineering question. On the cited configuration — arm64, Debian 12,
+Mesa 22.3.6, `llvmpipe (LLVM 15.0.6, 128 bits)`, `PHYSICAL_DEVICE_TYPE_CPU`, reproduced in a
+pre-existing rig rather than a new one — every sample at every contention level has the same
+shape:
 
----
+```
+   queue.submit + device.poll |  81.296 ms | 98.9%
+   22 other CPU-side stages   |   ~0.7 ms  | <1%
+   TOTAL (median frame)       |  82.164 ms
+```
 
-### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
+**There is no hot spot in awl's code.** Text shaping, layout, ornaments, table grid, chrome,
+spell squiggles and render encode together cost under 1ms per frame, under 1.5% of the frame
+even in the cleanest run. Over 99% sits inside Mesa's own rasterisation of already-encoded draw
+calls. Document size barely matters — 1943 lines and 124 lines cost nearly the same — which is
+the O(visible) principle holding.
 
-`scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
-version is already on PATH, so a warm run pays 0s and this was invisible until item 566
-timed the first cold run in sixty: **4m25s**, the second-largest line in that job's
-pre-suite budget. A prebuilt-tarball path would take ~4 minutes off every cold run, and
-cold runs are now guaranteed to recur — rust-cache's key carries the rustc version, so
-EVERY stable toolchain release produces one.
+**The item's own per-world spread did NOT reproduce.** The cited 82→184ms range across worlds
+became four worlds within 2ms of each other at ~83ms, including the originally cited fastest
+and slowest. The lane could not tell whether the original spread is contention-sensitive or
+whether its own best window (load ~45-60, never this host's ~5 idle) flattened real differences
+toward a floor. Named as an open gap rather than resolved.
 
-Not filed as a trivial swap: the script is shared with `release.yml`, so the blast radius
-includes the release pipeline's permanently-unexercised `publish` job, and downloading a
-prebuilt binary is a supply-chain and network-policy call rather than a build-speed one.
-Decide the policy first (pin by digest? verify a checksum? keep source-build as the
-fallback when the tarball 404s?), then implement.
+⚠️ The orchestrator told that lane it owned the measurement window and then ran a gate on top
+of it. The order-of-magnitude finding survives that easily — the signal is 99% against 1% — but
+the per-world question is exactly the kind a contended host destroys, and it should be re-asked
+on a genuinely idle machine before anyone concludes the spread was imaginary.
 
-Verify: a cold-cache CI run's `Install sccache` step drops to seconds; the release
-workflow still installs the same pinned version by the same identity check.
+**Not measurable from here:** CI's x86_64 lavapipe. This host is arm64, and a qemu-emulated
+x86_64 container would add emulation overhead indistinguishable from driver cost. Every number
+above is the arm64/Mesa-22.3.6 axis only.
 
----
+**THE DECISION, which is the user's:**
 
-### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
+1. **Documented non-target.** A line in RELEASING.md/WEB.md naming software rendering as
+   unsupported, stating what a person actually sees — roughly 5-12 fps at this canvas size,
+   usable for reading and light editing, visibly laggy while typing or scrolling — and pointing
+   at a working GPU driver. No code.
+2. **Supportable with named work.** A software-adapter-detected degraded mode: smaller internal
+   canvas, simplified backgrounds, fewer glyphs shaped. New mechanism, scoped as future work.
 
-Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
-device.poll` over 300 timed frames, under `llvmpipe (LLVM 15.0.6, 128 bits)`: **82-184 ms
-per frame for every world** — Wagtail 82.2 at the fast end, Saltpan 184.3 at the slow. The
-same binary on this host's Metal renders Kite in 1.310 ms, so lavapipe is ~84x slower
-across the board. This is a property of the whole render, not of any one ground, and it
-predates item 564.
+The lane leans to (1) and so does this board: closing an 80-180ms gap needs a different render
+strategy, not a fix, and "more machinery for one degraded case" is the direction PHILOSOPHY.md
+leans away from. But a Linux user on a VM, a remote desktop, or a machine with no working
+Vulkan driver lands here, so it is a product-shape question and not an engineering one.
 
-It is recorded rather than actioned because nobody has established that it MATTERS: a
-Linux user on real hardware has a real GPU, and the software path is what a VM, a
-remote-desktop session, or a machine with no working Vulkan driver falls back to. The
-question the Linux release wants answered is whether that fallback is a supported
-configuration or a documented non-target.
-
-⚠️ Do not repair this by measuring on Metal — no local gate sees the axis, and the number
-above is from one arm64 container with Mesa 22.3.6, not from CI's x86_64 lavapipe. Any
-claim about "software rendering performance" needs its configuration stated, per the
-standing rule that a check runs in one configuration and that configuration is itself an
-untested hypothesis.
-
----
+Leftover: Docker volumes `awl579-cargo-registry` and `awl579-target` hold the built arm64 rig
+for a clean re-measurement without repaying the build.
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
-⬜ READY — corrective follow-up to 564. Queue only; not dispatched.
+🟡 VISUAL REVIEW IN PROGRESS — `kite_582_judge` (Codex), candidate branch
+`item-582` at `c82e4b53`. Verified not integrated into main. Candidate existence
+does not establish live motion parity or human acceptance; those checks remain owed.
 
 **Outcome.** The user rejected the delivered appearance: regular concentric
 circles and straight spokes, unlike the approved organic tunnel prototype.
@@ -210,28 +537,10 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ---
 
-### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
-
-Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
-recorded, as its own clause (c), that LIST-BULLET pairs were not covered by that pass: they
-still carry the pre-Nishiki vocabulary while the trio beside them moved. The decision was a
-"small follow-up taste round" deriving each world's bullet pair from the set it now wears —
-Genjikō for Mulga, Moonfaces for Mopoke, Gambit for Currawong, and so on down the adopted
-table in 536's own history (`git log -p -- .orchestrator/queue.md`).
-
-Mechanism is unchanged and must stay unchanged: `theme::ornament::Ornaments` is per-world
-const data. Derive the roster from `theme::worlds::THEMES` (`[Theme; 20]`, Cassowary
-included) rather than a hand-list — a grep over `worlds.rs` alone has already produced a
-wrong count of 19 once by missing Cassowary's own module.
-
-Laws: every world's bullet pair is drawn from the same adopted union its trio is (enrol the
-union from the roster, not a named member); no world keeps a bullet from the retired
-vocabulary; the pair stays legible at prose size in both grounds. The visual outcome is a
-taste call owed to the user — deliver a gallery capture across the roster, not an argument.
-
----
-
 ### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
+
+Coordination update (2026-09-08): **628 owns the shared visual specification and
+prototype review; follow its sequencing before overlapping visual implementation.**
 
 ⬜ READY — queue only; not dispatched. Shared design foundation for 590–592;
 integrate overlapping renderer work serially.
@@ -262,819 +571,63 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
 ---
 
-### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
-
-⬜ READY — queue only; coordinate shared chrome with 589.
-
-**Decision.** Replace the empty imitation list in Insert Link with an obvious
-destination field: readable `Link destination` label, `Paste or type a URL`
-placeholder, immediate typing, Enter to commit and Esc to cancel. Keep a quiet
-clickable commit affordance carrying its resolved binding. Preserve existing
-URL prefill, selected-text wrapping, editing an existing link and undo behavior.
-
-**Composition.** Keep the existing world/context placement policy, including
-clamping on small windows; the generated below-paragraph location is illustrative,
-not a new hardcoded rule. The user likes the relationship between Find and Link
-chrome, with consistent borders/corners inside a world. Apply 589's world-specific
-surface grammar and backing policy rather than shipping one generic rounded
-dialog. Keep surrounding prose readable; no full-viewport blur merely to enter
-a destination. Retain appropriate local separation where a world's composition
-otherwise interleaves text with the document.
-
-**Verify.** Read docs/markdown.md, docs/render.md and docs/harness-reach.md.
-Test empty/prefilled/existing-link/selected-text paths, keyboard and pointer
-commit/cancel, focus and document restoration. Native keyboard labels come
-from the real keymap. Sweep composition families, anchors, narrow widths and
-DPI 1/2; pixel-check label/field clarity and no clipping. Add the missing laws,
-mutation-prove them, and include the standing vision smoke. Report final feel
-as requiring the user's live eye, not as proven by image generation.
-
----
-
-### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
-
-⬜ READY — queue only; coordinate with 589 and the focus-routing repair 585.
-
-**Authoritative reference.** `references/find-replace-chrome.png` is the crop
-the user explicitly preferred AFTER the keyboard-first remake. Preserve its
-clear bordered fields, subtle lavender surface, thin separators, separate
-match/navigation region and distinct Replace/Replace all controls where the
-world uses bordered panels. The later borderless text-strip mockup is NOT the
-selected chrome. Derive compatible corners from the world's shared treatment.
-
-**Keep keyboard character.** Controls remain clickable, but visible shortcut
-labels teach the existing behavior: replace/next, replace all, switch field,
-close and match case. Source bindings from the active platform/keymap; no
-hardcoded macOS glyphs on Linux. Distinguish labels, editable values, match
-count and actions without tiny crowded hints. Find-only remains compact.
-Keep the EXISTING top-right placement and safe inset, close below the title/menu
-bar; the first mockup's large top gap was rejected. Do not adopt its enlarged
-footprint blindly. Keep matches and surrounding prose readable.
-
-**Verify.** Preserve search/replace semantics and focus, including 585's query
-select-all law. Read docs/config.md, docs/render.md and harness-reach; exercise
-both fields and actual command bindings. Capture empty/no-match/multiple-match,
-find-only/replace and case states across world compositions, widths and DPI
-1/2; assert bounds, shortcut/action correspondence and pixel legibility. Add
-mutation-proven laws and the five-shot vision smoke. Theme identity remains
-data through shared renderers, not one universal screenshot skin.
-
----
-
-### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
-
-⬜ READY — queue only; coordinate shared chrome with 589.
-
-**Approved direction.** The user strongly prefers the new Settings layout:
-modest nearby title and identifiable search, category rail beside the active
-category's controls, comfortable row spacing, and a bounded detail-column width
-that keeps values close to labels. Extra window width becomes breathing room,
-not a longer journey between a setting and its value. Remove the remote giant
-SETTINGS label in favor of the integrated hierarchy. The reference's proportions
-are the direction, not hardcoded pixel coordinates or replacement control semantics.
-
-**Worlds / interaction.** Preserve the existing category/detail focus model,
-selected-row control interaction, query, return path, exact editor restoration
-and narrow staged presentation. Express rows, selection, corners and backing
-through each world's Pane/Bars/Diagonal/Ruled vocabulary. Keep relevant key hints
-near the active control, using real bindings. Start with a quiet opaque themed
-workspace ground rather than ghost prose; retain frost only if it contributes
-to that world's authored composition. No blanket removal of ambient effects.
-
-**Verify.** Read DESIGN.md, docs/render.md and harness-reach. Sweep category,
-control kind, focus region, composition family, narrow/wide window, zoom and
-DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
-focus/selection and unchanged setting behavior. Validate appearance with pixels
-and the standing vision smoke; add mutation-proven laws at shared seams. Final
-theme-specific composition remains a live taste review.
-
----
-
-### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 602 and 604 (one seam: render laws and the
-colour conversion their mutations run through).
-
-⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
-
-`render::tests::overlay_hover_stability_law::a_deliberate_world_crossing_can_move_a_stationary_
-pixels_hit_test_row` went red on the `linux` arm ONLY during one gate run, was **absent from
-that arm's own `failures:` list**, was green on `mac` and `menubar-full` in the same run, and
-was green on all three arms in the next. The lane could not reproduce it targeted and
-recorded it as unexplained rather than asserting it benign, which is the right call.
-
-Why it is worth a look rather than a shrug: it is a `render::` law reaching the shared test
-GPU, which is exactly the order-sensitive class CLAUDE.md names. One device is one object
-population and one set of wgpu-hal counters, and a test that merely borrows a handle mutates
-them; the documented signature of an unguarded reach is a law that **passes alone, passes
-unfiltered, and fails only under a filter** — never failing CI and always failing a developer.
-Its disappearance from the arm's own failures list is itself a finding: a red that the
-receipt's own summary did not carry.
-
-**Ruled out 2026-09-07: this is NOT the hosted-mac wedge.** CI's tolerated `mac (render::tests)`
-arm was checked in case the two were one phenomenon. They are not: that arm reports `562
-passed; 588 failed` with passes and failures INTERLEAVED to the last second, which is ordinary
-virtualised-Metal pixel divergence across about half the render suite, not a device loss and
-not a single flaking law. 595's subject failed once on the LINUX arm of a local gate, passed
-on the other two arms of the same run, and passed on all three next run. Different axis,
-different shape.
-
-Build: establish whether this law (and its neighbours in that file) take
-`crate::testlock::serial()` and hold it for the LIFETIME OF THE RESOURCES rather than the
-call — a `TextPipeline` dropped at the closing brace still moves the counters, so a lock a
-helper takes and returns discharges nothing. Then either fix the enrolment or explain the
-one-off. Laws: whatever is found, prove it by making the failure deterministic before
-declaring it fixed.
-
----
-
-### 596 — two small truths about the personal dictionary that its own docs get wrong (found by 568/569's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 597 and 598.
-
-⬜ READY — trivial, filed so they are not lost between a merge and a board compression.
-
-(a) `REFERENCE.md` says the dictionary file "is read at startup only". It is also re-read when
-the dictionary variant switches (`set_dictionary` → `load_user_dictionary`). A generated
-reference stating a wrong answer with a roster behind it is the documented hazard — the fix is
-the sentence, and the check is asking the property on both sides of the condition.
-
-(b) `remove_word_from_dictionary_file` joins with `\n`, so a CRLF-edited word list is converted
-to LF by a removal. Unreachable on awl's shipped platforms and therefore not urgent, but it
-contradicts the file-preservation promise the same function otherwise keeps, and the rope's
-whole CRLF discipline is "load normalizes, save restores".
-
----
-
-### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 598. Its case (a) is a product decision
-(refuse, or widen the edit beyond the selection); the lane picks the calmer default, lands it,
-and names it for the user rather than parking the item.
-
-⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
-them. All three PRE-DATE 586/587 and none was introduced by it.
-
-(a) A document backtick immediately OUTSIDE the selection — `` x`y ``, select `y` — has no
-valid output without editing text the user did not select. The honest answers are a refusal
-or a widened edit, and which one is a product decision, not an implementation detail.
-
-(b) `` **`y`** `` — a payload that is entirely a code span — cannot be recognised by any span
-oracle, because awl emits no prose span when no `Event::Text` survives inside. So the toggle
-cannot tell "already bold" from "not bold" here. The fix is a different oracle, not a
-different threshold.
-
-(c) `==` cannot contain a backtick at all: `push_highlight_spans` sees one text event.
-
-Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
-on a surviving text event. Laws: each case asserted through the real parser, and each proven
-non-vacuous by restoring today's behaviour and watching it go red.
-
----
-
-### 598 — a summoned surface now swallows ⌘Q and ⌘S, and the picker card always did (found by 585's lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 597. **This one carries a product
-question too**, contrary to a summary that listed only 603: should a summoned surface block
-Quit and Save at all? Per this board's standing preference the lane LANDS the obvious default —
-a summoned surface does not swallow ⌘Q or ⌘S — states the revert cost, and awaits the user's
-feedback rather than parking it. Whatever is chosen must apply to the card and the panel by
-construction, or they drift again.
-
-⬜ READY — small, but it is a question about intent rather than a bug with an obvious answer.
-
-585 gave the find/replace panel the same action-level gate the picker card has always had, so
-the panel now consumes every Edit-menu verb while it is up. It also consumes **⌘Q and ⌘S**,
-because that is what the card does and making the panel disagree would have been a SECOND
-policy — the lane inherited the existing contract rather than inventing a third one, which was
-the right call for its own round and is the wrong place to settle this.
-
-The question this exposes: **should a summoned surface block Quit and Save at all?** A picker
-that swallows ⌘Q is plausibly a pre-existing bug that nobody noticed because nobody tried it
-with a picker up. Reverting is one `matches!` carve-out in `search::keys::intercept_action`,
-and whatever is decided applies to BOTH surfaces or the two drift apart again.
-
-Laws: whichever way it goes, the card and the panel must agree by construction rather than by
-coincidence — one owner, swept over the surface roster, so a third summoned surface cannot
-pick a third answer.
-
----
-
-### 600 — `--all-worktrees`: guard it, delete it, or leave the safety a habit? (awaiting the user, 2026-09-07)
-
-🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
-take.** The floors are now derived from measurement — `MINIMUM_BYTES` unchanged at 24 GiB
-because it is a capacity floor, `HEALTHY_BYTES` down to a derived 27, and every receipt now
-reports what recovery reclaimed.
-
-What remains is one question with a measured cost on both sides.
-
-**What the mode costs.** A fleet-wide sweep empties `deps` and `.fingerprint` while leaving
-`incremental` intact — measured, and reproduced in a control. Fourteen of sixteen worktrees on
-this host currently sit in that state, holding about **90 GiB of `target/` that backs no
-build**, each owing a full cold rebuild if resumed. A law stops any tracked script or workflow
-passing the flag; nothing stops a person typing it mid-wave, and 593 already showed what a
-sweep reaching a live sibling does.
-
-**What it buys.** One command instead of forty-one, at a moment when the fleet is genuinely
-idle — and it rarely is: two lanes were live while the measurement ran.
-
-**The lane's recommendation, which the orchestrator endorses: keep the mode and put a check
-where the operator's judgement currently is** — refuse `--all-worktrees` while the native-gate
-arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten lines, and it
-turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
-the mode is second-best and does not touch the larger `incremental` number (item 612). The
-status quo, where the safety is a habit, is worst.
-
----
-
-
-### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 604. Sequenced FIRST in that lane:
-until the alpha question is settled, every contrast/presence mutation in the other two has to
-route around it.
-
-⬜ READY — small, and it is a product fact rather than a test artifact.
-
-While mutation-proving 570, the lane faded a mark by setting `Srgb { a: 8, .. }` and the law
-stayed GREEN. The law was not at fault: **`Srgb::to_glyphon()` calls `Color::rgb`, which drops
-the alpha channel entirely**, so the fade never reached the renderer at all. The mutation was
-re-done as a colour blend toward the ground and fired correctly.
-
-Why this is worth an item rather than a note: every caller that sets an alpha on a text colour
-is silently getting an opaque one, and nothing says so. Either alpha is meaningful for glyph
-colour — in which case this is a bug and the conversion should carry it — or it is not, in
-which case the type should not accept a value it discards. **Establish which before changing
-anything**, since a roster of callers may be relying on today's behaviour without knowing it.
-
-Laws: whichever way it goes, a colour whose alpha is set must either reach the renderer with
-that alpha or fail to compile. Prove non-vacuity by rendering two colours differing only in
-alpha and requiring the frames to differ (or the code not to build).
-
----
-
-### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
-
-⬜ DECIDED, READY (user, 2026-09-07): **select within the transcript.** A selection asked for inside a substituted transcript selects that transcript's text — the first of the three options below, the one that needs a transcript-side offset map. The action stays advertised; it is never scoped to nothing. The user's own words: it should select what you selected.
-
-581 closed the accessibility leak: while History, Conflict or Credits substitutes a
-transcript for the pixels, the tree now describes what the reader can see rather than the
-hidden buffer. One door was named and left open rather than quietly widened.
-
-`SemanticRequest::SetTextSelection` on the document node still maps grapheme offsets against
-the REAL buffer regardless of read-only prose. It cannot simply be walled: an existing law,
-`every_advertised_action_drives_a_real_transition`, requires it to keep working because all
-three surfaces advertise `SetTextSelection` as a reading affordance — and a reading surface
-that advertises an action it refuses is worse than one that does not advertise it.
-
-So the question is genuinely a product one: **when an assistive technology asks to select
-text inside a substituted transcript, what should happen?** Plausible answers — select within
-the transcript (needs a transcript-side offset map), advertise the action but scope it to
-nothing, or stop advertising it on read-only prose (which changes what a screen-reader user
-is told the surface can do). Each has a different cost to the reader, and none is obviously
-right.
-
-Laws: whichever is chosen, the three surfaces must agree by construction with enrolment
-derived from `shows_read_only_prose` rather than named, and the advertise/refuse pairing must
-be law-pinned so a surface cannot advertise what it will not do.
-
----
-
-### 604 — three band consumers 572 fixed but did not grade, and one inflation site it did not sweep (named by 572's own lane, 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 602.
-
-⬜ READY — small, and it exists because the lane said plainly where its own sweep stopped
-rather than letting the enrolment guard imply a completeness it did not have.
-
-572 made one owner of the caret-band scale, so every consumer got the fix. Its grading law
-`every_caret_band_consumer_grew_by_the_size_rung_alone` grades **five** of them — selection
-band, find-match wash, code pill, strike fraction, spell gap. The **nit underline** and the
-**x-ray table-row band** read the same owner, are fixed by it, and are graded by nothing and
-explained by nothing; the item's own text named "spell/nit underlines" and "table x-ray rows".
-The link underline is honestly pinned as structurally absent from a heading row (pulldown
-stamps a heading's link text `Heading`, not `LinkText`) with an assertion saying so — that one
-is answered, not missing.
-
-The 8-call-site enrolment guard forces NEW consumers into the sweep. It does not retroactively
-enrol these two, which is exactly the gap a call-site count cannot see.
-
-Also unswept: the **thematic-break `ornament_scale` row**. Its module doc argues the room is
-dropped on reveal, and that argument is asserted rather than law-tested — item 571 fixed the
-reveal, and nothing pins the selection band and underlines on that row.
-
-And one enrolment that is derived but not pinned to a number: the mono-world band law asserts
-only `graded > 0` rather than an exact cell count, the single enrolment in that file without
-one. A sweep that silently shrinks to one world would pass it.
-
-Laws: grade the two ungraded consumers on the same axis as the other five; sweep the
-thematic-break row against every caret-adjacent treatment the way 572 swept the heading rung;
-give the mono law an exact count derived from its own filtered roster.
-
-## A lane-facing note: three lanes lost a gate cycle to the same law
-
-`roster_claim_law::no_source_comment_types_the_world_roster_size` reddened **three separate
-lanes** in one session — 570's (`pull_quote_pair.rs` typed "twenty worlds" in the module doc of
-a file whose whole subject is deriving enrolment from the roster), 558's ("nineteen/twenty
-worlds" in comments), and 572's (two sites, one of them a failure message reading "thirteen of
-the twenty worlds"). In 572's case the previous lane's commit was **already red** against a law
-that has been on `main` since 2026-08-26 and is an ancestor of that commit.
-
-The law is right and is doing its job. The cost is discovery: it is a unit test a **filtered**
-`cargo test` never reaches, so a lane meets it only at the full gate, after the work is done —
-and writing "the twenty worlds" in prose is the natural way to describe a sweep. Every lane
-that hit it was writing a comment ABOUT deriving enrolment from the roster.
-
-**So a brief that asks a lane to sweep the world roster should say this outright:** describe
-the roster by asking it, never by typing its size, in comments and failure messages alike. That
-costs a sentence and saves a gate cycle, and gate cycles on this host are ~15 minutes each.
-
-### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
-
-⬜ READY — a user-reported bug, so audit its neighbourhood: the active-row plate shares the
-estimate and the same drift.
-
-Reported with a screenshot: in a right-aligned stack over a proportional face, hovering a
-15-character name lit a plate a full plate-width to the LEFT of the ×, and the active-row
-plate ran past the × on the same side. Cause, read out of the tree: `close_hover_plate_rect`
-and `close_zone` (`render/chrome/gutter_stack.rs`) derive the ink's left edge as
-`right − (chars + 2) × label_char_w`, with `label_char_w = CHAR_WIDTH × LABEL` — the fixed
-nominal advance in `render.rs`, never the shaped label's width. Right alignment pins the real
-right edge, so in a proportional face the estimate overshoots left by the per-glyph shortfall
-summed over the name; the drift grows with name length and with how narrow the face runs.
-`plate_rects` uses the same estimate. Because the hover plate and the hit-test are
-deliberately ONE rect, this is a hit bug, not a cosmetic one: on a long name a click on the ×
-glyph itself lands in Switch, and the lit box off to the left is the place that would close.
-
-Why the law missed it: `the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone`
-(`render/tests/gutter_stack_pixels.rs`) sweeps two name lengths in Saltpan only, and pads the
-mark lane 6px to tolerate "estimate/shaping slop on a proportional face" — the face axis was
-never swept, and the pad was set under the slop it was meant to expose.
-
-Fix: ONE owner reads the ink's left edge off the shaped `gutter_buffer`'s layout run (the
-row's first glyph x, or right edge minus `line_w`), consumed by the zone, the hover plate, the
-active plate and the hit-test alike; the char-count estimate survives only for the BUDGET
-(`avail_chars`), where a count is the right question. Laws: enrol the whole world roster
-(derived from `THEMES`, not a named world) × both name lengths; assert the zone's left edge
-against the ×'s real first-glyph x within an antialiasing tolerance; retire the 6px pad, or
-justify it against a measured maximum; prove non-vacuity by restoring the estimate under one
-proportional face and watching the law go red. Name the world in the failure message.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier. Read docs/render.md (rowlayout) and this file's test-lock tripwire before touching the
-pixel law — it renders on the shared device.
-
----
-
-### 606 — 570's closing 99 moves to B: after the last line's own text (user decision, 2026-09-07)
-
-⬜ DECIDED, READY. The user saw the A/B captures (Paperbark and Bowerbird, one-line and
-multi-line) and chose B. Per-world was asked and declined: where a closing mark sits is a
-typographic rule, not a world identity — one answer, twenty worlds. Reopen only if a live
-look across the roster disagrees.
-
-What to build: a per-mark x on `QuoteOrnaments` (`render/layers/ornaments.rs`) — the "about
-20 lines" 570's lane costed when it prototyped B as a capture rather than landing it. The 99
-hangs one gap after the last visual row's shaped ink, on that row's own baseline. Two things
-the prototype captures show and this item must fix rather than inherit: (a) on the multi-line
-case the 99 rode above the row and read as belonging to the row above — anchor it to the last
-row's baseline the way the 66 is anchored to the first row's. **The user said this in their own
-words on seeing the captures: "some of the 99s look a tad too tall, it should be closer to the
-baseline, just a little bit"** — so the vertical placement is a taste target, not just a
-geometry fix, and the lane should offer two or three drops as captures rather than pick one. The user then showed a reference (a pull-quote in chat, not on disk): the 66 hangs in the left margin with its top near the first line's cap height; the 99 follows the last word after a gap of about half an em, with its ink sitting between that line's x-height and cap height — a little above the baseline, never above the line's own top. That is the target;
-(b) at the widest wrap the
-trailing 99 must yield inside the column rather than escape past the text edge — clamp,
-never overflow. The 66 stays where it is.
-
-Laws: 99's x = last-row ink right + gap, on every world and at narrow and wide wrap; its y
-band overlaps the last row's band and no other row's; a presence floor on the glyph's ink so
-a mark that failed to paint cannot pass. Deliver A-vs-B captures across the roster for the
-live eye; the feel is owed to the user, not proven by capture.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; visual judge at the production tier.
-
----
-
-### 607 — follow gestures: middle-click under both Linux flavors, and the gestures rebindable (user decision, 2026-09-07)
-
-⬜ DECIDED, READY. Two calls 576 left one line from the user, both now taken the other way.
-
-**(a) Middle-click follows under Linux `native` as well as `emacs`.** It collided with nothing
-under `native` and was flavor-gated only to keep the platform convention plain; the user
-wants it present. Ctrl-click stays on Linux under both flavors; ⌘-click on Mac stays;
-Ctrl-click stays absent on macOS, where the OS spends it as the secondary click.
-
-**(b) The gestures become `[keys]`-rebindable.** This is the decision 576 said was worth taking
-before the grammar had users; it is taken. Rebinding a mouse chord means a second chord
-grammar: extend `keyspec::parse_chord` (or a sibling owner beside it) to spell `click`,
-`middle-click` and `right-click` with the same modifier prefixes keys use (`C-click`,
-`M-click`, `s-click`), routed through `keymap::platform::active_follow_gestures` as the ONE
-selection point, listed on every label surface the key bindings already reach, and
-documented in docs/config.md. The keep-list stays untouched: a mouse chord remains outside
-it by construction, and the law that says so stays.
-
-Laws: every default gesture in the roster round-trips through the parser; a `[keys] follow =
-"…"` line replaces the defaults per platform and the label surfaces report it; a chord the
-grammar cannot spell keeps the default and prints a note naming the line, the same shape a
-bad key chord already gets. Keep the deferred `#heading-anchor` no-op deferred.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
-
----
-
-### 612 — `target/debug/incremental` has no owner and no reclaimer, and it is the biggest disk lever here (measured by 600's lane, 2026-09-07)
-
-⬜ READY — the largest single disk fact on this host, and nothing in the fleet addresses it.
-
-`cargo sweep` cannot touch `target/debug/incremental` at any threshold — measured directly,
-124 KiB before and after a sweep that emptied `deps` and `.fingerprint`. That directory is
-**61–69% of every `target/` on this machine**: 16.5 of 25.4 GiB in the root checkout, 5.2 of
-7.5 and 6.1 of 10.0 in lanes.
-
-After a sweep it is **pure dead weight** — the `deps` it belonged to are gone, so it backs
-nothing. The fleet currently holds about 90 GiB in that state across 14 worktrees.
-
-Build: decide who owns it and on what rule. The obvious candidates are an age-based prune the
-preflight can actually perform, or `CARGO_INCREMENTAL=0` for lane builds (which trades rebuild
-speed for space and should be measured, not assumed). Whatever is chosen, the preflight's
-`SWEEP_YIELD_BYTES` is derived from what recovery can actually reclaim and must be re-derived
-if this door starts reclaiming too.
-
----
-
-### 613 — `test-native-gate.sh`'s free-oracle hardcodes 40 GiB, an undeclared coupling to the healthy floor (found by 600's lane, 2026-09-07)
-
-⬜ READY — small, and it is the "a check runs in one configuration" hazard in miniature.
-
-The probe's fake free-space oracle returns a hardcoded 40 GiB. That is above the healthy floor
-today (27 GiB, and 32 before), so the probes exercise the no-recovery path. **If anyone ever
-raises `HEALTHY_BYTES` past 40 GiB, every native-gate probe silently starts taking the preflight
-lock and running the sweep path** — changing what those laws test without a single one of them
-going red.
-
-Build: derive the oracle's value from the floor it is meant to sit above, or assert the
-relationship so the coupling fails loudly instead of silently. Law: the oracle's value must
-exceed the healthy floor by a stated margin, and the law fails if the floor is raised past it.
-
-### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
-
-⬜ READY — small, reproduced headlessly, and the neighbourhood is already audited: the bullet
-ornament is the ONE painted-ornament family that never learned the selection reveal.
-
-Reported as "when selected, the 2nd-level indent changes shape": in a nested list, selecting
-across a child row shows two markers on it — the depth glyph where it always sits and, just
-below and left of it, the raw `-` the selection reveal restored. Reproduced in Bombora and
-Bowerbird with `--keys "C-n C-n S-Down S-Down"` over a four-line list; the marker lane's ink
-on the selected child row widens from the ornament's 7px to the full 25px of a depth-0 lane,
-and the zoom shows the glyph stacked over the dash. The depth-0 rows double too, but there the
-ornament sits on top of the dash and hides it, which is why the child row is the one a reader
-notices.
-
-Cause, read out of the tree: the line-attrs owner (`render/spans/layout.rs`) conceals the raw
-marker only when `conceal_off_cursor && !line_selected`, exactly as its comment promises — "on
-the caret's own line, or any selected line, the raw markup reveals and NO ORNAMENT IS DRAWN".
-The painter does not keep that promise: `bullet_marks` (`render/rects.rs`) skips `li ==
-self.cursor_line` and nothing else, while its siblings `rule_marks`, `footnote_marks` and
-`bare_url_marks` all filter through `selection_touch_bytes`/`selection_touches` as well. The
-selection reveal was widened to the legacy bullet CONCEAL and never to the bullet ORNAMENT.
-
-Fix: route `bullet_marks` through the same `selection_touch_bytes`/`selection_touches` owner
-the other three read — one filter, not a fourth reading of the overlap test — so the ornament
-set and the conceal set are the same set by construction. Laws: extend the existing bullet
-depth/reveal law so that a selection touching a bullet row (caret elsewhere) yields no glyph
-for that row in `bullet_glyphs()` while `bullet_marker_concealed` reads false for it; sweep
-depth 0 and depth 1 and a selection that touches the row without the caret's line moving
-(the `refresh_rule_conceal` skip-gate tripwire in docs/markdown.md); prove non-vacuity by
-restoring the caret-only skip and watching it go red. A pixel companion: the marker lane's
-ink on a selected child row is the dash's alone, no wider than the unselected caret-row lane.
-
-Routing: worker Sonnet medium (Claude) or `gpt-5.6-sol` medium; outcome audit at the
-production tier.
-
----
-
-### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
-
-⬜ DECIDED, READY — coordinate with 589 (shared transient chrome): this item is the one
-surface 589's "each world's authored composition" rule does NOT apply to, by decision.
-
-Reader feedback, relayed by the user: "the theme switcher should not jump all over the
-place — it made my boyfriend dizzy". Reproduced with `--keys "Cmd-T C-n…"` from Tawny: every
-arrow re-composes the LIST ITSELF into the previewed world's chrome, because
-`sync_theme_colors` switches `theme::active()` per arrow and the picker reads its
-composition from there like every other overlay. Across a few arrows the list is a plain
-pane at the column's left, then a descending spine on the left with a THEMES placard
-(Mangrove), then chips on the left with a paged "↑ 1 more / ↓ 7 more" window (Galah), then an
-ascending spine on the RIGHT (Magpie), then a ruled list top-right (Kite) — moving corners,
-changing face, row pitch, list style and how many rows are visible, all while the reader is
-trying to hold the selection with their eyes.
-
-**Decision.** The theme picker gets a FIXED chrome for the life of the summon: one simple
-list in one place, the Find/Replace-box grammar the user already prefers
-(`references/find-replace-chrome.png` beside this board), while everything BEHIND it — page,
-prose, margins, ground — previews the world live as today. The list's own surface colours
-may follow the previewed world (that is the preview) but its composition, anchor, face,
-row pitch, page window and selection treatment do not. Frost stays `Footprint`.
-
-Mechanism, not a per-world code path: the picker's chrome reads a PINNED `RenderCaps` /
-composition captured at summon (or a dedicated `ListStyle::Pane`-shaped constant) rather
-than `theme::active().render_caps` per frame — one seam, named, with every other overlay
-still reading the live caps. `effective_list_style()` is where the picker currently asks; do
-not special-case inside the compositions.
-
-Laws: across a full arrow sweep of the roster the picker's card rect, anchor, list style,
-row pitch and visible-row window are identical frame to frame (sidecar + pixel bbox of the
-card), while the page ground behind it changes on every arrow (presence: the frames DO
-differ outside the card); prove non-vacuity by restoring the live-caps read and watching the
-rect law go red on the first non-Pane world. Standing five-shot vision smoke.
-
-Routing: worker `gpt-5.6-sol` high or Sonnet high; visual judge at the production tier.
-Feel is owed to the user's live eye — and to the reader who got dizzy.
-
----
-
-### 610 — an untagged Chinese note renders as a patchwork of Japanese and Chinese faces; the Han tiebreak grows an evidence tier and Settings gets Auto (reader feedback + user decision, 2026-09-07)
-
-⬜ DECIDED, READY.
-
-Reader feedback: "Chinese is kinda weird… Simplified is correct in Bowerbird but not right in
-other themes". Measured: the note is untagged, so every Han run resolves through
-`script::doc_lang_for`, which hands it `cjk_priority.first()` — `ja` by default and in the
-user's own config — so the run shapes in the world's JAPANESE face. Every bundled Japanese
-subset (Zen Maru Gothic, Noto Sans/Serif JP, Klee One, Shippori Mincho) carries the same
-6 356-character JIS set, which LACKS the simplified-only characters: of the sentence
-这是简体中文的一段测试文字骨头直角与其内外开关门说话车站, the JP faces hold
-是体中文的一段文字骨直角与其内外站 and none of 这简测试头开关门说话车. So the shared
-characters draw in the Japanese face with Japanese forms (骨 直 与 内 differ visibly) and the
-rest fall through glyph-by-glyph to whichever face has them (Noto Sans SC bundled, PingFang
-on macOS) — two faces interleaved inside one sentence. Bowerbird only LOOKS right because
-Zen Maru Gothic and Noto Sans SC happen to be close in weight and roundness.
-
-The gap is structural: `dominant_cjk` (the "intelligent" tier) feeds only the palette's Tag
-document language command, and for a pure-Han note it answers `Han`, never zh-vs-ja — so
-RENDERING has two tiers (tag, then the settings ladder) where the user believed it had three.
-
-**Decision (user's model).** Resolution is tag → evidence in the text → setting, and the
-setting's default is **Auto**. The evidence tier is DOCUMENT-scoped (one language per note,
-never a flip mid-sentence), in-memory and per-open, edits nothing — `dominant_cjk`'s own
-contract, widened to answer the question it currently ducks:
-
-1. any kana anywhere → `Ja`;
-2. any SIMPLIFIED-ONLY character (这 们 说 没 …: in GB 2312, in neither JIS X 0208 nor Big5)
-   → `ZhHans`;
-3. any TRADITIONAL-ONLY character (這 們 說 …) → `ZhHant`;
-4. hangul → `Ko`;
-5. nothing decisive (shared characters only) → the setting: **Auto = the current default
-   ladder** (`ja, zh-Hans, zh-Hant, ko`); an explicit ladder replaces step 5 ONLY. It never
-   overrides steps 1–4 — a "Japanese" setting forcing a note full of 这 into a face that has no
-   这 is the patchwork again.
-
-A kanji-only Japanese title stays Japanese (no simplified-only character in it); a Chinese
-note written wholly in shared characters is the one miss, and no real paragraph of simplified
-Chinese manages it. The character tables are GENERATED from Unicode's Unihan data and checked
-in (`script::han_class` or a sibling) — never derived from which font happens to be bundled,
-so the rule cannot move when a subset does. A tagged document is unchanged: the tag still
-wins, and the Tag command now writes what the evidence tier already concluded.
-
-**Settings + config.** The "CJK priority" row gains an **Auto** value and defaults to it;
-config accepts `cjk_priority = "auto"` alongside the explicit list (an absent key is Auto;
-today's default list written out explicitly is honoured as an explicit ladder and reads the
-same as Auto). `frontmatter::cjk_priority()` stays the ONE owner the Settings row, the CJK
-picker and the render ladder all read.
-
-Laws: the untagged test sentence resolves `ZhHans` in every world (enrol the roster from
-`THEMES`); the same sentence with one kana appended resolves `Ja`; its traditional twin
-resolves `ZhHant`; a shared-characters-only note follows the setting, and an explicit
-`ja`-first ladder does NOT override a simplified-only hit; a `lang:` tag beats all of it;
-prove non-vacuity by restoring `cjk_priority.first()` and watching the first law go red.
-Pixel companion: the sentence in one world shapes in ONE family end to end (sidecar
-`font.scripts` plus a per-run family read). The generated tables get a law against the
-Unihan source they were cut from, and a spot-check of a sample of entries against the
-code (the generated-document tripwire in CLAUDE.md). Update docs/fonts.md's ladder and
-docs/config.md's `cjk_priority`.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier.
-
----
-
-### 611 — "Open in Awl" from the Finder: declare document types and accept the open-documents event (user request, 2026-09-07)
-
-⬜ READY — engineering, two halves, both required; the second is the one that is easy to
-skip and then nothing opens.
-
-The user asked: "finder: open in awl, like right-click on a file and add this option? how do
-we do this?" Today `scripts/package-macos.sh` writes an Info.plist with NO
-`CFBundleDocumentTypes`, so the Finder's Open With menu never lists Awl and it cannot be made
-the default for `.md`; and the app has no handler for the open-documents Apple Event
-(`application:openURLs:` / `openFiles:` — `grep -rn openFiles src` is empty), so even
-`open -a Awl note.md` launches the app without the file. The only live door is the daemon's
-`open <path>` socket line, which the CLI uses.
-
-(1) **Declare the types** in the plist: `CFBundleDocumentTypes` for `net.daringfireball.markdown`,
-`public.plain-text`, `public.text` (and the `.txt`/`.md`/`.markdown` extensions as
-`CFBundleTypeExtensions` for pre-UTType consumers), role Editor, `LSHandlerRank Alternate`
-so Awl is OFFERED without stealing the default. Once declared, right-click ▸ Open With ▸ Awl
-appears for every text file, and "Change All…" makes it the default. Keep the MAS arm's
-entitlements in mind: the sandboxed build needs `com.apple.security.files.user-selected.read-write`
-already present for a picker-chosen file; verify Finder-opened files are covered by the same
-entitlement (they are, as user-selected).
-
-(2) **Accept the event.** winit 0.30 owns the `NSApplicationDelegate` and forwards no
-open-documents event, so install a handler on the delegate winit creates (objc2 subclass or
-method addition on the existing delegate class, the way `mac_chrome` already reaches AppKit)
-that routes each URL into the SAME `DaemonEvent::OpenPath` the socket door already posts via
-`EventLoopProxy` — one open path, never a second. Handle BOTH cases: app already running
-(event arrives on the live loop) and cold launch (the event arrives before the window exists;
-queue it and drain after the first frame, the same shape session restore uses). Honour the
-existing single-instance daemon: a second Finder open must not spawn a second process.
-
-A Finder context-menu item that reads literally "Open in Awl" is a Finder Sync extension or a
-user-installed Quick Action, neither of which awl ships; Open With is the platform's own
-answer and is what the item delivers. Record that in docs/platform.md.
-
-Laws: the plist declares each type by name (a test parses the generated plist); the
-open-path route is one owner (grep-law: no second path from AppKit into `App`); the
-cold-launch queue drains exactly once. Live: Open With from the Finder on a running and on a
-quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the user.
-
-Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
-tier.
-
----
-
-## Two orchestrators share this board — renumber yourself, never the other
-
-A second orchestrator session works this board. On 2026-09-07 both queued items in the same
-window and **both used 605 and 606**, because this session appended by number without
-re-reading a board that had moved under it. Theirs landed first (`35177829`); mine were the
-duplicates and mine were renumbered to 612 and 613, along with the one cross-reference that
-pointed at the wrong 605.
-
-The rule that prevents it: **re-read the board immediately before choosing an item number, and
-if two numbers collide, the LATER writer renumbers.** Their commit is the tiebreak, not
-seniority and not who noticed. Fix the cross-references in the same commit — a renumber that
-leaves a stale pointer is worse than the collision, because the pointer still resolves to a
-real item and reads as deliberate.
-
-Related and cheaper: this session also spent several turns listing questions the user had
-ALREADY answered through the other session — 603, 568, 570's placement, 576's gestures and
-572's four taste calls were all decided in `35177829` while this one was mid-wave. Read the
-board's own Owed section before telling the user what they owe you.
-
-## Owed to the user — landed work awaiting a live eye
-
-These items have MERGED and left the build queue. Each one still owes the user an answer or
-a live look, which landing does not discharge. Full context is in
-`git log -p -- .orchestrator/queue.md`.
-
-**586/587 — inline formatting (merged `945ceff1`).** Two calls the lane made and flagged
-rather than buried, both read out of the tree:
-
-- **A taste call, landed, one line to revert** per this board's standing preference.
-  `==highlight==` has no flanking rule of its own — measured, `==hello world ==` really does
-  highlight — so trimming its edge whitespace is taste, not grammar. It is currently
-  `InlineKind::Highlight => Grammar::Prose("==")` in `src/actions/format/inline.rs`; giving it
-  its own grammar arm restores the old behaviour. Reverting is one line.
-- **Code spans do not pad edge spaces**, though CommonMark strips a symmetric pair. awl styles
-  the SOURCE bytes, so padding would show you `"  x  "` for a selected `" x "`. The cost is
-  that a foreign renderer reads `` ` x ` `` as `x`. The backtick case IS padded, because there
-  the alternative is no span at all.
-
-**583/584 — new-document behaviour (merged `27aa13fa`). LIVE CONFIRMATION DID NOT HAPPEN.**
-The display was locked at both ends of the lane's round — `CGSSessionScreenIsLocked` read
-`<true/>` before it started and again after the gate launched — so it did not run the app and
-claimed no live evidence, which is the correct call: a locked display fails SILENTLY and
-writes successful-looking probe lines while presenting zero frames. Still owed to a human:
-583's pause-then-type journey in a real window (the autosave clock does not exist in ordinary
-capture), and 584's VoiceOver listening test. Stated plainly because the ceiling matters:
-584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
-through. They cannot prove the OS received it, or that VoiceOver announces it.
-
-**585 — Find's edit verbs (merged `92b1b13a`). LIVE CONFIRMATION NOT OBTAINED.** The display
-was locked (`CGSSessionScreenIsLocked = true`), so the visible ⌘A-then-typing journey the item
-asks for was not run and no live evidence is claimed. Owed to a human.
-
-**558 — the lone file's plate (merged `6c888d5c`). LIVE LOOK NOT OBTAINED.** The display was
-locked at both ends of that lane's round, so it ran headless captures only and claimed no live
-evidence. The plate is capture-verified in Mulga at RGB 126,140,103 over a 2447-pixel bbox,
-matching the candidate you chose from. What a capture cannot tell you is whether the newly
-plated lone file reads as calm or as busy in ordinary use — that is the whole reason 444, 469
-and 515 left it bare, and it is the one thing worth a live glance now that the decision has
-gone the other way.
-
-**551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
-whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
-that alternative was flagged, never built.
-
-**553 — folder-wide search (merged `277c3717`, follow-ups `e076ddd8`/`104fb174`).** The match
-highlight's real-pixel legibility is live-only and unverified. Also flagged, not hidden:
-grouping does not use the lens-strip header mechanism (a deliberate scope call); a CRLF
-source file's matched line keeps a cosmetic trailing `\r`; and the corpus is summon-time
-only, like Assets and Go to — a file edited on disk while the picker stays open is not
-re-read until the next summon.
-
-**559 — close mark hover (merged with 550 as `347eba64`).** Keep the existing hand cursor, or
-switch the whole row to arrow-plus-hover-only to match the cited convention? Hover is
-pointer-only and undrivable by `--keys`/`--screenshot-app`, so the resting geometry is
-capture-verified but the feel and the cursor question are yours.
-
-**561 — ornament scale equalized upward (merged `5f90cb6d`, follow-ups `1b22a1c1`/`fd2f5894`).**
-Gumtree's dash is a 4-glyph snake run, so equalizing its height also grew its width (~119px →
-~252px against a 1008px column); it reads proportionate in capture, unconfirmed live.
-Unmeasured: star and underscore share one `ornament_scale` dial with dash, so they grew
-proportionally without being checked against their own ink-to-em ratios.
-
-**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed).**
-Live human sign-off is owed for the several-minute drift and contortion feel — the harness
-verifies single-frame trajectories and the motion-safe still, not wall-clock feel over
-minutes. Also owed: at the default 1200×800 capture geometry the roaming vanishing point can
-land closer to the page edge than at the 1600×1000 geometry the pixel laws sweep, so it is
-worth a live look at whether the convergence ever reads as landing inside the page itself at
-common window sizes rather than staying a margin phenomenon. Item 582 (open, above) revises
-this ground's geometry and inherits the same sign-off.
-
----
-
-## Green train — the exact-main receipts
-
-**Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run. Pushed as
-`2ce630d5`; **CI run 34076734681 passed all four gating jobs** (39 min wall, the linux job the
-long pole at 38m54s — in line with the ~37-minute warm baseline 566 established).
-
-
-```
-native-gate-receipt commit=a7076b323c8ac462399edbb71789b7269ad85887 health=pass:247s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4964 unit_shards=6
-  integration_targets=18
-```
-plus `web-smoke: OK`. No mark raised — the branch LOWERED `render/geometry.rs` to 1323 after
-`caret_band` moved into its own module.
-
-**Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run.
-Pushed as `297ed802`; **CI run 34072883296 passed all four gating jobs.**
-
-
-```
-native-gate-receipt commit=0e19557466c341138fbc5e7d87295f4e00947020 health=pass:249s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4953 unit_shards=6
-  integration_targets=18
-```
-plus `web-smoke: OK`. No marks raised — 580's census closed a bypass by making four mutators
-module-private, and 581 split `projection.rs` at the ceiling rather than asking for room.
-
-**Third train, `555fa5d6`** — covered 570, 558 and 576. `health=pass:254s unit_tests=4946`,
-web-smoke OK. Pushed as `afda18f4`; CI run 34062997740 passed all four gating jobs.
-
-**Second train, `72e922e1`** — covered 583/584 and 585. `health=pass:251s unit_tests=4917`,
-web-smoke OK. Pushed as `c3d26d08`; CI run 34050443205 passed all four gating jobs.
-
-**First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587. `health=pass:271s
-unit_tests=4903`, web-smoke OK. Pushed as `a7ad4c68`; CI run 34047161907 passed all four
-gating jobs, including the hosted-mac pair — the only arm that has ever seen the
-virtualised-GPU axis, and therefore the half of the verification no local receipt supplies.
-
-⚠️ **Hardware bound, restated because a green receipt is exactly when it gets forgotten:** a
-local receipt certifies the dev host's real Apple Silicon Metal. A wedge once stayed green
-here while red on hosted macOS for ~140 commits, and CI's lavapipe job stayed green through
-that entire streak, so a software adapter is not a stand-in for that axis.
-
-⚠️ **No receipt covers a live journey.** Five items merged this wave with live confirmation
-explicitly NOT obtained, because the display was locked; they are in the owed section rather
-than silently absorbed into a green line.
-
-## Watch — verification that only a future run can supply
-
-**566's oracle: ANSWERED 2026-09-07, and the wiring works.** The item asked whether the linux
-job's `native-gate-env` line would read `budget_source=deadline` rather than
-`budget_source=none`, because nothing local can test the `$GITHUB_ENV` hop. Read out of run
-34039686854's own linux log:
-
-```
-native-gate-env cpus=4 mem_bytes=16766414848 conventions=2 test_threads=2
-  budget_seconds=3686 budget_source=deadline deadline_epoch=1788709583
+## Outstanding review of landed work
+
+These are follow-ups, not additional unimplemented build tasks. Completed work and
+past verification reports remain in `git log -p -- .orchestrator/queue.md`.
+
+- **588 — Brolga bullet taste decision.** The current plain `•◦▪` remains the
+  fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
+  box. A different glyph or wider box would be a separate mechanism decision.
+  The twenty-theme gallery still needs a taste review; legibility checks alone
+  do not supply it.
+- **553 — folder-search highlight review.** Real-pixel match-highlight legibility
+  remains unverified. Retain the known boundaries: results use summon-time disk
+  contents, grouping differs from lens headers, and CRLF matches can retain a
+  cosmetic trailing carriage return. Review with 639/640 rather than treating
+  the original implementation as unfinished.
+- **561 / 618 — ornament follow-up.** The requested ~15% reduction is merged
+  (`760f4f43`, merge `b3e8d2aa`). Outstanding: live proportions and the inherited
+  star/underscore ink-to-em check; those share the dash's scale dial. Do not
+  requeue the already-landed size reduction.
+
+Kite's unresolved appearance and live motion review belong to **582** above;
+there is no separate 564 build item. Its review must include convergence near
+page edges at common window sizes as well as several-minute motion comfort.
+For current accessibility acceptance and deferred work, use `ACCESSIBILITY.md`;
+the resolved 584/626 investigation does not require another confirmation sitting.
+
+## Latest recorded verification
+
+The latest recorded native/wasm baseline is **`4e225355`** (633 and the aggregate
+perf documentation), already on main:
+
+```text
+native-gate-receipt commit=4e225355 health=pass:304s conventions=mac,linux scope=all-targets
+  menubar=full:on unit_tests=5123 unit_shards=6 integration_targets=18
+web-smoke: OK
 ```
 
-`budget_source=deadline`, a real 61-minute budget, and `linux (build + test)` green. The
-runner death clock is armed, so an over-run now ends as a readable FAILURE instead of a
-cancellation that verifies nothing and discards the cold `target/`. Nothing further is owed
-here; 566 is closed.
+This is the original baseline receipt, not verification of later code. Subsequent
+queue/policy-only commits use diff/link checks under `docs/verification.md`.
+Older receipts, resolved CI investigations and completed train summaries are in Git
+history. Local hardware receipts do not establish hosted-GPU or live-journey results;
+check remote status before a future push rather than inheriting old push warnings.
 
 ## Needs specific hardware
 
-🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
+These remain unverified on the orchestration host; honor the current scope and
+release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
-   reading, caret/selection, overlays, and an editing burst.
+   reading, caret/selection, overlays, and an editing burst (post-v1 per
+   `ACCESSIBILITY.md`).
 2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
    the rendered menu's Export action reaches its destination.
 3. **Current Linux release artifacts** — launch both the tarball and AppImage
    on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
 
-## Needs release authority
+## Release authority
 
-🔴 BLOCKED — release work requires the user's explicit release word and Apple signing secrets.
-
-1. **macOS release signing** — supply the Apple secrets required by
-   `RELEASING.md` §1 before the macOS release arm can run.
+Signing/notarisation setup is complete; it is not an open setup task. Every new
+tag/release still requires the user's explicit instruction per `RELEASING.md`.

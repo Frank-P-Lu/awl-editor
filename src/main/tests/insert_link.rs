@@ -29,10 +29,14 @@ fn replay_keys_cmd_k_prompt_is_sidecar_visible_while_typing() {
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res.journey.card().expect("Cmd-K opens the link minibuffer");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::InsertLink);
-    assert_eq!(ov.accepts(), vec!["https://"]);
+    // The typed URL reads back from the FIELD line (`query`, mirrored from
+    // `link_edit.input` on every keystroke) — the card's one row is a fixed
+    // click-to-commit label now, not a second copy of the URL.
+    assert_eq!(ov.query.text(), "https://");
+    assert_eq!(ov.accepts(), vec!["\u{21B5}  insert link"]);
     assert_eq!(
         ov.foot_hint(),
-        "link to: https://   Enter commit   Esc cancel",
+        "esc cancel",
         "the live prompt is sidecar-visible via the same foot_hint seam Rename/Keybindings use"
     );
     assert_eq!(buffer.text(), "hello");

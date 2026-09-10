@@ -201,11 +201,15 @@ pub(super) fn auto_align_table_on_row_leave(ctx: &mut ActionCtx, row_before: usi
 /// TAG DOCUMENT LANGUAGE — the ONE door that writes a `lang:` frontmatter tag
 /// into the user's document, and it only ever opens because the user asked for
 /// it (the palette's "Tag document language"). Detects the document's dominant
-/// CJK script from the buffer text ([`crate::script::dominant_cjk`]), resolves
-/// it to a tag through the live ambiguity ladder
-/// ([`crate::frontmatter::cjk_priority`] — the same global the Settings row
-/// reads and the CJK picker promotes, so a `--keys` replay that changes the
-/// ladder and then tags observes the new front), and inserts
+/// CJK script from the buffer text ([`crate::script::dominant_cjk`], used only
+/// to gate "is there any CJK at all"), then resolves the tag itself through
+/// the SAME three-tier ladder the render path now follows: the document's own
+/// evidence first ([`crate::script::cjk_evidence`] — kana/simplified-only/
+/// traditional-only/hangul), falling back to the live ambiguity ladder only
+/// when the evidence is undecided ([`crate::frontmatter::cjk_priority`] — the
+/// same global the Settings row reads and the CJK picker promotes, so a
+/// `--keys` replay that changes the ladder and then tags observes the new
+/// front), and inserts
 /// `---\nlang: ..\n---\n` at byte 0 as ONE undoable edit (Cmd-Z restores the
 /// pre-tag text and cursor), then acknowledges the applied writer-visible name
 /// through the shared self-clearing notice channel.
@@ -234,7 +238,15 @@ pub(super) fn tag_document_language(ctx: &mut ActionCtx) -> Effect {
     let Some(script) = crate::script::dominant_cjk(&text) else {
         return Effect::None; // no CJK — nothing this ladder can name
     };
-    let lang = crate::script::doc_lang_for(script, &crate::frontmatter::cjk_priority());
+    let priority = crate::frontmatter::cjk_priority();
+    // The evidence tier decides first (kana/simplified-only/traditional-only/
+    // hangul, in that priority order) — the SAME signal the render ladder now
+    // folds ahead of the `cjk_priority` setting. Only when the document's Han
+    // is ambiguous on its own (shared characters only, or non-Han scripts the
+    // evidence tier doesn't cover, like Bopomofo) does this fall back to the
+    // plain script mapping / the setting, exactly as before.
+    let lang = crate::script::cjk_evidence(&text)
+        .unwrap_or_else(|| crate::script::doc_lang_for(script, &priority));
     let block = format!("---\nlang: {}\n---\n", lang.code());
     ctx.buffer.replace_char_range(0, 0, &block);
     Effect::Notice(NoticeEffect::Toast(format!(

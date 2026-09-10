@@ -158,15 +158,17 @@ declines to draw at all.
 
 ### THE FIND/REPLACE PANEL'S CARD IS A SIDECAR FACT TOO
 
-`search.panel` (schema `/203`) publishes the summoned card's exterior rect, its
-inner text origin, one band per shaped row, and the `Aa` toggle's own click span —
-`null` while the panel is down. Same door story: both write through the one
-sidecar writer.
+`search.panel` (schema `/203`, `controls` since `/212`) publishes the summoned
+card's exterior rect, its inner text origin, one band per shaped row, and every
+bordered control's own click span (the find/replace fields, the nav prev/next
+buttons, the `Match case` checkbox, and — once revealed — the `Replace`/`Replace
+all` buttons) — `null` while the panel is down. Same door story: both write
+through the one sidecar writer.
 
 **What this changes for a Verify clause.** "A long query does not widen the card",
 "the replace row is clickable where it is drawn", "the panel yields to a shown menu
-bar" and "the case toggle is where the pointer accepts it" are now arithmetic over
-the sidecar. Two facts a clause should know before asking for one:
+bar" and "the `Replace all` button is where the pointer accepts it" are now
+arithmetic over the sidecar. Two facts a clause should know before asking for one:
 
 * the card's own `12`px outer margin and inner pad are UNSCALED, so `card.y` reads
   the same at `--capture-dpi 1` and `2` while the row pitch doubles — a clause that
@@ -293,10 +295,12 @@ same shape, and its outward tail is a second live-only layer on top.** Three
 distinct claims, three different tiers, and a Verify clause must not ask the
 wrong one for the wrong thing:
 
-1. **Which mouse chord follows, per convention and flavor** — pure
-   (`keymap::platform::active_follow_gestures` / `follows_link`), swept over the
-   whole `Convention x KeymapFlavor x button x modifier` grid in
-   `keymap/tests.rs`. No capture door is involved or needed.
+1. **Which mouse chord follows, per convention (and per `[keys] follow`
+   override)** — pure (`keymap::platform::active_follow_gestures` /
+   `follows_link`), swept over the whole `Convention x button x modifier`
+   grid — the roster is no longer flavor-gated (middle-click follows under
+   Linux `native` and `emacs` alike) — plus the override's own parse/replace
+   contract, in `keymap/tests.rs`. No capture door is involved or needed.
 2. **What a followable span resolves to, and which typed effect carries it** —
    pure (`markdown::follow::followable_at`, `actions::follow::follow_effect`),
    enrolled from the underline grammar's own predicate
@@ -387,6 +391,23 @@ step (c) at the pure seam (`script::resolve_font_id`,
 `render::spans::add_script_spans`); the config→render leg is live-only and
 needs human confirmation. Threading the ladder into the capture pipeline would
 move this to tier 2, and is a real follow-up.
+
+**The DOCUMENT-scoped evidence tier sitting ahead of step (c)
+(`script::cjk_evidence`, folded in by `script::effective_cjk_priority`) is on
+the OTHER side of this exact boundary — tier 1, not tier 3.** It is a pure
+function of the buffer's own text, read straight from the `text: &str`
+`TextPipeline::set_text_incremental` already holds, with no `Config`/
+`ViewState` hop at all — so an ORDINARY `--screenshot` (no `--config`, no
+`--screenshot-app`) exercises it in full, including its interaction with the
+pinned `DEFAULT_CJK_PRIORITY` default the table above describes: an untagged,
+bare-Han fixture carrying a simplified-only character (e.g. 这) resolves the
+bundled Simplified-Chinese face in the PNG even though the pinned ladder is
+`ja`-first, and a mutation that removes the evidence fold (reverting to
+`cjk_priority.first()` alone) turns that same fixture back to the Japanese
+face — a real, capture-provable regression law
+(`capture::tests::i18n_fixtures`). What stays tier-3-only is exactly what the
+table above already says: an EXPLICIT, non-default `cjk_priority` setting
+still never reaches a rendered pixel through either capture door.
 
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
 `app/input/keys.rs`, `app/input/mouse.rs` and its children, `app/input/drags.rs`,

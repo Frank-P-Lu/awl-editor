@@ -262,31 +262,72 @@ pub fn pane_surface(elevation: Elevation) -> Srgb {
 
 pub(super) const SELECTED_ROW_INK_CONTRAST_FLOOR: f32 = 3.0;
 
-pub fn selected_row_ink(band: Srgb) -> Srgb {
-    let content = base_content();
-    if contrast_ratio(band, content) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
-        return content;
+/// **THE SHARED SUBSTITUTION CORE** every "prefer this colour, else the
+/// better-contrasting page pole" ladder in this file rides —
+/// [`selected_row_ink`], [`selected_row_secondary_ink`] and [`accent_ink`]
+/// each seed it with their own preferred colour, so the fallback logic lives
+/// once rather than three times.
+///
+/// `avoid`, when given, is a colour the result must never equal even at the
+/// cost of the WORSE-contrasting pole — a caller asking two ink roles to stay
+/// visually distinct (a rest ink and its own hover flip) passes the other one
+/// here rather than re-deriving the ladder a second way. Without it, two
+/// callers seeded with DIFFERENT preferred colours can still land on the
+/// IDENTICAL fallback pole whenever both preferred colours fail the floor
+/// against the same `band` — measured: Potoroo's own selection band swallows
+/// both `primary` and `muted`, so [`accent_ink`] and
+/// [`selected_row_secondary_ink`] used to agree there by construction, not by
+/// chance. `avoid` closes that hole at the one place it can be closed for good.
+fn substitute_ink(band: Srgb, preferred: Srgb, avoid: Option<Srgb>) -> Srgb {
+    let differs = |c: Srgb| avoid != Some(c);
+    if differs(preferred) && contrast_ratio(band, preferred) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
+        return preferred;
     }
     let ground = base_100();
-    if contrast_ratio(band, ground) > contrast_ratio(band, content) {
-        ground
+    let content = base_content();
+    let (better, worse) = if contrast_ratio(band, ground) > contrast_ratio(band, content) {
+        (ground, content)
     } else {
-        content
+        (content, ground)
+    };
+    if differs(better) {
+        return better;
+    }
+    // `better` IS what `avoid` names — cross to `worse` UNLESS doing so buys
+    // nothing but invisibility. A one-bit world (Wagtail: measured) has only
+    // two colours in its whole palette, and a plated band can already BE one
+    // of them — `worse` then equals `band` itself, contrast exactly 1.0, and
+    // trading "differs from rest" for "vanishes into its own surface" is the
+    // worse of the two failures this function exists to avoid. PRESENCE wins
+    // that tie: a hover flip indistinguishable from rest is a missed cue; a
+    // hover flip invisible against its own band is a missing ×.
+    if differs(worse) && contrast_ratio(band, worse) > 1.0 {
+        worse
+    } else {
+        better
     }
 }
 
+pub fn selected_row_ink(band: Srgb) -> Srgb {
+    substitute_ink(band, base_content(), None)
+}
+
 pub fn selected_row_secondary_ink(band: Srgb) -> Srgb {
-    let dim = muted();
-    if contrast_ratio(band, dim) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
-        return dim;
-    }
-    let ground = base_100();
-    let content = base_content();
-    if contrast_ratio(band, ground) > contrast_ratio(band, content) {
-        ground
-    } else {
-        content
-    }
+    substitute_ink(band, muted(), None)
+}
+
+/// **617:** [`primary`] (the caret's own accent) against `band`, substituted
+/// the same way [`selected_row_secondary_ink`] substitutes `muted`. One owner
+/// so a second spender of the caret's colour against an arbitrary surface
+/// (the margin's close-mark hover flip) can never invent its own contrast
+/// math or a second accent-like constant per world.
+///
+/// `avoid` exists for exactly one shape of caller: a HOVER ink that must
+/// differ from whatever REST ink already occupies the same row (see
+/// [`substitute_ink`]'s own doc for the collision it closes — measured on
+/// Potoroo). Every other caller passes `None`.
+pub fn accent_ink(band: Srgb, avoid: Option<Srgb>) -> Srgb {
+    substitute_ink(band, primary(), avoid)
 }
 
 pub fn overlay_bar_unselected() -> Srgb {

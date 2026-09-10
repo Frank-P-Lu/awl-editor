@@ -64,6 +64,7 @@ fn absent_config_load_is_empty_with_its_path() {
             loaded.popover,
             loaded.inline_images,
             loaded.code_ligatures,
+            loaded.footnote_ladder,
             &loaded.cjk_priority,
             loaded.session_restore
         ),
@@ -76,6 +77,7 @@ fn absent_config_load_is_empty_with_its_path() {
             empty.popover,
             empty.inline_images,
             empty.code_ligatures,
+            empty.footnote_ladder,
             &empty.cjk_priority,
             empty.session_restore
         ),
@@ -160,6 +162,60 @@ fn load_reads_two_binding_list_capped_at_two() {
         assert_eq!(get("undo"), Some(vec!["Cmd-Z".to_string()]));
         // Three chords supplied; the model caps at 2.
         assert_eq!(get("redo"), Some(vec!["a".to_string(), "b".to_string()]));
+    });
+}
+
+/// LAW: `[keys] follow` loads into `Config::follow`, NOT into the generic
+/// `Config::keys` list — "follow" is not a command-palette action name, so a
+/// generic `[keys]` reader would report it as unknown (`KeymapState::
+/// apply_overrides`'s "unknown action" note firing on every launch). Also
+/// proves the no-2-cap claim: a follow line naming three gestures survives
+/// whole, unlike an ordinary `[keys]` command list (capped at 2 above).
+#[test]
+fn load_diverts_follow_out_of_the_generic_keys_table() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(
+        &p,
+        concat!(
+            "[keys]\nswitch_theme = \"C-t\"\n",
+            "follow = [\"C-click\", \"middle-click\", \"right-click\"]\n",
+        ),
+    ));
+    crate::fs::with_fs(fs, || {
+        let cfg = Config::load(p.clone());
+        assert_eq!(
+            cfg.follow,
+            vec![
+                "C-click".to_string(),
+                "middle-click".to_string(),
+                "right-click".to_string(),
+            ],
+            "a 3-entry follow line must survive whole (no 2-slot cap)"
+        );
+        assert!(
+            cfg.keys.iter().all(|(name, _)| name != "follow"),
+            "follow must not also land in the generic keys table: {:?}",
+            cfg.keys
+        );
+        assert_eq!(
+            cfg.keys,
+            vec![("switch_theme".to_string(), vec!["C-t".to_string()])],
+            "the ordinary switch_theme entry must be unaffected"
+        );
+    });
+}
+
+/// A single-string `follow = "…"` loads as a one-element list, matching the
+/// same string-or-list shape every other `[keys]` value already accepts.
+#[test]
+fn load_reads_a_single_string_follow_line() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "[keys]\nfollow = \"C-click\"\n"));
+    crate::fs::with_fs(fs, || {
+        let cfg = Config::load(p.clone());
+        assert_eq!(cfg.follow, vec!["C-click".to_string()]);
     });
 }
 
@@ -827,6 +883,7 @@ fn write_pref_persists_settings_menu_toggles() {
             "popover",
             "inline_images",
             "code_ligatures",
+            "footnote_ladder",
             "outline",
             "menu_bar",
             "typewriter_scroll",
@@ -842,6 +899,7 @@ fn write_pref_persists_settings_menu_toggles() {
                 "popover" => cfg.popover,
                 "inline_images" => cfg.inline_images,
                 "code_ligatures" => cfg.code_ligatures,
+                "footnote_ladder" => cfg.footnote_ladder,
                 "outline" => cfg.outline,
                 "menu_bar" => cfg.menu_bar,
                 "typewriter_scroll" => cfg.typewriter_scroll,
@@ -1041,6 +1099,41 @@ fn apply_sticky_globals_restores_code_ligatures() {
 }
 
 #[test]
+fn apply_sticky_globals_restores_footnote_ladder() {
+    // The remembered footnote_ladder value lands on the
+    // `markdown::FOOTNOTE_LADDER_ON` process-global (no CLI flag, applies
+    // unconditionally) — mirrors the code_ligatures restore exactly.
+    let _g = crate::testlock::serial();
+    let saved = crate::markdown::footnote_ladder_on();
+    crate::markdown::set_footnote_ladder_on(true);
+    let cfg = Config {
+        footnote_ladder: Some(false),
+        ..Config::empty()
+    };
+    cfg.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::markdown::footnote_ladder_on(),
+        "footnote_ladder=false restored to off"
+    );
+    let cfg_on = Config {
+        footnote_ladder: Some(true),
+        ..Config::empty()
+    };
+    cfg_on.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        crate::markdown::footnote_ladder_on(),
+        "footnote_ladder=true restored to on"
+    );
+    crate::markdown::set_footnote_ladder_on(false);
+    Config::empty().apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::markdown::footnote_ladder_on(),
+        "absent pref leaves the global as-is"
+    );
+    crate::markdown::set_footnote_ladder_on(saved);
+}
+
+#[test]
 fn stale_autosnapshot_secs_key_is_ignored() {
     // BACK-COMPAT for the retired periodic knob: an existing config still
     // carrying `autosnapshot_secs = 300` loads clean — the lenient loader
@@ -1120,6 +1213,7 @@ fn apply_sticky_globals_restores_cjk_priority() {
     // `apply_sticky_globals_restores_dictionary`); an absent pref leaves the
     // global at its own built-in default.
     let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
     let cfg = Config {
         cjk_priority: Some(vec![
@@ -1255,6 +1349,70 @@ fn write_pref_persists_cjk_priority_as_a_toml_array() {
             1,
             "upserts in place, never duplicates the key"
         );
+    });
+}
+
+#[test]
+fn cjk_priority_accepts_the_literal_auto_string_as_none() {
+    // `cjk_priority = "auto"` is Auto — the SAME representation as leaving
+    // the key out entirely (`cjk_priority_or_default` and
+    // `apply_sticky_globals` both only ever see `None` either way).
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"auto\"\n").unwrap();
+        let loaded = Config::load(p.clone());
+        assert_eq!(loaded.cjk_priority, None);
+        assert_eq!(
+            loaded.cjk_priority_or_default(),
+            crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec()
+        );
+    });
+}
+
+#[test]
+fn cjk_priority_auto_string_is_case_insensitive() {
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"AUTO\"\n").unwrap();
+        assert_eq!(Config::load(p.clone()).cjk_priority, None);
+    });
+}
+
+#[test]
+fn cjk_priority_explicit_array_still_parses_alongside_auto_support() {
+    // Adding the `"auto"` string branch must not disturb the pre-existing
+    // array parse — probed on both sides of the condition.
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = [\"ko\", \"ja\"]\n").unwrap();
+        let loaded = Config::load(p.clone());
+        assert_eq!(
+            loaded.cjk_priority,
+            Some(vec![
+                crate::frontmatter::Lang::Ko,
+                crate::frontmatter::Lang::Ja,
+            ])
+        );
+    });
+}
+
+#[test]
+fn cjk_priority_unrecognized_string_is_inert() {
+    // Not "auto", not an array: unknown value, never a crash, never treated
+    // as Auto by accident — the field is simply left untouched (`None`,
+    // the empty-config default), matching "unknown keys inert, never crash."
+    use std::sync::Arc;
+    let p = PathBuf::from("/cfg/config.toml");
+    let mem = crate::fs::InMemoryFs::new();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        mem.write(&p, b"cjk_priority = \"klingon\"\n").unwrap();
+        assert_eq!(Config::load(p.clone()).cjk_priority, None);
     });
 }
 

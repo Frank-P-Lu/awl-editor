@@ -79,7 +79,8 @@ macro_rules! classify_action_family {
             | Action::Cancel
             | Action::SearchForward
             | Action::SearchBackward
-            | Action::OpenReplace => ActionFamily::Session,
+            | Action::OpenReplace
+            | Action::SearchPanel(_) => ActionFamily::Session,
             Action::ToggleCaretMode
             | Action::TogglePageMode
             | Action::PageWider

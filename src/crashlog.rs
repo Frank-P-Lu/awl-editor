@@ -9,7 +9,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 
-pub const MAINTAINER_EMAIL: &str = "franklu.99@outlook.com";
+pub const MAINTAINER_EMAIL: &str = "frank@awl.md";
 
 /// How many crash logs to keep on disk — oldest pruned first. A generous but
 /// bounded window: enough to look back across a bad week, never an unbounded

@@ -3,12 +3,19 @@
 use super::*;
 
 type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
+mod ranges;
+#[cfg(test)]
+pub(super) use ranges::intersecting_rows;
 
 /// [`TextPipeline::wash_rects`]'s triple: comment-span, string-span, and
 /// syntax-highlight-span wash rects, in that order.
 type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
+mod reveal;
+mod squiggle_projection;
+mod squiggle_underlines;
 mod underlines;
+pub(in crate::render) use squiggle_projection::{SquigglePending, SquiggleProjection};
 
 /// A contiguous run of blockquote lines is ONE block, recorded as `(first, last)`
 /// and only ever growing downward — the two ends the hanging pull-quote pair hangs
@@ -22,10 +29,12 @@ fn push_or_grow_quote_block(quotes: &mut Vec<(usize, usize)>, li: usize, prev: b
     }
 }
 
-/// Which end of a blockquote block a hanging pull-quote mark hangs from. The two
-/// sides differ ONLY in glyph and in x (`geometry::pull_quote_left` /
-/// `geometry::pull_quote_right`) — same face, same scale, same
-/// [`crate::theme::faint`] value, so the pair can never drift apart in weight.
+/// Which end of a blockquote block a hanging pull-quote mark hangs from. Both
+/// ends are shaped from one face, one scale, one [`crate::theme::faint`] value,
+/// so the pair can never drift apart in weight — they differ in glyph, and in
+/// how their position is derived: Open is a page-geometry constant
+/// (`geometry::pull_quote_left`); Close follows its own block's last-row ink
+/// (`geometry::pull_quote_close_x`, `TextPipeline::quote_close_row_end_x`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum QuoteSide {
     Open,
@@ -104,6 +113,359 @@ pub(super) struct UnderlineCache {
     protos: std::cell::RefCell<Vec<UnderlineProto>>,
 }
 
+/// Release-benchmark instrumentation for the document-wide-typing-work
+/// investigation: witnesses for [`TextPipeline::ensure_nit_protos`],
+/// [`TextPipeline::ensure_ornament_lists`], [`TextPipeline::destination_ranges`]
+/// (called from both nit and spell-squiggle rebuilds, so its counters accumulate
+/// rather than overwrite), and [`TextPipeline::ensure_squiggle_protos`]. Every
+/// owner here is reached through `&self`, hence `Cell`. Populated only while
+/// [`TextPipeline::text_sync_profile`] is set — an ordinary editor run pays one
+/// bool check per timed owner and never allocates or reads a clock. Reset once
+/// per [`TextPipeline::prepare`] call so a call reached twice in one frame
+/// (`destination_ranges`) reports the true total, not the last call's slice.
+#[derive(Default)]
+pub(super) struct OwnerScanWork {
+    /// Written from `TextPipeline::set_text`, once per RESHAPE — BEFORE
+    /// `prepare`'s reset() runs — by [`NitProjection::refresh`], and
+    /// unconditionally OVERWRITTEN (never accumulated, never reset in between)
+    /// by `ensure_nit_protos`'s full path when the fast path is ineligible.
+    /// So this always reflects whichever nit work actually ran this frame,
+    /// regardless of which of the two owners did it.
+    pub(super) nit_scan_ms: std::cell::Cell<f64>,
+    /// Lines actually RE-TOKENIZED: on the fast path, only the reshape's own
+    /// changed band (0 on a pure geometry-only reshape with no text change);
+    /// on the full path, every logical line in the document.
+    pub(super) nit_scan_lines: std::cell::Cell<u64>,
+    pub(super) ornament_scan_ms: std::cell::Cell<f64>,
+    /// Logical lines walked by the last `ensure_ornament_lists` cache MISS.
+    pub(super) ornament_scan_lines: std::cell::Cell<u64>,
+    /// `md_spans.len()` at the time of that same miss — multiplied by
+    /// `ornament_scan_lines`, the floor on span comparisons the per-line loop
+    /// performs (two of its four passes over `md_spans` never short-circuit).
+    pub(super) ornament_scan_spans: std::cell::Cell<u64>,
+    pub(super) destination_join_ms: std::cell::Cell<f64>,
+    /// Number of times `destination_ranges` actually joined + parsed the whole
+    /// document this `prepare` (0 when `md_spans` is empty; up to 2 when both
+    /// the nit and spell-squiggle owners miss their caches on the same frame).
+    pub(super) destination_join_calls: std::cell::Cell<u64>,
+    /// Bytes of the joined document string on the LAST such call.
+    pub(super) destination_join_bytes: std::cell::Cell<u64>,
+    pub(super) squiggle_scan_ms: std::cell::Cell<f64>,
+    /// `self.misspelled.len()` on the last `ensure_squiggle_protos` cache MISS —
+    /// zero either on a hit or because the misspelled list was empty (the caller,
+    /// `spell_squiggles`, skips the ensure call entirely in that case).
+    pub(super) squiggle_scan_misspellings: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::ensure_squiggle_protos` alongside
+    /// `squiggle_scan_ms`/`_misspellings` (a `prepare`-time cache MISS, same
+    /// reset convention): LINES the retained [`SquiggleProjection`] actually
+    /// re-looked-up in `RowGeom` resolving whatever `set_text` left pending
+    /// (only the changed band on a splice; every line carrying a span on a
+    /// full reseed or a reconcile-diff hit; 0 on a cache hit or while the
+    /// document sits outside the fast-path envelope, where the ineligible
+    /// full-scan path is measured by `squiggle_scan_misspellings` instead).
+    /// NOT written from `set_text` itself — `note_reshape` there is pure
+    /// bookkeeping, deliberately deferring the actual row lookup to this
+    /// read so several reshapes with no read in between pay for it once, not
+    /// once per reshape (see [`SquiggleProjection`]'s own doc comment).
+    pub(super) squiggle_lines_rebuilt: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::set_text`, once per RESHAPE, by
+    /// [`HanEvidenceProjection::refresh`] — the document-wide-typing-work
+    /// investigation's other named owner beside `nit_scan`. Same
+    /// unconditional-overwrite convention as `nit_scan_ms`: this always
+    /// reflects the evidence work THIS reshape actually did.
+    pub(super) evidence_scan_ms: std::cell::Cell<f64>,
+    /// Lines actually rescanned by that same call: only the reshape's own
+    /// changed band on a retained hit (0 on a pure geometry-only reshape with
+    /// no text change), or every logical line on a full reseed.
+    pub(super) evidence_scan_lines: std::cell::Cell<u64>,
+    /// Written from `TextPipeline::set_text_incremental`, once per RESHAPE, by
+    /// `parse_doc_spans` — NOT a retained owner (this round leaves markdown/
+    /// syntax parsing at its existing full-document recompute), so this is a
+    /// pure WITNESS that the parse really does see the whole document + line
+    /// count on every single edit, not a cache-hit/miss counter.
+    pub(super) spans_scan_bytes: std::cell::Cell<u64>,
+    pub(super) spans_scan_lines: std::cell::Cell<u64>,
+}
+
+/// A plain-data snapshot of [`OwnerScanWork`], read once per timed sample so a
+/// caller outside this module (the `typing_live` benchmark) never touches a
+/// `Cell` directly.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct OwnerScanSnapshot {
+    pub(super) nit_scan_ms: f64,
+    pub(super) nit_scan_lines: u64,
+    pub(super) ornament_scan_ms: f64,
+    pub(super) ornament_scan_lines: u64,
+    pub(super) ornament_scan_spans: u64,
+    pub(super) destination_join_ms: f64,
+    pub(super) destination_join_calls: u64,
+    pub(super) destination_join_bytes: u64,
+    pub(super) squiggle_scan_ms: f64,
+    pub(super) squiggle_scan_misspellings: u64,
+    pub(super) squiggle_lines_rebuilt: u64,
+    pub(super) evidence_scan_ms: f64,
+    pub(super) evidence_scan_lines: u64,
+    pub(super) spans_scan_bytes: u64,
+    pub(super) spans_scan_lines: u64,
+}
+
+impl OwnerScanWork {
+    pub(super) fn snapshot(&self) -> OwnerScanSnapshot {
+        OwnerScanSnapshot {
+            nit_scan_ms: self.nit_scan_ms.get(),
+            nit_scan_lines: self.nit_scan_lines.get(),
+            ornament_scan_ms: self.ornament_scan_ms.get(),
+            ornament_scan_lines: self.ornament_scan_lines.get(),
+            ornament_scan_spans: self.ornament_scan_spans.get(),
+            destination_join_ms: self.destination_join_ms.get(),
+            destination_join_calls: self.destination_join_calls.get(),
+            destination_join_bytes: self.destination_join_bytes.get(),
+            squiggle_scan_ms: self.squiggle_scan_ms.get(),
+            squiggle_scan_misspellings: self.squiggle_scan_misspellings.get(),
+            squiggle_lines_rebuilt: self.squiggle_lines_rebuilt.get(),
+            evidence_scan_ms: self.evidence_scan_ms.get(),
+            evidence_scan_lines: self.evidence_scan_lines.get(),
+            spans_scan_bytes: self.spans_scan_bytes.get(),
+            spans_scan_lines: self.spans_scan_lines.get(),
+        }
+    }
+
+    /// Resets every OWNER except the nit-scan pair and the evidence/spans
+    /// witnesses below: all of those are written from
+    /// `TextPipeline::set_text`/`set_text_incremental` (once per RESHAPE,
+    /// before `prepare` even starts) and unconditionally overwritten — never
+    /// accumulated — by whichever path actually ran, so resetting them here
+    /// would erase what `set_text` just recorded before `prepare` ever runs.
+    /// `squiggle_lines_rebuilt` is NOT in that excluded set — unlike its
+    /// siblings it is written from `ensure_squiggle_protos` itself (a
+    /// `prepare`-time cache miss), so it resets here exactly like
+    /// `squiggle_scan_ms`/`_misspellings` beside it.
+    pub(super) fn reset(&self) {
+        self.ornament_scan_ms.set(0.0);
+        self.ornament_scan_lines.set(0);
+        self.ornament_scan_spans.set(0);
+        self.destination_join_ms.set(0.0);
+        self.destination_join_calls.set(0);
+        self.destination_join_bytes.set(0);
+        self.squiggle_scan_ms.set(0.0);
+        self.squiggle_scan_misspellings.set(0);
+        self.squiggle_lines_rebuilt.set(0);
+    }
+}
+
+/// Whether `ensure_nit_protos`' retained per-line FAST PATH ([`NitProjection`])
+/// applies: the whole document must be plain prose, with none of the four
+/// inputs that otherwise force `ensure_nit_protos` to read DOCUMENT-WIDE
+/// context to score a single line — a table appearing anywhere changes which
+/// lines take the table-row nit variant; frontmatter anywhere shifts which
+/// lines are skipped; a markdown destination anywhere excludes matching spans
+/// wherever they land; and a recognized code language scopes every nit to the
+/// LEXER's prose ranges, which can cross logical lines. Any one of these
+/// present anywhere routes to the untouched full recompute every time —
+/// exactly today's algorithm, byte for byte, for every code buffer, every
+/// table, every frontmatter block, every doc with a link or image.
+pub(super) fn nit_fast_path_eligible(
+    md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
+    syn_lang: Option<crate::syntax::Lang>,
+) -> bool {
+    syn_lang.is_none()
+        && crate::markdown::frontmatter_end(md_spans).is_none()
+        && !md_spans.iter().any(|(_, k)| {
+            k.is_table_markup()
+                || matches!(
+                    k,
+                    crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Link)
+                        | crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Image
+                        )
+                )
+        })
+}
+
+/// Retained per-line WRITING-NIT spans:
+/// `ensure_nit_protos` used to re-tokenize EVERY logical line's own text on
+/// EVERY reshape, even though a raw nit span (before the frontmatter/table/
+/// prose/destination filters `ensure_nit_protos` applies afterward) is a pure
+/// function of that one line's text alone. This keeps that raw per-line
+/// result and reuses it for every line OUTSIDE the exact band a reshape
+/// touched — the identical `(prefix, old_end, new_end)` band the row-geometry
+/// patch's own `TextChange` already computes, so retention costs no extra
+/// document-wide comparison to find: [`TextPipeline::set_text`] hands it over
+/// the moment it has it.
+///
+/// Refreshed exactly once per RESHAPE (from `set_text`, not lazily from
+/// `prepare`), so two reshapes that land before the next drawn frame both
+/// still patch the cache — nothing is lost to a coalesced redraw the way a
+/// prepare-time refresh could lose an intermediate edit's band.
+///
+/// FAST PATH ONLY: active exactly when [`nit_fast_path_eligible`] holds.
+/// Falling out of eligibility (a table/frontmatter/link/code state appears)
+/// simply clears the cache; the very next `ensure_nit_protos` call takes the
+/// full path and finds `eligible() == false`, so it never consults this at
+/// all. Coming BACK into eligibility reseeds it from scratch on that same
+/// call (a full scan once, not a correctness risk) rather than trying to
+/// reconstruct history it never retained.
+#[derive(Default)]
+pub(super) struct NitProjection {
+    eligible: bool,
+    /// Per-line RAW spans (before any filter), in CURRENT line order.
+    slots: Vec<Vec<(usize, usize)>>,
+}
+
+impl NitProjection {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+
+    pub(super) fn eligible(&self) -> bool {
+        self.eligible
+    }
+
+    pub(super) fn line_count(&self) -> usize {
+        self.slots.len()
+    }
+
+    pub(super) fn spans_for(&self, line: usize) -> &[(usize, usize)] {
+        self.slots.get(line).map_or(&[], Vec::as_slice)
+    }
+
+    /// Bring the cache up to date with `lines` (the CURRENT document, one
+    /// entry per logical line). `change` is the exact changed-line band the
+    /// reshape that produced `lines` reported (`prefix`, old end, new end),
+    /// or `None` before this pipeline has ever reshaped. Returns the number
+    /// of lines actually re-tokenized (0 on a pure retain).
+    pub(super) fn refresh(
+        &mut self,
+        eligible: bool,
+        lines: &[&str],
+        change: Option<(usize, usize, usize)>,
+    ) -> u64 {
+        if !eligible {
+            self.eligible = false;
+            self.slots.clear();
+            return 0;
+        }
+        if let Some((prefix, old_end, new_end)) = change
+            && self.eligible
+            && prefix <= old_end
+            && new_end <= lines.len()
+        {
+            let old_len = old_end + (lines.len() - new_end);
+            if self.slots.len() == old_len {
+                // Splice: the SAME prefix/replace/suffix shape
+                // `splice_changed_lines` uses to retain glyphon's unaffected
+                // rows, for the identical reason — only the band's own TEXT
+                // could have changed; everything outside it is untouched byte
+                // for byte (`unchanged_band`'s own guarantee).
+                let mut next = Vec::with_capacity(lines.len());
+                next.extend_from_slice(&self.slots[..prefix]);
+                let mut retokenized = 0u64;
+                for &line in &lines[prefix..new_end] {
+                    next.push(crate::nits::line_nits(line));
+                    retokenized += 1;
+                }
+                next.extend_from_slice(&self.slots[old_end..]);
+                self.slots = next;
+                return retokenized;
+            }
+        }
+        // First activation, a state mismatch defensive fallback, or nothing
+        // has reshaped through this cache yet: seed every line once.
+        self.slots = lines
+            .iter()
+            .map(|line| crate::nits::line_nits(line))
+            .collect();
+        self.eligible = true;
+        lines.len() as u64
+    }
+}
+
+/// Retained per-line HAN-AMBIGUITY EVIDENCE (the document-wide-typing-work
+/// investigation, alongside [`NitProjection`] above): [`crate::script::cjk_evidence`]
+/// used to re-scan every character of the WHOLE document on every edit, even
+/// though its per-line contribution ([`crate::script::line_evidence`]) is a
+/// pure function of that one line's own text. This keeps each line's own
+/// flags plus a running [`crate::script::EvidenceCounts`] of how many CURRENT
+/// lines carry each signal, so [`Self::aggregate`] answers the exact
+/// priority-ordered question `cjk_evidence` would over the whole document
+/// without rescanning any line outside the band a reshape's own `TextChange`
+/// reports as touched.
+///
+/// RETRACTION: editing away or deleting a document's only decisive line
+/// decrements that line's counts before its old contribution is replaced —
+/// see [`crate::script::EvidenceCounts::remove`] — so the aggregate falls
+/// back correctly, the same way a fresh `cjk_evidence` scan of the edited
+/// text would (a design that only ever added counts would leave a stale
+/// positive answer forever).
+///
+/// SHAPE: identical splice mechanics to [`NitProjection::refresh`] — same
+/// band, same "shape mismatch -> full reseed" fallback, which is what makes
+/// a buffer swap (old and new documents typically sharing no line) reseed
+/// cleanly for free rather than needing its own buffer-identity key.
+#[derive(Default)]
+pub(super) struct HanEvidenceProjection {
+    per_line: Vec<crate::script::LineEvidence>,
+    counts: crate::script::EvidenceCounts,
+}
+
+impl HanEvidenceProjection {
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
+
+    /// The document aggregate exactly [`crate::script::cjk_evidence`] would
+    /// report for the CURRENT retained lines.
+    pub(super) fn aggregate(&self) -> Option<crate::frontmatter::Lang> {
+        self.counts.resolve()
+    }
+
+    /// Bring the retained per-line evidence up to date with `lines` (the
+    /// CURRENT document, one entry per logical line). `change` is the exact
+    /// changed-line band the reshape that produced `lines` reports (`prefix`,
+    /// old end, new end). Returns the number of lines actually rescanned (0
+    /// on a pure retain — the common single-line-edit case).
+    pub(super) fn refresh(&mut self, lines: &[&str], change: Option<(usize, usize, usize)>) -> u64 {
+        if let Some((prefix, old_end, new_end)) = change
+            && prefix <= old_end
+            && new_end <= lines.len()
+        {
+            let old_len = old_end + (lines.len() - new_end);
+            if self.per_line.len() == old_len {
+                for &ev in &self.per_line[prefix..old_end] {
+                    self.counts.remove(ev);
+                }
+                let mut next = Vec::with_capacity(lines.len());
+                next.extend_from_slice(&self.per_line[..prefix]);
+                let mut rescanned = 0u64;
+                for &line in &lines[prefix..new_end] {
+                    let ev = crate::script::line_evidence(line);
+                    self.counts.add(ev);
+                    next.push(ev);
+                    rescanned += 1;
+                }
+                next.extend_from_slice(&self.per_line[old_end..]);
+                self.per_line = next;
+                return rescanned;
+            }
+        }
+        // First activation, a state mismatch defensive fallback (including
+        // an unrelated buffer swap sharing no line with the prior document —
+        // `unchanged_band`'s "replace everything" shape degenerates into
+        // exactly this branch), or nothing has reshaped through this cache
+        // yet: reseed every line once.
+        self.counts = crate::script::EvidenceCounts::default();
+        self.per_line = lines
+            .iter()
+            .map(|&line| {
+                let ev = crate::script::line_evidence(line);
+                self.counts.add(ev);
+                ev
+            })
+            .collect();
+        lines.len() as u64
+    }
+}
+
 /// One cached underline span: the owning visual row's buffer-relative top +
 /// height (`VisualRow::line_top` / `line_height`) and the span's x boundaries
 /// relative to the text left edge (`row.xs[s]` / `row.xs[e]`, exactly the two
@@ -116,7 +478,8 @@ pub(super) struct UnderlineCache {
 /// at read time in [`TextPipeline::nit_underlines`] / [`TextPipeline::spell_squiggles`],
 /// mirroring the existing `rule_lines`/`bullet_marks` reveal-on-cursor pattern).
 /// Unused by the wash cache (no caret exclusion there) — harmlessly along for the ride.
-struct UnderlineProto {
+#[derive(Clone, Copy, Debug)]
+pub(super) struct UnderlineProto {
     line: usize,
     start_col: usize,
     end_col: usize,
@@ -279,6 +642,15 @@ impl TextPipeline {
         if self.ornament_cache.version.get() == Some(self.reshape_count) {
             return;
         }
+        let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
+        if self.text_sync_profile {
+            self.owner_scan
+                .ornament_scan_lines
+                .set(self.buffer.lines.len() as u64);
+            self.owner_scan
+                .ornament_scan_spans
+                .set(self.md_spans.len() as u64);
+        }
         let mut rules = Vec::new();
         let mut bullets = Vec::new();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
@@ -288,18 +660,45 @@ impl TextPipeline {
         let mut footnotes = Vec::new();
         let mut bare_url_tails: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
         let mut smart_punct_spans: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
+        // SWEEP-LINE span index: `md_spans` sorted by start, walked alongside
+        // the lines in byte order via an `active` set (spans whose range can
+        // still overlap the CURRENT or a later line). Each span enters
+        // `active` once (when its start comes into view) and leaves once
+        // (when its end falls behind the sweep), so the per-line work below
+        // is bounded by how many spans genuinely overlap nearby lines —
+        // O(lines + spans log spans) total — rather than the old O(lines ×
+        // spans): every one of the four passes below used to walk the WHOLE
+        // `md_spans` list for EVERY line, regardless of how far that span sat
+        // from the line in question.
+        let mut sorted_spans: Vec<&(std::ops::Range<usize>, crate::markdown::MdKind)> =
+            self.md_spans.iter().collect();
+        sorted_spans.sort_by_key(|(r, _)| r.start);
+        let mut next_span = 0usize;
+        let mut active: Vec<&(std::ops::Range<usize>, crate::markdown::MdKind)> = Vec::new();
+
         let mut start = 0usize;
         for (li, line) in self.buffer.lines.iter().enumerate() {
             let text = line.text();
             let end = start + text.len();
             if !self.md_spans.is_empty() {
-                for (r, k) in &self.md_spans {
+                // The loosest look-ahead any check below needs is the RULE
+                // check's `end + 1`; admitting spans that far ahead keeps
+                // every other (tighter) check correct too, since each still
+                // applies its OWN exact predicate against `active` below.
+                while next_span < sorted_spans.len() && sorted_spans[next_span].0.start < end + 1 {
+                    active.push(sorted_spans[next_span]);
+                    next_span += 1;
+                }
+                active.retain(|(r, _)| r.end > start);
+
+                for (r, k) in &active {
+                    if r.start < start || r.start >= end {
+                        continue; // overlapping this line, but didn't START here
+                    }
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::Fence,
                         )
-                        && r.start >= start
-                        && r.start < end
                         && let Some(lang) = crate::markdown::fence_line_lang(text)
                     {
                         fence_langs.push((li, lang));
@@ -308,38 +707,31 @@ impl TextPipeline {
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::BareUrl,
                         )
-                        && r.start >= start
-                        && r.start < end
                         && is_bare_url_tail(text, r.start - start)
                     {
-                        bare_url_tails.push((li, r.clone()));
+                        bare_url_tails.push((li, (*r).clone()));
                     }
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::SmartPunct,
                         )
-                        && r.start >= start
-                        && r.start < end
                     {
-                        smart_punct_spans.push((li, r.clone()));
+                        smart_punct_spans.push((li, (*r).clone()));
                     }
                     let number = match *k {
                         crate::markdown::MdKind::FootnoteReference(number)
                         | crate::markdown::MdKind::FootnoteDefinition(number) => Some(number),
                         _ => None,
                     };
-                    if let Some(number) = number
-                        && r.start >= start
-                        && r.start < end
-                    {
+                    if let Some(number) = number {
                         let byte = r.start - start;
                         let col = text[..byte].chars().count();
-                        footnotes.push((li, col, r.clone(), number));
+                        footnotes.push((li, col, (*r).clone(), number));
                     }
                 }
             }
             let is_quote = !self.md_spans.is_empty()
-                && self.md_spans.iter().any(|(r, k)| {
+                && active.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::ConcealMarkup(
                         crate::markdown::ConcealKind::Blockquote,
                     ) && r.start < end
@@ -350,14 +742,14 @@ impl TextPipeline {
             }
             prev_quote = is_quote;
             if !self.md_spans.is_empty() {
-                for (r, k) in &self.md_spans {
+                for (r, k) in &active {
                     if *k
                         == crate::markdown::MdKind::ConcealMarkup(
                             crate::markdown::ConcealKind::Table,
                         )
                         && r.start == start
                     {
-                        tables.push((li, r.clone()));
+                        tables.push((li, (*r).clone()));
                     }
                 }
             }
@@ -365,7 +757,7 @@ impl TextPipeline {
             // per-frame `rule_lines` scan) — cursor-independent (the caret exclusion is
             // applied at read time so the cache survives a pure cursor move).
             if !self.md_spans.is_empty()
-                && self.md_spans.iter().any(|(r, k)| {
+                && active.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::Rule && r.start < end + 1 && r.end > start
                 })
             {
@@ -385,6 +777,11 @@ impl TextPipeline {
         *self.ornament_cache.bare_url_tails.borrow_mut() = bare_url_tails;
         *self.ornament_cache.smart_punct_spans.borrow_mut() = smart_punct_spans;
         self.ornament_cache.version.set(Some(self.reshape_count));
+        if let Some(at) = scan_at {
+            self.owner_scan
+                .ornament_scan_ms
+                .set(at.elapsed().as_secs_f64() * 1000.0);
+        }
     }
 
     /// Buffer-relative -> absolute: the top y of logical `line`'s ornament (its first
@@ -413,6 +810,34 @@ impl TextPipeline {
             + self
                 .row_geom
                 .line_first_baseline(&self.buffer, &self.metrics, line)
+    }
+
+    /// Buffer-relative -> absolute BASELINE y of logical `line`'s **LAST** visual
+    /// row — the wrap-aware counterpart of [`Self::line_ornament_baseline`]. The
+    /// blockquote pull-quote's CLOSING mark anchors here rather than to that row's
+    /// top, so a mark shaped taller than one body row still reads as belonging to
+    /// its own line's baseline instead of riding above it.
+    pub(super) fn line_ornament_last_baseline(&self, line: usize) -> f32 {
+        self.doc_top()
+            + self
+                .row_geom
+                .line_last_baseline(&self.buffer, &self.metrics, line)
+    }
+
+    /// Buffer-relative -> absolute ink-right x of logical `line`'s **LAST** visual
+    /// row — the wrap-aware, LAST-row counterpart of
+    /// [`Self::fold_affordance_row_end_x`] (which deliberately reads the FIRST
+    /// row, appropriate to a collapsed heading's own affordance). The blockquote
+    /// pull-quote's CLOSING mark hangs one gap past THIS edge: the block's real
+    /// final row of shaped ink, never a row above it.
+    pub(super) fn quote_close_row_end_x(&self, line: usize) -> f32 {
+        let end = self
+            .visual_rows(line)
+            .last()
+            .and_then(|r| r.xs.get(r.end_col).copied())
+            .filter(|x| x.is_finite())
+            .unwrap_or(0.0);
+        self.text_left() + end
     }
 
     pub(super) fn table_blocks(&self) -> Vec<(usize, std::ops::Range<usize>)> {
@@ -454,35 +879,21 @@ impl TextPipeline {
             return Vec::new();
         }
         // CACHE + CULL: the rule-line SET is a pure function of the text (cached by
-        // reshape version); each frame we just drop the caret's own line AND every
-        // line the active selection touches (reveal-on-cursor, widened the same way
-        // `footnote_marks`/`bare_url_marks` widen theirs — one owner,
-        // `selection_touch_bytes`/`selection_touches`, never re-derived) plus the
+        // reshape version); each frame we just drop the REVEALED lines
+        // ([`Self::line_is_revealed`] — caret line or selection touch, the one
+        // owner the nit underline's own conceal check reads too) plus the
         // OFF-SCREEN lines (clipped to nothing anyway). Ascending order + the same
         // membership on the visible rows => byte-identical render.
         self.ensure_ornament_lists();
-        let selection_touch = selection_touch_bytes(
-            self.selection,
-            |li| self.line_doc_byte_start(li),
-            |li| {
-                self.buffer
-                    .lines
-                    .get(li)
-                    .map_or(0, |line| line.text().len())
-            },
-        );
+        let selection_touch = self.selection_touch();
         self.ornament_cache
             .rule_lines
             .borrow()
             .iter()
             .copied()
             .filter(|&li| {
-                if li == self.cursor_line || !self.line_ornament_visible(li) {
-                    return false;
-                }
-                let start = self.line_doc_byte_start(li);
-                let end = start + self.buffer.lines.get(li).map_or(0, |l| l.text().len());
-                !selection_touches(selection_touch.as_ref(), &(start..end))
+                self.line_ornament_visible(li)
+                    && !self.line_is_revealed(li, selection_touch.as_ref())
             })
             .collect()
     }
@@ -524,11 +935,14 @@ impl TextPipeline {
             return Vec::new();
         }
         // CACHE + CULL (mirrors `rule_lines`): the bullet-line SET is cached by reshape
-        // version; each frame we walk only those, skip the caret's own line (reveal-on-
-        // cursor) and the OFF-SCREEN lines. Ascending order + identical membership on
-        // the visible rows => byte-identical to the old whole-document scan.
+        // version; each frame we walk only those, skip every REVEALED line (the
+        // caret's own, or one a selection touches — `line_is_revealed`, the same
+        // owner `rule_lines` reads) and the OFF-SCREEN lines. Ascending order +
+        // identical membership on the visible rows => byte-identical to the old
+        // whole-document scan.
         self.ensure_ornament_lists();
         let text_left = self.text_left();
+        let selection_touch = self.selection_touch();
         // Resolve each visible, non-caret unordered-bullet line to its
         // (line, top, indent, glyph), DEFERRING the marker x: an UNINDENTED bullet's
         // marker sits at column 0 (x == 0), needing no shaped-x lookup at all — the
@@ -541,8 +955,8 @@ impl TextPipeline {
         let mut items: Vec<(usize, f32, usize, char)> = Vec::new();
         let mut indented: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for &li in self.ornament_cache.bullet_lines.borrow().iter() {
-            if li == self.cursor_line {
-                continue; // reveal-on-cursor: the raw marker shows on the caret's line
+            if self.line_is_revealed(li, selection_touch.as_ref()) {
+                continue; // caret's own line, or a selection touching it: raw marker shows
             }
             if !self.line_ornament_visible(li) {
                 continue; // off-screen: the glyph would be clipped to nothing
@@ -581,16 +995,22 @@ impl TextPipeline {
         out
     }
 
-    /// The visible hanging pull-quote marks: `(row top, side)`, TWO per blockquote
-    /// block — an opening mark on the block's first row and a closing one on its
-    /// last, so a quote never reads permanently unclosed. Each end is culled
-    /// independently, so a block taller than the viewport still shows whichever of
-    /// its two marks is on screen. The closing mark hangs from the last WRAPPED row
-    /// of the block's last logical line ([`Self::line_ornament_last_top`]), not that
-    /// line's first row. A ONE-LINE block yields both marks at the same top; the
-    /// pair is told apart by x, never by y (`geometry::pull_quote_left` /
-    /// `geometry::pull_quote_right`).
-    pub(super) fn quote_marks(&self) -> Vec<(f32, QuoteSide)> {
+    /// The visible hanging pull-quote marks: `(row top, side, logical line)`, TWO
+    /// per blockquote block — an opening mark on the block's first row and a
+    /// closing one on its last, so a quote never reads permanently unclosed. Each
+    /// end is culled independently, so a block taller than the viewport still
+    /// shows whichever of its two marks is on screen. The closing mark's row is
+    /// the last WRAPPED row of the block's last logical line
+    /// ([`Self::line_ornament_last_top`]), not that line's first row. A ONE-LINE
+    /// block yields both marks on the same row.
+    ///
+    /// The `line` is the row this mark belongs to (the block's `first` for Open,
+    /// `last` for Close) — the caller resolves the OPEN mark's x from
+    /// `geometry::pull_quote_left` (a page-geometry constant, independent of which
+    /// block) but the CLOSE mark's x from THIS line's own shaped ink
+    /// ([`Self::quote_close_row_end_x`]), because unlike the open end the close
+    /// end now follows the text rather than hanging in a fixed gutter.
+    pub(super) fn quote_marks(&self) -> Vec<(f32, QuoteSide, usize)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || !crate::page::page_on() {
             return Vec::new();
         }
@@ -601,11 +1021,11 @@ impl TextPipeline {
         let mut out = Vec::new();
         for (first, last) in self.ornament_cache.quote_blocks.borrow().iter().copied() {
             if self.line_ornament_visible(first) {
-                out.push((self.line_ornament_top(first), QuoteSide::Open));
+                out.push((self.line_ornament_top(first), QuoteSide::Open, first));
             }
             let close_top = self.line_ornament_last_top(last);
             if self.row_box_visible(close_top, 0.0) {
-                out.push((close_top, QuoteSide::Close));
+                out.push((close_top, QuoteSide::Close, last));
             }
         }
         out
@@ -1544,194 +1964,6 @@ impl TextPipeline {
     #[cfg(test)]
     pub(super) fn fence_panel_cache_version(&self) -> Option<(u64, u64, bool)> {
         self.fence_panel_cache.version.get()
-    }
-
-    /// Compute the selection highlight rectangles in pixels for the current
-    /// selection, scroll, and zoom. Multi-line: first line from anchor-col to
-    /// end-of-line, full-width middle lines, last line up to cursor-col. Each
-    /// rect is `[x, y, w, h]`. Reads the SAME metrics + scroll as glyph layout,
-    /// so the highlight sits exactly behind the selected glyphs.
-    pub(super) fn selection_rects(&self) -> Vec<[f32; 4]> {
-        let Some(((l0, c0), (l1, c1))) = self.selection else {
-            return Vec::new();
-        };
-        self.range_rects((l0, c0), (l1, c1))
-    }
-
-    pub(super) fn range_rects(
-        &self,
-        (l0, c0): (usize, usize),
-        (l1, c1): (usize, usize),
-    ) -> Vec<[f32; 4]> {
-        let m = &self.metrics;
-        let doc_top = self.doc_top();
-        let eol_pad = m.char_width * 0.5;
-        // VISIBLE-BAND CULL (mirrors the wash / squiggle / nit proto builders). A
-        // selection can span the WHOLE document (Select-All), yet only the on-screen
-        // rows can paint. Restrict the lines we resolve to those whose vertical
-        // extent intersects the viewport (plus the generous ornament margin), read
-        // O(1) per line from the first-row-top table — so the BATCHED geometry
-        // resolve below is O(visible), not O(doc). Band edges are buffer-relative so
-        // each line's raw `line_first_top` compares without re-adding `doc_top`.
-        let margin = m.line_height * 8.0;
-        let band_lo = -margin - doc_top;
-        let band_hi = self.window_h + margin - doc_top;
-        let last_line = self.buffer.lines.len().saturating_sub(1);
-        let first_top = |line: usize| {
-            self.row_geom
-                .line_first_top(&self.buffer, &self.metrics, line)
-        };
-        let mut lines: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
-        for line in l0..=l1.min(last_line) {
-            let top = first_top(line);
-            let bottom = if line < last_line {
-                first_top(line + 1)
-            } else {
-                self.total_doc_height()
-            };
-            if bottom > band_lo && top < band_hi {
-                lines.insert(line);
-            }
-        }
-        // ONE `layout_runs()` walk for ALL visible selected lines — replaces the
-        // per-line `line_glyph_xs` + `visual_rows` (each an O(doc) run walk that also
-        // CLOBBERED the single-slot cursor-line memo), so Select-All is no longer
-        // O(doc^2) per frame while the caret spring animates. `visual_rows_for_lines`
-        // never touches that memo, and per line yields rows byte-identical to
-        // `visual_rows(line)`.
-        let rows_by_line = self.visual_rows_for_lines(&lines);
-        let text_left = self.text_left();
-        let mut rects = Vec::new();
-        for line in l0..=l1 {
-            // A GFM table row the selection touches has its source CONCEALED to
-            // zero-width (`ensure_wash_protos`'s table carve-out documents the same
-            // collapse for the wash buckets) while `prepare_table_xray` floats that
-            // row's raw source, at its REAL shaped advances, over the still-drawn
-            // grid cells (`XrayRow`). Reading `rows_by_line` here would measure the
-            // concealed geometry and paint the reported hairline sliver at the left
-            // margin instead of a band under the revealed ink — so a row present in
-            // `self.xray` is rebuilt from `glyph_xs` (the same source the drawn
-            // float uses) instead of falling into the generic row-based path below.
-            // `row_band_for`'s height/top still come from the row's own (possibly
-            // tall, wrapped-grid-cell) reserved box exactly as the generic path
-            // uses, so only the horizontal extent changes.
-            if let Some(xray) = self.xray.iter().find(|x| x.line == line) {
-                if !self.proto_visible(xray.top, xray.height) {
-                    continue; // off-screen row: the quad would rasterize nothing
-                }
-                let line_char_count = xray.glyph_xs.len().saturating_sub(1);
-                let sel_start = if line == l0 { c0 } else { 0 }.min(line_char_count);
-                let (sel_end, extends_to_eol) = if line == l1 {
-                    (c1.min(line_char_count), false)
-                } else {
-                    (line_char_count, true)
-                };
-                if sel_end < sel_start {
-                    continue;
-                }
-                let a = sel_start.min(line_char_count);
-                let b = sel_end.min(line_char_count);
-                // The x-ray row never wraps (`Wrap::None` in `prepare_table_xray`),
-                // so it is always its own "last row" — the trailing-selection eol
-                // pad applies whenever the span reaches the source line's end.
-                let pad = if extends_to_eol && b >= line_char_count {
-                    eol_pad
-                } else {
-                    0.0
-                };
-                let (x, w) = xray_x_span(xray, text_left, a, b, 0.0);
-                let w = w + pad;
-                if w <= 0.0 {
-                    continue;
-                }
-                let (y, row_caret_h) = self.row_band_for(line, xray.height, xray.top);
-                rects.push([x, y, w, row_caret_h]);
-                continue;
-            }
-            let Some(rows) = rows_by_line.get(&line) else {
-                continue; // culled: off-screen line
-            };
-            // Every row carries the WHOLE logical line's `xs` (char_count+1 long), so
-            // any row's length is the line's char count — identical to the retired
-            // `line_glyph_xs(line).len() - 1`. The logical line's column span
-            // [sel_start, sel_end] within the selection: lines before the last run
-            // through the (virtual) end-of-line newline; the last line stops at c1.
-            let line_char_count = rows
-                .first()
-                .map(|r| r.xs.len().saturating_sub(1))
-                .unwrap_or(0);
-            let sel_start = if line == l0 { c0 } else { 0 };
-            let (sel_end, extends_to_eol) = if line == l1 {
-                (c1.min(line_char_count), false)
-            } else {
-                (line_char_count, true)
-            };
-            let sel_start = sel_start.min(line_char_count);
-            // Emit one rect per VISUAL row of this logical line, clipped to the
-            // selection's column span on that row. Each row uses its OWN wrap-aware
-            // top + x boundaries, so a selection that spans a wrap boundary follows
-            // the text down to the next row. Rows outside the visible band are
-            // culled (they would rasterize nothing) — byte-identical on-screen.
-            for (ri, row) in rows.iter().enumerate() {
-                let line_top = doc_top + row.line_top;
-                if !self.proto_visible(line_top, row.line_height) {
-                    continue; // off-screen row: the quad would rasterize nothing
-                }
-                let row_char_count = row.xs.len().saturating_sub(1);
-                // Intersect the selection's column span with this row's columns.
-                let rs = sel_start.max(row.start_col);
-                let re = sel_end.min(row.end_col);
-                if re < rs {
-                    continue;
-                }
-                let is_last_row = ri + 1 == rows.len();
-                // Only the row that actually reaches the logical end-of-line gets
-                // the newline pad (the trailing-selection sliver editors show).
-                let pad = if extends_to_eol && is_last_row && re >= row_char_count {
-                    eol_pad
-                } else {
-                    0.0
-                };
-                let a = rs.min(row_char_count);
-                let b = re.min(row_char_count);
-                let (x, w_raw) = row_x_span(row, text_left, a, b, 0.0);
-                let w = w_raw + pad;
-                if w <= 0.0 {
-                    continue;
-                }
-                // Scale the highlight to the row so a heading's selection is as tall
-                // as its glyphs (a base-height band on a big heading reads as broken),
-                // but only BODY-height on an image line (the caption model — never a
-                // char-wide × whole-image-height pillar). `row_caret_band` reads the
-                // per-line `caret_band_scale`, the caret's own anchor.
-                let (y, row_caret_h) = self.row_caret_band(line, row, line_top);
-                rects.push([x, y, w, row_caret_h]);
-            }
-        }
-        // Route through the SAME content clip every other SELECTION-
-        // ADJACENT quad uses, so a selection extended past the page's edge (or
-        // a diff-preview transcript scrolled past its card) stops painting at
-        // that boundary instead of bleeding into the margin — a visual bound
-        // only; the selection RANGE above is untouched. Shared by
-        // `selection_rects` and `search_match_rects` (both funnel through
-        // here). NOT `clip_decorative_rects_to_band` — that owner is for the
-        // decorative-overhang emitters.
-        self.clip_rects_to_band(rects)
-    }
-
-    /// Translucent highlight rects for ALL active search matches (one set per
-    /// match, in document order). The CURRENT match gets no distinct color: the
-    /// real amber caret already sits on it.
-    pub(super) fn search_match_rects(&self) -> Vec<[f32; 4]> {
-        let mut r = Vec::new();
-        for &(a, b) in &self.search_matches {
-            r.extend(self.range_rects(a, b));
-        }
-        r
-    }
-
-    pub(super) fn search_no_matches(&self) -> bool {
-        self.search_active && !self.search_query.is_empty() && self.search_matches.is_empty()
     }
 
     pub(super) fn panel_layout(

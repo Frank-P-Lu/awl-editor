@@ -81,6 +81,15 @@ scripts/linux-deps-law.sh
 # A disposable fake Cargo makes both convention failure directions cheap to
 # exercise on every health run; the static audit above pins the command scope.
 scripts/test-native-gate.sh
+# scripts/preflight.sh's own ordering/failure-propagation/self-labeling laws,
+# stubbing its two steps so this does not recompile clippy from scratch on
+# every code-health.sh pass. Wired at birth, same reason as the gate law above.
+scripts/test-preflight.sh
+# scripts/verify_cache.py's reuse-invalidation, failure, cancellation,
+# concurrency, and unrecognised-input laws, entirely against a throwaway
+# fixture repo and fake commands (never the real cargo tests it is meant to
+# cache). Wired at birth, same reason as the two script laws above.
+scripts/test-verify-cache.sh
 # What sweep.sh is allowed to delete. Wired at birth: the previous version of
 # this law was deleted for being unwired, and the defect it now pins — one
 # lane's disk preflight pruning a SIBLING lane's live build — reads as the
@@ -90,7 +99,16 @@ scripts/test-sweep.sh
 # Wired at birth for the same reason as the line above: this file existed once,
 # unwired, and was deleted for it — and the constants it pins were tuned against
 # a sweep whose reach has since been narrowed to a single worktree.
-scripts/test-disk-preflight.sh
+#
+# Run under BOTH ambient CI branches, for the same reason native-gate.sh runs
+# the menu-bar arm this host does not run ambiently. disk-preflight.sh answers
+# a CI environment on a branch of its own, before fleet policy is consulted,
+# and a hosted runner exports CI to every step — so run one way only and the
+# fleet half is exercised here and nowhere else, the CI half nowhere but a
+# runner. That is how a suite green on this host shipped a red gating linux
+# job. Each arm is under five seconds; the suite names the branch it ran under.
+env -u CI scripts/test-disk-preflight.sh
+CI=true scripts/test-disk-preflight.sh
 scripts/test-pycache-guards.sh
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a

@@ -92,10 +92,23 @@ impl Srgb {
             a: self.a as f64 / 255.0,
         }
     }
-    /// glyphon text color (drops alpha; glyphon::Color::rgb is opaque, matching
-    /// the old FG which was Color::rgb).
+    /// glyphon text color, ALPHA INCLUDED.
+    ///
+    /// Alpha is meaningful for glyph ink and is not this converter's to
+    /// discard: glyphon's mask path multiplies the glyph's coverage by
+    /// `color.a` in the fragment stage and its pipeline blends with
+    /// `BlendState::ALPHA_BLENDING`, so a translucent text color really does
+    /// sit part-way toward whatever it is drawn over. The outline pane's
+    /// edge fade is the tree's own witness — it scales a glyph color's alpha
+    /// and the rows fade on screen.
+    ///
+    /// Dropping alpha here was a silent one: a caller that set one got an
+    /// OPAQUE glyph back with nothing to say so, which is a fade that never
+    /// reaches the renderer and a mutation that cannot go red. Alpha is not
+    /// gamma-encoded, so — like [`Srgb::to_wgpu_clear`] — it passes straight
+    /// through whichever color mode the atlas was built in.
     pub fn to_glyphon(self) -> glyphon::Color {
-        glyphon::Color::rgb(self.r, self.g, self.b)
+        glyphon::Color::rgba(self.r, self.g, self.b, self.a)
     }
     /// Raw sRGB bytes for the caret pipeline (which converts to linear itself).
     pub fn rgb_bytes(self) -> [u8; 3] {

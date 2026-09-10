@@ -642,6 +642,33 @@ gate_prepare_tests() {
 # owner of that wave. Both the convention arms and the menu-bar axis arm below
 # run it, which is what makes "the forced arm sees the same tests a convention
 # does" a structural fact rather than two filter lists that agree by hand.
+# ONE SHARD'S LINES, WHOLE, BEFORE THEY REACH THE SHARED STREAM.
+#
+# libtest writes a test's NAME and its RESULT as two separate writes with the
+# test running in between — the property `gate_stamp_phases` relies on to name
+# a test that never returned. Six shards share one stdout, so without a reader
+# of its own each shard's dangling "test NAME ... " can be completed by a
+# DIFFERENT shard's "ok"/"FAILED", and the transcript then attributes one
+# shard's verdict to another shard's test. Measured on this repo's own binary:
+# six concurrent shards into one pipe produced 15 spliced lines and 19 orphan
+# verdicts in a single wave. A green suite can read as a named test failing,
+# with that name absent from every `failures:` block, unreproducible and gone
+# on the next run — which has already cost a lane a round.
+#
+# `read` blocks on the unterminated fragment until THIS shard completes it, and
+# one `printf` of a whole line is atomic on a pipe, so lines interleave between
+# shards but never inside one. The final-fragment flush and the SIGTERM trap
+# are `gate_stamp_phases`' own, for its own reason: the fragment left by a
+# killed shard names the test that never returned.
+gate_shard_lines() {
+  local line
+  trap '' TERM
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '%s\n' "$line"
+    line=""
+  done
+}
+
 gate_run_unit_shards() {
   local shard filter skip status=0 shard_status
   local shard_pids=()
@@ -651,7 +678,11 @@ gate_run_unit_shards() {
       <"$gate_run_dir/shards/shard-$shard.filters"
     while IFS= read -r skip; do [[ -n "$skip" ]] && args+=(--skip "$skip"); done \
       <"$gate_run_dir/shards/shard-$shard.skips"
-    "$gate_binary" "${args[@]}" &
+    # The subshell is what keeps the SHARD's status: `$!` of a background
+    # pipeline is its last element, so waiting on a bare `binary | filter`
+    # would report the filter's success and swallow every red. `pipefail` is
+    # already set for the script and inherited here.
+    ( "$gate_binary" "${args[@]}" 2>&1 | gate_shard_lines ) &
     shard_pids+=("$!")
   done
   set +e

@@ -454,10 +454,10 @@ fn at_least_six_distinct_faces() {
 
 /// Mopoke's body face is the warm slab Bitter
 /// (shared with Magpie — precedented face-sharing, no new asset) and its
-/// nested-bullet triple is a one-register, weight-descends-with-depth ornament
-/// set (a solid damask rosette → its open four-fold sibling → a small foliate
-/// sprig), all three in Mopoke's Junicode ornament face. This pins the DATA off
-/// any GPU; the render laws
+/// nested-bullet triple is Moonfaces — the exact ornament set Mopoke already
+/// wears for `---`/`***`/`___` (full / first-quarter / new moon with face),
+/// all three in the Nishiki bullet face. This pins the DATA off any GPU; the
+/// render laws
 /// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`
 /// (they resolve) and `..::bullet_glyph_never_touches_the_following_text_in_any_world`
 /// (they never touch the text) cover the appearance half.
@@ -473,8 +473,8 @@ fn mopoke_body_face_is_bitter_with_the_bullet_triple() {
     );
     assert_eq!(
         MOPOKE.bullets,
-        ('\u{E670}', '\u{EF92}', '\u{E67D}'),
-        "Mopoke's bullet triple descends in weight within one ornament register"
+        ('🌝', '🌛', '🌚'),
+        "Mopoke's bullet triple is its own worn Moonfaces set"
     );
     // Face-sharing is precedented, never a new asset: Magpie draws in Bitter too.
     assert_eq!(

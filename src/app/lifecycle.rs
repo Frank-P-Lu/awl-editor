@@ -4,7 +4,12 @@ use super::*;
 
 fn current_window_title(app: &App) -> String {
     app.document.buffer_opt().map_or_else(
-        || files::window_title_no_document(crate::theme::active().name),
+        || {
+            files::window_title_no_document(
+                &app.project_location.no_document_folder_name(),
+                crate::theme::active().name,
+            )
+        },
         |buffer| {
             files::window_title(
                 buffer.path(),

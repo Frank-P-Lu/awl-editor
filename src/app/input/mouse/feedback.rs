@@ -40,6 +40,13 @@ impl App {
             .then(|| gpu.pipeline.panel_hit(px, py))
             .flatten();
         let over_case_toggle = matches!(panel_hit, Some(crate::render::PanelHit::CaseToggle));
+        let over_panel_button = matches!(
+            panel_hit,
+            Some(crate::render::PanelHit::NavPrev)
+                | Some(crate::render::PanelHit::NavNext)
+                | Some(crate::render::PanelHit::ReplaceButton)
+                | Some(crate::render::PanelHit::ReplaceAllButton)
+        );
         let over_panel_field = matches!(
             panel_hit,
             Some(crate::render::PanelHit::Find) | Some(crate::render::PanelHit::Replace)
@@ -57,7 +64,7 @@ impl App {
             && crate::context_menu::modified_link_hover(
                 crate::keymap::follows_link(
                     crate::convention::Convention::current(),
-                    self.config.keymap_flavor(),
+                    &self.config.follow,
                     crate::keymap::PointerButton::Primary,
                     self.input.keyboard.mods.state(),
                 ),
@@ -78,6 +85,7 @@ impl App {
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,
+            over_panel_button,
             over_panel_field,
             over_panel,
             image_drag: self.input.pointer.image_resizing.map(|d| d.handle),

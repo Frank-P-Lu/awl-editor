@@ -96,14 +96,20 @@ impl OverlayState {
     /// Place the query caret at an arbitrary CHAR index (clamped by
     /// [`TextBox::set_caret`]) — the one door a pointer click or drag uses,
     /// mirroring the click-to-place the rename/link/keep/value sub-editors'
-    /// own `TextBox` already supports for a future caller. RENAME is that
-    /// caller today: while a rename edit is active, `query` is a MIRROR (see
-    /// [`super::rename_edit::RenameEdit`]'s doc via `OverlayState::rename_edit_mirror`),
-    /// so the click has to land on `rename_edit.input` first or the next
-    /// keystroke's mirror snaps the caret straight back.
+    /// own `TextBox` already supports for a future caller. RENAME and
+    /// INSERT-LINK are that caller today: while either edit is active,
+    /// `query` is a MIRROR (see [`super::rename_edit::RenameEdit`]'s doc via
+    /// `OverlayState::rename_edit_mirror`, and [`super::LinkEdit`]'s via
+    /// `OverlayState::link_edit_mirror`), so the click has to land on the
+    /// sub-edit's own `input` first or the next keystroke's mirror snaps the
+    /// caret straight back.
     pub fn query_set_caret(&mut self, at: usize) {
         if self.rename_edit.is_some() {
             self.rename_edit_set_caret(at);
+            return;
+        }
+        if self.link_edit.is_some() {
+            self.link_edit_set_caret(at);
             return;
         }
         self.query.set_caret(at);
@@ -268,26 +274,6 @@ impl OverlayState {
     /// into `hover_at` rather than this state reaching out for it.
     pub fn arm_hover_baseline(&mut self, px: f32, py: f32) {
         self.last_hover_px = Some((px, py));
-    }
-
-    /// RE-STAMP the card's frozen [`Self::align`] to the CURRENTLY-active
-    /// world's own anchor. Called on a DELIBERATE selection crossing (keyboard nav,
-    /// wheel, page/jump moves) AFTER [`crate::actions::preview_overlay`] has made the
-    /// highlighted world active, so an open THEME picker SNAPS its card into the
-    /// destination world's own left/center/right rail — choosing a world drops you
-    /// inside it (the standing law; it supersedes summon-time freeze for a
-    /// deliberate move). PASSIVE pointer hover never calls this, so sweeping the
-    /// pointer down the rows re-tints every world WITHOUT starting a spatial chase
-    /// (the item-45 freeze still holds the card put through a hover). A NO-OP for
-    /// every non-Theme picker: the active world can't move under them, so
-    /// [`crate::render::effective_card_anchor`] returns the same anchor it froze at
-    /// summon. It reads the SAME [`crate::render::effective_card_anchor`] owner the
-    /// summon freeze does, so a keyboard crossing and a fresh summon into the same
-    /// world resolve to the identical rail.
-    pub fn reanchor(&mut self) {
-        if self.kind == OverlayKind::Theme {
-            self.align = crate::render::effective_card_anchor();
-        }
     }
 
     pub fn selected_corpus_index(&self) -> Option<usize> {

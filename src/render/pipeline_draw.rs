@@ -111,6 +111,11 @@ impl TextPipeline {
         let overlay_buffers =
             Self::new_workspace_overlay_text_buffers(&mut font_system, metrics.glyph_metrics());
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
+        let panel_control_fill =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let panel_control_border =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let panel_rules = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_query_selection =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
@@ -169,8 +174,6 @@ impl TextPipeline {
         // `prepare_gutter` re-resolves the band off the live surface ramp each
         // frame, so this seed only has to be a valid colour.
         let gutter_stack_plate =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let gutter_close_hover_plate =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         // The row-drag insertion hairline. Seeded like the others; the live
         // drag re-resolves its own colour + rect on every armed move.
@@ -259,6 +262,7 @@ impl TextPipeline {
             renderer,
             buffer,
             document_active: true,
+            start_folder: None,
             caret_pipeline,
             caret_trail_pipeline,
             caret_glyph_pipeline,
@@ -311,6 +315,10 @@ impl TextPipeline {
             panel_bind_buffer: overlay_buffers.bindings,
             placard_buffer: overlay_buffers.placard,
             panel_caret,
+            panel_control_fill,
+            panel_control_border,
+            panel_rules,
+            panel_control_spans: Default::default(),
             panel_query_selection,
             caret_preview_pipeline,
             caret_preview_glyph_pipeline,
@@ -352,6 +360,10 @@ impl TextPipeline {
             last_conceal_cursor_line: None,
             last_conceal_selection: None,
             row_geom: rowgeom::RowGeom::new(),
+            #[cfg(test)]
+            search_rect_work: std::cell::Cell::new(0),
+            #[cfg(test)]
+            visible_row_gathers: std::cell::Cell::new(0),
             caret_line_glyphs: std::cell::RefCell::new(None),
             ornament_cache: rects::OrnamentCache::new(),
             table_report: std::cell::RefCell::new(Vec::new()),
@@ -375,6 +387,7 @@ impl TextPipeline {
             asset_preview_image,
             asset_preview_text_renderer,
             squiggle_cache: rects::UnderlineCache::new(),
+            squiggle_projection: std::cell::RefCell::new(rects::SquiggleProjection::new()),
             nit_cache: rects::UnderlineCache::new(),
             wash_cache: rects::WashCache::new(),
             fence_panel_cache: rects::FencePanelCache::new(),
@@ -382,6 +395,12 @@ impl TextPipeline {
             #[cfg(test)]
             last_table_cell_lines: std::cell::RefCell::new(Vec::new()),
             reshape_count: 0,
+            text_sync_profile: false,
+            last_text_sync_phases: text::TextSyncPhases::default(),
+            last_conceal_sync_ms: 0.0,
+            last_caret_target_ms: 0.0,
+            owner_scan: rects::OwnerScanWork::default(),
+            nit_projection: rects::NitProjection::new(),
             shape_tail_settled_height: None,
             search_active: false,
             search_matches: Vec::new(),
@@ -423,7 +442,6 @@ impl TextPipeline {
             gutter_files: Vec::new(),
             gutter_stack_hover: None,
             gutter_stack_plate,
-            gutter_close_hover_plate,
             gutter_drag_indicator: None,
             gutter_drag_indicator_plate,
             page_drag_renderer,
@@ -504,6 +522,7 @@ impl TextPipeline {
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
             overlay_query_selection: None,
+            overlay_query_placeholder: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),
@@ -558,6 +577,7 @@ impl TextPipeline {
             md_enabled: false,
             wysiwyg_latched: crate::markdown::wysiwyg_on(),
             inline_images_latched: crate::markdown::inline_images_on(),
+            footnote_ladder_latched: crate::markdown::footnote_ladder_on(),
             md_spans: Vec::new(),
             outline_headings: Vec::new(),
             set_wants_outline_rail: false,
@@ -565,6 +585,8 @@ impl TextPipeline {
             syn_lang: None,
             syn_spans: Vec::new(),
             doc_lang: None,
+            han_evidence: None,
+            han_evidence_projection: rects::HanEvidenceProjection::new(),
             script_fonts: text::ScriptFonts::default(),
             doc_source: None,
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),

@@ -3,10 +3,11 @@
 use super::*;
 
 impl TextPipeline {
-    fn destination_ranges(&self) -> Vec<std::ops::Range<usize>> {
+    pub(super) fn destination_ranges(&self) -> Vec<std::ops::Range<usize>> {
         if self.md_spans.is_empty() {
             return Vec::new();
         }
+        let join_at = self.text_sync_profile.then(crate::clock::Instant::now);
         let doc_text: String = self
             .buffer
             .lines
@@ -14,7 +15,19 @@ impl TextPipeline {
             .map(|l| l.text())
             .collect::<Vec<_>>()
             .join("\n");
-        crate::markdown::destination_ranges(&doc_text, &self.md_spans)
+        let out = crate::markdown::destination_ranges(&doc_text, &self.md_spans);
+        if let Some(at) = join_at {
+            self.owner_scan.destination_join_ms.set(
+                self.owner_scan.destination_join_ms.get() + at.elapsed().as_secs_f64() * 1000.0,
+            );
+            self.owner_scan
+                .destination_join_calls
+                .set(self.owner_scan.destination_join_calls.get() + 1);
+            self.owner_scan
+                .destination_join_bytes
+                .set(doc_text.len() as u64);
+        }
+        out
     }
 
     fn nit_hidden_by_bullet_glyph(&self, li: usize, end_col: usize) -> bool {
@@ -27,20 +40,29 @@ impl TextPipeline {
                 .is_some_and(|it| !it.ordered && end_col <= it.content)
     }
 
-    /// True when `li` is a concealed thematic-break (`---`/`***`/`___`) line —
-    /// membership drawn from the SAME cached set the rule ORNAMENT itself reads
-    /// ([`Self::rule_lines`]'s underlying [`OrnamentCache::rule_lines`]), so a
-    /// nit can never disagree with the ornament about which lines are showing
-    /// raw source vs. the fleuron. Read raw (no on-screen cull, no caret
-    /// exclusion) because the caller already applies both: the caret's own line
-    /// never reaches this check (it `continue`s earlier), and an off-screen
-    /// proto is culled after this by [`Self::proto_visible`].
-    fn nit_hidden_by_rule_conceal(&self, li: usize) -> bool {
+    /// True when `li` is a thematic-break (`---`/`***`/`___`) line whose source
+    /// is presently CONCEALED under the fleuron — cached membership from the
+    /// same set the rule ORNAMENT reads ([`Self::rule_lines`]'s underlying
+    /// [`OrnamentCache::rule_lines`]), minus the lines that are REVEALED
+    /// through the one owner the ornament's own draw gate uses
+    /// ([`Self::line_is_revealed`]). Both halves matter: membership alone
+    /// suppressed the nit on a SELECTION-revealed rule line, which draws its
+    /// raw `---` source and so has glyphs to tick.
+    ///
+    /// `selection_touch` comes from the caller so the rope walk behind it
+    /// happens once per frame rather than once per proto. The on-screen cull is
+    /// still the caller's ([`Self::proto_visible`], after this check).
+    fn nit_hidden_by_rule_conceal(
+        &self,
+        li: usize,
+        selection_touch: Option<&std::ops::Range<usize>>,
+    ) -> bool {
         if !self.md_enabled || self.md_spans.is_empty() {
             return false;
         }
         self.ensure_ornament_lists();
         self.ornament_cache.rule_lines.borrow().contains(&li)
+            && !self.line_is_revealed(li, selection_touch)
     }
 
     /// True when `li` sits inside a table block ([`ConcealKind::Table`]) that is
@@ -71,72 +93,6 @@ impl TextPipeline {
             .borrow()
             .iter()
             .any(|(_, r)| r.start <= line_byte && line_byte < r.end)
-    }
-
-    fn ensure_squiggle_protos(&self) {
-        let key = (self.row_geom.generation(), self.spell_gen);
-        if self.squiggle_cache.version.get() == Some(key) {
-            return;
-        }
-        let destination_ranges = self.destination_ranges();
-        let mut line_starts: Vec<usize> = Vec::new();
-        if !destination_ranges.is_empty() {
-            let mut start = 0usize;
-            for line in self.buffer.lines.iter() {
-                line_starts.push(start);
-                start += line.text().len() + 1; // +1 for the '\n'
-            }
-        }
-        let lines: std::collections::BTreeSet<usize> =
-            self.misspelled.iter().map(|sp| sp.line).collect();
-        let rows_by_line = self.visual_rows_for_lines(&lines);
-        let mut protos = Vec::with_capacity(self.misspelled.len());
-        for sp in &self.misspelled {
-            if let Some(&ls) = line_starts.get(sp.line) {
-                let text = self.buffer.lines[sp.line].text();
-                if crate::nits::span_in_prose_ranges(
-                    text,
-                    ls,
-                    sp.start_col,
-                    sp.end_col,
-                    &destination_ranges,
-                ) {
-                    continue;
-                }
-            }
-            // A misspelled span is a single word; cosmic-text wraps at spaces so
-            // the word stays on ONE visual run. Find the run owning its start
-            // column and keep that run's wrap-aware top + own x boundaries, so the
-            // squiggle sits directly under the word's glyphs at any wrap/zoom.
-            let Some(rows) = rows_by_line.get(&sp.line) else {
-                continue; // unreachable: every requested line gets rows
-            };
-            let row = pick_row(rows, sp.start_col);
-            let char_count = row.xs.len().saturating_sub(1);
-            let s = sp.start_col.min(char_count);
-            let e = sp.end_col.min(char_count);
-            if e <= s {
-                continue;
-            }
-            let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
-            let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
-            if self.line_is_inline_image(sp.line)
-                && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE.0
-            {
-                continue;
-            }
-            protos.push(UnderlineProto {
-                line: sp.line,
-                start_col: sp.start_col,
-                end_col: sp.end_col,
-                line_top: row.line_top,
-                line_height: row.line_height,
-                xs_s,
-                xs_e,
-            });
-        }
-        *self.squiggle_cache.protos.borrow_mut() = protos;
-        self.squiggle_cache.version.set(Some(key));
     }
 
     fn word_at_caret(&self, line: usize, start_col: usize, end_col: usize) -> bool {
@@ -223,62 +179,106 @@ impl TextPipeline {
     /// spell). A non-code buffer (prose / markdown / the no-path scratch buffer,
     /// `syn_lang == None`) is untouched — every span from every line is
     /// eligible.
+    /// Whether the retained [`rects::NitProjection`] can answer this call
+    /// outright: the document must qualify today (fresh `md_spans`/`syn_lang`
+    /// read — nothing stale) AND the projection's own cache must have been
+    /// built under that same eligibility AND cover exactly this many lines.
+    /// The third check is the defensive one: it costs nothing and turns any
+    /// unforeseen desync into a full recompute rather than a wrong answer.
+    fn nit_projection_current(&self) -> bool {
+        rects::nit_fast_path_eligible(&self.md_spans, self.syn_lang)
+            && self.nit_projection.eligible()
+            && self.nit_projection.line_count() == self.buffer.lines.len()
+    }
+
     fn ensure_nit_protos(&self) {
         let key = (self.row_geom.generation(), self.reshape_count);
         if self.nit_cache.version.get() == Some(key) {
             return;
         }
-        let prose_ranges: Option<Vec<std::ops::Range<usize>>> = self.syn_lang.map(|_| {
-            use crate::syntax::SynKind;
-            let mut ranges: Vec<std::ops::Range<usize>> = self
-                .syn_spans
+        let per_line: Vec<(usize, Vec<(usize, usize)>)> = if self.nit_projection_current() {
+            // FAST PATH: every line's raw span list is already retained
+            // (refreshed in `set_text`, off that reshape's own changed-line
+            // band); no text is re-tokenized here at all. `owner_scan`'s
+            // nit-scan pair is left exactly as `set_text` wrote it this frame.
+            (0..self.buffer.lines.len())
+                .filter_map(|li| {
+                    let spans = self.nit_projection.spans_for(li);
+                    (!spans.is_empty()).then(|| (li, spans.to_vec()))
+                })
+                .collect()
+        } else {
+            // FULL PATH: unchanged from before the retained cache existed —
+            // every code buffer, every table, every frontmatter block, every
+            // document with a link or image takes this every time.
+            let scan_at = self.text_sync_profile.then(crate::clock::Instant::now);
+            let prose_ranges: Option<Vec<std::ops::Range<usize>>> = self.syn_lang.map(|_| {
+                use crate::syntax::SynKind;
+                let mut ranges: Vec<std::ops::Range<usize>> = self
+                    .syn_spans
+                    .iter()
+                    .filter(|(_, k)| matches!(k, SynKind::Comment | SynKind::Str))
+                    .map(|(r, _)| r.clone())
+                    .collect();
+                ranges.sort_by_key(|r| r.start);
+                ranges
+            });
+            let fm_end = crate::markdown::frontmatter_end(&self.md_spans);
+            let table_ranges: Vec<std::ops::Range<usize>> = self
+                .md_spans
                 .iter()
-                .filter(|(_, k)| matches!(k, SynKind::Comment | SynKind::Str))
+                .filter(|(_, k)| k.is_table_markup())
                 .map(|(r, _)| r.clone())
                 .collect();
-            ranges.sort_by_key(|r| r.start);
-            ranges
-        });
-        let fm_end = crate::markdown::frontmatter_end(&self.md_spans);
-        let table_ranges: Vec<std::ops::Range<usize>> = self
-            .md_spans
-            .iter()
-            .filter(|(_, k)| k.is_table_markup())
-            .map(|(r, _)| r.clone())
-            .collect();
-        let destination_ranges = self.destination_ranges();
-        let mut per_line: Vec<(usize, Vec<(usize, usize)>)> = Vec::new();
-        let mut line_start = 0usize;
-        for li in 0..self.buffer.lines.len() {
-            let text = self.buffer.lines[li].text();
-            if fm_end.is_some_and(|end| line_start < end) {
-                line_start += text.len() + 1;
-                continue;
+            let destination_ranges = self.destination_ranges();
+            let mut per_line: Vec<(usize, Vec<(usize, usize)>)> = Vec::new();
+            let mut line_start = 0usize;
+            for li in 0..self.buffer.lines.len() {
+                let text = self.buffer.lines[li].text();
+                if fm_end.is_some_and(|end| line_start < end) {
+                    line_start += text.len() + 1;
+                    continue;
+                }
+                let line_end = line_start + text.len();
+                let in_table = table_ranges
+                    .iter()
+                    .any(|r| r.start <= line_end && r.end > line_start);
+                let mut spans = if in_table {
+                    crate::nits::line_nits_table_row(text)
+                } else {
+                    crate::nits::line_nits(text)
+                };
+                if let Some(ranges) = &prose_ranges {
+                    spans.retain(|&(s, e)| {
+                        crate::nits::span_in_prose_ranges(text, line_start, s, e, ranges)
+                    });
+                }
+                if !destination_ranges.is_empty() {
+                    spans.retain(|&(s, e)| {
+                        !crate::nits::span_in_prose_ranges(
+                            text,
+                            line_start,
+                            s,
+                            e,
+                            &destination_ranges,
+                        )
+                    });
+                }
+                if !spans.is_empty() {
+                    per_line.push((li, spans));
+                }
+                line_start += text.len() + 1; // +1 for the '\n'
             }
-            let line_end = line_start + text.len();
-            let in_table = table_ranges
-                .iter()
-                .any(|r| r.start <= line_end && r.end > line_start);
-            let mut spans = if in_table {
-                crate::nits::line_nits_table_row(text)
-            } else {
-                crate::nits::line_nits(text)
-            };
-            if let Some(ranges) = &prose_ranges {
-                spans.retain(|&(s, e)| {
-                    crate::nits::span_in_prose_ranges(text, line_start, s, e, ranges)
-                });
+            if let Some(at) = scan_at {
+                self.owner_scan
+                    .nit_scan_ms
+                    .set(at.elapsed().as_secs_f64() * 1000.0);
+                self.owner_scan
+                    .nit_scan_lines
+                    .set(self.buffer.lines.len() as u64);
             }
-            if !destination_ranges.is_empty() {
-                spans.retain(|&(s, e)| {
-                    !crate::nits::span_in_prose_ranges(text, line_start, s, e, &destination_ranges)
-                });
-            }
-            if !spans.is_empty() {
-                per_line.push((li, spans));
-            }
-            line_start += text.len() + 1; // +1 for the '\n'
-        }
+            per_line
+        };
         let lines: std::collections::BTreeSet<usize> = per_line.iter().map(|(li, _)| *li).collect();
         let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut protos = Vec::new();
@@ -356,6 +356,7 @@ impl TextPipeline {
         let thickness = m.px(NIT_THICKNESS);
         let band_h = thickness + 2.0;
         let protos = self.nit_cache.protos.borrow();
+        let selection_touch = self.selection_touch();
         let mut out = Vec::with_capacity(protos.len());
         for p in protos.iter() {
             if p.line == self.cursor_line {
@@ -364,7 +365,7 @@ impl TextPipeline {
             if self.nit_hidden_by_bullet_glyph(p.line, p.end_col) {
                 continue; // the marker prefix is masked by the bullet glyph
             }
-            if self.nit_hidden_by_rule_conceal(p.line) {
+            if self.nit_hidden_by_rule_conceal(p.line, selection_touch.as_ref()) {
                 continue; // the whole line conceals to the rule ornament — no source glyphs to tick
             }
             if self.nit_hidden_by_table_conceal(p.line) {

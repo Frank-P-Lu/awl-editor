@@ -1,12 +1,16 @@
 use super::super::*;
 
-/// Every world's [`Theme::ornament_face`] is the one Nishiki-derived cabinet.
-/// List bullets deliberately retain their existing registered face until their
-/// own fitting round. (The font-DB half — that each face actually COVERS its
-/// glyphs — is `render::tests::cjk::
-/// ornament_glyphs_resolve_in_each_worlds_assigned_face`, which needs a built
-/// `FontSystem`.) Also pins `ORNAMENT_MARKS == render::SYMBOL_FAMILY`, the one
-/// coupling `theme.rs` states as data rather than importing.
+/// Every world's [`Theme::ornament_face`] AND [`Theme::bullet_face`] are the
+/// one Nishiki-derived cabinet — the bullet transition (item that derives
+/// each world's bullet triple from its own worn ornament set) retired the
+/// transitional Garamond/Junicode bullet faces, so a bullet is drawn from
+/// exactly the same font as that world's section-break trio. (The font-DB
+/// half — that each face actually COVERS its glyphs — is `render::tests::cjk::
+/// ornament_glyphs_resolve_in_each_worlds_assigned_face` and `render::tests::
+/// markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`, both of
+/// which need a built `FontSystem`.) Also pins `ORNAMENT_MARKS ==
+/// render::SYMBOL_FAMILY`, the one coupling `theme.rs` states as data rather
+/// than importing.
 #[test]
 fn every_world_ornament_face_is_a_registered_ornament_face() {
     assert_eq!(
@@ -20,14 +24,11 @@ fn every_world_ornament_face_is_a_registered_ornament_face() {
             "{} must wear the Nishiki ornament register",
             t.name
         );
-        assert!(
-            matches!(
-                t.bullet_face,
-                ORNAMENT_GARAMOND | ORNAMENT_JUNICODE | ORNAMENT_MARKS
-            ),
-            "{} has an unrecognized transitional bullet_face {:?}",
-            t.name,
-            t.bullet_face
+        assert_eq!(
+            t.bullet_face, ORNAMENT_NISHIKI,
+            "{} must draw its bullet triple from the Nishiki register too — no world's \
+             bullet may keep a retired transitional face",
+            t.name
         );
         // The design-table contract: THREE DISTINCT symbols per world (dash /
         // star / underscore), so a break's ornament tracks the syntax the author
@@ -116,10 +117,29 @@ fn every_world_has_an_ornament_scale() {
     set_active(DEFAULT_THEME);
 }
 
+/// Brolga is the ONE named, evidenced exception to "every world's bullet is
+/// drawn from its own worn set": real-pixel measurement (`--exact` runs of
+/// `render::tests::awl_marks_pixels::
+/// every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size` and
+/// the two `bullet_glyph_never_touches_the_following_text*` laws, swept over
+/// `bullet_scale` from 0.55 to 0.95) found NO value where all three doves of
+/// Brolga's own Dovecote set both clear the legibility floor and stay clear
+/// of the following text: below the crowding threshold (~0.68) at least one
+/// dove's peak contrast sits under the floor, and at the scale where every
+/// dove's contrast finally clears it (~0.75) the widest dove already fills
+/// the bullet's fixed-width reserved box edge to edge — a genuine per-glyph
+/// incompatibility with the bullet role, not a skipped measurement. Brolga
+/// stays on the pre-existing plain triple pending a curator's pick of a
+/// different single glyph for its bullet, or a mechanism change (a wider
+/// bullet box) — both outside what this derivation pass owns.
+const BULLET_PAIR_EXCEPTION: &str = "Brolga";
+
 /// One world's own bullet-pair law: the per-level pairwise distinctness, the
-/// `bullet_scale` tier membership (including the one named, face-derived
-/// off-tier exception), and the plain-pair/plain-scale/geometric lockstep —
-/// pulled out of [`every_world_has_a_bullet_pair`]'s roster loop as its own
+/// `bullet_scale` tier membership (including the named off-tier exceptions),
+/// and that every bullet glyph is drawn from the SAME adopted glyph union as
+/// that world's own ornament trio, never an outside pick — except
+/// [`BULLET_PAIR_EXCEPTION`], whose own doc records the real-pixel evidence.
+/// Pulled out of [`every_world_has_a_bullet_pair`]'s roster loop as its own
 /// named unit, so "the law for one world" and "sweep every world" are two
 /// separate, independently readable concerns.
 fn assert_bullet_pair_law(t: &Theme) {
@@ -138,73 +158,100 @@ fn assert_bullet_pair_law(t: &Theme) {
         "{}: levels 1/3 must be distinct glyphs, got {:?}",
         t.name, t.bullets
     );
-    // OFF-TIER EXCEPTION (EXACTLY one, pinned by NAME and VALUE — never a
-    // loose "any float passes" escape hatch): the shared
-    // [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated font
-    // metrics (see that constant's own doc) that pair badly on a manicule
-    // (too wide, touching the following text). Every other world stays on
-    // a shared tier.
-    // The exception is FACE-DERIVED, not a world list. The shared tier is
-    // scaled against the concealed `"- "` prefix's advance in the world's
-    // OWN BODY font, so the world that needs a tighter dial is decided by
-    // that face: EB Garamond's narrow punctuation advance crowds a
-    // half-body fleuron into the following text, on every world that wears
-    // it.
-    let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
+    if t.name == BULLET_PAIR_EXCEPTION {
+        assert_eq!(
+            t.bullets, BULLETS_PLAIN,
+            "{}: the named exception stays on the plain triple, not a half-migrated pick",
+            t.name
+        );
+        assert_eq!(
+            t.bullet_scale, BULLET_SCALE_PLAIN,
+            "{}: the named exception stays on the plain scale",
+            t.name
+        );
+        return;
+    }
+    // OFF-TIER EXCEPTIONS (each pinned by NAME and VALUE — never a loose "any
+    // float passes" escape hatch). Two, for two unrelated reasons:
+    // (a) CROWDING — a FACE rule, not a world list: the shared
+    // [`BULLET_SCALE_ORNAMENT`] tier is scaled against the concealed `"- "`
+    // prefix's advance in the world's OWN BODY font, and EB Garamond's own
+    // narrow punctuation advance crowds a half-body glyph into the following
+    // text on every world that wears it, so the world that needs the tighter
+    // dial is decided by `t.font` alone.
+    // (b) LEGIBILITY — a named single-world exception: Bilby's own worn
+    // glyph measured below the real-pixel contrast floor at the shared tier
+    // (`render::tests::awl_marks_pixels::
+    // every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size`),
+    // so it alone steps up to its own named scale rather than leaving its own
+    // worn set for a different glyph.
+    let off_tier_exception = if t.font == ORNAMENT_GARAMOND {
+        Some(BULLET_SCALE_GARAMOND)
+    } else if t.name == "Bilby" {
+        Some(BULLET_SCALE_HANAMI)
+    } else {
+        None
+    };
     assert!(
-        matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
-            || off_tier_exception == Some(t.bullet_scale),
-        "{}: off-tier bullet_scale {} (not a logged theme-QA padding exception)",
+        t.bullet_scale == BULLET_SCALE_ORNAMENT || off_tier_exception == Some(t.bullet_scale),
+        "{}: off-tier bullet_scale {} (not a logged theme-QA padding/legibility exception)",
         t.name,
         t.bullet_scale
     );
-    // The geometric/technical worlds keep the plain pair AND body size, in
-    // lockstep — a characterful pair at body size (or plain at half) would be
-    // a taste drift; a geometric world keeps both.
-    // The two off-tier exceptions are excluded from this lockstep check (their
-    // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
-    // while keeping a characterful, non-plain pair).
-    let geometric = t.bullet_face == ORNAMENT_MARKS;
-    if off_tier_exception.is_none() {
-        assert_eq!(
-            t.bullets == BULLETS_PLAIN,
-            t.bullet_scale == BULLET_SCALE_PLAIN,
-            "{}: plain-pair and plain-scale must agree (geometric restraint)",
-            t.name
-        );
-    }
-    if geometric {
-        assert_eq!(
-            t.bullets, BULLETS_PLAIN,
-            "{}: an Awl-Marks world keeps the plain • / ◦ (restraint)",
-            t.name
-        );
-    } else {
-        assert_ne!(
-            t.bullets, BULLETS_PLAIN,
-            "{}: an antique/literary serif world draws a characterful bullet",
-            t.name
+    // THE DERIVATION LAW: a bullet is never invented vocabulary. Every glyph
+    // in `t.bullets` must be a member of the exact codepoint set this world's
+    // OWN ornament trio already draws from (its adopted set) — enrolled from
+    // the roster itself, never a named member, so a world that ships a bullet
+    // from outside its own worn set (the retired pre-Nishiki vocabulary
+    // included) fails by construction rather than by a hand-list of banned
+    // glyphs.
+    let own_set: std::collections::BTreeSet<char> = t
+        .ornaments
+        .dash
+        .chars()
+        .chain(t.ornaments.star.chars())
+        .chain(t.ornaments.underscore.chars())
+        .collect();
+    for (level, ch) in [
+        ("level-1", t.bullets.0),
+        ("level-2", t.bullets.1),
+        ("level-3", t.bullets.2),
+    ] {
+        assert!(
+            own_set.contains(&ch),
+            "{}: {} bullet {:?} (U+{:04X}) is not a member of this world's own worn \
+             ornament set {:?} — a bullet may only reach into the set its own trio \
+             already wears",
+            t.name,
+            level,
+            ch,
+            ch as u32,
+            own_set,
         );
     }
 }
 
 /// NEVER-DRIFT law (per-world LIST BULLETS): every world ships a three-glyph
-/// [`Theme::bullets`] triple (the per-level rotation) whose three levels
-/// are PAIRWISE DISTINCT, and a [`Theme::bullet_scale`] that is exactly one of
-/// the two named tier constants (no stray literal). The font-DB half — that
-/// each glyph actually resolves in the world's [`Theme::bullet_face`] — is
+/// [`Theme::bullets`] triple (the per-level rotation) whose three levels are
+/// PAIRWISE DISTINCT, drawn entirely from that world's own worn ornament set
+/// (no retired vocabulary survives, and no world invents a pick outside its
+/// set), and a [`Theme::bullet_scale`] that is exactly the shared tier or a
+/// named exception (no stray literal) — save [`BULLET_PAIR_EXCEPTION`], whose
+/// own doc records why it stays unmigrated. The font-DB half — that each
+/// glyph actually resolves in the world's [`Theme::bullet_face`] — is
 /// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`.
-/// Also pins the geometric worlds to the plain byte-identical
-/// [`BULLETS_PLAIN`]/[`BULLET_SCALE_PLAIN`] (restraint) and the manicule
-/// showpiece (Bombora's level-1 ☞, exclusive to that one level).
 #[test]
 fn every_world_has_a_bullet_pair() {
     assert_eq!(
         BULLETS_PLAIN,
         ('•', '◦', '▪'),
-        "the plain bullet triple is • / ◦ / ▪"
+        "the plain bullet triple is • / ◦ / ▪ (retained as a documented shape, worn by every \
+         live world except one named, evidenced exception)"
     );
-    assert_eq!(BULLET_SCALE_PLAIN, 1.0, "plain bullets keep body size");
+    assert_eq!(
+        BULLET_SCALE_PLAIN, 1.0,
+        "the plain (and named-exception) scale keeps body size"
+    );
     assert!(
         std::hint::black_box(BULLET_SCALE_ORNAMENT) > 0.0
             && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
@@ -212,35 +259,31 @@ fn every_world_has_a_bullet_pair() {
     );
     for t in THEMES.iter() {
         assert_bullet_pair_law(t);
+        if t.name == BULLET_PAIR_EXCEPTION {
+            continue;
+        }
+        // No OTHER live world's bullet keeps the pre-Nishiki plain triple or
+        // any other world's set — the derivation law above already proves
+        // membership in THIS world's own set, which is disjoint from
+        // BULLETS_PLAIN on the rest of the roster (no other world's ornament
+        // trio contains `•`, `◦`, or `▪`), so this is a cheap explicit
+        // restatement of the "no retired vocabulary" clause for a reader
+        // scanning this test alone.
+        assert_ne!(
+            t.bullets, BULLETS_PLAIN,
+            "{}: the plain triple is retired pre-Nishiki vocabulary, worn by no other world",
+            t.name
+        );
     }
     // The TRIPLE CYCLES every THREE levels — depth 2 is the third rung, and
-    // depth 3 wraps back to level 1.
-    assert_eq!(TAWNY.bullet_for_depth(0), '•');
-    assert_eq!(TAWNY.bullet_for_depth(1), '◦');
-    assert_eq!(TAWNY.bullet_for_depth(2), '▪');
-    assert_eq!(TAWNY.bullet_for_depth(3), '•');
-    assert_eq!(TAWNY.bullet_for_depth(4), '◦');
-    assert_eq!(TAWNY.bullet_for_depth(5), '▪');
-    assert_eq!(BOMBORA.bullet_for_depth(0), '☞');
-    assert_eq!(BOMBORA.bullet_for_depth(1), '❧');
-    assert_eq!(BOMBORA.bullet_for_depth(2), '❦');
-    assert_eq!(BOMBORA.bullet_for_depth(3), '☞');
-    // The manicule showpiece: Bombora alone rides the antique pointing hand,
-    // at its top level (level 1) — NEVER at level 3 either (the rotation
-    // composes with, never dilutes, the "one world, one level" pick).
-    assert_eq!(
-        BOMBORA.bullets.0, '☞',
-        "Bombora's level-1 bullet is the manicule"
-    );
-    assert!(
-        THEMES
-            .iter()
-            .filter(|t| t.bullets.0 == '☞' || t.bullets.1 == '☞' || t.bullets.2 == '☞')
-            .count()
-            == 1,
-        "exactly one world uses the manicule bullet, at exactly one level \
-         (a hand everywhere is loud)"
-    );
+    // depth 3 wraps back to level 1. Mulga now wears Genjikō (its own worn
+    // ornament set) rather than the old shared fleuron triple.
+    assert_eq!(MULGA.bullet_for_depth(0), '\u{F501}');
+    assert_eq!(MULGA.bullet_for_depth(1), '\u{F500}');
+    assert_eq!(MULGA.bullet_for_depth(2), '\u{F51B}');
+    assert_eq!(MULGA.bullet_for_depth(3), '\u{F501}');
+    assert_eq!(MULGA.bullet_for_depth(4), '\u{F500}');
+    assert_eq!(MULGA.bullet_for_depth(5), '\u{F51B}');
 }
 
 /// NEVER-DRIFT law (per-world FOLD MARK): every world's fold-chevron glyph
@@ -347,14 +390,15 @@ fn reserve_ornament_shelf_is_complete_named_and_reasoned() {
 
 /// NEVER-DRIFT law (per-world LIST-ITEM INDENT): every world's
 /// [`Theme::list_indent_scale`] is exactly one of the two named tier constants
-/// (no stray literal, mirroring [`every_world_has_a_bullet_pair`]'s
-/// `bullet_scale` sweep) and — since the shared tier IS the shared bullet-scale
-/// tier's own roster — agrees with the world's own bullet PAIR: a plain `•`/
-/// `◦`/`▪` world stays at the byte-identical [`LIST_INDENT_SCALE_PLAIN`], an
-/// antique/literary-serif world (hedera/fleuron/manicule) steps up to
-/// [`LIST_INDENT_SCALE_WIDE`]. `>= 1.0` on every world: the scale only ever
-/// WIDENS the typed indent, never narrows it below what the raw spaces alone
-/// already give.
+/// (no stray literal) and `>= 1.0`: the scale only ever WIDENS the typed
+/// indent, never narrows it below what the raw spaces alone already give.
+///
+/// This dial no longer correlates with [`Theme::bullets`]: since every world's
+/// bullet triple now derives from that world's own worn ornament set (none
+/// keep the old plain `•`/`◦`/`▪`, see [`every_world_has_a_bullet_pair`]), the
+/// old "plain pair ⟺ plain indent" lockstep would force every world onto the
+/// wide tier, which is a real per-world taste dial this item never touched —
+/// left exactly as authored.
 #[test]
 fn every_world_has_a_list_indent_scale() {
     assert_eq!(
@@ -376,13 +420,6 @@ fn every_world_has_a_list_indent_scale() {
         assert!(
             t.list_indent_scale >= 1.0,
             "{}: indent scale must never shrink the typed indent",
-            t.name
-        );
-        let plain_pair = t.bullets == BULLETS_PLAIN;
-        assert_eq!(
-            t.list_indent_scale == LIST_INDENT_SCALE_PLAIN,
-            plain_pair,
-            "{}: plain-pair and plain-indent-scale must agree",
             t.name
         );
     }

@@ -14,6 +14,30 @@ pub enum Direction {
     Backward,
 }
 
+/// One CLICKABLE control inside the summoned find/replace panel, carried as
+/// `Action::SearchPanel`'s payload so a mouse press routes through
+/// `actions::apply_transition` — the same door every other input surface
+/// uses — instead of a click handler reaching into `workspace_state` for the
+/// search slot on its own. `render::PanelHit`'s click-target roster, minus
+/// `Elsewhere` (a true no-op the caller swallows without dispatching
+/// anything) and the `None` case (off the card entirely).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PanelControl {
+    /// The `Match case` checkbox.
+    CaseToggle,
+    /// The prev/next match-step buttons.
+    NavPrev,
+    NavNext,
+    /// `Replace` / `Replace all` — present only once the replace row is
+    /// revealed (mirrored by `render::PanelHit`, which never returns these
+    /// otherwise).
+    ReplaceButton,
+    ReplaceAllButton,
+    /// A press on the find/replace row off any control, focusing that field.
+    FocusFind,
+    FocusReplace,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StepOutcome {
     Moved,

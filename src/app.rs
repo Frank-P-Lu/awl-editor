@@ -939,6 +939,17 @@ impl App {
         }
         self.sync_view(true);
         self.request_frame();
+        // FINDER "OPEN WITH" / COLD-LAUNCH DOCUMENT HANDOFF: drain
+        // any URL Finder handed this process before this first window
+        // existed — see `crate::mac_open_documents`'s module doc for why that
+        // race is real and why draining exactly here (this crate's own
+        // established "the first frame is up" seam, right beside the live
+        // probe's identical-shaped signal just below) is the fix. A no-op,
+        // one lock plus one empty-`Vec` check, on every launch that isn't a
+        // Finder cold-open — and equally harmless on the GPU-fault rebuild
+        // path that also calls `on_gpu_ready` a second time.
+        #[cfg(all(target_os = "macos", not(feature = "mas")))]
+        crate::mac_open_documents::flush_after_first_frame();
         // LIVE PROBE ready signal: the window + GPU exist, so the driver thread
         // may start feeding scripted input. FIRST make the window unoccludable:
         // the wgpu macOS occlusion gate returns `SurfaceError::Occluded` before
@@ -1333,6 +1344,19 @@ pub fn run(
         if app.soak.is_none() {
             app.menu_proxy = Some(proxy.clone());
         }
+    }
+    // FINDER "OPEN WITH" / COLD-LAUNCH DOCUMENT HANDOFF (macOS
+    // non-MAS desktop only — see `crate::mac_open_documents`'s module doc for
+    // the full timing argument): inject `application:openURLs:` onto winit's
+    // own `NSApplicationDelegate` class and hand it this launch's proxy, so a
+    // Finder-opened URL posts through the SAME `AwlEvent::Daemon` door the
+    // socket daemon uses. Skipped in lockstep with the daemon itself (soak /
+    // live-probe both already run with no `instance_listener` at all — see
+    // above) — an isolated verification run has no daemon for this to post
+    // into, and both are self-contained processes Finder never targets.
+    #[cfg(all(target_os = "macos", not(feature = "mas")))]
+    if soak.is_none() && live.is_none() {
+        crate::mac_open_documents::install(proxy.clone());
     }
     // LIVE PROBE (`--live-script`): arm the ready signal and spawn the driver
     // thread (the daemon's own EventLoopProxy precedent — scripted steps are

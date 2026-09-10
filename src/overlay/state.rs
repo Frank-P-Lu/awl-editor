@@ -209,6 +209,20 @@ impl OverlayState {
         recent: Vec<usize>,
         browse_dir: Option<String>,
     ) -> Self {
+        // PIN (or release) the theme picker's own chrome to the world active
+        // right now. `Theme` is the one kind whose own rows preview a world by
+        // making it active, so it is also the one kind whose OWN composition
+        // must stop tracking `theme::active()` for the life of this summon —
+        // see `crate::render::pin_picker_chrome`'s doc. Every other kind
+        // releases the pin unconditionally: since exactly one overlay is ever
+        // open, and every overlay of every kind passes through this one
+        // constructor, a picker that just closed can never leave the pin
+        // dangling under whatever opens next.
+        if kind == OverlayKind::Theme {
+            crate::render::pin_picker_chrome();
+        } else {
+            crate::render::unpin_picker_chrome();
+        }
         let rows: Vec<OverlayRow> = corpus
             .into_iter()
             .zip(git)
@@ -429,15 +443,27 @@ impl OverlayState {
         s
     }
 
-    pub fn new_cjk_lang(active: crate::frontmatter::Lang) -> Self {
-        let names: Vec<String> = crate::frontmatter::DEFAULT_CJK_PRIORITY
-            .iter()
-            .map(|l| l.label().to_string())
-            .collect();
-        let descriptions: Vec<String> = crate::frontmatter::DEFAULT_CJK_PRIORITY
-            .iter()
-            .map(|l| l.description().to_string())
-            .collect();
+    /// `auto` is the live [`crate::frontmatter::cjk_priority_is_auto`] flag —
+    /// when set, "Auto" (row 0) is pre-selected regardless of `active`
+    /// (`active` is only the front of whatever concrete ladder happens to be
+    /// live, which is meaningless to show as the pre-selection while Auto is
+    /// active). "Auto" leads the four languages rather than trailing them: it
+    /// is the DEFAULT (config absent = Auto), and the row that resolves the
+    /// document's own evidence first rather than forcing one language.
+    pub fn new_cjk_lang(auto: bool, active: crate::frontmatter::Lang) -> Self {
+        let mut names: Vec<String> = vec!["Auto".to_string()];
+        names.extend(
+            crate::frontmatter::DEFAULT_CJK_PRIORITY
+                .iter()
+                .map(|l| l.label().to_string()),
+        );
+        let mut descriptions: Vec<String> =
+            vec!["Detect from the document; Japanese first when it can't".to_string()];
+        descriptions.extend(
+            crate::frontmatter::DEFAULT_CJK_PRIORITY
+                .iter()
+                .map(|l| l.description().to_string()),
+        );
         let n = names.len();
         let mut s = Self::new_marked(
             OverlayKind::CjkLang,
@@ -449,9 +475,15 @@ impl OverlayState {
             None,
         );
         s.set_secondaries(descriptions);
-        if let Some(active_index) = crate::frontmatter::DEFAULT_CJK_PRIORITY
-            .iter()
-            .position(|&l| l == active)
+        let active_index = if auto {
+            Some(0)
+        } else {
+            crate::frontmatter::DEFAULT_CJK_PRIORITY
+                .iter()
+                .position(|&l| l == active)
+                .map(|i| i + 1)
+        };
+        if let Some(active_index) = active_index
             && let Some(pos) = s.items.iter().position(|&i| i == active_index)
         {
             s.selected = pos;

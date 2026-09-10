@@ -82,12 +82,12 @@ pub(crate) use color::srgb_channel_to_linear_f32;
 // that renders a NAMED world holds — deliberately never taken by product code).
 pub use derive::{WorldPin, cycle, overlay_scrim, primary_content, tag_for};
 pub use derive::{
-    active, active_index, background, base_100, base_200, base_300, base_content, card_texture_ink,
-    error, faint, fold_afford_chevron_ink, fold_afford_tail_ink, fold_mark, heatmap_colors,
-    image_reveal_scrim, muted, overlay_band_overlap, overlay_bar_unselected, overlay_bars_scrim,
-    overlay_footer_plate_rim, page_frame_ink, pane_surface, placard_ink, placard_stipple_density,
-    primary, selected_row_ink, selected_row_secondary_ink, selection_document, selection_ui,
-    set_active, set_active_by_name, surface_selected,
+    accent_ink, active, active_index, background, base_100, base_200, base_300, base_content,
+    card_texture_ink, error, faint, fold_afford_chevron_ink, fold_afford_tail_ink, fold_mark,
+    heatmap_colors, image_reveal_scrim, muted, overlay_band_overlap, overlay_bar_unselected,
+    overlay_bars_scrim, overlay_footer_plate_rim, page_frame_ink, pane_surface, placard_ink,
+    placard_stipple_density, primary, selected_row_ink, selected_row_secondary_ink,
+    selection_document, selection_ui, set_active, set_active_by_name, surface_selected,
 };
 // `DiagonalMark` is authored in `worlds.rs` and reached by the renderer through
 // its `DiagonalSpine`, so the NAME is read only by the laws that assert the two
@@ -145,11 +145,11 @@ pub use model::{
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.
 pub use ornament::{
-    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, FoldMark,
-    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
-    ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC,
-    ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister, Ornaments, RESERVE_ORNAMENT_SETS,
-    ReserveOrnamentSet, fold_mark_for, ornament_register,
+    BULLET_SCALE_GARAMOND, BULLET_SCALE_HANAMI, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN,
+    BULLETS_PLAIN, FoldMark, LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND,
+    ORNAMENT_JUNICODE, ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON,
+    ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister,
+    Ornaments, RESERVE_ORNAMENT_SETS, ReserveOrnamentSet, fold_mark_for, ornament_register,
 };
 #[allow(unused_imports)] // the individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code

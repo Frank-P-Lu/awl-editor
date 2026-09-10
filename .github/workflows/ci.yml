@@ -111,16 +111,17 @@ jobs:
         with:
           cache-on-failure: true
 
-      # sccache installs AFTER the cache restore: install-sccache.sh
-      # short-circuits when the pinned version is already on PATH, but nothing
-      # puts it there before this step runs — so with this step first, every
-      # job did a full `cargo install sccache` (~4-7 wall-minutes) even though
-      # rust-cache's registry/target cache would have supplied cargo-machete
-      # and cargo-deny for free from the same restore, proven by those two
-      # installs measuring 0.0m right after it. Restoring first lets the
-      # install-sccache measurement decide whether the cache actually carries
-      # the sccache binary (`~/.cargo/bin`), which Swatinem/rust-cache@v2
-      # caches by default.
+      # sccache installs AFTER the cache restore, so the registry/target cache
+      # is already in place for cargo-machete and cargo-deny (installed right
+      # after) regardless of what this step does. install-sccache.sh itself
+      # fetches mozilla/sccache's own prebuilt release binary for this host's
+      # (OS, arch), verified by a hardcoded SHA256, rather than compiling it
+      # via `cargo install` — a supported host pays about a second for this
+      # step on EVERY run, cache warm or cold, because the download replaces
+      # the ~4-7 wall-minute source build outright rather than depending on
+      # rust-cache having carried a previous `~/.cargo/bin/sccache` forward.
+      # Only a host outside the pinned (OS, arch) table, or a download that
+      # fails outright, falls through to that original from-source cost.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
@@ -278,6 +279,13 @@ jobs:
         with:
           key: atspi
 
+      # This job's own rust-cache never carries `cache-on-failure`, and the
+      # probe below fails by design (a known-flaky liveness check, allowed to
+      # fail) — so the cache here has never once saved across a run, and this
+      # step used to pay the full `cargo install sccache` cost EVERY time, not
+      # just on a cold toolchain bump. install-sccache.sh's prebuilt-binary
+      # path (see the linux job's comment) makes that irrelevant: the step
+      # costs about a second regardless of whether the cache above hit.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
@@ -312,9 +320,8 @@ jobs:
           key: web
 
       # sccache installs after the cache restore — see the linux job's
-      # comment: a full `cargo install sccache` ahead of the
-      # restore paid ~4-7 minutes every run regardless of whether the cache
-      # already carried the binary.
+      # comment: install-sccache.sh fetches a prebuilt binary now, so this
+      # costs about a second on every run rather than depending on the cache.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
@@ -399,9 +406,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # sccache installs after the cache restore — see the linux job's
-      # comment: a full `cargo install sccache` ahead of the
-      # restore paid ~4-7 minutes every run regardless of whether the cache
-      # already carried the binary.
+      # comment: install-sccache.sh fetches a prebuilt binary now, so this
+      # costs about a second on every run rather than depending on the cache.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
@@ -533,10 +539,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # sccache installs after the cache restore — see the linux job's
-      # comment: a full `cargo install sccache` ahead of the
-      # restore paid ~4-7 minutes every run regardless of whether the cache
-      # already carried the binary — expensive here in particular, since this
-      # job otherwise only runs a 25s probe.
+      # comment: install-sccache.sh fetches a prebuilt binary now, so this
+      # costs about a second on every run rather than depending on the cache
+      # — a real saving here specifically, since this job otherwise only runs
+      # a 25s probe.
       - name: Install sccache
         run: scripts/install-sccache.sh
 

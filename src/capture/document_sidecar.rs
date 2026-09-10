@@ -21,7 +21,22 @@ pub(super) fn fields(view: &ViewState, pipeline: &TextPipeline) -> Result<Fields
         .map(|label| super::sidecar::json_string(label))
         .collect::<Vec<_>>()
         .join(", ");
-    let summary = format!("{{ \"active\": {active}, \"start_actions\": [{actions}] }}");
+    // The folder-naming dim line's own state, verifiable from the sidecar
+    // alone — `start_folder` is `null` whenever the start surface draws no
+    // such line (no root worth naming, or a document is active), and
+    // `start_goto_chord` is the SAME convention-truthful label
+    // (`crate::render::chrome::start::goto_chord_label`) the line itself
+    // drew, so a law can assert the exact chord glyph a capture shows rather
+    // than recomputing a second, possibly-diverging expectation.
+    let start_folder = match pipeline.start_folder() {
+        Some(name) => super::sidecar::json_string(name),
+        None => "null".to_string(),
+    };
+    let start_goto_chord = super::sidecar::json_string(&crate::render::chrome::goto_chord_label());
+    let summary = format!(
+        "{{ \"active\": {active}, \"start_actions\": [{actions}], \
+         \"start_folder\": {start_folder}, \"start_goto_chord\": {start_goto_chord} }}"
+    );
     if !active {
         return Ok(Fields {
             summary,

@@ -28,18 +28,16 @@ fn asset_preview_decodes_once_per_selection_never_once_per_frame() {
         );
         return;
     };
-    for f in ["samples/tiny.png", "samples/photo.png"] {
-        if std::fs::metadata(f).is_err() {
-            eprintln!("skipping: {f} fixture not present");
+    let fixtures_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("samples");
+    for name in ["tiny.png", "photo.png"] {
+        let f = fixtures_root.join(name);
+        if std::fs::metadata(&f).is_err() {
+            eprintln!("skipping: {} fixture not present", f.display());
             return;
         }
     }
-    let tiny = std::path::Path::new("samples/tiny.png")
-        .canonicalize()
-        .unwrap();
-    let photo = std::path::Path::new("samples/photo.png")
-        .canonicalize()
-        .unwrap();
+    let tiny = fixtures_root.join("tiny.png").canonicalize().unwrap();
+    let photo = fixtures_root.join("photo.png").canonicalize().unwrap();
 
     let mut v = view("", 0, 0);
     v.overlay_active = true;

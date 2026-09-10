@@ -482,7 +482,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         return;
     };
     let width = 1200u32;
-    const REPLACE_LABEL: &str = "replace "; // must match panel.rs's label
+    const REPLACE_LABEL: &str = "Replace with "; // must match panel.rs's label
 
     // The reserved-cell glyph's x on line 1, scanned INDEPENDENTLY of the
     // caret-offset math under test — the ground truth the caret must land on.
@@ -564,7 +564,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         shape.caret_row,
     );
     // Ground truth: the reserved gap glyph on line 0 sits at byte "find "+query.
-    let cell = "find    ".len() + "hello".len();
+    let cell = "Find         ".len() + "hello".len();
     let mut find_expected = None;
     for run in p.panel_buffer.layout_runs() {
         if run.line_i != 0 {
@@ -674,7 +674,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     };
     let width = p.window_w as u32;
 
-    // Replace REVEALED: three panel rows (find / replace / key-hint).
+    // Replace REVEALED: find / replace / nav / actions rows.
     let mut v = view("hello\nhello\n", 0, 0);
     v.search_active = true;
     v.search_query = "hello".into();
@@ -686,7 +686,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     p.set_view(&v);
     // Shape the panel so panel_layout has real rows to measure.
     let shape = p.panel_shape_text(width);
-    let ([card_x, card_y, card_w, card_h], text_left, text_top, _cx) = p.panel_layout(
+    let ([card_x, card_y, card_w, card_h], _text_left, text_top, _cx) = p.panel_layout(
         width,
         shape.caret_byte,
         shape.caret_fallback_chars,
@@ -700,27 +700,39 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
         p.panel_hit(mid, text_top + 1.5 * lh),
         Some(PanelHit::Replace)
     );
-    // The key-hint line (row 2) is inside the card but not editable -> Elsewhere.
+    // The find/replace-field click targets themselves resolve through their
+    // published `panel_geometry` rects — the same seam `panel_law.rs`'s
+    // device-level sweep grades every control against; this test stays the
+    // find<->replace ROW-level check its own name promises.
+    let g = p
+        .panel_geometry()
+        .expect("an active search publishes geometry");
+    let find_field = g
+        .controls
+        .iter()
+        .find(|c| c.name == "find_field")
+        .expect("find_field must be published");
+    let [fx, fy, fw, fh] = find_field.rect;
     assert_eq!(
-        p.panel_hit(mid, text_top + 2.5 * lh),
-        Some(PanelHit::Elsewhere)
+        p.panel_hit(fx + fw * 0.5, fy + fh * 0.5),
+        Some(PanelHit::Find)
     );
-    // The `Aa` cell at the right edge of the find row -> CaseToggle (NOT Find):
-    // the click driver for the case toggle whose only keyboard door is ⌘⌥C. (The
-    // card is widened by the key-hint row, so `mid` sits past the find text on row
-    // 0 and stays Find; only the shaped Aa cell resolves to CaseToggle.)
-    let aa_mid = aa_cell_center(&p, text_left);
+    let replace_field = g
+        .controls
+        .iter()
+        .find(|c| c.name == "replace_field")
+        .expect("replace_field must be published");
+    let [rx, ry, rw, rh] = replace_field.rect;
     assert_eq!(
-        p.panel_hit(aa_mid, text_top + 0.5 * lh),
-        Some(PanelHit::CaseToggle)
+        p.panel_hit(rx + rw * 0.5, ry + rh * 0.5),
+        Some(PanelHit::Replace)
     );
     // Off the card (far left / above / below) -> None: the press falls through.
     assert_eq!(p.panel_hit(card_x - 20.0, text_top + 0.5 * lh), None);
     assert_eq!(p.panel_hit(mid, card_y - 5.0), None);
     assert_eq!(p.panel_hit(mid, card_y + card_h + 5.0), None);
 
-    // Replace NOT revealed: a single find row. Row 0 -> Find; below the one row
-    // is off the (1-row) card -> None; the replace band never resolves.
+    // Replace NOT revealed: find + nav rows only (no replace field/row).
     let mut v1 = view("hello\nhello\n", 0, 0);
     v1.search_active = true;
     v1.search_query = "hello".into();
@@ -737,40 +749,26 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     );
     let mid1 = cx1 + cw1 * 0.5;
     assert_eq!(p.panel_hit(mid1, top1 + 0.5 * lh), Some(PanelHit::Find));
-    // The would-be replace band sits below the one-row card -> off card -> None.
+    // Below the two-row (find + nav) card is off the card -> None.
     assert!(
-        top1 + 1.5 * lh > _cy1 + ch1,
-        "replace band is below the 1-row card"
+        top1 + 2.5 * lh > _cy1 + ch1,
+        "the would-be third row sits below the 2-row plain-find card"
     );
-    assert_eq!(p.panel_hit(mid1, top1 + 1.5 * lh), None);
-
-    // On the ONE-row plain find panel the `Aa` cell is still a click target.
-    let aa_mid1 = aa_cell_center(&p, _t1);
-    assert_eq!(
-        p.panel_hit(aa_mid1, top1 + 0.5 * lh),
-        Some(PanelHit::CaseToggle)
+    assert_eq!(p.panel_hit(mid1, top1 + 2.5 * lh), None);
+    // `replace_field`/`Replace` never resolve while replace is not revealed —
+    // a plain find panel publishes no such control at all.
+    let g1 = p
+        .panel_geometry()
+        .expect("an active search publishes geometry");
+    assert!(
+        !g1.controls.iter().any(|c| c.name == "replace_field"),
+        "a plain find panel must not publish a replace field"
     );
 
     // Panel DOWN -> always None (the press falls through to the document).
     let v2 = view("hello\nhello\n", 0, 0); // search_active defaults false
     p.set_view(&v2);
     assert_eq!(p.panel_hit(mid1, top1 + 0.5 * lh), None);
-}
-
-/// Physical x-centre of the shaped `Aa` cell on the find row (line 0) — the last
-/// two glyphs of the row, mirroring `TextPipeline::panel_case_toggle_span` (which
-/// is module-private). `text_left` is `panel_layout`'s inner text origin.
-fn aa_cell_center(p: &TextPipeline, text_left: f32) -> f32 {
-    for run in p.panel_buffer.layout_runs() {
-        if run.line_i != 0 {
-            continue;
-        }
-        let n = run.glyphs.len();
-        let a = &run.glyphs[n - 2];
-        let z = &run.glyphs[n - 1];
-        return (text_left + a.x + text_left + z.x + z.w) * 0.5;
-    }
-    panic!("the find row shaped no glyphs");
 }
 
 /// THE CLICK-REACHABILITY LAW. Every `PanelHit` variant must be reachable by SOME
@@ -787,7 +785,7 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
         return;
     };
     let width = p.window_w as u32;
-    // Replace revealed so all three rows (find / replace / key-hint) exist.
+    // Replace revealed so every row (find / replace / nav / actions) exists.
     let mut v = view("hello\nhello\n", 0, 0);
     v.search_active = true;
     v.search_query = "hello".into();
@@ -797,28 +795,49 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
     v.search_replacement = "world".into();
     p.set_view(&v);
     let shape = p.panel_shape_text(width);
-    let ([card_x, _cy, card_w, _ch], text_left, text_top, _cx) = p.panel_layout(
+    let ([card_x, card_y, card_w, card_h], _text_left, _text_top, _cx) = p.panel_layout(
         width,
         shape.caret_byte,
         shape.caret_fallback_chars,
         shape.caret_row,
     );
-    let lh = p.metrics.line_height;
     let mid = card_x + card_w * 0.5;
-    let aa_mid = aa_cell_center(&p, text_left);
+    let g = p
+        .panel_geometry()
+        .expect("an active search publishes geometry");
+    let control_center = |name: &str| -> (f32, f32) {
+        let [x, y, w, h] = g
+            .controls
+            .iter()
+            .find(|c| c.name == name)
+            .unwrap_or_else(|| panic!("{name} must be published"))
+            .rect;
+        (x + w * 0.5, y + h * 0.5)
+    };
 
     for variant in [
         PanelHit::CaseToggle,
         PanelHit::Find,
         PanelHit::Replace,
+        PanelHit::NavPrev,
+        PanelHit::NavNext,
+        PanelHit::ReplaceButton,
+        PanelHit::ReplaceAllButton,
         PanelHit::Elsewhere,
     ] {
         // NO-WILDCARD: a new PanelHit variant forces a pointer arm here.
         let (px, py) = match variant {
-            PanelHit::CaseToggle => (aa_mid, text_top + 0.5 * lh),
-            PanelHit::Find => (mid, text_top + 0.5 * lh),
-            PanelHit::Replace => (mid, text_top + 1.5 * lh),
-            PanelHit::Elsewhere => (mid, text_top + 2.5 * lh),
+            PanelHit::CaseToggle => control_center("case_toggle"),
+            PanelHit::Find => control_center("find_field"),
+            PanelHit::Replace => control_center("replace_field"),
+            PanelHit::NavPrev => control_center("nav_prev"),
+            PanelHit::NavNext => control_center("nav_next"),
+            PanelHit::ReplaceButton => control_center("replace_button"),
+            PanelHit::ReplaceAllButton => control_center("replace_all_button"),
+            // The card's own BOTTOM PAD — inside the card (`row_at` reads a
+            // past-the-last-row index there) but never a row, so it can never
+            // coincide with a control regardless of the row plan's content.
+            PanelHit::Elsewhere => (mid, card_y + card_h - 2.0),
         };
         assert_eq!(
             p.panel_hit(px, py),
@@ -948,7 +967,7 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
                 .map(|run| (run.line_i, run.line_w))
                 .collect();
             assert!(
-                runs.len() >= 3,
+                runs.len() >= 4,
                 "{} at {width}px: replace panel lost a row",
                 world.name
             );

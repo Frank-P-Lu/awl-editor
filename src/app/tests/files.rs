@@ -241,7 +241,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        15,
+        16,
         "the toggle roster changed size — update this sweep deliberately"
     );
 

@@ -157,6 +157,9 @@ impl App {
         let ov = self.workspace_state.overlay();
         let mut view = ViewState {
             document_active: true,
+            // The no-document start surface's own concern; irrelevant with a
+            // real document on screen.
+            start_folder: None,
             text,
             cursor_line,
             cursor_col,
@@ -209,6 +212,8 @@ impl App {
             // every ordinary frame byte-identical.
             overlay_query_field: ov.is_none_or(|o| o.kind.offers_query()),
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
+            overlay_query_placeholder: ov
+                .and_then(|o| o.kind.field_placeholder().map(str::to_string)),
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(crate::overlay::OverlayState::title)

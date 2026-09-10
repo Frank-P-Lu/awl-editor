@@ -40,43 +40,44 @@ pub struct GutterStackHit {
 
 /// Resolve a pointer against an already-planned block. Kept pure so the live
 /// hover/click enrolment can be swept without constructing a GPU pipeline; the
-/// production method below supplies the exact layout/plan/char-width it draws.
+/// production method below supplies the exact layout/plan/char-width/ink-widths
+/// it draws.
 ///
-/// `label_char_w` is the LABEL-scale advance the close zone's ink-width
-/// estimate is built from — the SAME quantity [`gutter_stack::plate_rects`]
-/// already multiplies a row's char count by, so a target derived here can
-/// never disagree with the fill drawn from that other door.
+/// `label_char_w` is the LABEL-scale advance the close mark's OWN lane width
+/// (`mark_w`) is still built from — a small, name-length-independent estimate
+/// documented as an upper bound (`CLOSE_ZONE_ROWS`'s own doc), not the row's
+/// full ink. `ink_widths` is the row's REAL shaped width (605:
+/// [`gutter_stack::shaped_line_widths`]) — the SAME quantity
+/// [`gutter_stack::plate_rects`] now reads for the fill, so a target derived
+/// here can never disagree with the ink actually drawn.
 pub(super) fn stack_hit_from_plan(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
     label_char_w: f32,
+    ink_widths: &[f32],
     px: f32,
     py: f32,
 ) -> Option<GutterStackHit> {
     let line = plan.hit_row(px, py)?;
     let band = *plan.rows.get(line)?;
     let mark_chars = gutter_stack::CLOSE_MARK_TEXT.chars().count();
-    // Resolve WHICH row/kind this line is, and how many characters of ink it
-    // shapes, BEFORE classifying the pointer: the close zone now anchors on
-    // that row's own ink width (`row_intent`'s own doc), so the row has to be
-    // known first rather than intent computed off the band alone.
-    let (row, kind, chars) = match layout.lines().get(line)?.1 {
+    // Resolve WHICH row/kind this line is BEFORE classifying the pointer: the
+    // close zone now anchors on that row's own ink width (`row_intent`'s own
+    // doc), so the row has to be known first rather than intent computed off
+    // the band alone.
+    let (row, kind) = match layout.lines().get(line)?.1 {
         GutterLine::File(row) => {
             let file = layout.files.get(row)?;
-            (row, file.kind, file.text.chars().count())
+            (row, file.kind)
         }
         // The single-file identity names the same lone slot `group(root)`
         // would draw as row 0 of a stack, whether or not the margin was ever
         // wide enough to draw one — so it enrols in the SAME close/switch
         // geometry a working-set row does rather than staying an inert label.
-        GutterLine::Name => (
-            0,
-            crate::workingset::StackRowKind::File,
-            layout.name.chars().count(),
-        ),
+        GutterLine::Name => (0, crate::workingset::StackRowKind::File),
         GutterLine::Project | GutterLine::Changed => return None,
     };
-    let text_w = (chars + mark_chars) as f32 * label_char_w;
+    let text_w = ink_widths.get(line).copied().unwrap_or(0.0);
     let mark_w = mark_chars as f32 * label_char_w;
     let intent = gutter_stack::row_intent(band, text_w, mark_w, px);
     match kind {
@@ -184,7 +185,15 @@ impl TextPipeline {
     /// resolve (there is nowhere else to switch to), never a second code path.
     pub fn gutter_stack_hit(&self, px: f32, py: f32, height: u32) -> Option<GutterStackHit> {
         let (layout, plan, label_char_w) = self.gutter_hit_plan(height)?;
-        stack_hit_from_plan(&layout, &plan, label_char_w, px, py)
+        // Read off `self.gutter_buffer` as it stands: the LAST frame's
+        // `prepare_gutter` shaped it from this exact `ViewState` (the block's
+        // text/row count is a pure function of it, re-derived fresh above by
+        // `gutter_layout`), the same "trust the last-shaped buffer"
+        // convention `line_glyph_xs` already rides for the document's own
+        // caret/hit-test (`render/geometry.rs`). `stack_hit_from_plan`'s own
+        // doc names why a char-count estimate cannot stand in for it.
+        let ink_widths = gutter_stack::shaped_line_widths(&self.gutter_buffer);
+        stack_hit_from_plan(&layout, &plan, label_char_w, &ink_widths, px, py)
     }
 
     /// Mirror the working-set row under the LIVE pointer into render state.
@@ -202,7 +211,7 @@ impl TextPipeline {
         true
     }
 
-    /// Clear a live close-mark reveal when the pointer leaves the window.
+    /// Clear a live close-mark hover flip when the pointer leaves the window.
     pub fn clear_gutter_stack_hover(&mut self) -> bool {
         self.gutter_stack_hover.take().is_some()
     }

@@ -63,10 +63,11 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
     assert_eq!(ov.selected, 3);
     assert_eq!(ov.last_hover_px, Some((100.0, 200.0)));
 
-    // A THEME-PICKER WORLD JUMP relayouts the card (reanchor / Pane<->Bars row
-    // pitch / font-reshape settle) — simulated here as "the row now under THE
-    // EXACT SAME PIXEL is different" (row 7, not row 3). The pointer itself never
-    // moved a single pixel.
+    // A RELAYOUT under a stationary pointer (a window resize, say — the theme
+    // picker's own chrome no longer relayouts on a world crossing at all, now
+    // that it is pinned for the life of its summon) — simulated here as "the
+    // row now under THE EXACT SAME PIXEL is different" (row 7, not row 3). The
+    // pointer itself never moved a single pixel.
     let relayout_hit = Some(7usize);
 
     // PROVE THE HAZARD IS REAL (non-vacuous): calling `hover_select` directly with

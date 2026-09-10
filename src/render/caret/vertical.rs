@@ -16,7 +16,9 @@ impl TextPipeline {
             .chars()
             .nth(col)?;
         let script = crate::script::classify_char(ch)?;
-        let id = crate::script::resolve_font_id(self.doc_lang, Some(script), &self.cjk_priority);
+        let cjk_priority =
+            crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
+        let id = crate::script::resolve_font_id(self.doc_lang, Some(script), &cjk_priority);
         let (family, _) = self.script_fonts.get(id)?;
         let em = facepitch::ideographic_cell_em(family)?;
         let key = self.cursor_glyph_key_at(self.cursor_line, col)?;

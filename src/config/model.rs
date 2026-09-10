@@ -19,6 +19,7 @@ pub struct Config {
     pub popover: Option<bool>,
     pub inline_images: Option<bool>,
     pub code_ligatures: Option<bool>,
+    pub footnote_ladder: Option<bool>,
     pub cjk_priority: Option<Vec<crate::frontmatter::Lang>>,
     pub session_restore: Option<bool>,
     pub outline: Option<bool>,
@@ -31,6 +32,16 @@ pub struct Config {
     pub keymap: Option<String>,
     pub date_format: Option<String>,
     pub keys: Vec<(String, Vec<String>)>,
+    /// `[keys] follow = "…"` — the mouse FOLLOW-GESTURE override, pulled out
+    /// of the generic `keys` table above rather than left in it: "follow" is
+    /// not a command-palette action name, so leaving it in `keys` would make
+    /// `KeymapState::apply_overrides` report it as an unknown action on every
+    /// load. Raw, unparsed strings — `keymap::platform::active_follow_gestures`
+    /// is the one owner that parses them (`keyspec::parse_pointer_chord`) and
+    /// decides whether they replace the built-in roster. Unlike `keys`, no
+    /// 2-slot cap: the follow roster is a small fixed SET, not a native/emacs
+    /// pair, so a line naming three gestures is not a mistake to truncate.
+    pub follow: Vec<String>,
     pub linux_keep_emacs: Vec<String>,
     pub path: PathBuf,
 }
@@ -56,6 +67,7 @@ impl Config {
             popover: None,
             inline_images: None,
             code_ligatures: None,
+            footnote_ladder: None,
             cjk_priority: None,
             session_restore: None,
             outline: None,
@@ -68,6 +80,7 @@ impl Config {
             keymap: None,
             date_format: None,
             keys: Vec::new(),
+            follow: Vec::new(),
             linux_keep_emacs: Vec::new(),
             path: PathBuf::new(),
         }
@@ -205,12 +218,32 @@ impl Config {
             cfg.dictionary = Some(s.to_string());
         }
         apply_boolean_settings(&mut cfg, &table);
-        if let Some(arr) = table.get("cjk_priority").and_then(|v| v.as_array()) {
-            let langs: Vec<crate::frontmatter::Lang> = arr
-                .iter()
-                .filter_map(|v| v.as_str().and_then(crate::frontmatter::Lang::parse))
-                .collect();
-            cfg.cjk_priority = Some(langs);
+        // `cjk_priority` accepts EITHER an explicit ordered array (Explicit —
+        // Han evidence overrides steps 1-4 of the ladder regardless, but this
+        // list still decides step 5) OR the literal string `"auto"` (Auto —
+        // step 5 falls back to `DEFAULT_CJK_PRIORITY`; see `script::evidence`'s
+        // module doc for the five-step ladder this decides the LAST step of).
+        // An absent key and the literal `"auto"` string both leave
+        // `cfg.cjk_priority` at `None` — the ONE representation of Auto
+        // `cjk_priority_or_default` and `apply_sticky_globals` both read —
+        // so a hand-written `cjk_priority = "auto"` and simply deleting the
+        // line behave identically. Any OTHER string, or an array that filters
+        // to empty, is inert (unknown keys never crash; `cjk_priority_or_default`
+        // already treats an empty list as "no explicit ladder").
+        match table.get("cjk_priority") {
+            Some(v) if v.as_str().is_some_and(|s| s.eq_ignore_ascii_case("auto")) => {
+                cfg.cjk_priority = None;
+            }
+            Some(v) => {
+                if let Some(arr) = v.as_array() {
+                    let langs: Vec<crate::frontmatter::Lang> = arr
+                        .iter()
+                        .filter_map(|v| v.as_str().and_then(crate::frontmatter::Lang::parse))
+                        .collect();
+                    cfg.cjk_priority = Some(langs);
+                }
+            }
+            None => {}
         }
         if let Some(s) = table.get("keymap").and_then(|v| v.as_str()) {
             cfg.keymap = Some(s.to_string());
@@ -226,6 +259,21 @@ impl Config {
         }
         if let Some(keys) = table.get("keys").and_then(|v| v.as_table()) {
             for (name, val) in keys {
+                // "follow" names the mouse gesture override, not a command —
+                // diverted to its own field (see `Config::follow`'s doc)
+                // BEFORE the 2-slot cap below, which is a command-rebind rule
+                // that doesn't apply to the follow roster.
+                if name == "follow" {
+                    cfg.follow = match val {
+                        toml::Value::String(s) => vec![s.clone()],
+                        toml::Value::Array(arr) => arr
+                            .iter()
+                            .filter_map(|v| v.as_str().map(str::to_string))
+                            .collect(),
+                        _ => continue,
+                    };
+                    continue;
+                }
                 let chords: Vec<String> = match val {
                     toml::Value::String(s) => vec![s.clone()],
                     toml::Value::Array(arr) => arr
@@ -254,6 +302,7 @@ fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
     cfg.wysiwyg = value("wysiwyg");
     cfg.inline_images = value("inline_images");
     cfg.code_ligatures = value("code_ligatures");
+    cfg.footnote_ladder = value("footnote_ladder");
     cfg.session_restore = value("session_restore");
     cfg.outline = value("outline");
     cfg.menu_bar = value("menu_bar");

@@ -471,6 +471,17 @@ const DIMENSIONLESS: &[(&str, &str)] = &[
          resolves — the pull-quote mark is shaped at that product, never padded by it",
     ),
     (
+        "QUOTE_CLOSE_GAP_EM",
+        "an EM fraction of the body font_size, which Metrics::with_dpi already \
+         resolves — the closing mark's clearance holds its typographic \
+         proportion across zoom and DPI rather than being an authored pad",
+    ),
+    (
+        "QUOTE_CLOSE_BASELINE_DROP_FRAC",
+        "a fraction of metrics.line_height, not a length of its own — how far \
+         the closing mark's baseline sits below the row baseline it anchors to",
+    ),
+    (
         "IMAGE_REVEAL_DIM_ALPHA",
         "an alpha on the revealed image's quad, not a distance",
     ),

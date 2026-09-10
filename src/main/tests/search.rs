@@ -11,6 +11,13 @@ use super::{keyspec, replay_keys, replay_keys_mode};
 
 #[test]
 fn replay_search_typing_extends_the_query_never_the_buffer() {
+    // `C-s` opens the panel through the real production seam
+    // (`actions::motion::start_search`), which prefills from the process-global
+    // `search::last_query()` on a bare open — a literal-query assertion needs
+    // the lock every reader/writer of that global holds AND a cleared baseline,
+    // or another test's leftover query silently prepends itself here.
+    let _g = crate::testlock::serial();
+    crate::search::clear_last_query();
     let mut buffer = Buffer::from_str("say hi twice: hi");
     let keys = keyspec::parse_keys("C-s h i").unwrap();
     let root = PathBuf::from("/tmp");
@@ -22,6 +29,7 @@ fn replay_search_typing_extends_the_query_never_the_buffer() {
     );
     assert_eq!(res.search_query.as_deref(), Some("hi"));
     assert_eq!(buffer.cursor_char(), 4, "the caret sits on the first match");
+    crate::search::clear_last_query();
 }
 
 #[test]
@@ -72,6 +80,10 @@ fn query_input_live_delegate_and_headless_guard_have_identical_outcomes() {
 
 #[test]
 fn replay_search_steps_case_toggle_and_prefix_chords_stay_in_the_panel() {
+    // See the same note in `replay_search_typing_extends_the_query_never_the_buffer`:
+    // every `C-s` open below reads the process-global `search::last_query()`.
+    let _g = crate::testlock::serial();
+    crate::search::clear_last_query();
     let mut buffer = Buffer::from_str("x.x.x");
     let keys = keyspec::parse_keys("C-s x Down C-s").unwrap();
     let root = PathBuf::from("/tmp");
@@ -107,10 +119,15 @@ fn replay_search_steps_case_toggle_and_prefix_chords_stay_in_the_panel() {
         debug_before,
         "C-x r never reached the keymap"
     );
+    crate::search::clear_last_query();
 }
 
 #[test]
 fn replay_search_replacement_typing_replace_one_and_replace_all() {
+    // See the same note in `replay_search_typing_extends_the_query_never_the_buffer`:
+    // every `C-s` open below reads the process-global `search::last_query()`.
+    let _g = crate::testlock::serial();
+    crate::search::clear_last_query();
     let mut buffer = Buffer::from_str("line one\nline two\nline three");
     let keys = keyspec::parse_keys("C-s l i n e Tab r o w Enter").unwrap();
     let root = PathBuf::from("/tmp");
@@ -134,6 +151,7 @@ fn replay_search_replacement_typing_replace_one_and_replace_all() {
         res.replace_active,
         "the panel is still open after replace-all"
     );
+    crate::search::clear_last_query();
 }
 
 #[test]
@@ -166,6 +184,14 @@ fn replay_search_enter_accepts_and_esc_restores_origin() {
 
 #[test]
 fn strict_replay_allows_panel_consumed_chords_but_rejects_them_outside() {
+    // `C-s` below opens the panel through the real production seam
+    // (`actions::motion::start_search`), which prefills from the process-global
+    // `search::last_query()` on a bare open — so this test races every OTHER
+    // test that leaves that global dirty unless it takes the same
+    // `testlock::serial()` every reader/writer of it is expected to hold, and
+    // starts from a known-clear baseline itself.
+    let _g = crate::testlock::serial();
+    crate::search::clear_last_query();
     let mut buffer = Buffer::scratch();
     let keys = keyspec::parse_keys("s-l").unwrap();
     let root = PathBuf::from("/tmp");
@@ -203,4 +229,5 @@ fn strict_replay_allows_panel_consumed_chords_but_rejects_them_outside() {
     .expect("panel-consumed chords are legal under strict");
     assert!(res.search_case, "the M-c actually toggled case");
     assert_eq!(res.search_query.as_deref(), Some("h"));
+    crate::search::clear_last_query();
 }

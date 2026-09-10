@@ -1,8 +1,21 @@
 //! SEARCH PANEL chrome — the summoned top-right find/replace card: its opaque
-//! elevated card, the labeled find/replace rows, the teaching key-hint line, and
-//! the amber query caret riding the shaped advance. Inherent methods on
-//! [`super::TextPipeline`] (they shape into its shared panel buffers); carved out
-//! of `chrome.rs` verbatim, no behaviour change. See [`super`].
+//! elevated card, the bordered find/replace fields, the match/navigation
+//! region (counter, prev/next, the `Match case` checkbox), the `Replace` /
+//! `Replace all` buttons, and the amber query caret riding the shaped
+//! advance. Inherent methods on [`super::TextPipeline`] (they shape into its
+//! shared panel buffers). See [`super`].
+//!
+//! **The reference chrome** (`references/find-replace-chrome.png`, cited on
+//! the queue) calls for clear bordered fields, a separate match/navigation
+//! region, and distinct Replace/Replace all controls — while the earlier
+//! terse `/`-pill and the later borderless text-strip both went too far the
+//! other way. This module keeps the keyboard-first character (every button
+//! carries the chord that also fires it, sourced from ONE place —
+//! `keyspec::Panel*` — never a hardcoded glyph) while restoring the bordered,
+//! labeled-region composition. The card is still ONE text buffer
+//! (`panel_buffer`) shaped as a handful of rows; what is new is that some of
+//! those rows' CONTROLS also get a drawn box, computed from their own shaped
+//! byte range (`chrome::panel_controls`), never a hardcoded pitch.
 
 use super::*;
 
@@ -14,11 +27,44 @@ use super::*;
 pub(in crate::render) const PANEL_PAD: Physical = Physical(12.0);
 pub(in crate::render) const PANEL_MARGIN: Physical = Physical(12.0);
 
+/// Field labels, padded to ONE shared width (13 ASCII bytes) so the find and
+/// replace boxes start in the same column — ASCII, so byte len == char count,
+/// which the caret-offset math below relies on.
+const FIND_LABEL: &str = "Find         ";
+const REPLACE_LABEL: &str = "Replace with ";
+const _: () = assert!(
+    FIND_LABEL.len() == REPLACE_LABEL.len(),
+    "the two field labels must share one padded width so both boxes start in \
+     the same column"
+);
+/// The ordinary-width VISIBLE cap (character cells) of the query/replacement
+/// VALUE field: typing/pasting past this count SCROLLS the field
+/// (`field_view_window`, the one clipping-rule owner shared by both fields)
+/// instead of widening the card. Twenty-eight cells is wide enough for a
+/// realistic search term without feeling cramped on an ordinary canvas.
+const PANEL_FIELD_CHARS: usize = 28;
+/// The label plus its one reserved caret cell — the fixed-cell floor every
+/// responsive `field_chars` computation subtracts before granting the rest to
+/// the value field.
+// The label ITSELF renders in the active world's PROPORTIONAL face (never
+// monospace), so its true pixel width is not exactly `label.len() *
+// char_width` — the `+ 2` (one cell past the label + its one reserved caret
+// cell) is slack against that mismatch, keeping the responsive field
+// comfortably inside the narrow-canvas clamp instead of riding its exact edge.
+const PANEL_FIXED_CELLS: usize = FIND_LABEL.len() + 2;
+const PANEL_MIN_FIELD_CHARS: usize = 8;
+/// Below this shaped-cell width the nav/actions rows drop their trailing
+/// chord ANNOTATIONS — never their labels or buttons, which stay legible at
+/// any width the card is ever clamped to. A narrow canvas still reads every
+/// control; it just stops teaching the extra chord alongside it.
+const PANEL_WIDE_CELLS: usize = 56;
+
 impl TextPipeline {
     /// Shape + upload the top-right search panel for this frame: the opaque
     /// BASE_300 card, the panel text (calm BASE_CONTENT, or ERROR-red on the
-    /// no-match state), and the amber caret block at the query end. Called from
-    /// `prepare()` only when `search_active`.
+    /// no-match state), the bordered field/button/checkbox boxes, the region
+    /// separators, and the amber caret block at the focused field's end.
+    /// Called from `prepare()` only when `search_active`.
     pub(in crate::render) fn prepare_panel(
         &mut self,
         device: &wgpu::Device,
@@ -50,30 +96,34 @@ impl TextPipeline {
             .set_metrics(&mut self.font_system, m.glyph_metrics());
     }
 
-    /// Compose + shape the labeled find-and-replace panel text into `panel_buffer`,
+    /// Compose + shape the labeled find/replace panel text into `panel_buffer`,
     /// returning the colors the card draws with and the FOCUSED field's
-    /// reserved-caret-cell offsets. The amber caret rides a RESERVED cell shaped
-    /// right after the focused field so its x comes from the SAME layout as the text
-    /// (no hardcoded-pitch drift).
+    /// reserved-caret-cell offsets. Also resolves every drawn CONTROL's
+    /// shaped byte-span into `self.panel_control_spans` (read back by
+    /// `panel_hit` and the sidecar's `panel_geometry`), so a click and a
+    /// capture can never disagree with what this function just shaped.
     ///
-    /// The panel is a clear labeled card, not the old terse `/` pill:
-    ///   * a **find** row — the `find` label, the query, the `N/M` match counter, and
-    ///     the `Aa` case indicator (which is ALSO a click target — a press on it
-    ///     toggles case, `PanelHit::CaseToggle`);
-    ///   * a **replace** row (shown whenever replace is active) — the `replace` label
-    ///     and the replacement text;
-    ///   * a dim **key-hint** line that TEACHES the actions (`↵ replace+next`,
-    ///     `⌘↵ all`, `⇥ switch`, `⌘⌥c case`, `Esc done`) — the keycaps ride glyphs
-    ///     (↵ Return, ⇥ Tab) to match ⌘/⌥, informational muted ink, NOT clickable
-    ///     buttons (the button-free principle; PHILOSOPHY §2). The case hint shows
-    ///     the MAC-REACHABLE ⌘⌥c chord (bare ⌥c composes to 'ç' on macOS).
-    ///     The labels are padded to one width so the two value columns line up.
+    /// Row plan (each row a real shaped LINE, addressed by `f32` row index —
+    /// `panel_rows`'s own contract):
+    ///   * row 0 — **find**: label, the fixed-width windowed query, one
+    ///     reserved caret cell. Always present.
+    ///   * row 1 — **replace** (only once revealed): label, the windowed
+    ///     replacement, one reserved caret cell. No trailing hint text — this
+    ///     row's own width is what the responsive `field_chars` budget below
+    ///     is computed against, so a fixed-length hint appended here would
+    ///     ride outside that budget (see the nav row's own `Tab switch` hint
+    ///     for why this matters).
+    ///   * the **nav row** (`find    ` -> row 1, replace revealed -> row 2;
+    ///     wraps to a second line under narrow pressure): the `N of M`
+    ///     counter, the `^`/`v` step buttons, and the `Aa` match-case
+    ///     checkbox with its `Match case` label — plus, at ordinary widths, a
+    ///     `Tab switch` hint and, with no replace row up, the `Esc close`
+    ///     hint (there is no actions row to carry it otherwise).
+    ///   * the **actions row** (nav row + its line count, only once replace is
+    ///     revealed; also wraps under narrow pressure): the `Replace` /
+    ///     `Replace all` buttons and the `Esc close` hint.
     pub(in crate::render) fn panel_shape_text(&mut self, width: u32) -> PanelShape {
         let m = self.metrics;
-        // Calm visual hierarchy via per-run color: muted labels + hit counter, full-ink
-        // query/replacement, and an "Aa" indicator that brightens from muted to full ink
-        // when case-sensitivity is ON (state without amber — the only amber is the caret
-        // quad). On the no-match state the query + counter tint ERROR red.
         let no_match = self.search_no_matches();
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
@@ -81,20 +131,13 @@ impl TextPipeline {
         let total = self.search_matches.len();
         let n = self.search_current.map(|i| i + 1).unwrap_or(0);
         let query = self.search_query.clone();
-        // The query never shapes as its raw, unbounded self: it is a fixed visible
-        // field, scrolled/padded by `field_view_window`. At ordinary widths that
-        // field is `PANEL_FIELD_CHARS`; on a narrow canvas it yields enough cells
-        // for the labelled row to remain inside the card instead of pushing the
-        // right-anchored card to a negative x.
+
+        // The query never shapes as its raw, unbounded self: it is a fixed
+        // visible field, scrolled/padded by `field_view_window`.
         let panel_text_w =
             (width as f32 - 2.0 * m.px_physical(PANEL_MARGIN) - 2.0 * m.px_physical(PANEL_PAD))
                 .max(m.char_width);
         let panel_cells = (panel_text_w / m.char_width).floor() as usize;
-        // The label, reserved caret gap, largest counter and `Aa` cell consume
-        // just under twenty base cells on the widest shipping chrome face.
-        // Reserve the roster maximum rather than tuning to the default world.
-        const PANEL_FIXED_CELLS: usize = 20;
-        const PANEL_MIN_FIELD_CHARS: usize = 8;
         let field_chars = PANEL_FIELD_CHARS.min(
             panel_cells
                 .saturating_sub(PANEL_FIXED_CELLS)
@@ -103,47 +146,15 @@ impl TextPipeline {
         let (query_view, query_view_caret) =
             field_view_window(&query, self.search_query_caret, field_chars);
 
-        // Labels, padded to a shared width so `query` and `replacement` start in the
-        // same column (ASCII, so byte len == char count — the caret-offset math below
-        // relies on that). "replace " is the widest at 8 cells.
-        const FIND_LABEL: &str = "find    ";
-        const REPLACE_LABEL: &str = "replace ";
-        // The ordinary-width VISIBLE cap (character cells) of the query/
-        // replacement VALUE field: typing/pasting past the responsive
-        // `field_chars` count SCROLLS the field (`field_view_window`, the one
-        // clipping-rule owner shared by both fields) instead of widening the card.
-        // The card's exterior therefore follows from canvas capacity, never from
-        // the actual query/replacement — the fixed-content law
-        // (`find_replace_panel_card_width_is_invariant_across_short_long_short_queries`).
-        // Twenty-eight cells is wide enough for a realistic search term without
-        // feeling cramped on an ordinary canvas.
-        const PANEL_FIELD_CHARS: usize = 28;
-        // The amber caret block rides a RESERVED cell shaped right after the focused
-        // field's text; on the find row two clear cells then follow so the block can
-        // never collide with the `N/M` digits at any query length. Keeping the reserved
-        // cell IN the shaped string means the caret x and the counter x come from the
-        // SAME layout — no drift between a hardcoded advance and glyphon's shaped text.
-        let gap = "   "; // [caret cell][clear][clear]
-        let counter = format!("{n}/{total}   ");
-        let (c_query, c_counter, c_toggle) = if no_match {
-            (red, red, muted)
-        } else if self.search_case_sensitive {
-            (ink, muted, ink) // case ON -> "Aa" full ink
-        } else {
-            (ink, muted, muted) // case OFF -> "Aa" muted
-        };
-        // Active-world face (mono is the automatic glyph fallback); the search caret
-        // reads its x from the SHAPED buffer so it tracks real advances.
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        // The macOS modifier glyphs (⌘ ⌥) in the hint line shape from the bundled
-        // SYMBOL_FAMILY face (the display/mono faces render them as tofu), the same
-        // treatment the overlay chord column gives them.
+        // The macOS modifier glyphs (⌘ ⌥) in a chord label shape from the
+        // bundled SYMBOL_FAMILY face (the display/mono faces render them as
+        // tofu), the same treatment the overlay chord column gives them.
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-        // The query/replacement VALUE spans shape in a MONOSPACE family
-        // (never the active world's proportional `base`), so `field_view_window`'s
-        // fixed CHAR-COUNT contract yields a fixed PIXEL width too — see that
-        // function's own doc for why a proportional face would reopen the bug.
+        // The query/replacement VALUE spans shape in a MONOSPACE family (never
+        // the active world's proportional `base`), so `field_view_window`'s
+        // fixed CHAR-COUNT contract yields a fixed PIXEL width too.
         let field = |c| Attrs::new().family(Family::Monospace).color(c);
 
         let replacement = self.search_replacement.clone();
@@ -151,93 +162,207 @@ impl TextPipeline {
             field_view_window(&replacement, self.search_replacement_caret, field_chars);
         let replace_active = self.search_replace_active;
         let editing_replacement = replace_active && self.search_editing_replacement;
-        // The dim key-hint line that teaches the replace actions — muted ink, present
-        // only once the replace row is up (a plain find keeps the terse counter panel).
-        const HINT_WIDE: &str = concat!(
-            "\u{21B5} replace+next   \u{2318}\u{21B5} all   \u{21E5} switch   ",
-            "\u{2318}\u{2325}c case   Esc done"
-        );
-        const HINT_NARROW: &str = concat!(
-            "\u{21B5} replace+next   \u{2318}\u{21B5} all\n",
-            "\u{21E5} switch   \u{2318}\u{2325}c case\nEsc done"
-        );
-        // Keep the teaching copy whole. A narrow card spends vertical room on
-        // semantic line breaks rather than clipping or silently dropping a key.
-        let hint = if panel_cells >= 61 {
-            HINT_WIDE
-        } else {
-            HINT_NARROW
-        };
-        // DISCOVERABILITY: the "⌘⌥c case" chunk BRIGHTENS from muted to full ink when
-        // case-sensitivity is ON — the same value cue the `Aa` indicator carries (never
-        // amber; state by value), pointing the eye at the exact chord that toggles it.
-        // Brightens iff the `Aa` cell also does (case ON and there IS a match), so the
-        // two cues never disagree.
-        const CASE_HINT: &str = "\u{2318}\u{2325}c case";
-        let case_hint_on = self.search_case_sensitive && !no_match;
-        let case_hint_span = hint.find(CASE_HINT).map(|s| (s, s + CASE_HINT.len()));
-        let hint_color = |b: usize| match case_hint_span {
-            Some((s, e)) if case_hint_on && b >= s && b < e => ink,
-            _ => muted,
-        };
 
-        // Row 0 — the find field. `query_view` is ALWAYS exactly `field_chars`
-        // chars — the responsive fixed field the card sizes off — never the raw,
-        // unbounded `query`.
-        let mut spans: Vec<(&str, Attrs)> = vec![
-            (FIND_LABEL, mk(muted)),
-            (query_view.as_str(), field(c_query)),
-            (gap, mk(c_counter)),
-            (counter.as_str(), mk(c_counter)),
-            ("Aa", mk(c_toggle)),
-        ];
+        // Calm visual hierarchy via per-run color: muted labels, full-ink
+        // query/replacement, and an "Aa" indicator that brightens from muted
+        // to full ink when case-sensitivity is ON — state carried by VALUE,
+        // never amber (the caret alone owns that accent).
+        let (c_query, c_counter, c_toggle) = if no_match {
+            (red, red, muted)
+        } else if self.search_case_sensitive {
+            (ink, muted, ink)
+        } else {
+            (ink, muted, muted)
+        };
+        let wide = panel_cells >= PANEL_WIDE_CELLS;
+        let case_hint_on = self.search_case_sensitive && !no_match;
+
+        let mut spans: Vec<(&str, Attrs)> = Vec::new();
+        let mut controls = PanelControlSpans::default();
+
+        // ROW 0 — FIND.
+        spans.push((FIND_LABEL, mk(muted)));
+        let find_start = FIND_LABEL.len();
+        spans.push((query_view.as_str(), field(c_query)));
+        let find_end = find_start + query_view.len();
+        controls.find_field = Some(ControlSpan {
+            row: 0.0,
+            byte_start: find_start,
+            byte_end: find_end,
+        });
+        spans.push((" ", mk(muted))); // the reserved caret cell
+
+        // ROW 1 — REPLACE (only once revealed). No trailing hint text here:
+        // this row's own width is what the responsive `field_chars` budget is
+        // computed against, so any FIXED-length text appended after the
+        // reserved caret cell rides for free on top of that budget and can
+        // push the row past the narrow-canvas clamp `panel_layout` derives
+        // from the very same width. The `Tab switch field` hint lives on the
+        // nav row instead, which already carries its own wide/narrow wrap.
+        let mut nav_row = 1.0_f32;
         if replace_active {
-            // Row 1 — the replace field (label + the SAME fixed-width windowed
-            // replacement + reserved caret cell).
             spans.push(("\n", mk(muted)));
             spans.push((REPLACE_LABEL, mk(muted)));
+            let rep_start = REPLACE_LABEL.len();
             spans.push((replacement_view.as_str(), field(ink)));
-            spans.push((" ", mk(ink)));
-            // Row 2 — the dim key-hint line. Split so ⌘/⌥ ride the symbol face; the
-            // rest stays in the world face. Each run is FURTHER split at the case-chunk
-            // edges so a single span never mixes colors, letting ONLY "⌘⌥c case"
-            // brighten (`hint_color`) when case-sensitivity is on.
-            spans.push(("\n", mk(muted)));
-            // The color-change boundaries within the hint: the case-chunk edges.
-            let bounds: [usize; 2] = case_hint_span
-                .map(|(s, e)| [s, e])
-                .unwrap_or([hint.len(), hint.len()]);
-            // A run is emitted piecewise, cutting at any boundary strictly inside it, so
-            // each emitted piece is uniformly inside or outside the case chunk.
-            let emit = |spans: &mut Vec<(&str, Attrs)>, mut s: usize, e: usize, is_sym: bool| {
-                let mut cuts: Vec<usize> =
-                    bounds.iter().copied().filter(|&b| b > s && b < e).collect();
-                cuts.push(e);
-                for c in cuts {
-                    let col = hint_color(s);
-                    let attrs = if is_sym { sym(col) } else { mk(col) };
-                    spans.push((&hint[s..c], attrs));
-                    s = c;
-                }
-            };
-            let mut last = 0usize;
-            for run in symbol_runs(hint) {
-                if run.start > last {
-                    emit(&mut spans, last, run.start, false);
-                }
-                let end = run.end;
-                emit(&mut spans, run.start, end, true);
-                last = end;
-            }
-            if last < hint.len() {
-                emit(&mut spans, last, hint.len(), false);
-            }
+            let rep_end = rep_start + replacement_view.len();
+            controls.replace_field = Some(ControlSpan {
+                row: 1.0,
+                byte_start: rep_start,
+                byte_end: rep_end,
+            });
+            spans.push((" ", mk(ink))); // the reserved caret cell
+            nav_row = 2.0;
         }
-        let rows = if replace_active {
-            2.0 + hint.lines().count() as f32
+
+        // THE NAV ROW — counter, step buttons, match-case checkbox. At
+        // ordinary widths this is ONE line; under narrow pressure the
+        // checkbox (+ its label) moves to a SECOND line rather than letting
+        // the line's natural width outgrow the card's own narrow-canvas
+        // clamp (`panel_layout` sizes the card from the SHAPED rows, so a
+        // row that does not shrink here would draw past the card it is
+        // supposedly inside) — the same "wrap rather than overflow" policy
+        // `field_view_window` already applies to the value fields.
+        spans.push(("\n", mk(muted)));
+        let counter = format!("{n} of {total}");
+        spans.push((counter.as_str(), mk(c_counter)));
+        let mut off = counter.len();
+        spans.push(("  ", mk(muted)));
+        off += 2;
+        let prev_start = off;
+        spans.push(("^", mk(ink)));
+        off += 1;
+        controls.nav_prev = Some(ControlSpan {
+            row: nav_row,
+            byte_start: prev_start,
+            byte_end: off,
+        });
+        // A real gap between the two step buttons: each box outsets its own
+        // tight glyph span by `CONTROL_BOX_PAD_X` on every side, so a single
+        // reserved column between two one-glyph controls would let their
+        // outset boxes touch or overlap.
+        spans.push(("   ", mk(muted)));
+        off += 3;
+        let next_start = off;
+        spans.push(("v", mk(ink)));
+        off += 1;
+        controls.nav_next = Some(ControlSpan {
+            row: nav_row,
+            byte_start: next_start,
+            byte_end: off,
+        });
+        let case_row = if wide { nav_row } else { nav_row + 1.0 };
+        if wide {
+            spans.push(("   ", mk(muted)));
+            off += 3;
         } else {
-            1.0
+            spans.push(("\n", mk(muted)));
+            off = 0;
+        }
+        let case_start = off;
+        spans.push(("Aa", mk(c_toggle)));
+        off += 2;
+        controls.case_box = Some(ControlSpan {
+            row: case_row,
+            byte_start: case_start,
+            byte_end: off,
+        });
+        const CASE_LABEL: &str = " Match case";
+        spans.push((CASE_LABEL, mk(muted)));
+        let case_hint_owned;
+        if wide {
+            case_hint_owned = format!(" {}", crate::keyspec::PANEL_MATCH_CASE.label());
+            let case_hint_color = if case_hint_on { ink } else { muted };
+            push_symbol_split(
+                &mut spans,
+                &case_hint_owned,
+                move || mk(case_hint_color),
+                move || sym(case_hint_color),
+            );
+        }
+        let switch_hint_owned;
+        if wide {
+            switch_hint_owned = format!("   {} switch", crate::keyspec::PANEL_SWITCH_FIELD.label());
+            push_symbol_split(&mut spans, &switch_hint_owned, || mk(muted), || sym(muted));
+        }
+        let nav_close_owned;
+        if !replace_active {
+            nav_close_owned = format!("   {} close", crate::keyspec::PANEL_CLOSE.label());
+            push_symbol_split(&mut spans, &nav_close_owned, || mk(muted), || sym(muted));
+        }
+        let nav_lines = if wide { 1.0 } else { 2.0 };
+
+        // THE ACTIONS ROW (only once replace is revealed): Replace / Replace
+        // all, each a real click target with its own chord annotation, and
+        // the `Esc close` hint. Same wrap policy as the nav row: one line at
+        // ordinary widths, `Replace all` moves to a second line under narrow
+        // pressure.
+        let actions_row = nav_row + nav_lines;
+        let replace_hint_owned;
+        let replace_all_hint_owned;
+        let actions_close_owned;
+        if replace_active {
+            spans.push(("\n", mk(muted)));
+            let mut off2 = 0usize;
+            const REPLACE_BTN: &str = "Replace";
+            let rb_start = off2;
+            spans.push((REPLACE_BTN, mk(ink)));
+            off2 += REPLACE_BTN.len();
+            controls.replace_button = Some(ControlSpan {
+                row: actions_row,
+                byte_start: rb_start,
+                byte_end: off2,
+            });
+            spans.push((" ", mk(muted)));
+            off2 += 1;
+            if wide {
+                replace_hint_owned = crate::keyspec::PANEL_REPLACE_NEXT.label();
+                push_symbol_split(&mut spans, &replace_hint_owned, || mk(muted), || sym(muted));
+                off2 += replace_hint_owned.len();
+            }
+            let replace_all_row = if wide {
+                spans.push(("   ", mk(muted)));
+                off2 += 3;
+                actions_row
+            } else {
+                spans.push(("\n", mk(muted)));
+                off2 = 0;
+                actions_row + 1.0
+            };
+            const REPLACE_ALL_BTN: &str = "Replace all";
+            let rab_start = off2;
+            spans.push((REPLACE_ALL_BTN, mk(ink)));
+            off2 += REPLACE_ALL_BTN.len();
+            controls.replace_all_button = Some(ControlSpan {
+                row: replace_all_row,
+                byte_start: rab_start,
+                byte_end: off2,
+            });
+            spans.push((" ", mk(muted)));
+            if wide {
+                replace_all_hint_owned = crate::keyspec::PANEL_REPLACE_ALL.label();
+                push_symbol_split(
+                    &mut spans,
+                    &replace_all_hint_owned,
+                    || mk(muted),
+                    || sym(muted),
+                );
+            }
+            actions_close_owned = format!("   {} close", crate::keyspec::PANEL_CLOSE.label());
+            push_symbol_split(
+                &mut spans,
+                &actions_close_owned,
+                || mk(muted),
+                || sym(muted),
+            );
+        }
+        let actions_lines = if replace_active {
+            if wide { 1.0 } else { 2.0 }
+        } else {
+            0.0
         };
+
+        let rows = actions_row + actions_lines;
         // Give the buffer generous width + one line height per row so it never wraps.
         self.panel_buffer.set_size(
             &mut self.font_system,
@@ -255,23 +380,11 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
 
-        // Byte offset + char-prefix of the FOCUSED field's caret, at
-        // its OWN CHAR-index position (`TextBox::caret`, mid-string reachable via
-        // char/word motion) — not always the field's end. The offset is
-        // LINE-relative (cosmic-text's `LayoutGlyph::start` counts from each
-        // line's own origin, resetting to 0 after every `\n`), so the replace
-        // row's cell is `REPLACE_LABEL.len() + <byte offset within replacement>`
-        // WITHIN line 1 — NOT a buffer-global offset carrying the find row's
-        // bytes, which would never match a line-1 glyph and drop the caret onto
-        // the hardcoded-pitch fallback. `panel_layout` scopes its glyph scan to
-        // `caret_row`, so a line-relative offset can never false-match the
-        // identically-numbered byte on the find row.
-        //
-        // The byte/char offsets below are computed against the WINDOWED
-        // `query_view`/`replacement_view` (already scrolled so the caret sits
-        // inside it, via `field_view_window`), never the raw field text — so the
-        // caret always lands on a real shaped glyph of the FIXED-width field,
-        // including the reserved padding cell at a short field's own end.
+        // Byte offset + char-prefix of the FOCUSED field's caret, at its OWN
+        // CHAR-index position (`TextBox::caret`) — LINE-relative (cosmic-text
+        // resets `LayoutGlyph::start` to 0 after every `\n`), computed
+        // against the WINDOWED `query_view`/`replacement_view`, never the raw
+        // field text, so the caret always lands on a real shaped glyph.
         let (caret_byte, caret_fallback_chars, caret_row) = if editing_replacement {
             (
                 REPLACE_LABEL.len() + field_caret_byte(&replacement_view, replacement_view_caret),
@@ -308,6 +421,9 @@ impl TextPipeline {
             field_len,
             field_chars,
         );
+
+        self.panel_control_spans = controls;
+
         PanelShape {
             no_match,
             ink,
@@ -317,158 +433,5 @@ impl TextPipeline {
             caret_row,
             selection_span,
         }
-    }
-
-    /// Upload the shaped panel text (red on the no-match state, else calm ink) and
-    /// the opaque BASE_300 card behind it through the panel renderer.
-    #[allow(clippy::too_many_arguments)]
-    fn panel_upload_text(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        shape: &PanelShape,
-        card_rect: [f32; 4],
-        text_left: f32,
-        text_top: f32,
-    ) -> anyhow::Result<()> {
-        let bounds = TextBounds {
-            left: 0,
-            top: 0,
-            right: width as i32,
-            bottom: height as i32,
-        };
-        let panel_area = TextArea {
-            buffer: &self.panel_buffer,
-            left: text_left,
-            top: text_top,
-            scale: 1.0,
-            bounds,
-            default_color: if shape.no_match { shape.red } else { shape.ink },
-            custom_glyphs: &[],
-        };
-        self.panel_renderer
-            .prepare(
-                device,
-                queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                &self.viewport,
-                [panel_area],
-                &mut self.swash_cache,
-            )
-            .map_err(|e| anyhow::anyhow!("glyphon panel prepare failed: {e:?}"))?;
-
-        // ELEVATE the card on the reusable floating-panel primitive (raised
-        // border + base_300 card, no drop shadow — dark-depth Option C), so the
-        // summoned find/replace panel reads as risen a step above the crisp
-        // document (DESIGN §5) — clearer, more present furniture than the old
-        // flat pill. The flat `panel_card` is left empty; the search draw
-        // branch draws the float quads (parked whenever the panel is down).
-        self.claim_float_panel(
-            card_rect,
-            FloatElevation::Rimmed,
-            CardChamfer::default(),
-            None,
-        );
-        self.panel_card.prepare(device, queue, width, height, &[]);
-        self.panel_shadow.prepare(device, queue, width, height, &[]);
-        self.panel_border.prepare(device, queue, width, height, &[]);
-        Ok(())
-    }
-
-    /// Hit-test a physical pointer `(px, py)` against the summoned find/replace
-    /// panel, for CLICK-TO-SWITCH-FIELD. Reuses `panel_layout`'s card + row
-    /// geometry — the SAME layout the caret/text draw from, no parallel geometry —
-    /// so a click can never disagree with where a field is painted:
-    ///   * row 0, within the `Aa` cell at the row's right edge →
-    ///     [`PanelHit::CaseToggle`] (the caller flips case sensitivity);
-    ///   * row 0 elsewhere (`text_top .. +line_height`) → [`PanelHit::Find`];
-    ///   * row 1 (present only once the replace row is revealed) → [`PanelHit::Replace`];
-    ///   * anywhere else INSIDE the card (the key-hint line, inter-row gaps, the
-    ///     pad) → [`PanelHit::Elsewhere`] (the caller swallows it — a calm no-op,
-    ///     it never dismisses the search or moves the doc cursor beneath the card);
-    ///   * OFF the card, or the panel is down → `None` (the caller lets the press
-    ///     fall through to the document).
-    ///     The caret args to `panel_layout` do not affect the card rect / text origin,
-    ///     so pass zeros. Reads `self.window_w`, exactly like `overlay_geometry`.
-    pub fn panel_hit(&self, px: f32, py: f32) -> Option<PanelHit> {
-        if !self.search_active {
-            return None;
-        }
-        let width = self.window_w as u32;
-        let ([card_x, card_y, card_w, card_h], text_left, text_top, _caret_x) =
-            self.panel_layout(width, 0, 0, 0.0);
-        if px < card_x || px > card_x + card_w || py < card_y || py > card_y + card_h {
-            return None;
-        }
-        let row = self.panel_rows(text_top).row_at(py);
-        Some(match row {
-            0 => match self.panel_case_toggle_span(text_left) {
-                Some((x0, x1)) if px >= x0 && px <= x1 => PanelHit::CaseToggle,
-                _ => PanelHit::Find,
-            },
-            1 if self.search_replace_active => PanelHit::Replace,
-            _ => PanelHit::Elsewhere,
-        })
-    }
-
-    /// Physical x-span `[x0, x1]` of the `Aa` case indicator on the find row
-    /// (line 0), read from the SHAPED `panel_buffer` — the trailing two glyphs
-    /// of the row (`"Aa"` is always the LAST span shaped onto row 0, `panel_shape_text`).
-    /// Reading the real shaped advances keeps the click target in the SAME
-    /// coordinate system the indicator paints in (no hardcoded pitch drift, the
-    /// bug class `panel_layout` already guards for the caret). `text_left` is
-    /// `panel_layout`'s inner text origin. `None` when row 0 has fewer than two
-    /// glyphs (never in practice — `"Aa"` is always present).
-    pub(in crate::render) fn panel_case_toggle_span(&self, text_left: f32) -> Option<(f32, f32)> {
-        for run in self.panel_buffer.layout_runs() {
-            if run.line_i != 0 {
-                continue;
-            }
-            let n = run.glyphs.len();
-            if n < 2 {
-                return None;
-            }
-            let a = &run.glyphs[n - 2]; // 'A'
-            let z = &run.glyphs[n - 1]; // 'a'
-            return Some((text_left + a.x, text_left + z.x + z.w));
-        }
-        None
-    }
-
-    /// Place the amber query caret: a resting block matching the document caret's
-    /// height, centered vertically on the FOCUSED field's row (row 0 = search,
-    /// row 1 = replace). The row's centre comes from the panel's ONE row-band
-    /// owner (`panel_rows`), the same seam the hit-test inverts and the sidecar
-    /// projection publishes, so the caret cannot ride a row the pointer disagrees
-    /// about — asked through `panel_caret_cy`, which is that centre under a name a
-    /// law can reach.
-    fn panel_place_caret(
-        &mut self,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        caret_x: f32,
-        text_top: f32,
-        caret_row: f32,
-    ) {
-        let m = self.metrics;
-        let caret_h = m.caret_h * 0.8;
-        let caret_cx = caret_x + m.caret_w * 0.5;
-        let caret_cy = self.panel_caret_cy(text_top, caret_row);
-        self.panel_caret.prepare(
-            queue,
-            width,
-            height,
-            CaretRect {
-                center_x: caret_cx,
-                center_y: caret_cy,
-                rect_w: m.caret_w,
-                rect_h: caret_h,
-                corner: m.px(CORNER_RADIUS),
-            },
-        );
     }
 }

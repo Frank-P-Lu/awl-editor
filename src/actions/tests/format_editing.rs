@@ -250,7 +250,12 @@ fn tag_document_language_reads_the_live_ambiguity_ladder_and_no_ops_without_cjk(
     use crate::frontmatter::{DEFAULT_CJK_PRIORITY, Lang, cjk_priority, set_cjk_priority};
     let _g = crate::testlock::serial();
     let restore = cjk_priority();
-    let han_only = "汉字漢字\n";
+    // SHARED characters only (no kana/simplified-only/traditional-only/
+    // hangul) — the evidence tier ([`crate::script::cjk_evidence`]) is
+    // decisive over the ladder, so a fixture carrying evidence (like the
+    // simplified-only 汉 this used to read) would prove nothing about the
+    // ladder at all.
+    let han_only = "是文字\n";
 
     set_cjk_priority(&DEFAULT_CJK_PRIORITY);
     let mut ja = Buffer::from_str(han_only);

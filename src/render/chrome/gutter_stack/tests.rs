@@ -76,6 +76,21 @@ fn layout_of(files: &[StackRow], changed: bool, project: bool, budget: usize) ->
     }
 }
 
+/// A SYNTHETIC stand-in for [`shaped_line_widths`] — these are pure-data laws
+/// about `plate_rects`'/`stack_hit_from_plan`'s own MATH given a known ink
+/// width, not about whether a char-count estimate matches a real font's
+/// advances (`render/tests/gutter_stack_pixels.rs` proves that, on real
+/// shaped pixels). Reproducing the OLD estimate formula here keeps every
+/// numeric assertion below unchanged while `plate_rects` itself takes real
+/// widths in production.
+fn synth_ink_widths(layout: &GutterLayout, char_w: f32) -> Vec<f32> {
+    layout
+        .lines()
+        .iter()
+        .map(|(text, _)| (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * char_w)
+        .collect()
+}
+
 /// THE LEAF SURVIVES, THE LOCATION YIELDS. Swept across the whole budget range
 /// from "everything fits" down to the gutter's own hard floor, because the
 /// interesting behaviour is entirely in the middle: a budget wide enough for the
@@ -273,7 +288,7 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
                     8.0,
                     0.5,
                 );
-                let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+                let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
                 let shape = format!("changed={changed} project={project} active={active}");
                 assert_eq!(plates.len(), 1, "{shape}: expected exactly one plate");
                 let at = lines
@@ -358,7 +373,7 @@ fn a_single_file_block_plates_its_own_identity_line() {
                 0.5,
             );
             let shape = format!("changed={changed} project={project}");
-            let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+            let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
             assert_eq!(
                 plates.len(),
                 1,
@@ -389,7 +404,7 @@ fn a_single_file_block_plates_its_own_identity_line() {
                 8.0,
                 0.5,
             );
-            let row_plates = plate_rects(&as_row, &row_plan, 6.0, 2.0);
+            let row_plates = plate_rects(&as_row, &row_plan, &synth_ink_widths(&as_row, 6.0), 2.0);
             assert_eq!(
                 row_plates.len(),
                 1,
@@ -451,7 +466,7 @@ fn only_the_active_file_line_plates_across_the_whole_line_roster() {
             "the fixture never drew {kind:?} — this law would sweep past it"
         );
     }
-    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
     assert_eq!(plates.len(), 1, "exactly one plate: {plates:?}");
     let plated_band = plates[0];
     for (at, (_, kind)) in lines.iter().enumerate() {
@@ -579,7 +594,7 @@ fn an_active_group_heading_never_plates_only_its_active_file_does() {
         8.0,
         0.5,
     );
-    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
     assert_eq!(
         plates.len(),
         1,
@@ -610,7 +625,7 @@ fn only_the_active_file_ever_plates_never_any_group_heading() {
         8.0,
         0.5,
     );
-    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
     assert_eq!(
         plates.len(),
         1,
@@ -685,77 +700,120 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
         })
         .collect();
     assert_eq!(file_lines.len(), 3, "fixture enrols every file row");
+    let ink_widths = synth_ink_widths(&layout, label_char_w);
 
     for (line, row) in file_lines {
-        let band = plan.rows[line];
-        let text_w = (fitted[row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
-            as f32
-            * label_char_w;
-        let mark_w = super::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
-        let zone = close_zone(band, text_w, mark_w);
-        let y = band[1] + band[3] * 0.5;
-        let hit_at = |px: f32| {
-            super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, label_char_w, px, y)
-        };
-        let switch = hit_at(zone[0] - 1.0).expect("row-hover point enrols");
-        let close = hit_at(zone[0] + 1.0).expect("close-zone point enrols");
-        assert_eq!(switch.row, row);
-        assert!(!switch.is_close());
-        assert_eq!(close.row, row);
-        assert!(close.is_close());
-
-        let resting = stack_spans(&fitted, None);
-        let over_row = stack_spans(&fitted, Some(switch));
-        let over_zone = stack_spans(&fitted, Some(close));
-        let text = |spans: &[(String, glyphon::Color)]| {
-            spans.iter().map(|(s, _)| s.as_str()).collect::<String>()
-        };
-        assert_eq!(
-            text(&resting),
-            text(&over_row),
-            "row {row}: hover shifted the shaped label"
-        );
-        assert_eq!(
-            text(&resting),
-            text(&over_zone),
-            "row {row}: zone shifted the shaped label"
-        );
-        assert_eq!(
-            resting.iter().filter(|(s, _)| s.contains('×')).count(),
-            fitted.len(),
-            "every row reserves exactly one stable close run"
-        );
-        let marks = |spans: &[(String, glyphon::Color)]| {
-            spans
-                .iter()
-                .filter(|(s, _)| s.contains('×'))
-                .map(|(_, ink)| *ink)
-                .collect::<Vec<_>>()
-        };
-        let rest_marks = marks(&resting);
-        let row_marks = marks(&over_row);
-        let zone_marks = marks(&over_zone);
-        assert!(
-            rest_marks.iter().all(|ink| ink.a() == 0),
-            "a mark leaked into the resting frame"
-        );
-        for at in 0..fitted.len() {
-            assert_eq!(
-                row_marks[at].a() != 0,
-                at == row,
-                "row-hover enrollment disagrees at row {at}"
-            );
-            assert_eq!(
-                zone_marks[at].a() != 0,
-                at == row,
-                "zone-hover enrollment disagrees at row {at}"
-            );
-        }
-        assert_eq!(
-            row_marks[row].0, zone_marks[row].0,
-            "row {row}: one-stage reveal changed inside the zone"
+        assert_hover_flip_at_row(
+            &layout,
+            &plan,
+            label_char_w,
+            &ink_widths,
+            &fitted,
+            line,
+            row,
         );
     }
+}
+
+/// One iteration of the law above, split out to keep both functions under
+/// their own ceiling — see that test's own doc for what this proves.
+fn assert_hover_flip_at_row(
+    layout: &GutterLayout,
+    plan: &crate::render::plan::GutterStackPlan,
+    label_char_w: f32,
+    ink_widths: &[f32],
+    fitted: &[StackLine],
+    line: usize,
+    row: usize,
+) {
+    let band = plan.rows[line];
+    let text_w = ink_widths[line];
+    let mark_w = super::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
+    let zone = close_zone(band, text_w, mark_w);
+    let y = band[1] + band[3] * 0.5;
+    let hit_at = |px: f32| {
+        super::super::gutter_hit::stack_hit_from_plan(layout, plan, label_char_w, ink_widths, px, y)
+    };
+    let switch = hit_at(zone[0] - 1.0).expect("row-hover point enrols");
+    let close = hit_at(zone[0] + 1.0).expect("close-zone point enrols");
+    assert_eq!(switch.row, row);
+    assert!(!switch.is_close());
+    assert_eq!(close.row, row);
+    assert!(close.is_close());
+
+    let resting = stack_spans(fitted, None);
+    let over_row = stack_spans(fitted, Some(switch));
+    let over_zone = stack_spans(fitted, Some(close));
+    let text = |spans: &[(String, glyphon::Color)]| {
+        spans.iter().map(|(s, _)| s.as_str()).collect::<String>()
+    };
+    assert_eq!(
+        text(&resting),
+        text(&over_row),
+        "row {row}: hover shifted the shaped label"
+    );
+    assert_eq!(
+        text(&resting),
+        text(&over_zone),
+        "row {row}: zone shifted the shaped label"
+    );
+    assert_eq!(
+        resting.iter().filter(|(s, _)| s.contains('×')).count(),
+        fitted.len(),
+        "every row reserves exactly one stable close run"
+    );
+    let marks = |spans: &[(String, glyphon::Color)]| {
+        spans
+            .iter()
+            .filter(|(s, _)| s.contains('×'))
+            .map(|(_, ink)| *ink)
+            .collect::<Vec<_>>()
+    };
+    let rest_marks = marks(&resting);
+    let row_marks = marks(&over_row);
+    let zone_marks = marks(&over_zone);
+    // **617:** the mark carries real presence AT REST too — it wears the
+    // row's own name ink there (never transparent, `stack_spans`'s own
+    // File/Group rule) — so this asserts REST equals that ink exactly,
+    // rather than the retired "alpha zero" check.
+    let faint_ink = theme::faint().to_glyphon();
+    let rest_ink_for = |at: usize| {
+        if fitted[at].active {
+            active_row_ink()
+        } else {
+            faint_ink
+        }
+    };
+    for at in 0..fitted.len() {
+        assert_eq!(
+            rest_marks[at].0,
+            rest_ink_for(at).0,
+            "row {at}: the resting mark does not wear the row's own name ink"
+        );
+        if at == row {
+            assert_ne!(
+                row_marks[at].0, rest_marks[at].0,
+                "row {row}: row-hover must flip the mark's own ink"
+            );
+            assert_ne!(
+                zone_marks[at].0, rest_marks[at].0,
+                "row {row}: zone-hover must flip the mark's own ink"
+            );
+        } else {
+            assert_eq!(
+                row_marks[at].0, rest_marks[at].0,
+                "row-hover enrollment leaked a flip onto row {at}"
+            );
+            assert_eq!(
+                zone_marks[at].0, rest_marks[at].0,
+                "zone-hover enrollment leaked a flip onto row {at}"
+            );
+        }
+    }
+    assert_eq!(
+        row_marks[row].0, zone_marks[row].0,
+        "row {row}: one-stage flip changed inside the zone"
+    );
 }
 
 /// A GROUP HEADING'S OWN CLOSE ZONE IS THE ONLY TARGET IT EVER OFFERS —
@@ -770,7 +828,6 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
 fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
     let label_char_w = 6.0;
     let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
-    let fitted = fit_rows(&files, 24);
     let layout = layout_of(&files, false, true, 24);
     let plan = crate::render::plan::plan_gutter_stack(
         300.0,
@@ -797,9 +854,8 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
         })
         .expect("the fixture draws exactly one heading");
     let band = plan.rows[heading_line];
-    let text_w = (fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
-        as f32
-        * label_char_w;
+    let ink_widths = synth_ink_widths(&layout, label_char_w);
+    let text_w = ink_widths[heading_line];
     let mark_w = super::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
     let zone = close_zone(band, text_w, mark_w);
     let mid_y = band[1] + band[3] * 0.5;
@@ -808,6 +864,7 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
         &layout,
         &plan,
         label_char_w,
+        &ink_widths,
         zone[0] - 1.0,
         mid_y,
     );
@@ -820,6 +877,7 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
         &layout,
         &plan,
         label_char_w,
+        &ink_widths,
         zone[0] + 1.0,
         mid_y,
     )

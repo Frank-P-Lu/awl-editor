@@ -86,6 +86,19 @@ impl TextPipeline {
         self.panel_shadow.set_color(float_shadow_srgba());
         self.panel_border
             .set_color(theme::surface_selected().rgba_bytes());
+        // The find/replace panel's OWN inner chrome: a value step off the
+        // card (`base_200`, the SAME distinguishable-surface token the WYSIWYG
+        // fence/code-pill panels and the image placeholder already use) for
+        // every field/button/checkbox FILL, the SAME stroke token every other
+        // summoned card's border already carries (`surface_selected`, matching
+        // `panel_border`/`hud_border`/`wk_border` — merge, don't align) for
+        // their outline, and `muted` — the table rule's own hairline token —
+        // for the thin region separators.
+        self.panel_control_fill
+            .set_color(theme::base_200().rgba_bytes());
+        self.panel_control_border
+            .set_color(theme::surface_selected().rgba_bytes());
+        self.panel_rules.set_color(theme::muted().rgba_bytes());
         self.hud_shadow.set_color(float_shadow_srgba());
         self.hud_border
             .set_color(theme::surface_selected().rgba_bytes());
@@ -261,8 +274,14 @@ impl TextPipeline {
         let inline_images_changed =
             self.inline_images_latched != crate::markdown::inline_images_on();
         self.inline_images_latched = crate::markdown::inline_images_on();
+        let footnote_ladder_changed =
+            self.footnote_ladder_latched != crate::markdown::footnote_ladder_on();
+        self.footnote_ladder_latched = crate::markdown::footnote_ladder_on();
         let image_preview_dirty = std::mem::take(&mut self.image_preview_dirty);
-        let render_flag_changed = wysiwyg_changed || inline_images_changed || image_preview_dirty;
+        let render_flag_changed = wysiwyg_changed
+            || inline_images_changed
+            || footnote_ladder_changed
+            || image_preview_dirty;
         self.cjk_priority = view.cjk_priority.clone();
         // Shape the document text with any active preedit spliced in at the cursor.
         // This is the ONE place a reshape may happen; it is skipped when neither the
@@ -316,8 +335,13 @@ impl TextPipeline {
         // stale PRE-toggle geometry (the old ordering) would leave the caret one
         // step behind the just-revealed/concealed row until some unrelated event
         // caught it up. Calling it here settles the geometry first.
+        let conceal_at = self.text_sync_profile.then(crate::clock::Instant::now);
         self.refresh_rule_conceal(reshaped || restyled);
+        self.last_conceal_sync_ms =
+            conceal_at.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0);
+        let caret_at = self.text_sync_profile.then(crate::clock::Instant::now);
         self.set_caret_target(view.is_edit_move, view.held);
+        self.last_caret_target_ms = caret_at.map_or(0.0, |at| at.elapsed().as_secs_f64() * 1000.0);
     }
 
     pub fn set_hover_line(&mut self, line: Option<usize>) -> bool {
@@ -394,6 +418,7 @@ impl TextPipeline {
         self.overlay_query_caret = view.overlay_query_caret;
         self.overlay_query_field = view.overlay_query_field;
         self.overlay_query_selection = view.overlay_query_selection;
+        self.overlay_query_placeholder = view.overlay_query_placeholder.clone();
         self.overlay_title = view.overlay_title.clone();
         self.overlay_row_path_splits = view.overlay_row_path_splits;
         self.overlay_items = view.overlay_items.clone();
@@ -465,6 +490,7 @@ impl TextPipeline {
             None => self.caret_demo.reset(),
         }
         self.document_active = view.document_active;
+        self.start_folder.clone_from(&view.start_folder);
         self.gutter_name = view.gutter_name.clone();
         self.gutter_project = view.gutter_project.clone();
         self.gutter_changed = view.gutter_changed;

@@ -14,12 +14,25 @@ set -euo pipefail
 # --time` keeps every artifact whose fingerprint was used inside the window —
 # so the one worktree this script may prune is the one worktree guaranteed to
 # have used its artifacts minutes ago. And cargo-sweep never touches
-# target/debug/incremental, which measured 61-69% of every target/ sampled
+# target/debug/incremental, which measured 46-86% of every target/ sampled
 # here. Sampled across worktrees spanning 1.2-25.4 GiB and one to fourteen days
 # old, `--time 1` reclaimed nothing at all, and neither did any threshold up to
 # 60 days; the largest sweepable pool anywhere on the fleet was 2.8 GiB of deps
 # and fingerprints in a lane that had just rebuilt. 3 GiB is that ceiling, not
 # an expectation.
+#
+# scripts/sweep.sh now also prunes target/{debug,release}/incremental by the
+# same DAYS rule — measured directly, one idle root here carried 3.1 GiB of
+# session dirs untouched for a day or more, dead weight cargo-sweep can never
+# reach at any threshold. That yield does NOT raise this band: sampled across
+# four ACTIVE lanes on this fleet, every one of them showed 0 bytes of `--time
+# 1`-stale incremental, because a lane that is building keeps touching its own
+# session directories — the identical shape that already holds for
+# deps/fingerprints above. The new door pays off on sweep.sh's manual,
+# fleet-wide, longer-window mode over idle worktrees (.orchestrator/README.md),
+# not on the automatic one-lane `sweep.sh 1` this band models. If a future
+# measurement finds an active lane with stale incremental content at `--time
+# 1`, THIS BAND IS THE THING TO RE-DERIVE, not the assumption above it.
 #
 # So the band is DERIVED: begin recovering exactly one sweep's worth of
 # headroom above the floor this script refuses at. The previous 8 GiB band was

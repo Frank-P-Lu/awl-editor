@@ -136,13 +136,13 @@ fn every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here() {
         .iter()
         .filter(|f| !covered_by_name.contains(&f.as_str()))
         .collect();
-    // The thirteen `MiscPins` toggle fields: debug, outline, menu_bar,
+    // The fifteen `MiscPins` toggle fields: debug, outline, menu_bar,
     // typewriter, nits, popover, file_visibility_all, reduced_motion,
-    // code_ligatures, wysiwyg, inline_images, whichkey_force_shown,
-    // ambient_motion_on.
+    // code_ligatures, wysiwyg, inline_images, footnote_ladder,
+    // whichkey_force_shown, ambient_motion_on, cjk_auto.
     assert_eq!(
         uncovered_toggles.len(),
-        13,
+        15,
         "a `Toggle::new(` site appeared or vanished outside page.rs/spell.rs: {:?}. \
          Add (or remove) the matching field in testlock::misc::MiscPins — pins/restore/leaked \
          all need it — and update this count, or add the file to ALREADY_COVERED_ELSEWHERE \
@@ -249,6 +249,7 @@ fn every_misc_field_is_restored_not_just_the_one_that_bit_us() {
         crate::render::set_code_ligatures_on(!before.code_ligatures);
         crate::markdown::set_wysiwyg_on(!before.wysiwyg);
         crate::markdown::set_inline_images_on(!before.inline_images);
+        crate::markdown::set_footnote_ladder_on(!before.footnote_ladder);
         crate::whichkey::set_force_shown(!before.whichkey_force_shown);
         // Each discrete-valued (non-bool) field picks whichever alternative
         // ISN'T the ambient starting value, so the flip is guaranteed to
@@ -304,4 +305,23 @@ fn leaked_names_the_field_a_narrower_restore_would_have_missed() {
         vec![format!("debug: {:?} -> {:?}", base.debug, dirty.debug)],
         "leaked() must name the exact field that diverged"
     );
+}
+
+#[test]
+fn cjk_auto_pin_reports_changes_and_restores_both_values() {
+    let _guard = crate::testlock::serial();
+    let before = pins();
+    for auto in [false, true] {
+        crate::frontmatter::set_cjk_priority_auto(auto);
+        let snapshot = pins();
+        crate::frontmatter::set_cjk_priority_auto(!auto);
+        assert!(
+            leaked(&snapshot, &pins())
+                .iter()
+                .any(|field| field.starts_with("cjk_auto:"))
+        );
+        restore(&snapshot);
+        assert_eq!(crate::frontmatter::cjk_priority_is_auto(), auto);
+    }
+    restore(&before);
 }

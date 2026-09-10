@@ -1,6 +1,11 @@
 //! Document chrome: overlays, gutter, and corner readouts.
 use super::*;
 mod start;
+// The capture sidecar's `document.start_goto_chord` reads this — the SAME
+// derivation `prepare_start_surface`'s dim line draws, so a sidecar assertion
+// can verify the exact chord glyph a capture shows rather than recomputing a
+// second, possibly-diverging expectation.
+pub(crate) use start::goto_chord_label;
 // The scene planner owns the candidate-row geometry every overlay
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`) and adds the shared item-row HEIGHT clamp.
@@ -178,9 +183,17 @@ pub(in crate::render) struct PanelShape {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PanelHit {
+    /// The `Match case` checkbox.
     CaseToggle,
     Find,
     Replace,
+    /// The prev/next match-step buttons on the nav row.
+    NavPrev,
+    NavNext,
+    /// The `Replace` / `Replace all` buttons — present only once the replace
+    /// row is revealed (`panel_hit` never returns these while it is down).
+    ReplaceButton,
+    ReplaceAllButton,
     Elsewhere,
 }
 
@@ -391,10 +404,18 @@ mod overlay_policy;
 pub(in crate::render) use overlay_policy::*;
 mod overlay_clamp;
 mod panel;
+/// The panel's bordered field/button/checkbox CONTROLS: their byte-span
+/// bookkeeping and the one owner that resolves a span into a physical rect —
+/// split out for the same reason as `panel_selection`.
+mod panel_controls;
+/// The panel's upload/hit-test half — split out to keep `panel.rs` under its
+/// production ceiling.
+mod panel_draw;
 /// The panel's FIELD SELECTION BAND, split out to keep `panel.rs` under its
 /// production ceiling.
 mod panel_selection;
 pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
+pub(in crate::render) use panel_controls::{ControlSpan, PanelControlSpans};
 use panel_selection::panel_selection_span;
 // The SUMMONED WORKSPACE family: geometry, navigation rail, hit-test, its two
 // regions' shared box arithmetic, and the RELOCATED

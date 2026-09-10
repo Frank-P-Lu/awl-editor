@@ -1518,7 +1518,7 @@ pub(crate) fn derived_placard_corner(
 pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
     match overrides::current().card_anchor {
         Some(anchor) => anchor,
-        None => theme::active().render_caps.card_anchor,
+        None => picker_chrome_theme().render_caps.card_anchor,
     }
 }
 
@@ -1581,7 +1581,7 @@ pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     match overrides::current().chrome_face {
         Some(f) => f,
-        None => theme::active().render_caps.chrome_face,
+        None => picker_chrome_theme().render_caps.chrome_face,
     }
 }
 
@@ -1612,10 +1612,128 @@ pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
 
 pub(crate) const BAR_OUTLINE_STROKE: Logical = Logical(1.5);
 
+thread_local! {
+    /// The world INDEX the currently-open THEME PICKER's own chrome composes
+    /// against, or `usize::MAX` while nothing is pinned — every OTHER overlay
+    /// kind, and no overlay at all. Reader feedback: arrow-stepping the picker
+    /// re-composed the LIST ITSELF into each previewed world (moving corners,
+    /// row pitch, list style, visible-row count) because every render call below
+    /// read `theme::active()` LIVE, and the picker's own preview step
+    /// (`preview_overlay`) is the one thing in the app that swaps
+    /// `theme::active()` while an overlay is still open. Set once at summon
+    /// (`OverlayState::new_marked`, to whichever world was active then) and
+    /// re-set to `usize::MAX` the moment any NON-theme overlay opens — since
+    /// only one overlay is ever open at a time, and every overlay of every kind
+    /// passes through that one constructor, this needs no dismiss/accept/revert
+    /// hook: the NEXT summon of any kind always leaves it correct for itself.
+    /// A stale pin surviving between summons is inert — every reader here is
+    /// itself reachable only while SOME overlay's own chrome is being computed.
+    ///
+    /// THREAD-LOCAL, deliberately, unlike `theme::ACTIVE`: overlay construction
+    /// is on the hot path of nearly every test in the tree (unlike a theme
+    /// switch, which a test opts into), so a process-wide static here would put
+    /// `crate::testlock::serial()` on every one of them. A single production
+    /// process drives its whole overlay/render lifecycle from one thread, so a
+    /// thread-local behaves identically there; it only additionally isolates
+    /// `cargo test`'s parallel worker threads from each other, which is exactly
+    /// the property that lets this skip the lock.
+    static PICKER_CHROME_PIN: std::cell::Cell<usize> = const { std::cell::Cell::new(usize::MAX) };
+}
+
+/// The world the theme picker's OWN chrome reads its `RenderCaps` (and
+/// `location_style`) from this frame: the pin while one is set, else
+/// `theme::active()` exactly as every other overlay reads it. The ONE seam
+/// [`effective_list_style`], [`effective_facet_style`], [`effective_pane_split`],
+/// [`effective_chrome_face`] and [`effective_location_style`] read instead of
+/// `theme::active()` directly, so none of their ~40 existing call sites (every
+/// other overlay's own geometry/shaping/hit-test/selection-mark code) needs a
+/// per-kind branch — the pin is a no-op for them by construction, since the
+/// active world cannot move under a summon that never previews one.
+fn picker_chrome_theme() -> theme::Theme {
+    let idx = PICKER_CHROME_PIN.with(|c| c.get());
+    theme::THEMES
+        .get(idx)
+        .copied()
+        .unwrap_or_else(theme::active)
+}
+
+/// Pin the theme picker's own chrome to the world active RIGHT NOW — called
+/// once, at summon, from [`crate::overlay::OverlayState::new_marked`].
+pub(crate) fn pin_picker_chrome() {
+    PICKER_CHROME_PIN.with(|c| c.set(theme::active_index()));
+}
+
+/// Release the pin — called from the same constructor for every non-`Theme`
+/// summon, so a picker that just closed can never leave a stale pin under
+/// the next (unrelated) overlay.
+pub(crate) fn unpin_picker_chrome() {
+    PICKER_CHROME_PIN.with(|c| c.set(usize::MAX));
+}
+
+/// TEST/AUDIT HOOK: the pinned world index, or `None` while unpinned.
+#[cfg(test)]
+pub(crate) fn picker_chrome_pin_probe() -> Option<usize> {
+    let idx = PICKER_CHROME_PIN.with(|c| c.get());
+    (idx < theme::THEMES.len()).then_some(idx)
+}
+
+/// TEST HOOK, the write half of [`picker_chrome_pin_probe`]: force the raw
+/// pin state back to exactly what a snapshot read — `None` unpins,
+/// `Some(idx)` pins to that world. Used by [`PickerChromePinRestore`] to put
+/// the pin back the way a test found it, on the unwinding path too.
+#[cfg(test)]
+pub(crate) fn set_picker_chrome_pin_for_test(pin: Option<usize>) {
+    PICKER_CHROME_PIN.with(|c| c.set(pin.unwrap_or(usize::MAX)));
+}
+
+/// Scoped snapshot-and-restore for a test that manipulates the picker chrome
+/// pin DIRECTLY — bypassing the ordinary overlay-construction lifecycle
+/// ([`pin_picker_chrome`]/[`unpin_picker_chrome`] via
+/// `OverlayState::new_marked`) that otherwise makes a stale pin
+/// self-correcting: every summon of ANY overlay kind sets or clears it
+/// unconditionally, so a pin left over from a NORMAL test is inert (this
+/// thread-local's own doc above). A test that instead calls
+/// `unpin_picker_chrome()`/`pin_picker_chrome()` (or the raw setter above)
+/// itself, mid-test, to observe or undo a mutation — the one shape in this
+/// tree today is `render::tests::theme_picker_chrome_pin_law`'s own
+/// mutation-proof test — steps OUTSIDE that self-healing lifecycle for the
+/// span it does so, and a panicking assertion in that span leaves the pin
+/// exactly where the mutation put it: a CONCRETE world index surviving for
+/// whatever the harness schedules onto this worker thread next, the same
+/// shape a leaked forced `ListStyle` once corrupted an unrelated law with.
+/// Capture this BEFORE such a manual mutation; its `Drop` restores the
+/// captured value, including while unwinding.
+///
+/// Deliberately NOT a field on `testlock::misc::MiscPins`: that module's
+/// shared list is for globals that must return to one stable AMBIENT value
+/// between tests, and this pin's whole design is the opposite — it is
+/// EXPECTED to still read `Some(idx)` after any ordinary test that summons a
+/// Theme overlay and returns without dismissing it (self-healing happens at
+/// the NEXT overlay construction, not at test-exit). A field there would
+/// make `SerialGuard`'s exit audit flag that ordinary, correct exit state as
+/// a leak — exactly the false positive `theme_picker_chrome_pin_law`'s own
+/// non-mutation tests would trip on every run.
+#[cfg(test)]
+pub(crate) struct PickerChromePinRestore(Option<usize>);
+
+#[cfg(test)]
+impl PickerChromePinRestore {
+    pub(crate) fn capture() -> Self {
+        PickerChromePinRestore(picker_chrome_pin_probe())
+    }
+}
+
+#[cfg(test)]
+impl Drop for PickerChromePinRestore {
+    fn drop(&mut self) {
+        set_picker_chrome_pin_for_test(self.0);
+    }
+}
+
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     match overrides::current().list_style {
         Some(s) => s,
-        None => theme::active().render_caps.list_style,
+        None => picker_chrome_theme().render_caps.list_style,
     }
 }
 
@@ -1632,15 +1750,24 @@ pub(crate) fn effective_bar_config() -> theme::BarConfig {
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     match overrides::current().facet_style {
         Some(s) => s,
-        None => theme::active().render_caps.facet_style,
+        None => picker_chrome_theme().render_caps.facet_style,
     }
 }
 
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     match overrides::current().pane_split {
         Some(s) => s,
-        None => theme::active().render_caps.pane_split,
+        None => picker_chrome_theme().render_caps.pane_split,
     }
+}
+
+/// The ONE owner of the overlay `location_style` read — mirrors
+/// [`effective_list_style`]/[`effective_facet_style`]/[`effective_pane_split`]
+/// (no dev-only force knob exists for this axis, so there is no `overrides`
+/// arm to check first). Every direct `theme::active().render_caps.location_style`
+/// read in a render CONSUMER is a stray that bypasses the theme picker's pin.
+pub(crate) fn effective_location_style() -> theme::LocationStyle {
+    picker_chrome_theme().render_caps.location_style
 }
 pub(crate) fn effective_overlay_density() -> TypeDensity {
     match overrides::current().density {
@@ -1730,6 +1857,15 @@ struct VisualRow {
     xs: Vec<f32>,
 }
 
+/// One visual row assembled from a single line's shaped layout, before its
+/// document-relative top is known. The incremental geometry path uses the
+/// baseline offset and row height to decide whether that line can replace its
+/// prior rows without moving any later row.
+struct LocalVisualRow {
+    row: VisualRow,
+    baseline_offset: f32,
+}
+
 impl Clone for VisualRow {
     fn clone(&self) -> Self {
         #[cfg(test)]
@@ -1772,6 +1908,10 @@ pub struct TextPipeline {
     pub renderer: TextRenderer,
     pub buffer: GlyphBuffer,
     document_active: bool,
+    /// Mirror of [`ViewState::start_folder`] — see that field's doc. Read by
+    /// `prepare_start_surface`'s third dim line and by the sidecar's
+    /// `document.start_folder`, both through [`Self::start_folder`].
+    start_folder: Option<String>,
     /// The GPU quad pipeline that draws the caret underline/dot (no glow/trail).
     /// This is the classic BLOCK caret; left untouched by the Morph work.
     pub caret_pipeline: CaretPipeline,
@@ -1983,6 +2123,28 @@ pub struct TextPipeline {
     pub panel_bind_buffer: GlyphBuffer,
     pub placard_buffer: GlyphBuffer,
     pub panel_caret: CaretPipeline,
+    /// The find/replace panel's own INNER chrome — bordered field/button/checkbox
+    /// boxes and the thin region separators, all local to this one summoned
+    /// card (never shared with the overlay's `panel_card`/`panel_shadow`/
+    /// `panel_border` trio, which belongs to the picker/list surfaces and is
+    /// parked empty whenever the search panel is the thing up). `panel_control_fill`
+    /// carries every box's FILL (one `prepare()` call, one shared corner/color),
+    /// `panel_control_border` the matching STROKE-only outline (padded out by
+    /// `FLOAT_BORDER_RING_PX`, mirroring the shared float-panel border), and
+    /// `panel_rules` the hairline separators between the fields / nav / actions
+    /// regions (corner forced to 0 each frame — a rounded hairline reads as a
+    /// pill, not a rule). See `chrome::panel::panel_controls_layout`, the one
+    /// owner every box/rule rect and the click-test below both read.
+    pub panel_control_fill: SelectionPipeline,
+    pub panel_control_border: SelectionPipeline,
+    pub panel_rules: SelectionPipeline,
+    /// The find/replace panel's own controls, as [`chrome::panel_shape_text`]
+    /// last shaped them — the byte-span cache `panel_hit` and the sidecar's
+    /// `panel_geometry` both resolve through `panel_controls_layout`, exactly
+    /// the way `panel_buffer`'s own shaped glyphs are read back by both of
+    /// them after the frame that shaped them. Defaults empty (every control
+    /// absent) so a pipeline that never opened the search panel reports none.
+    panel_control_spans: crate::render::chrome::PanelControlSpans,
     /// The RENAME MINIBUFFER's seeded-stem selection wash — a query-field
     /// selection band, the same rounded-quad primitive [`Self::overlay_rows`]
     /// draws for a selected ROW but its own instance, because the two carry
@@ -2120,12 +2282,17 @@ pub struct TextPipeline {
     /// the scroll<->pixel conversion can no longer use `row_index * line_height`;
     /// `RowGeom` holds, per visual row in document order (as `layout_runs()` yields
     /// them — ascending `line_top`), the row's top y + height plus the document's
-    /// total pixel height, built lazily from the shaped runs and invalidated whenever
-    /// the buffer is reshaped or its metrics change. Counting rows walks every shaped
+    /// total pixel height, built lazily from the shaped runs. Text-only edits retain
+    /// it when changed lines keep the same row count and heights; structural edits,
+    /// changed heights, and metric changes invalidate it. Counting rows walks every shaped
     /// run, so caching keeps the per-frame / per-keystroke `app.rs` reads free. The
     /// pipeline's `row_top_px` / `row_height_px` / `total_doc_height` /
     /// `total_visual_rows` delegate here.
     row_geom: rowgeom::RowGeom,
+    #[cfg(test)]
+    search_rect_work: std::cell::Cell<usize>,
+    #[cfg(test)]
+    visible_row_gathers: std::cell::Cell<usize>,
     /// TARGET-LINE-LOCAL caret glyph record — the cursor line's shaped
     /// glyph clusters `(start_byte, end_byte, CacheKey)`, read from that line's OWN
     /// `layout_opt()` rather than by filtering the whole document's `layout_runs()`.
@@ -2258,6 +2425,14 @@ pub struct TextPipeline {
     /// measured 22 ms of a squiggle-dense doc's 28 ms frame). See
     /// [`rects::UnderlineCache`].
     squiggle_cache: rects::UnderlineCache,
+    /// Retained per-line SPELL-SQUIGGLE geometry backing `squiggle_cache`,
+    /// refreshed once per reshape in [`Self::set_text`] from that reshape's
+    /// own `TextChange` band (mirrors [`Self::nit_projection`]'s timing
+    /// discipline) plus reconciled lazily in `ensure_squiggle_protos` for the
+    /// no-reshape axis (a dictionary edit, a spellcheck toggle). Interior-
+    /// mutable so the read-only `ensure_squiggle_protos` can reconcile it.
+    /// See [`rects::SquiggleProjection`].
+    squiggle_projection: std::cell::RefCell<rects::SquiggleProjection>,
     nit_cache: rects::UnderlineCache,
     /// CACHED SYNTAX-WASH PROTOS — the scroll-independent comment/string wash
     /// quads, keyed on (row-geometry generation, reshape count) exactly like the
@@ -2287,6 +2462,23 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
+    /// Release-benchmark instrumentation for the real document reshape seam.
+    /// Disabled in ordinary editor and capture runs.
+    text_sync_profile: bool,
+    last_text_sync_phases: text::TextSyncPhases,
+    last_conceal_sync_ms: f64,
+    last_caret_target_ms: f64,
+    /// Frame-preparation owner witnesses: the two confirmed
+    /// document-wide rescans (`ensure_nit_protos`, `ensure_ornament_lists`), the
+    /// full-document join they can each trigger (`destination_ranges`), and the
+    /// spell-squiggle proto rebuild. Reset once per [`Self::prepare`] call.
+    owner_scan: rects::OwnerScanWork,
+    /// Retained per-line writing-nit spans, refreshed once per reshape in
+    /// [`Self::set_text`] from that reshape's own `TextChange` band — never
+    /// read lazily from `prepare`, so two reshapes landing before the next
+    /// drawn frame both still patch the cache instead of losing one to a
+    /// coalesced redraw. See [`rects::NitProjection`].
+    nit_projection: rects::NitProjection,
     /// `Some` while a [`ShapeReach::Presentable`] reshape owes an off-screen tail;
     /// the value is the last settled whole-document height. A preview burst keeps
     /// it stable while the live row table is intentionally truncated, so each
@@ -2570,6 +2762,8 @@ pub struct TextPipeline {
     /// line behave as a search field? `false` parks its caret.
     overlay_query_field: bool,
     overlay_query_selection: Option<(usize, usize)>,
+    /// Mirror of [`ViewState::overlay_query_placeholder`].
+    overlay_query_placeholder: Option<String>,
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
@@ -2683,18 +2877,13 @@ pub struct TextPipeline {
     /// [`ViewState::gutter_files`].
     gutter_files: Vec<crate::workingset::StackRow>,
     /// The working-set row/zone under the live pointer. `None` on every
-    /// headless frame (no pointer driver), so the close-mark reveal it drives
-    /// is live-pointer-only and unreachable from any capture door.
+    /// headless frame (no pointer driver), so the close-mark hover flip it
+    /// drives is live-pointer-only and unreachable from any capture door.
     gutter_stack_hover: Option<chrome::GutterStackHit>,
     /// The soft plate under the gutter block's ACTIVE FILE — a working-set row's,
     /// or the lone identity line's. Empty whenever the gutter is not drawn, so
     /// such a frame issues no extra draw (`SelectionPipeline::draw` early-returns).
     gutter_stack_plate: crate::selection::SelectionPipeline,
-    /// The soft square behind the × under the live pointer, drawn only
-    /// inside a row's close ZONE — the same rect
-    /// [`chrome::gutter_stack::close_hover_plate_rect`] hands the hit-test.
-    /// Empty outside that one hover state, so an ordinary frame draws none.
-    gutter_close_hover_plate: crate::selection::SelectionPipeline,
     /// A live row-DRAG's own drop-slot indicator: the drawn row index to
     /// insert BEFORE (`gutter_files.len()` means "at the very end"). `None`
     /// off a drag entirely — mirrors [`Self::gutter_stack_hover`]'s own
@@ -2724,16 +2913,19 @@ pub struct TextPipeline {
     /// inert (`keymap::seeded_chords_for` returns empty off `KeymapFlavor::Emacs`).
     config_keymap_flavor: crate::keymap::KeymapFlavor,
     md_enabled: bool,
-    /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
-    /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so
-    /// [`Self::set_view`] can force a full restyle when either FLIPS on UNCHANGED
+    /// WYSIWYG / INLINE-IMAGES / FOOTNOTE-LADDER LATCH: the last-shaped value of
+    /// three rendering process-globals (`markdown::wysiwyg_on()` /
+    /// `inline_images_on()` / `markdown::footnote_ladder_on()`), so
+    /// [`Self::set_view`] can force a full restyle when any FLIPS on UNCHANGED
     /// text — exactly like the `md_enabled` / `syn_lang` gates beside it. The
-    /// conceal geometry (zero-width metrics) and image row heights are baked into
-    /// each line's attrs at shape time, so a settings-menu toggle with no text edit
-    /// would otherwise leave them stale until the next edit; this is the live-apply
-    /// path that gap needed. A no-op on every ordinary frame (the value is unchanged).
+    /// conceal geometry (zero-width metrics), image row heights, and a footnote's
+    /// reserved painted-mark slot are all baked into each line's attrs at shape
+    /// time, so a settings-menu toggle with no text edit would otherwise leave
+    /// them stale until the next edit; this is the live-apply path that gap
+    /// needed. A no-op on every ordinary frame (the value is unchanged).
     wysiwyg_latched: bool,
     inline_images_latched: bool,
+    footnote_ladder_latched: bool,
     md_spans: Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     outline_headings: Vec<crate::markdown::Heading>,
     /// **THE WORKING SET'S HALF OF THE RAIL RESERVATION:** does any open buffer
@@ -2747,6 +2939,23 @@ pub struct TextPipeline {
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
     doc_lang: Option<crate::frontmatter::Lang>,
+    /// The document-scoped Han-ambiguity EVIDENCE signal
+    /// ([`crate::script::cjk_evidence`]), cached exactly like [`Self::doc_lang`]
+    /// beside it: both are pure functions of the whole document TEXT, so both
+    /// are computed once in [`Self::set_text_incremental`] and reused by the
+    /// non-text-triggered reshape paths (`restyle_all_lines`,
+    /// `refresh_rule_conceal`) rather than re-scanning the document on every
+    /// zoom/caret pass. Folded into [`Self::cjk_priority`] at the point of use
+    /// via [`crate::script::effective_cjk_priority`] — never read directly by
+    /// the render ladder — so a config-only `cjk_priority` change (which does
+    /// NOT retag the text) still combines with the CURRENT evidence rather
+    /// than a stale one.
+    han_evidence: Option<crate::frontmatter::Lang>,
+    /// Retained per-line source of [`Self::han_evidence`], refreshed once per
+    /// reshape from that reshape's own `TextChange` band instead of
+    /// rescanning every character of the document — see
+    /// [`rects::HanEvidenceProjection`].
+    han_evidence_projection: rects::HanEvidenceProjection,
     script_fonts: text::ScriptFonts,
     /// Mirrored from [`ViewState::doc_source`]; read only by `figure_source`.
     doc_source: Option<DocSource>,

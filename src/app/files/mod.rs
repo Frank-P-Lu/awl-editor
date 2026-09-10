@@ -102,10 +102,13 @@ pub(in crate::app) fn window_title(
 }
 
 /// Window title when the working set intentionally has no active document.
-/// It names only the application and world; a scratch label here would invent
-/// a document that does not exist.
-pub(in crate::app) fn window_title_no_document(theme_name: &str) -> String {
-    format!("awl [{theme_name}]")
+/// It names the open FOLDER — never a document, which would invent one that
+/// does not exist. `folder_name` is the caller's one owner
+/// (`ProjectLocation::no_document_folder_name`), the SAME string the start
+/// screen's own dim line names, so the title bar and the on-canvas surface
+/// can never disagree about what the folder is called.
+pub(in crate::app) fn window_title_no_document(folder_name: &str, theme_name: &str) -> String {
+    format!("awl - {folder_name} [{theme_name}]")
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

@@ -308,6 +308,7 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
             crate::theme::active_index(),
         )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
+            crate::frontmatter::cjk_priority_is_auto(),
             crate::frontmatter::cjk_priority()
                 .first()
                 .copied()
@@ -731,7 +732,8 @@ macro_rules! classify_delete_flinch {
             | Action::TrashFile
             | Action::MoveLineUp
             | Action::MoveLineDown
-            | Action::Ignore => None,
+            | Action::Ignore
+            | Action::SearchPanel(_) => None,
         }
     };
 }
@@ -972,7 +974,8 @@ macro_rules! assert_action_roster {
             | Action::RevealInFileManager
             | Action::CopyFilePath
             | Action::TrashFile
-            | Action::Ignore => {}
+            | Action::Ignore
+            | Action::SearchPanel(_) => {}
         }
     };
 }
@@ -1347,7 +1350,8 @@ macro_rules! classify_smoke_command {
         | Action::ShowStatsHud
         | Action::OpenSettings
         | Action::BeginPrefix
-            | Action::Ignore => SmokeKind::NotCatalog,
+            | Action::Ignore
+            | Action::SearchPanel(_) => SmokeKind::NotCatalog,
         }
     };
 }

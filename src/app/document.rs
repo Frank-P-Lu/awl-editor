@@ -15,6 +15,9 @@ mod cache;
 mod edit;
 mod entries;
 mod naming;
+/// The search/replace panel's `DocumentSession` delegates — split out to keep
+/// this file under its production ceiling.
+mod search;
 #[cfg(not(target_arch = "wasm32"))]
 mod session_restore;
 #[cfg(test)]
@@ -26,6 +29,7 @@ struct BufferExtra {
     scroll: crate::render::ScrollPos,
     spell_cache: Vec<crate::spell::SpellVerdict>,
     spell_checked_version: Option<u64>,
+    spell_projection: crate::spell::SpellProjection,
     sync_text_cache: Option<(u64, String)>,
     caret_synced_version: u64,
     doc_saved_version: Option<u64>,
@@ -381,15 +385,6 @@ impl DocumentSession {
         self.previous.clone()
     }
 
-    pub(in crate::app) fn intercept_search_key(
-        &mut self,
-        search: &mut Option<crate::search::SearchState>,
-        logical: &winit::keyboard::Key,
-        mods: winit::keyboard::ModifiersState,
-    ) -> Option<crate::caret::RecoilDir> {
-        crate::search::keys::intercept(search, &mut self.active_entry_mut().buffer, logical, mods)
-    }
-
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn open_count(&self) -> usize {
         self.registry.len() + usize::from(self.active.is_some())
@@ -453,11 +448,13 @@ impl DocumentSession {
             .unfold_at(line);
     }
     pub(in crate::app) fn set_path(&mut self, path: PathBuf) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .set_path(path);
+        let active = self.active.as_mut().expect("active document");
+        let before = active.buffer.syntax_lang();
+        active.buffer.set_path(path);
+        if active.buffer.syntax_lang() != before {
+            active.extra.spell_checked_version = None;
+            active.extra.spell_projection.invalidate();
+        }
     }
     pub(in crate::app) fn set_note_dir(&mut self, path: PathBuf) {
         self.active_entry_mut().buffer.set_note_dir(path);

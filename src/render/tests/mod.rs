@@ -30,6 +30,11 @@ mod bowerbird_breathe;
 mod bowerbird_finds;
 mod bowerbird_spacing;
 mod build_integrity;
+/// The bullet ornament's real-pixel reveal law: a selection touching a
+/// nested list row draws ONLY that row's raw dash, never the depth glyph
+/// stacked over it — the `rule_reveal_state` pixel law's sibling for the
+/// other legacy (pre-`ConcealKind`) construct.
+mod bullet_reveal_pixels;
 mod card_texture_shape;
 mod caret;
 mod caret_block;
@@ -126,13 +131,19 @@ mod frost_upright;
 /// enumeration's completeness is measured off a frost-suppressed frame.
 mod frost_width;
 mod geometry;
+mod geometry_patch;
 mod geometry_reshape;
 mod glide_anchor_law;
+/// The glyph-ink alpha decision: `Srgb::to_glyphon` carries alpha, the
+/// renderer honours it, and no shipped ink is translucent — so the repair
+/// moved no pixel of the product.
+mod glyph_alpha_law;
 /// The GPU program cache: amortised, single-owner, and world-neutral.
 mod gpu_cache_law;
 mod grapheme_click;
 mod ground_space;
 mod gutter_stack_pixels;
+mod han_evidence_projection;
 mod hint_gap;
 mod hit_test;
 mod hover_grammar;
@@ -140,6 +151,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod insert_link_field;
 mod layout_oracle;
 mod list_surfaces;
 mod magpie_bands;
@@ -188,6 +200,7 @@ mod palette_shortcuts;
 /// THE FIND/REPLACE PANEL'S SELECTION BAND: real ink on the focused row, its
 /// edges through the same shaped-glyph scan the amber caret rides, clipped by
 /// the same fixed-width window rule.
+mod panel_bordered_chrome;
 mod panel_field_selection;
 mod paperbark_retina;
 mod pipeline_tint_law;
@@ -197,6 +210,7 @@ mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod pull_quote_pair;
 mod query_field;
+mod quote_close_geometry;
 mod quote_orientation;
 mod rail_ink_law;
 mod raked_location;
@@ -247,11 +261,13 @@ mod smart_punct;
 /// exhaustive style enrolment, full Add row, raking coverage and outside identity.
 mod spell_popup_diagonal;
 mod split_pane;
+mod squiggle_projection;
 mod stars;
 /// The no-document start screen: both actions read in the same full ink, and
 /// each row's chord glyph reads muted beside it — the quiet-chord/full-ink-verb
 /// split `shape_overlay_right` established for a row's secondary column, reused
 /// here rather than a bespoke start-screen ink rule.
+mod start_folder_law;
 mod start_screen_ink_law;
 /// The Writing-streaks card's own drawn geometry: `streaks_card_rect` names
 /// the rect a click hit-test reads, and the ←/→ paging hint's presence is
@@ -266,6 +282,7 @@ mod symbol_atlas_gallery;
 mod syntax_ligatures;
 mod syntax_roles;
 mod table_dims;
+mod table_pan_reveal_law;
 mod table_selection_band_law;
 mod tables;
 /// The document's first-row vertical origin (`TextPipeline::text_origin_top`,
@@ -278,6 +295,11 @@ mod theme_caps_law;
 /// ACTION path, so the RENDER path can hold the world still while the selection
 /// moves — the true A/B no capture can arrange, and the answer to the pre-tag
 /// sweep's abstention on every textured and staggered world.
+/// The card's opaque/frosted backing must survive a cross-world preview —
+/// the treatment 609's chrome pin never covered, since the pin and the backing are
+/// separate mechanisms that happen to share one seam once this item joins them.
+mod theme_picker_backing_law;
+mod theme_picker_chrome_pin_law;
 mod theme_picker_selection_law;
 /// How far one theme-picker arrow's reshape REACHES — the whole document, not
 /// the viewport — carrying the release per-stage measurement that makes that
@@ -597,3 +619,5 @@ pub(super) fn view_md(text: &str, line: usize, col: usize) -> ViewState {
     v.is_markdown = true;
     v
 }
+
+mod search_rects;

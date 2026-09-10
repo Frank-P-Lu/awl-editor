@@ -358,6 +358,11 @@ impl TextPipeline {
 
         let [card_x, card_y, card_w, card_h] = regions.card;
         let ([primary_x, primary_w], [pane_x, pane_w]) = (regions.primary, regions.pane);
+        let pane_w = if rows_primary {
+            pane_w
+        } else {
+            pane_w.min(self.workspace_max_pane())
+        };
 
         // A LABEL RAIL is shaped only when the primary column shows LABELS
         // (`!rows_primary`) and only while visible; its grid is resolved from

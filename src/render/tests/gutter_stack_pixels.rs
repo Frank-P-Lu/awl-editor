@@ -122,6 +122,190 @@ fn ink_weight(px: &[[u8; 4]], band: [f32; 4], ground: [u8; 4]) -> f32 {
     if n == 0.0 { 0.0 } else { total / n }
 }
 
+/// The MAXIMUM distance from `ground` anywhere in an explicit pixel window —
+/// the presence-floor companion [`ink_weight`]'s own mean cannot serve for a
+/// window as narrow as the close mark's own lane: the mark is a minority of
+/// even that small window (`the_lone_row_close_mark_flips_colour…`'s own
+/// "no plate paints" bound proves as much), so a MEAN would report the
+/// window's own quiet majority rather than whether the × itself ever became
+/// real ink — the extreme is what the reader's eye actually meets.
+fn max_dist_in(px: &[[u8; 4]], x0: u32, x1: u32, y0: u32, y1: u32, ground: [u8; 4]) -> f32 {
+    let mut worst = 0.0f32;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            worst = worst.max(dist(px[(y * W + x) as usize], ground));
+        }
+    }
+    worst
+}
+
+/// The identity row's own real background, sampled from INSIDE its plate
+/// (558: the lone row is always active/plated) rather than the bare margin —
+/// see [`assert_close_mark_hover_flip`]'s own doc for why the wrong ground
+/// here is the exact Wagtail tripwire CLAUDE.md names.
+fn identity_plate_ground(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    resting: &[[u8; 4]],
+    hovered: &[[u8; 4]],
+    label: &str,
+) -> ([u8; 4], [u8; 4]) {
+    let plate = p
+        .gutter_stack_plate_rect(device, queue, W, H)
+        .unwrap_or_else(|| panic!("{label}: the identity line has no plate"));
+    const INSET: f32 = 5.0;
+    let x = (plate[0] + INSET).min(plate[0] + plate[2] - INSET).max(0.0) as u32;
+    let y = (plate[1] + plate[3] * 0.5) as u32;
+    let idx = (y * W + x) as usize;
+    (resting[idx], hovered[idx])
+}
+
+/// The geometry/context [`assert_close_mark_hover_flip`] needs, bundled so
+/// the function itself stays under clippy's own argument-count ceiling — see
+/// that function's doc for what each field means and why
+/// `ground_resting`/`ground_hovered` differ per caller.
+struct HoverFlipCell {
+    zone_lo: f32,
+    zone_hi: f32,
+    row_top: f32,
+    row_h: f32,
+    ground_resting: [u8; 4],
+    ground_hovered: [u8; 4],
+    one_bit: bool,
+}
+
+/// **617: THE SHARED HOVER-FLIP LAW BODY.** Hovering a row's close zone must
+/// flip the mark's own ink, paint nothing plate-shaped, and clear a presence
+/// floor in both states — shared by the lone-identity-row law and its
+/// inactive-stack-row sibling so the two shapes read as ONE law rather than
+/// two copies that could silently drift apart.
+///
+/// `cell.ground_resting`/`cell.ground_hovered` differ per caller BY DESIGN:
+/// the active row's own real background is its plate's fill
+/// ([`plate_rects`]), the inactive row's is the bare margin, and passing the
+/// wrong one is the exact Wagtail tripwire CLAUDE.md names — an ink can read
+/// as present against a ground it does not actually sit on (an early cut of
+/// the lone-row law did exactly this, and passed while the hovered × was
+/// invisible against its own plate). `cell.one_bit` derives the DELIBERATE
+/// no-op cell: a one-bit world's whole palette is two colours, one already
+/// spent by the row's own rest ink, so [`theme::accent_ink`]'s substitution
+/// ladder resolves the "differ from rest" vs "stay visible" tie toward
+/// visibility — hover then equals rest exactly, and this asserts that
+/// explicitly rather than silently exempting it.
+fn assert_close_mark_hover_flip(
+    label: &str,
+    resting: &[[u8; 4]],
+    hovered: &[[u8; 4]],
+    cell: HoverFlipCell,
+) {
+    let HoverFlipCell {
+        zone_lo,
+        zone_hi,
+        row_top,
+        row_h,
+        ground_resting,
+        ground_hovered,
+        one_bit,
+    } = cell;
+    // Retired: the estimate/shaping-slop pad this law used to need. 605
+    // reads the zone off the real shaped run, so what remains is ordinary
+    // antialiasing at a glyph edge — measured well under a device pixel's
+    // worth of slop on every world/name-length cell tried while cutting
+    // this law, so a couple of px clears it with real margin rather than
+    // masking a name-length-dependent drift the way the retired 6px pad did.
+    const MARK_PAD_PX: f32 = 2.0;
+    const MARK_PRESENCE_FLOOR: f32 = 40.0;
+    let mark_x0 = (zone_lo - MARK_PAD_PX).max(0.0) as u32;
+    let mark_x1 = ((zone_hi + MARK_PAD_PX) as u32).min(W);
+    let y0 = row_top.max(0.0) as u32;
+    let y1 = ((row_top + row_h) as u32).min(H);
+    let mut mark_diff = 0u32;
+    for yy in y0..y1 {
+        for xx in mark_x0..mark_x1 {
+            let idx = (yy * W + xx) as usize;
+            if dist(resting[idx], hovered[idx]) > 4.0 {
+                mark_diff += 1;
+            }
+        }
+    }
+    if one_bit {
+        assert_eq!(
+            mark_diff, 0,
+            "{label}: a one-bit world flipped ink pixels after all — the deliberate no-op \
+             this law names is no longer what ships; re-check whether a third colour became \
+             available"
+        );
+    } else {
+        assert!(
+            mark_diff > 0,
+            "{label}: hovering the close zone painted no pixels in the mark's own lane — the \
+             × never flipped"
+        );
+    }
+    // NO PLATE PIXELS PAINT ON HOVER: the retired `close_hover_plate_rect`
+    // drew a FILLED SQUARE the size of this exact lane; a flip that is
+    // really a glyph-shaped ink change touches a small minority of the
+    // lane's own pixels, while a plate still painting behind it would touch
+    // nearly all of them.
+    let window_total = ((y1 - y0) * (mark_x1 - mark_x0)) as f32;
+    assert!(
+        window_total > 0.0 && (mark_diff as f32 / window_total) < 0.5,
+        "{label}: {mark_diff}/{window_total:.0}px changed in the mark's own lane — far more \
+         than a glyph-shaped ink flip, as if a plate painted behind it (617 retired the hover \
+         plate; only the ×'s own ink may change)"
+    );
+    let rest_presence = max_dist_in(resting, mark_x0, mark_x1, y0, y1, ground_resting);
+    let hover_presence = max_dist_in(hovered, mark_x0, mark_x1, y0, y1, ground_hovered);
+    assert!(
+        rest_presence >= MARK_PRESENCE_FLOOR,
+        "{label}: the resting × reads only {rest_presence:.1} from its own row's real ground \
+         — it has faded into the page"
+    );
+    assert!(
+        hover_presence >= MARK_PRESENCE_FLOOR,
+        "{label}: the hovered × reads only {hover_presence:.1} from its own row's real ground \
+         — it has faded into the page"
+    );
+}
+
+/// Everything OUTSIDE the mark's own lane must stay byte-identical between
+/// resting and hovered — the flip is a colour-only change over the mark's
+/// own already-shaped run, never a reflow of anything else on the line. Not
+/// folded into [`assert_close_mark_hover_flip`] itself: the inactive-row law
+/// does not carry this check (its own name-ink half is not this law's own
+/// subject), so the two stay separable rather than one growing an unused arm
+/// for the other's sake.
+fn assert_unchanged_outside_mark_lane(
+    label: &str,
+    resting: &[[u8; 4]],
+    hovered: &[[u8; 4]],
+    zone_lo: f32,
+    zone_hi: f32,
+    row_top: f32,
+    row_h: f32,
+) {
+    const MARK_PAD_PX: f32 = 2.0;
+    let mark_x0 = (zone_lo - MARK_PAD_PX).max(0.0) as u32;
+    let mark_x1 = ((zone_hi + MARK_PAD_PX) as u32).min(W);
+    let y0 = row_top.max(0.0) as u32;
+    let y1 = ((row_top + row_h) as u32).min(H);
+    let mut label_diff = 0u32;
+    for yy in y0..y1 {
+        for xx in (0..mark_x0).chain(mark_x1..W) {
+            let idx = (yy * W + xx) as usize;
+            if dist(resting[idx], hovered[idx]) > 4.0 {
+                label_diff += 1;
+            }
+        }
+    }
+    assert_eq!(
+        label_diff, 0,
+        "{label}: hovering the close zone repainted {label_diff} pixels outside the mark's \
+         own lane"
+    );
+}
+
 /// **THE ACTIVE ROW COMES FORWARD AND THE SIBLINGS ARE STILL THERE — on every
 /// world in the roster, with the enrolment derived from the roster itself.**
 ///
@@ -428,139 +612,165 @@ fn find_close_zone(p: &TextPipeline, right_edge: f32, y: f32, h: u32) -> Option<
     Some((x + 1.0, hi))
 }
 
-/// **THE SINGLE-FILE ROW'S × MARK ACTUALLY REPAINTS ON HOVER, AT ITS OWN
+/// **THE SINGLE-FILE ROW'S × MARK ACTUALLY FLIPS COLOUR ON HOVER, AT ITS OWN
 /// LEADING EDGE — REAL PIXELS, NOT JUST A HIT-TEST ANSWER.**
 ///
 /// Wagtail's own tripwire (CLAUDE.md) is exactly the failure mode this closes:
 /// a sidecar/geometry law can report `selected_index` (here, a hit resolving
 /// to `row: 0` with `is_close() == true`) while the thing it names never
 /// became visible pixels. `gutter_hit::tests` already proves the GEOMETRY
-/// resolves; this proves the RENDER actually reveals — off the same
+/// resolves; this proves the RENDER actually flips — off the same
 /// `render_frame`/`dist` doors the active-row law above uses — and that the
-/// label's own ink stays untouched (the stack's own hover law: a reveal
+/// label's own ink stays untouched (the stack's own hover law: a flip
 /// changes ink only, never advances the shaped label).
 ///
-/// **LAW 2 (reveal changes ink only) and LAW 3 (hit-zone/ink agreement), at
-/// real pixels.** Swept over TWO name lengths — short and near the margin's
-/// own budget — because the leading mark's own position MOVES with the
-/// name (unlike the trailing design's fixed right edge), so a law that only
-/// ever probed one length could pass while the zone silently drifted from
-/// the ink at every other one.
+/// **605:** enrols the WHOLE theme roster (derived from [`theme::THEMES`],
+/// never a named world) — the estimate/shaping-slop pad this law used to
+/// carry was set under an axis (proportional faces) it never swept, and is
+/// now retired outright: [`close_zone`] (via [`stack_hit_from_plan`]) reads
+/// the row's REAL shaped ink width off `self.gutter_buffer` rather than a
+/// char-count estimate, so the mark's own lane and the hit-tested zone
+/// cannot disagree by more than ordinary antialiasing — a couple of px, not
+/// the tens a genuinely wrong lane (the estimate this item replaces) would
+/// show on a proportional face. **617:** the mark is no longer transparent
+/// at rest — it wears the row's own name ink there and flips to the accent
+/// on hover, so "reveals" becomes "flips", and this asserts the flip
+/// happened (a nonzero pixel delta in the mark's own lane) rather than a
+/// transparent-to-opaque transition.
+///
+/// Swept over TWO name lengths — short and meaningfully longer — because the
+/// leading mark's own position MOVES with the name (unlike the trailing
+/// design's fixed right edge), so a law that only ever probed one length
+/// could pass while the zone silently drifted from the ink at every other
+/// one. The longer name is deliberately NOT pushed to the margin's own
+/// nominal elision boundary: `avail_chars` is a char-count estimate against
+/// the nominal `CHAR_WIDTH` (out of scope for 605 — "a count is the right
+/// question" for the BUDGET, never for a row's own ink edge), and on a
+/// wide-pitch mono face (measured: Tawny's IBM Plex Mono) a name sized to
+/// that nominal boundary can genuinely out-measure the row's real width —
+/// the align-clamp `a_maximal_width_names_own_ink_reaches_the_stacks_flush_right_edge`
+/// already exists to cover, a separate axis from this law's own. 16
+/// characters (full name, suffix included) measured with real margin on
+/// every world in the roster while cutting this law (worst case 23px of
+/// slack before the same clamp, on Gumtree) — long enough to move the mark
+/// well off `"opening.md"`'s own position without wandering into that
+/// other law's territory.
 #[test]
-fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
+fn the_lone_row_close_mark_flips_colour_on_real_pixels_only_over_the_hovered_zone() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone: \
-             no wgpu adapter"
+            "skipping the_lone_row_close_mark_flips_colour_on_real_pixels_only_over_the_\
+             hovered_zone: no wgpu adapter"
         );
         return;
     };
     crate::page::set_page_on(true);
     p.set_dpi(1.0);
     let _pin = theme::WorldPin::snapshot();
-    theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
 
-    for name in [
-        "opening.md",
-        "a-name-long-enough-to-spend-most-of-the-marginss-budget.md",
-    ] {
-        let mut v = view(
-            "# A document\n\nSome prose to give the page a body.\n",
-            0,
-            0,
-        );
-        v.zoom = 1.0;
-        v.gutter_project = "notes".to_string();
-        v.gutter_name = name.to_string();
-        p.set_view(&v);
+    let mut judged = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        // The one-bit degenerate cell: see `assert_close_mark_hover_flip`'s
+        // own doc for why a one-bit world's flip is a deliberate no-op.
+        let one_bit = world.is_one_bit();
+        let world = world.name;
+        for name in ["opening.md", "medium-length.md"] {
+            let mut v = view(
+                "# A document\n\nSome prose to give the page a body.\n",
+                0,
+                0,
+            );
+            v.zoom = 1.0;
+            v.gutter_project = "notes".to_string();
+            v.gutter_name = name.to_string();
+            p.set_view(&v);
+            // Shape the buffer for THIS view before hit-testing: the hit-test
+            // now reads the row's real ink width off `self.gutter_buffer`
+            // (605), so it has to reflect the current name before a probe
+            // against it means anything — the same "trust the last-shaped
+            // buffer" convention the document's own caret/hit-test already
+            // rides (`render/geometry.rs::line_glyph_xs`).
+            p.prepare(&device, &queue, W, H).unwrap();
 
-        let bands = row_bands(&p.gutter_frost_seeds(H));
-        assert_eq!(
-            bands.len(),
-            2,
-            "name={name:?}: N=1 must draw the folder heading over the identity line"
-        );
-        let identity = bands[1];
-        let row_h = identity[3];
-        let y = identity[1] + row_h * 0.5;
-        let right_edge = find_row_right_edge(&p, W as f32 - 1.0, y, H);
-        assert!(
-            right_edge > row_h,
-            "name={name:?}: could not locate the identity row's own right edge via \
-             hit-test (got {right_edge})"
-        );
-        let (zone_lo, zone_hi) = find_close_zone(&p, right_edge, y, H).unwrap_or_else(|| {
-            panic!("name={name:?}: no close point found scanning the whole row")
-        });
-        let close_x = (zone_lo + zone_hi) * 0.5;
-        // Switch territory now sits BETWEEN the zone and the row's own right
-        // edge — the name's own ink — the inverse of the trailing design's
-        // own switch/close split.
-        let switch_x = (zone_hi + right_edge) * 0.5;
+            let bands = row_bands(&p.gutter_frost_seeds(H));
+            assert_eq!(
+                bands.len(),
+                2,
+                "{world:?} name={name:?}: N=1 must draw the folder heading over the identity line"
+            );
+            let identity = bands[1];
+            let row_h = identity[3];
+            let y = identity[1] + row_h * 0.5;
+            let right_edge = find_row_right_edge(&p, W as f32 - 1.0, y, H);
+            assert!(
+                right_edge > row_h,
+                "{world:?} name={name:?}: could not locate the identity row's own right edge \
+                 via hit-test (got {right_edge})"
+            );
+            let (zone_lo, zone_hi) = find_close_zone(&p, right_edge, y, H).unwrap_or_else(|| {
+                panic!("{world:?} name={name:?}: no close point found scanning the whole row")
+            });
+            let close_x = (zone_lo + zone_hi) * 0.5;
+            // Switch territory sits BETWEEN the zone and the row's own right edge.
+            let switch_x = (zone_hi + right_edge) * 0.5;
 
-        let switch_hit = p
-            .gutter_stack_hit(switch_x, y, H)
-            .unwrap_or_else(|| panic!("name={name:?}: the switch probe must enrol"));
-        assert!(
-            !switch_hit.is_close(),
-            "name={name:?}: fixture bug: the switch probe landed inside the close zone"
-        );
+            let switch_hit = p
+                .gutter_stack_hit(switch_x, y, H)
+                .unwrap_or_else(|| panic!("{world:?} name={name:?}: the switch probe must enrol"));
+            assert!(
+                !switch_hit.is_close(),
+                "{world:?} name={name:?}: fixture bug: the switch probe landed inside the \
+                 close zone"
+            );
 
-        p.clear_gutter_stack_hover();
-        let resting = render_frame(&device, &queue, &mut p);
-        let changed = p.resolve_gutter_stack_hover(close_x, y, H);
-        assert!(
-            changed,
-            "name={name:?}: hovering the close zone must change the hover state"
-        );
-        let hovered = render_frame(&device, &queue, &mut p);
+            p.clear_gutter_stack_hover();
+            let resting = render_frame(&device, &queue, &mut p);
+            let changed = p.resolve_gutter_stack_hover(close_x, y, H);
+            assert!(
+                changed,
+                "{world:?} name={name:?}: hovering the close zone must change the hover state"
+            );
+            let hovered = render_frame(&device, &queue, &mut p);
 
-        // The mark's own lane, padded either side of the hit-tested zone: a
-        // char-count estimate (`stack_hit_from_plan`'s own doc) and the real
-        // shaped glyph agree closely but not to the pixel on a proportional
-        // face, so the pad clears that estimate/shaping slop and any
-        // antialiasing at the mark's own edges — a few px, not the tens of
-        // px a genuinely wrong lane would show.
-        const MARK_PAD_PX: f32 = 6.0;
-        let mark_x0 = (zone_lo - MARK_PAD_PX).max(0.0) as u32;
-        let mark_x1 = ((zone_hi + MARK_PAD_PX) as u32).min(W);
-        let y0 = identity[1].max(0.0) as u32;
-        let y1 = ((identity[1] + row_h) as u32).min(H);
-        let mut mark_diff = 0u32;
-        for yy in y0..y1 {
-            for xx in mark_x0..mark_x1 {
-                let idx = (yy * W + xx) as usize;
-                if dist(resting[idx], hovered[idx]) > 4.0 {
-                    mark_diff += 1;
-                }
-            }
+            let label = format!("{world:?} name={name:?}");
+            let (ground_resting, ground_hovered) =
+                identity_plate_ground(&mut p, &device, &queue, &resting, &hovered, &label);
+            assert_close_mark_hover_flip(
+                &label,
+                &resting,
+                &hovered,
+                HoverFlipCell {
+                    zone_lo,
+                    zone_hi,
+                    row_top: identity[1],
+                    row_h,
+                    ground_resting,
+                    ground_hovered,
+                    one_bit,
+                },
+            );
+
+            assert_unchanged_outside_mark_lane(
+                &format!("{world:?} name={name:?}"),
+                &resting,
+                &hovered,
+                zone_lo,
+                zone_hi,
+                identity[1],
+                row_h,
+            );
         }
-        assert!(
-            mark_diff > 0,
-            "name={name:?}: hovering the close zone painted no pixels in the mark's own \
-             lane — the × never revealed"
-        );
-
-        // Everything ELSE on the row — the ragged margin left of the mark
-        // AND the name's own ink right of it — stays byte-identical: the
-        // reveal is a color-only change over the mark's own already-shaped
-        // run, never a reflow of anything else on the line.
-        let mut label_diff = 0u32;
-        for yy in y0..y1 {
-            for xx in (0..mark_x0).chain(mark_x1..W) {
-                let idx = (yy * W + xx) as usize;
-                if dist(resting[idx], hovered[idx]) > 4.0 {
-                    label_diff += 1;
-                }
-            }
-        }
-        assert_eq!(
-            label_diff, 0,
-            "name={name:?}: hovering the close zone repainted {label_diff} pixels outside \
-             the mark's own lane"
-        );
+        judged.push(world);
     }
+    assert_eq!(
+        judged.len(),
+        theme::THEMES.len(),
+        "only {} of {} worlds were judged: {judged:?}",
+        judged.len(),
+        theme::THEMES.len()
+    );
 }
 
 /// **LAW 1 (flush-right alignment), at real pixels, on a MAXIMAL-width
@@ -866,7 +1076,7 @@ fn the_active_file_is_plated_alone_and_among_several_on_every_world() {
                 "{cell}: expected the folder heading over {n} identity row(s)"
             );
             let plate = p
-                .gutter_stack_plate_rect(H)
+                .gutter_stack_plate_rect(&device, &queue, W, H)
                 .unwrap_or_else(|| panic!("{cell}: the active file drew no plate at all"));
             assert!(
                 plate[2] > 16.0 && plate[3] > 8.0,
@@ -943,6 +1153,127 @@ fn the_active_file_is_plated_alone_and_among_several_on_every_world() {
                  the file being edited"
             );
         }
+        judged.push(world);
+    }
+    assert_eq!(
+        judged.len(),
+        theme::THEMES.len(),
+        "only {} of {} worlds were judged: {judged:?}",
+        judged.len(),
+        theme::THEMES.len()
+    );
+}
+
+/// **617, the second cell: THE SAME FLIP HOLDS ON AN INACTIVE STACK ROW —
+/// the shape the lone-row law above cannot exercise at all.**
+///
+/// The single-file identity line above is ALWAYS the active row (a
+/// single-file margin has no inactive row to speak of), so its own
+/// "no plate paints" bound can never see a plate reintroduced ONLY on an
+/// inactive row's fill — the active row already carries its own OPAQUE
+/// [`gutter_stack::plate_rects`] fill underneath, and pushing a second,
+/// identically-coloured rect on top of an already-filled band is invisible
+/// to a pixel diff (verified directly while cutting this law: the mutation
+/// that reintroduces 559's retired hover-plate rect passes undetected
+/// against the lone-row fixture alone, and is caught the moment the SAME
+/// rect lands on a row with no pre-existing fill). An inactive row has no
+/// plate at all, so a reintroduced one has nothing to hide behind — this is
+/// the cell that actually proves the "no plate paints" law rather than
+/// merely asserting it.
+#[test]
+fn the_stack_close_mark_flips_colour_on_real_pixels_for_an_inactive_row_too() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping the_stack_close_mark_flips_colour_on_real_pixels_for_an_inactive_row_too: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+
+    let mut judged = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        // See the lone-row law's own doc for the one-bit degenerate cell:
+        // Wagtail's `faint` (the inactive row's own rest ink) is ALSO pure
+        // white, so a hover flip there hits the identical two-colour wall —
+        // the "different" candidate is the bare margin's own black, which
+        // buys presence but not difference, or white, which buys difference
+        // but not presence against `base_100`. `theme::accent_ink` resolves
+        // the tie toward presence, so this is a deliberate no-op here too.
+        let one_bit = world.is_one_bit();
+        let world = world.name;
+        // Active row is the MIDDLE file (`stack_view`'s own convention,
+        // matching the sibling-ratio law above); hovered row is the FIRST —
+        // inactive, with no plate of its own.
+        let v = stack_view(1);
+        p.set_view(&v);
+        p.prepare(&device, &queue, W, H).unwrap();
+
+        let bands = row_bands(&p.gutter_frost_seeds(H));
+        assert_eq!(
+            bands.len(),
+            4,
+            "{world:?}: expected the project heading over three file rows"
+        );
+        let row0 = bands[1];
+        let row_h = row0[3];
+        let y = row0[1] + row_h * 0.5;
+        let right_edge = find_row_right_edge(&p, W as f32 - 1.0, y, H);
+        assert!(
+            right_edge > row_h,
+            "{world:?}: could not locate row 0's own right edge via hit-test"
+        );
+        let (zone_lo, zone_hi) = find_close_zone(&p, right_edge, y, H)
+            .unwrap_or_else(|| panic!("{world:?}: no close point found scanning row 0"));
+        let close_x = (zone_lo + zone_hi) * 0.5;
+
+        let hit = p
+            .gutter_stack_hit(close_x, y, H)
+            .unwrap_or_else(|| panic!("{world:?}: the close probe must enrol"));
+        assert_eq!(
+            hit.row, 0,
+            "{world:?}: fixture bug: probe did not land on row 0"
+        );
+        assert!(
+            hit.is_close(),
+            "{world:?}: fixture bug: probe is not the close zone"
+        );
+
+        p.clear_gutter_stack_hover();
+        let resting = render_frame(&device, &queue, &mut p);
+        let changed = p.resolve_gutter_stack_hover(close_x, y, H);
+        assert!(
+            changed,
+            "{world:?}: hovering row 0's close zone must change hover state"
+        );
+        let hovered = render_frame(&device, &queue, &mut p);
+
+        // An inactive row carries no plate of its own — its real background
+        // is the bare margin, sampled the same way the sibling-ratio law
+        // above samples ground (a column above the block, outside any row).
+        let band0 = bands[0];
+        let ground_y = (band0[1] - band0[3] * 3.0).max(0.0) as u32;
+        let ground_x = (band0[2] * 0.5) as u32;
+        let ground_resting = resting[(ground_y * W + ground_x) as usize];
+        let ground_hovered = hovered[(ground_y * W + ground_x) as usize];
+        assert_close_mark_hover_flip(
+            &format!("{world:?}"),
+            &resting,
+            &hovered,
+            HoverFlipCell {
+                zone_lo,
+                zone_hi,
+                row_top: row0[1],
+                row_h,
+                ground_resting,
+                ground_hovered,
+                one_bit,
+            },
+        );
         judged.push(world);
     }
     assert_eq!(

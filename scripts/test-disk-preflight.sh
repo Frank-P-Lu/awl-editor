@@ -5,6 +5,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFLIGHT="$ROOT/.orchestrator/disk-preflight.sh"
+# Named on the closing lines so a reader can see which half of the preflight
+# this run reached, rather than inferring it from the host.
+AMBIENT_CI="${CI:+set}"
+AMBIENT_CI="${AMBIENT_CI:-unset}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-disk-preflight-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -26,7 +30,27 @@ healthy_bytes=$((40 * 1024 * 1024 * 1024))
 insufficient_bytes=$((20 * 1024 * 1024 * 1024))
 ci_capacity_bytes=$((3 * 1024 * 1024 * 1024))
 
+# disk-preflight.sh answers a CI environment on a branch of its own, before the
+# fleet policy is ever consulted, and GitHub Actions exports CI=true to every
+# step. So the ambient value of CI decides which half of the script each law
+# below actually reaches. Every law therefore STATES the branch it means and no
+# law inherits it: run() clears CI, run_ci() sets it. Written the other way —
+# fleet laws inheriting an unset CI from the developer's shell — the whole
+# fleet-policy half passed here and ran the CI branch on every hosted runner.
 run() {
+  env -u CI \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
+  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
+  AWL_TEST_FREE_FILE="$WORK/free" \
+  AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
+  AWL_TEST_SWEEP_RESULT="${1:-$healthy_bytes}" \
+  "${2:-$PREFLIGHT}"
+}
+
+run_ci() {
+  CI=1 \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
@@ -64,6 +88,19 @@ printf '%s\n' "$healthy_bytes" >"$WORK/free"
 healthy="$(run)"
 [[ "$healthy" == *'status=healthy'* && ! -s "$WORK/sweeps" ]] || {
   echo "test-disk-preflight: healthy disk must not sweep" >&2; exit 1;
+}
+
+# The axis asserted rather than inherited. A hosted runner offers exactly one
+# ambient environment and it exports CI, so a fleet law that reads the variable
+# from the shell it happens to run in is testing the developer's host and
+# nothing else. This law fails the moment run() stops clearing CI — which is
+# the shape that produced a green local suite and a red gating linux job.
+printf '%s\n' "$healthy_bytes" >"$WORK/free"
+: >"$WORK/sweeps"
+ambient_ci_healthy="$(CI=true run)"
+[[ "$ambient_ci_healthy" == *'status=healthy'* && "$ambient_ci_healthy" == *'policy=fleet'* ]] || {
+  echo "test-disk-preflight: an ambient CI carried a fleet law onto the CI branch; the laws inherit the axis instead of stating it: $ambient_ci_healthy" >&2
+  exit 1
 }
 
 # Perl clears close-on-exec on FD 9 before it execs Bash. The hook runs from
@@ -160,12 +197,12 @@ grep -Fq 'reclaimed_bytes=0' "$WORK/barren.err" || {
 # CI is portable capacity checking, not a second cleanup owner.
 printf '%s\n' "$ci_capacity_bytes" >"$WORK/free"
 : >"$WORK/sweeps"
-ci_capacity="$(CI=1 run "$healthy_bytes")"
+ci_capacity="$(run_ci "$healthy_bytes")"
 [[ "$ci_capacity" == *'status=ci-capacity'* && "$ci_capacity" == *'policy=ci'* && ! -s "$WORK/sweeps" ]] || {
   echo "test-disk-preflight: ordinary CI capacity required the local reserve or swept" >&2; exit 1;
 }
 printf '%s\n' 1073741824 >"$WORK/free"
-if CI=1 run "$healthy_bytes" >"$WORK/ci.out" 2>"$WORK/ci.err"; then
+if run_ci "$healthy_bytes" >"$WORK/ci.out" 2>"$WORK/ci.err"; then
   echo "test-disk-preflight: undersized CI unexpectedly passed" >&2; exit 1
 fi
 grep -Fq 'ci-no-sweep' "$WORK/ci.err" && [[ ! -s "$WORK/sweeps" ]] || {
@@ -281,5 +318,5 @@ df_receipt="$(PATH="$WORK:$PATH" CI=1 AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   echo "test-disk-preflight: POSIX df fixture did not yield an integer byte count" >&2; exit 1;
 }
 
-echo "test-disk-preflight: healthy, recovery, CI, flock contention, SIGKILL takeover, and mutations proved"
+echo "test-disk-preflight: healthy, recovery, CI, flock contention, SIGKILL takeover, and mutations proved (ambient CI ${AMBIENT_CI})"
 echo "test-disk-preflight: the recovery band equals one worktree's measured sweep yield, and every run reports what it reclaimed"

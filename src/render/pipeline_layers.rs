@@ -140,6 +140,16 @@ impl TextPipeline {
             self.float_border.draw(&mut pass);
             self.float_card.draw(&mut pass);
             self.panel_card.draw(&mut pass);
+            // The panel's OWN inner chrome: each box's BORDER draws first, as
+            // a solid, slightly LARGER rect — the same nested-rect trick
+            // `float_border`/`float_card` already use for the outer card,
+            // never a stroke shader — so the fill drawn on top of it leaves
+            // only the outset ring showing. The thin region separators sit
+            // between the two so a rule can never paint over a box's own
+            // ring. All of it under the selection band / caret / text.
+            self.panel_control_border.draw(&mut pass);
+            self.panel_rules.draw(&mut pass);
+            self.panel_control_fill.draw(&mut pass);
             // The focused field's selection band: over the card, UNDER the
             // panel text and caret, exactly where the document's own
             // selection sits relative to its glyphs.
@@ -226,10 +236,6 @@ impl TextPipeline {
         // lone identity line's alike. Zero instances whenever the gutter
         // block itself is not drawn.
         self.gutter_stack_plate.draw(pass);
-        // The close-zone hover plate sits UNDER the gutter's glyphs too, for
-        // the same reason: the × must read on top of its own highlight. Zero
-        // instances outside the one live-pointer-inside-the-zone state.
-        self.gutter_close_hover_plate.draw(pass);
         self.gutter_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon gutter render failed: {e:?}"))?;

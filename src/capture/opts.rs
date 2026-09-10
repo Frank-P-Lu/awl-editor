@@ -465,6 +465,14 @@ impl CaptureOpts {
             view.gutter_name.clear();
             view.gutter_project.clear();
             view.gutter_files.clear();
+            // The no-document start surface's own folder-naming line —
+            // `self.project` (the AMBIENT `--root`-derived block, unlike
+            // `gutter_project_root` above) is the right source here: with no
+            // active file, there is no per-file remembered root to prefer
+            // over it. `ProjectInfo::name` is already the folder's last path
+            // segment (`crate::project::folder_name`), so this never leaks
+            // more of the filesystem than that one component.
+            view.start_folder = self.project.as_ref().map(|p| p.name.clone());
         } else {
             view.gutter_files.clone_from(&self.working_set);
             if let Some(root) = &self.gutter_project_root {

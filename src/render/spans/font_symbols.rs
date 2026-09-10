@@ -44,6 +44,10 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 /// `FontId::Latin` result, or a script whose ladder resolved to nothing on
 /// this machine — `fonts.get` returns `None` either way, so the base doc face
 /// wins — the same degenerate fallback the old single-script version had).
+/// `cjk_priority` here is already the CALLER's effective ladder
+/// ([`crate::script::effective_cjk_priority`]) — the document's own Han
+/// evidence promoted to the front when decisive — so this function's own
+/// ladder never changed shape.
 /// `fonts` is [`super::text::ScriptFonts`], resolved ONCE per reshape by
 /// [`TextPipeline::resolve_script_fonts`] — this function does no font-DB
 /// work itself, just the per-run ladder + span laying.

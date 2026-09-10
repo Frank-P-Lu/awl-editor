@@ -270,6 +270,11 @@ fn replay_keys_rebind_menu_recording_state_visible() {
 fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     let _g = crate::testlock::serial();
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    // Explicit (not Auto), so the picker pre-selects row 1 ("Japanese", the
+    // ladder's front) exactly like the pre-Auto 4-row picker pre-selected row
+    // 0 — the "Down Down Down" below still lands on the SAME semantic target
+    // (Korean), just shifted one row by the new leading "Auto" row.
+    crate::frontmatter::set_cjk_priority_auto(false);
     let mut buffer = Buffer::scratch();
     let keys =
         keyspec::parse_keys("s-p s e t t i n g s RET a m b i g u o u s RET Down Down Down RET")
@@ -311,6 +316,7 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     );
 
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+    crate::frontmatter::set_cjk_priority_auto(true);
 }
 
 /// THE SUSPEND/RETURN JOURNEY, DRIVEN ENTIRELY BY `--keys`. Open the

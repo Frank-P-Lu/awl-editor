@@ -234,6 +234,17 @@ impl AccessibilityRuntime {
         self.projection.as_ref()
     }
 
+    /// The one write path an ACTION request (as opposed to a refresh) needs:
+    /// moving the reader's selection within a substituted transcript, which
+    /// lives on the projection itself rather than on anything a refresh
+    /// recomputes (`SemanticProjection::set_transcript_selection`'s own doc).
+    /// `None` exactly when `projection()` would answer `None` — before the
+    /// first seed, there is nothing published for a request to be decoded
+    /// against in the first place.
+    pub(super) fn projection_mut(&mut self) -> Option<&mut SemanticProjection> {
+        self.projection.as_mut()
+    }
+
     #[cfg(test)]
     pub(super) fn stats(&self) -> ProjectionStats {
         self.projection
@@ -430,6 +441,13 @@ impl FrameRuntime {
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn accessibility_projection(&self) -> Option<&SemanticProjection> {
         self.accessibility.projection()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn accessibility_projection_mut(
+        &mut self,
+    ) -> Option<&mut SemanticProjection> {
+        self.accessibility.projection_mut()
     }
 
     #[cfg(all(test, not(target_arch = "wasm32")))]

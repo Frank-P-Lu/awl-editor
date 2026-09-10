@@ -530,3 +530,77 @@ fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
     );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
+
+/// **THE CONTENT PANE HUGS A MAXIMUM WIDTH.** Without a ceiling, a
+/// `RailOverRows` workspace's pane fills every pixel a wide window has to
+/// spare, so a row's own value drifts further from its name the wider the
+/// window grows — measured live at 2400x1000 with the label and value
+/// standing at opposite ends of the card, ~900px apart. That is exactly a
+/// "longer journey between a setting and its value", the failure mode the
+/// pane's authored ceiling exists to close; this law drives an actually-too-wide
+/// window and requires the pane to stop growing at its own authored ceiling
+/// instead, over the whole world roster (an authored `hpad` or rail-label
+/// width is a per-world number, so a roster sweep is what proves the ceiling
+/// — not a coincidence of one world's own measurements).
+///
+/// Two non-vacuity arms keep this from being trivially true: the sweep must
+/// contain a cell where the ceiling is the thing actually binding (`pane_w`
+/// lands ON it), and a cell where it plainly is not (`pane_w` sits below it,
+/// which is only interesting alongside the first — a law that never saw an
+/// unbound pane could not tell a real ceiling from one that always fires).
+#[test]
+fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping the_content_pane_hugs_a_maximum_width_across_the_roster: no wgpu adapter"
+        );
+        return;
+    };
+    let ov = workspace_card(0, true);
+    let mut bound_hit: Vec<&str> = Vec::new();
+    let mut below_cap_seen: Vec<&str> = Vec::new();
+    let mut graded = 0usize;
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).expect("a roster world");
+        p.sync_theme();
+        for &(w, h) in &[(1200u32, 800u32), (1800, 900), (2600, 1200), (3600, 1400)] {
+            prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
+            if !p.workspace_is_wide(w) {
+                continue;
+            }
+            let drawn = p.workspace_rail_probe(w);
+            let max_px = p.workspace_max_pane_probe();
+            assert!(
+                drawn.pane_w <= max_px + 0.5,
+                "{}/{w}x{h}: the content pane is {:.1}px wide against an authored \
+                 ceiling of {max_px:.1}px — extra window width must become the \
+                 card's own ground, not a longer reach to a row's value",
+                world.name,
+                drawn.pane_w
+            );
+            if (drawn.pane_w - max_px).abs() <= 1.0 {
+                bound_hit.push(world.name);
+            } else if drawn.pane_w < max_px - 1.0 {
+                below_cap_seen.push(world.name);
+            }
+            graded += 1;
+        }
+    }
+    p.set_size(1200.0, 800.0);
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    assert!(
+        graded > 0,
+        "the sweep graded nothing — no wide cell was reached"
+    );
+    assert!(
+        !bound_hit.is_empty(),
+        "the sweep never actually reached the ceiling on any world — a wider canvas \
+         is needed to prove this law is not vacuously true"
+    );
+    assert!(
+        !below_cap_seen.is_empty(),
+        "the sweep never saw an unbound pane either (enrolled: {bound_hit:?}) — the \
+         comparison needs both a narrow and a wide cell to mean anything"
+    );
+}

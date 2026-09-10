@@ -393,6 +393,8 @@ fn only_the_substitution_door_replaces_a_view_states_text() {
         // the shaped text is the document and the figures come off it — the
         // `None` reading `substitute_text` leaves alone.
         ("render/benchsuite/scenarios.rs", 2),
+        // Typing scenarios rebuild the benchmark document after real edits.
+        ("render/benchsuite/scenarios/typing.rs", 2),
     ];
     let expected: std::collections::BTreeMap<String, usize> = expected
         .iter()

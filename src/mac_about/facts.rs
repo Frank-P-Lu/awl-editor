@@ -99,6 +99,13 @@ pub fn fact_lines(bundle: &BundleFacts, commit: Option<&str>) -> Vec<String> {
 mod tests {
     use super::*;
 
+    /// The crate root, fixed at COMPILE time so a doc/asset read below
+    /// resolves identically regardless of the test process's working
+    /// directory.
+    fn root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    }
+
     fn packaged(short: &str, build: &str) -> BundleFacts {
         BundleFacts {
             short_version: Some(short.to_string()),
@@ -221,7 +228,9 @@ mod tests {
 
     #[test]
     fn tagline_is_the_readmes_own_sentence() {
-        let readme = std::fs::read_to_string("README.md").expect("README.md at the repo root");
+        let readme_path = root().join("README.md");
+        let readme = std::fs::read_to_string(&readme_path)
+            .unwrap_or_else(|e| panic!("{} is readable: {e}", readme_path.display()));
         assert!(
             readme.contains(TAGLINE),
             "the About window's product line must be the project's OWN sentence, \
@@ -232,8 +241,12 @@ mod tests {
 
     #[test]
     fn attribution_matches_notice_and_cargo_license() {
-        let notice = std::fs::read_to_string("NOTICE").expect("NOTICE at the repo root");
-        let cargo = std::fs::read_to_string("Cargo.toml").expect("Cargo.toml at the repo root");
+        let notice_path = root().join("NOTICE");
+        let notice = std::fs::read_to_string(&notice_path)
+            .unwrap_or_else(|e| panic!("{} is readable: {e}", notice_path.display()));
+        let cargo_path = root().join("Cargo.toml");
+        let cargo = std::fs::read_to_string(&cargo_path)
+            .unwrap_or_else(|e| panic!("{} is readable: {e}", cargo_path.display()));
         let (holder, license) = ATTRIBUTION
             .split_once(" · ")
             .expect("the credit line is '<holder> · <license>'");
@@ -300,7 +313,7 @@ mod tests {
             .rsplit('/')
             .next()
             .expect("a trailing path segment");
-        let path = std::path::Path::new("site").join(page);
+        let path = root().join("site").join(page);
         assert!(
             path.exists(),
             "the About window's Docs button points at {DOCS_URL}, but this repo \
@@ -311,7 +324,9 @@ mod tests {
     /// The GitHub button names THIS repository, the one `site/` already links.
     #[test]
     fn the_github_link_is_this_repository() {
-        let index = std::fs::read_to_string("site/index.html").expect("site/index.html");
+        let index_path = root().join("site/index.html");
+        let index = std::fs::read_to_string(&index_path)
+            .unwrap_or_else(|e| panic!("{} is readable: {e}", index_path.display()));
         assert!(
             index.contains(GITHUB_URL),
             "the About window's GitHub link ({GITHUB_URL}) is not the repository \

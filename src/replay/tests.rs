@@ -371,6 +371,7 @@ fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
             | SettingId::FormatPopover
             | SettingId::InlineImages
             | SettingId::CodeLigatures
+            | SettingId::FootnoteLadder
             | SettingId::Outline
             | SettingId::MenuBar
             | SettingId::Spellcheck

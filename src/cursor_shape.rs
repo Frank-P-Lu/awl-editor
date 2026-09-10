@@ -40,6 +40,12 @@ pub struct CursorContext {
     /// (the bar covers them). Computed from `TextPipeline::over_menu_surface`.
     pub over_menu_bar: bool,
     pub over_case_toggle: bool,
+    /// The pointer is over one of the panel's other bordered CLICK-TO-ACT
+    /// buttons — a nav prev/next step or `Replace`/`Replace all` — the same
+    /// affordance class as `over_case_toggle` (computed from the SAME
+    /// `panel_hit`), so a new button can never earn a different cursor by
+    /// omission.
+    pub over_panel_button: bool,
     /// The pointer is over a clickable FIND or REPLACE FIELD CELL of the summoned
     /// find/replace panel — a text field, computed from the SAME `panel_hit` the
     /// press path and `over_case_toggle` use, so it can never disagree with where a
@@ -171,7 +177,7 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         CursorIcon::Text
     } else if ctx.overlay_open || ctx.over_menu_bar {
         CursorIcon::Default
-    } else if ctx.over_case_toggle {
+    } else if ctx.over_case_toggle || ctx.over_panel_button {
         CursorIcon::Pointer
     } else if ctx.over_panel_field {
         CursorIcon::Text

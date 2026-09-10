@@ -124,6 +124,7 @@ mod tests {
     fn margin_chrome_production_paths_route_through_the_planner() {
         let gutter = include_str!("../chrome/gutter.rs");
         let gutter_frost = include_str!("../chrome/gutter_frost.rs");
+        let gutter_stack = include_str!("../chrome/gutter_stack.rs");
         let gutter_hit = include_str!("../chrome/gutter_hit.rs");
         let outline = include_str!("../chrome/outline.rs");
         // The block's own three (draw, carve, frost seeds) plus a FOURTH,
@@ -134,15 +135,19 @@ mod tests {
         // this law actually guards against, so it is counted rather than
         // excluded. The frost-seeds call lives in its own sibling file
         // (`gutter_frost.rs`, split out to keep `gutter.rs` under its
-        // production-line ceiling), so its count is summed alongside
-        // `gutter.rs`'s own three rather than folded into one file's count.
-        // `gutter_hit.rs` separately carries the ONE the gutter's pointer
-        // routes share: both hit-tests read a single planner helper, so a
-        // second call there would mean a target hit-tested against geometry
-        // the other route does not have.
+        // production-line ceiling); `gutter_stack_plate_rect` itself now
+        // lives in `gutter_stack.rs` (605: moved there, beside the
+        // `plate_rects` it mirrors, to keep both files under their own
+        // ceiling) — so all three files' counts are summed alongside
+        // `gutter.rs`'s own two (draw, carve) rather than folded into one
+        // file's count. `gutter_hit.rs` separately carries the ONE the
+        // gutter's pointer routes share: both hit-tests read a single
+        // planner helper, so a second call there would mean a target
+        // hit-tested against geometry the other route does not have.
         assert_eq!(
             gutter.matches("plan::plan_gutter_stack(").count()
-                + gutter_frost.matches("plan::plan_gutter_stack(").count(),
+                + gutter_frost.matches("plan::plan_gutter_stack(").count()
+                + gutter_stack.matches("plan::plan_gutter_stack(").count(),
             4
         );
         assert_eq!(gutter_hit.matches("plan::plan_gutter_stack(").count(), 1);

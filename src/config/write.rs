@@ -68,6 +68,16 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #     [keys]
 #     insert_link = \"C-k\"
 #
+# [keys] follow : rebinds the mouse gesture that follows a link — a click spec
+#   (\"click\", \"middle-click\", \"right-click\"), behind the SAME modifier
+#   prefixes above (\"C-click\", \"Cmd-click\", ...). Unlike an ordinary [keys]
+#   rebind, this REPLACES the platform default outright rather than adding to
+#   it, and takes as many gestures as you like (no 2-slot cap):
+#     [keys]
+#     follow = \"C-click\"
+#   A gesture the grammar can't spell is ignored (default kept) with a note
+#   naming the line, same as any other bad chord.
+#
 # linux_keep_emacs : a shorter Linux-only door to the SAME collision fix above —
 #   list the bare chords you want to KEEP their emacs meaning, and ONLY that
 #   chord's native collision is suppressed (its native command stays reachable
@@ -160,13 +170,24 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   code_ligatures : programming ligatures (-> => != >= :: |>) in CODE buffers on
 #                the pitch-safe monos (JetBrains Mono, Iosevka) — default on. Set
 #                false for ligature-free code. Prose fi/fl ligatures are always on.
-#   cjk_priority : the Han-ambiguity tiebreak ladder (default [\"ja\", \"zh-Hans\",
-#                \"zh-Hant\", \"ko\"]) — consulted ONLY when an untagged document's
-#                CJK content is bare Han (kanji/hanzi with no kana/hangul/bopomofo
-#                to disambiguate it); an unrecognized tag in the list is skipped.
-#                Used by the per-run render ladder, and by the palette's \"Tag
-#                document language\" command (the only door that writes a
-#                `---\\nlang: ..\\n---` block; opening a document never does).
+#   footnote_ladder : paint footnote reference/definition marks as the traditional
+#                print-shop ladder (* † ‡ § ‖ ¶, doubling
+#                when exhausted: ** †† ‡‡ …) instead of a
+#                plain first-appearance number (default false). Display only — the
+#                `[^label]` source and export stay numeric either way.
+#   cjk_priority : the Han-ambiguity tiebreak ladder — consulted only as the
+#                LAST resort, after the document's own text is checked for
+#                decisive evidence (any kana -> Japanese, a GB2312-only or
+#                Big5-only character -> Simplified/Traditional Chinese, any
+#                hangul -> Korean); this setting decides only a note whose CJK
+#                is bare Han shared across scripts, with no such evidence.
+#                `\"auto\"` (the default; same as leaving the key out) falls
+#                back to [\"ja\", \"zh-Hans\", \"zh-Hant\", \"ko\"] at that last
+#                step. An explicit array picks your own order instead; an
+#                unrecognized tag in the list is skipped. Used by the per-run
+#                render ladder, and by the palette's \"Tag document language\"
+#                command (the only door that writes a `---\\nlang: ..\\n---`
+#                block; opening a document never does).
 #   session_restore : reopen the previous session on a plain relaunch — every
 #                open file, the active one, each file's cursor/scroll, and the
 #                native window frame (default on). OFF disables both writing
@@ -213,7 +234,8 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # popover = true
 # inline_images = true
 # code_ligatures = true
-# cjk_priority = [\"ja\", \"zh-Hans\", \"zh-Hant\", \"ko\"]
+# footnote_ladder = false
+# cjk_priority = \"auto\"
 # session_restore = true
 # outline = true
 # menu_bar = true

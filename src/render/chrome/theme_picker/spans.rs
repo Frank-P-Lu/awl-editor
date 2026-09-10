@@ -106,7 +106,7 @@ impl TextPipeline {
             spans.push(("\n", mk(ink)));
             match line {
                 PlanLine::Location(label) => {
-                    if theme::active().render_caps.location_style.draws_inline() {
+                    if crate::render::effective_location_style().draws_inline() {
                         spans.push((
                             label.as_str(),
                             chrome_attrs().color(muted).metrics(location_metrics),

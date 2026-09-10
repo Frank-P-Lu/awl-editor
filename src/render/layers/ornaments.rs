@@ -12,9 +12,11 @@ mod bare_url;
 mod footnotes;
 #[cfg(test)]
 mod probe;
+mod quote;
 mod smart_punct;
 use bare_url::BareUrlEllipses;
 use footnotes::FootnoteNumbers;
+use quote::QuoteOrnaments;
 use smart_punct::SmartPunctGlyphs;
 
 struct RuleOrnaments {
@@ -162,98 +164,6 @@ impl BulletOrnaments {
                 scale: 1.0,
                 bounds,
                 default_color: muted,
-                custom_glyphs: &[],
-            });
-        }
-    }
-}
-
-/// The hanging pull-quote PAIR. Both ends are shaped from ONE `attrs`/`GlyphMetrics`
-/// pair — one face, one scale, one [`theme::faint`] value — so open and close can only
-/// ever differ in glyph and in x; the two `left`s are the mirrored
-/// [`super::geometry::pull_quote_left`] / [`super::geometry::pull_quote_right`],
-/// computed from each mark's OWN shaped advance so an asymmetric face still seats both
-/// the same distance from the text.
-struct QuoteOrnaments {
-    marks: Vec<(f32, QuoteSide)>,
-    /// Indexed by [`Self::slot`]: the shaped glyph and its own gutter x.
-    ends: [(GlyphBuffer, f32); 2],
-    color: glyphon::Color,
-}
-
-impl QuoteOrnaments {
-    fn slot(side: QuoteSide) -> usize {
-        match side {
-            QuoteSide::Open => 0,
-            QuoteSide::Close => 1,
-        }
-    }
-
-    fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
-        let marks = pipeline.quote_marks();
-        let color = theme::faint().to_glyphon();
-        let glyph_metrics =
-            GlyphMetrics::new(metrics.font_size * QUOTE_MARK_SCALE, metrics.line_height);
-        let attrs = Attrs::new()
-            .family(Family::Name(theme::active().font))
-            .color(color);
-        let box_w = (metrics.font_size * QUOTE_MARK_SCALE * 2.0).max(1.0);
-        let gap = metrics.char_width * 0.3;
-        let column_left = pipeline.column_left();
-        let column_right = column_left + pipeline.column_width();
-        let text_left = pipeline.text_left();
-        let text_right = text_left + pipeline.text_wrap_width();
-        let end = |pipeline: &mut TextPipeline, glyph: char, side: QuoteSide| {
-            let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
-            if marks.is_empty() {
-                return (buffer, 0.0);
-            }
-            buffer.set_size(
-                &mut pipeline.font_system,
-                Some(box_w),
-                Some(metrics.line_height),
-            );
-            buffer.set_text(
-                &mut pipeline.font_system,
-                &glyph.to_string(),
-                &attrs,
-                Shaping::Advanced,
-                None,
-            );
-            buffer.shape_until_scroll(&mut pipeline.font_system, false);
-            let mark_w = buffer
-                .layout_runs()
-                .map(|run| run.line_w)
-                .fold(0.0f32, f32::max);
-            let x = match side {
-                QuoteSide::Open => {
-                    super::geometry::pull_quote_left(column_left, text_left, gap, mark_w)
-                }
-                QuoteSide::Close => {
-                    super::geometry::pull_quote_right(column_right, text_right, gap, mark_w)
-                }
-            };
-            (buffer, x)
-        };
-        let open = end(pipeline, QUOTE_MARK_GLYPH, QuoteSide::Open);
-        let close = end(pipeline, QUOTE_MARK_CLOSE_GLYPH, QuoteSide::Close);
-        Self {
-            marks,
-            ends: [open, close],
-            color,
-        }
-    }
-
-    fn append_areas<'a>(&'a self, areas: &mut Vec<TextArea<'a>>, bounds: TextBounds) {
-        for (top, side) in &self.marks {
-            let (buffer, left) = &self.ends[Self::slot(*side)];
-            areas.push(TextArea {
-                buffer,
-                left: *left,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: self.color,
                 custom_glyphs: &[],
             });
         }
@@ -464,7 +374,7 @@ impl OrnamentFrame {
     ) -> Vec<TextArea<'a>> {
         let capacity = self.rules.marks.len()
             + self.bullets.marks.len()
-            + self.quotes.marks.len()
+            + self.quotes.len()
             + self.fence_labels.marks.len()
             + self.fold_tails.marks.len();
         let capacity =

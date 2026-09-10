@@ -861,6 +861,98 @@ fn switching_buffers_isolates_the_spell_cache() {
 }
 
 #[test]
+fn checker_changes_expire_active_and_parked_buffer_spell_projections() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let b = PathBuf::from("/proj/b.md");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "helo color\n")
+        .with_file(&b, "hello colour\n");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.run_spellcheck_now();
+    app.load_path(b.clone());
+    app.run_spellcheck_now();
+
+    assert!(app.document.add_user_word("helo"));
+    assert_eq!(
+        app.document.spell_checked_version(),
+        None,
+        "a personal-word change expires the active projection"
+    );
+    app.run_spellcheck_now();
+    app.load_path(a.clone());
+    assert_eq!(
+        app.document.spell_checked_version(),
+        None,
+        "the parked projection carries the old checker generation"
+    );
+    app.run_spellcheck_now();
+    assert!(
+        app.document.spell_cache().is_empty(),
+        "the newly accepted word is silent after reactivation"
+    );
+
+    assert!(app.document.remove_user_word("helo"));
+    assert_eq!(app.document.spell_checked_version(), None);
+    app.run_spellcheck_now();
+    assert!(
+        !app.document.spell_cache().is_empty(),
+        "forgetting the word restores its verdict"
+    );
+    app.load_path(b.clone());
+    assert_eq!(
+        app.document.spell_checked_version(),
+        None,
+        "forgetting a word also expires a parked projection"
+    );
+    app.run_spellcheck_now();
+
+    app.document
+        .replace_spell_checker(crate::spell::DictVariant::EnGb);
+    app.run_spellcheck_now();
+    app.load_path(a);
+    assert_eq!(
+        app.document.spell_checked_version(),
+        None,
+        "a dictionary replacement expires every parked checker generation"
+    );
+    app.run_spellcheck_now();
+    assert_eq!(
+        app.document.spell_checked_version(),
+        Some(app.document.buffer().version())
+    );
+}
+
+#[test]
+fn renaming_across_spell_scopes_expires_the_outer_cache_gate() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::InMemoryFs;
+    let markdown = PathBuf::from("/proj/draft.md");
+    let mem = InMemoryFs::new().with_file(&markdown, "fn mispeled_name() {}\n");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem));
+    let mut app = app_on(Some(markdown), "/proj", Config::empty());
+    app.run_spellcheck_now();
+    assert!(
+        !app.document.spell_cache().is_empty(),
+        "plain prose scope checks identifier-shaped words"
+    );
+
+    app.document.set_path(PathBuf::from("/proj/draft.rs"));
+    assert_eq!(
+        app.document.spell_checked_version(),
+        None,
+        "the unchanged buffer version cannot hide its new syntax scope"
+    );
+    app.run_spellcheck_now();
+    assert!(
+        app.document.spell_cache().is_empty(),
+        "code scope excludes identifiers outside comments and strings"
+    );
+}
+
+#[test]
 fn fresh_buffer_starts_with_default_buffer_extra() {
     // A newly-created buffer (never before backgrounded) gets `BufferExtra::
     // default()`, not a leaked carry-over from whatever was active before —

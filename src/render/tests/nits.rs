@@ -1294,6 +1294,241 @@ fn spell_squiggle_keeps_full_amplitude_at_its_ends() {
     p.sync_theme();
 }
 
+/// STROKE-WIDTH TAPER + PRESENCE FLOOR (the enlarged-underline report: a
+/// hard vertical clip at both ends read fine at normal size but abruptly
+/// chopped once enlarged). The wave's CENTERLINE keeps full amplitude to both
+/// ends (pinned above, unchanged by this fix) — what changes is the STROKE
+/// WIDTH, easing down to a small rounded tip. Sampled at two CRESTS (phase 0
+/// mod period, so the local slope is zero and the vertical run of differing
+/// pixels at that column IS the stroke width with no slope correction
+/// needed): the word's own left edge (the tip, `u=0`) against one period
+/// inward (fully tapered-in, `u=1`).
+///
+/// This is the COMPANION presence floor CLAUDE.md's contrast-law hazard
+/// names: a bare "the tip is narrower" assertion is satisfiable by fading the
+/// tip to nothing, so this ALSO floors the tip's own run length above zero —
+/// a hard-cut end (same run length at both columns) and a faded-away end
+/// (zero run length at the tip) each fail a DIFFERENT one of the two
+/// assertions below, so both regressions this law exists to catch go red.
+///
+/// Swept over the roster's lightest- and darkest-ground worlds, derived from
+/// `THEMES`' own `base_100` data rather than a named world — legibility
+/// against the page is exactly the axis that can differ by ground.
+///
+/// This sRGB relative-luminance formula, and the "pick the roster's own
+/// extremes" derivation, are used only to pick WHICH two worlds this law
+/// samples — a data-driven stand-in for a named light/dark world pair.
+fn luminance(c: crate::theme::Srgb) -> f64 {
+    fn lin(v: u8) -> f64 {
+        let c = v as f64 / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+    0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+}
+
+/// The roster's lightest- and darkest-ground worlds, by their own `base_100`
+/// data (index into `THEMES`, plus the theme itself) — never a named world.
+fn lightest_and_darkest_worlds() -> [(usize, crate::theme::Theme); 2] {
+    let (lightest_idx, lightest) = crate::theme::THEMES
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| luminance(a.base_100).total_cmp(&luminance(b.base_100)))
+        .expect("THEMES is non-empty");
+    let (darkest_idx, darkest) = crate::theme::THEMES
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| luminance(a.base_100).total_cmp(&luminance(b.base_100)))
+        .expect("THEMES is non-empty");
+    [(lightest_idx, *lightest), (darkest_idx, *darkest)]
+}
+
+/// The vertical run of GENUINELY visible ink pixels at column `x` between
+/// renders `a` (clean) and `b` (flagged) — the stroke width read straight off
+/// the rendered pixels, valid at a crest where the curve's local slope is
+/// zero. A pixel counts as ink only past `DistinguishFloor::DEFAULT`'s own
+/// just-noticeable `min_max_delta` (12) — not "any channel differs at all" —
+/// so a near-invisible opacity fade (a wash a few bytes from the page,
+/// CLAUDE.md's own named hazard) cannot satisfy a presence floor by leaving
+/// faint antialiasing residue at every sampled row.
+fn ink_run_at(a: &[[u8; 4]], b: &[[u8; 4]], x: f32, y0: f32, y1: f32, w: i64, h: i64) -> usize {
+    let ink_floor = pixeldiff::DistinguishFloor::DEFAULT.min_max_delta;
+    let xi = x.round() as i64;
+    if xi < 0 || xi >= w {
+        return 0;
+    }
+    let y_lo = y0.max(0.0) as i64;
+    let y_hi = (y1 as i64).min(h);
+    (y_lo..y_hi)
+        .filter(|&y| {
+            let i = (y * w + xi) as usize;
+            let max_delta = (0..4).map(|c| a[i][c].abs_diff(b[i][c])).max().unwrap_or(0);
+            max_delta >= ink_floor
+        })
+        .count()
+}
+
+#[test]
+fn spell_squiggle_tapers_stroke_width_to_a_rounded_nonzero_tip() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping spell_squiggle_tapers_stroke_width_to_a_rounded_nonzero_tip: no wgpu adapter"
+        );
+        return;
+    };
+    let w = 1200u32;
+    let h = 800u32;
+
+    let text = "misspelllinggg\n\nprose\n";
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 14,
+    }];
+
+    let ink_floor = pixeldiff::DistinguishFloor::DEFAULT.min_max_delta;
+    for (world_idx, world) in lightest_and_darkest_worlds() {
+        theme::set_active(world_idx);
+        p.sync_theme();
+
+        let mut clean = view(text, 2, 0);
+        clean.misspelled = Vec::new();
+        p.set_view(&clean);
+        p.prepare(&device, &queue, w, h).unwrap();
+        let a = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+        let mut flagged = view(text, 2, 0);
+        flagged.misspelled = mis.clone();
+        p.set_view(&flagged);
+        let squiggles = p.spell_squiggles();
+        assert_eq!(squiggles.len(), 1, "{}: one squiggle proto", world.name);
+        let s = squiggles[0];
+        p.prepare(&device, &queue, w, h).unwrap();
+        let b = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+        assert!(
+            s.w > s.period * 3.0,
+            "{}: fixture must span several periods (w={}, period={}) or the tip and mid-span \
+             crests overlap",
+            world.name,
+            s.w,
+            s.period
+        );
+
+        let (y0, y1) = (s.y - 4.0, s.y + s.h + 4.0);
+        // Two crests: the word's own left edge (the tip, `u=0`) against one
+        // period inward (fully tapered-in, `u=1`).
+        let tip_run = ink_run_at(&a, &b, s.x, y0, y1, w as i64, h as i64);
+        let mid_run = ink_run_at(&a, &b, s.x + s.period, y0, y1, w as i64, h as i64);
+
+        assert!(
+            mid_run >= 2,
+            "{}: sanity — the mid-span crest column must show real stroke ink (ran {mid_run}px \
+             at floor {ink_floor})",
+            world.name
+        );
+        assert!(
+            tip_run >= 1,
+            "{}: PRESENCE FLOOR — the tip must still show at least one row of GENUINELY visible \
+             ink (delta >= {ink_floor}) rather than fade toward invisible (ran {tip_run}px \
+             against a full-thickness {mid_run}px one period inward)",
+            world.name
+        );
+        assert!(
+            tip_run < mid_run,
+            "{}: the tip ({tip_run}px) must read narrower than the full-thickness stroke one \
+             period inward ({mid_run}px) — a hard-chopped or opacity-only end shows the SAME \
+             run length at both columns instead of tapering",
+            world.name
+        );
+    }
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// SHORT-SPAN SWEEP: the taper's `taper_len = min(period * 0.25, span * 0.5)`
+/// bound (shaders/spellunderline.wgsl) exists exactly so a span too short to
+/// hold a full quarter-wavelength still tapers from BOTH ends without
+/// overlapping past the span's own middle — a ONE-character misspelling and a
+/// two-character one are the tightest REAL cases (this proportional font's
+/// glyph advances already sit close to one period, so "short" here means
+/// "as short as a real single/double-character word gets", not literally
+/// sub-wavelength). This does not re-assert the width taper's SHAPE (pinned
+/// above at a long span, where the tip and mid-span samples fall clear of
+/// each other); it proves the short case still PAINTS REAL, LOCATABLE INK
+/// rather than the degenerate empty draw a `d/max(taper_len, ε)` division or
+/// an inverted `min(local_x, span - local_x)` could silently produce when the
+/// two ends' taper zones meet or overlap.
+#[test]
+fn spell_squiggle_tapers_hold_up_on_one_character_and_two_character_spans() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping spell_squiggle_tapers_hold_up_on_one_character_and_two_character_spans: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let w = 1200u32;
+    let h = 800u32;
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+
+    // line0: a lone one-character misspelling. line1: a two-character one.
+    // Caret parked on line2 (reveal-on-cursor untouched by either fixture).
+    let text = "q\nxy\nprose\n";
+    let fixtures: [(usize, usize, usize); 2] = [(0, 0, 1), (1, 0, 2)];
+
+    for (line, start_col, end_col) in fixtures {
+        let mut clean = view(text, 2, 0);
+        clean.misspelled = Vec::new();
+        p.set_view(&clean);
+        p.prepare(&device, &queue, w, h).unwrap();
+        let a = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+        let mut flagged = view(text, 2, 0);
+        flagged.misspelled = vec![crate::spell::Misspelling {
+            line,
+            start_col,
+            end_col,
+        }];
+        p.set_view(&flagged);
+        let squiggles = p.spell_squiggles();
+        assert_eq!(
+            squiggles.len(),
+            1,
+            "line {line} cols {start_col}..{end_col}: one squiggle proto"
+        );
+        let s = squiggles[0];
+        // Fixture sanity, reported as context rather than gated on a specific
+        // ratio: this proportional font's own glyph advances decide how each
+        // span compares to one period, not an assumption made here.
+        assert!(
+            s.w > 0.0,
+            "line {line} cols {start_col}..{end_col}: empty span (w={}, period={})",
+            s.w,
+            s.period
+        );
+        p.prepare(&device, &queue, w, h).unwrap();
+        let b = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+        pixeldiff::assert_perceptibly_different(
+            &a,
+            &b,
+            w as i64,
+            h as i64,
+            pixeldiff::Region::new(s.x - 3.0, s.y - 3.0, s.w + 6.0, s.h + 6.0),
+            pixeldiff::DistinguishFloor::DEFAULT,
+            &format!("line {line} cols {start_col}..{end_col} (span w={})", s.w),
+        );
+    }
+}
+
 /// RULE-LINE CONCEAL (nits): a concealed thematic break (`---`/`***`/`___`,
 /// trailing SPACE or TAB alike) never draws its own trailing-whitespace nit —
 /// the whole line collapses to the fleuron ornament, so a nit tick beside it
@@ -1369,6 +1604,29 @@ fn nit_underlines_suppress_concealed_rule_lines_sweep() {
             1,
             "{variant:?}: on-caret, the control line's nit still shows; the rule line's \
              own nit stays hidden by the pre-existing caret-line exclusion: {ul_on:?}"
+        );
+
+        // SELECTION-REVEALED: the caret sits elsewhere while a selection touches
+        // the rule line. The fleuron's own draw gate drops a selection-touched
+        // line exactly as it drops the caret's, so the raw `---` source is on
+        // screen — and a nit tick on visible source is a nit that must draw. The
+        // caret-line exclusion above cannot answer this case, because the caret
+        // is not on that line at all.
+        let mut v_sel = view(&text, 1, 0);
+        v_sel.is_markdown = true;
+        v_sel.selection = Some(((0, 0), (0, 3)));
+        p.set_view(&v_sel);
+        assert!(
+            !p.rule_line_concealed(0),
+            "{variant:?}: selection-touched, the rule line's raw markup must reveal"
+        );
+        let ul_sel = p.nit_underlines();
+        assert_eq!(
+            ul_sel.len(),
+            2,
+            "{variant:?}: a SELECTION-revealed rule line draws its raw source, so its own \
+             trailing-whitespace nit must draw over it alongside the control line's: \
+             {ul_sel:?}"
         );
     }
     crate::nits::set_nits_on(true);
@@ -1554,4 +1812,241 @@ fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
 
     crate::nits::set_nits_on(true);
     crate::markdown::set_wysiwyg_on(true);
+}
+
+/// [`rects::NitProjection`]'s retained per-line spans must
+/// match a FRESH `crate::nits::line_nits` recompute of the CURRENT text, at
+/// every step of an edit sequence swept across the shapes its band-splice
+/// math has to get right: a same-line append, a same-line mid-edit, a
+/// UNICODE (multi-byte) insertion, a STRUCTURAL line insertion and a
+/// STRUCTURAL line deletion (the two cases that shift the retained SUFFIX
+/// slots to a new index), and an UNDO-shaped shrink back toward an earlier
+/// state. Pure unit-level: no `TextPipeline`, no GPU adapter, and the oracle
+/// (`crate::nits::line_nits`) shares no code with the thing under test — so
+/// this cannot pass by both sides reading the same wrong cache. `band`
+/// reimplements exactly the prefix/suffix walk `TextPipeline::unchanged_band`
+/// uses to produce the `(prefix, old_end, new_end)` `set_text` hands the
+/// projection, so the fixture drives it the same way production does.
+/// Non-vacuous: every state carries at least one real nit (a double space),
+/// so a broken splice that drops, duplicates, or misplaces one is a direct
+/// per-line assertion failure, never a silently-empty pass.
+#[test]
+fn nit_projection_matches_independent_recompute_across_edit_shapes() {
+    fn band(old: &[&str], new: &[&str]) -> (usize, usize, usize) {
+        let mut prefix = 0;
+        while prefix < old.len() && prefix < new.len() && old[prefix] == new[prefix] {
+            prefix += 1;
+        }
+        let mut suffix = 0;
+        while suffix < old.len() - prefix
+            && suffix < new.len() - prefix
+            && old[old.len() - 1 - suffix] == new[new.len() - 1 - suffix]
+        {
+            suffix += 1;
+        }
+        (prefix, old.len() - suffix, new.len() - suffix)
+    }
+
+    let states: [&[&str]; 7] = [
+        &["one  two", "anchor", "three four"],
+        &["one   two", "anchor", "three four"],
+        &["one   two", "anchor", "three  four"],
+        &["one   two", "anchor", "three  four", "café  au lait"],
+        &["one   two", "anchor", "café  au lait"],
+        &["one   two", "anchor"],
+        &["one  two", "anchor"],
+    ];
+
+    let mut proj = rects::NitProjection::new();
+    let mut prev: Vec<&str> = Vec::new();
+    for (step, &lines) in states.iter().enumerate() {
+        let change = (!prev.is_empty()).then(|| band(&prev, lines));
+        proj.refresh(true, lines, change);
+        for (li, &line) in lines.iter().enumerate() {
+            assert_eq!(
+                proj.spans_for(li),
+                crate::nits::line_nits(line).as_slice(),
+                "step {step} line {li} ({line:?}): the retained span diverged from a \
+                 fresh line_nits() recompute of the current text"
+            );
+        }
+        prev = lines.to_vec();
+    }
+}
+
+/// The SAME edit sequence as
+/// [`nit_projection_matches_independent_recompute_across_edit_shapes`], driven
+/// this time through a real `TextPipeline` end to end — proving `set_text`
+/// wires `md_spans`/`syn_lang`/the changed-line band to the projection
+/// correctly, not just that the projection's own splice math is sound in
+/// isolation. The oracle is `crate::nits::document_nits` (a pure, independent
+/// function sharing no code with the render-side caching), restricted to
+/// non-cursor lines since reveal-on-cursor suppresses the caret's own line.
+#[test]
+fn nit_underlines_count_matches_document_nits_oracle_across_edit_shapes() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_underlines_count_matches_document_nits_oracle_across_edit_shapes: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Cursor parked on "anchor" — present at line 1 in every state below and
+    // never itself carrying a nit — so reveal-on-cursor never suppresses the
+    // spans this law is checking.
+    let states: [&str; 7] = [
+        "one  two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree four\n",
+        "one   two\nanchor\nthree  four\n",
+        "one   two\nanchor\nthree  four\ncafé  au lait\n",
+        "one   two\nanchor\ncafé  au lait\n",
+        "one   two\nanchor\n",
+        "one  two\nanchor\n",
+    ];
+
+    let mut reshapes_seen = p.reshape_count;
+    for (step, text) in states.iter().enumerate() {
+        let mut v = view(text, 1, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+        assert!(
+            p.reshape_count > reshapes_seen,
+            "step {step} ({text:?}) must reshape — the text changed"
+        );
+        reshapes_seen = p.reshape_count;
+
+        let got = p.nit_underlines().len();
+        let expected = crate::nits::document_nits(text)
+            .iter()
+            .filter(|(line, ..)| *line != 1)
+            .count();
+        assert_eq!(
+            got, expected,
+            "step {step} ({text:?}): nit count diverged from the independent \
+             document_nits oracle (excluding the cursor's own line)"
+        );
+    }
+    crate::nits::set_nits_on(true);
+}
+
+/// COALESCED RESHAPES: [`rects::NitProjection`] is
+/// refreshed from [`TextPipeline::set_text`] — once per RESHAPE — rather than
+/// lazily from `ensure_nit_protos`/`prepare`, specifically so that TWO
+/// reshapes landing before the next drawn frame both still patch the cache.
+/// A lazy-from-prepare design would instead diff the CURRENT text against
+/// whatever the last `ensure_nit_protos` call had observed, which is the
+/// WRONG band the moment a frame is skipped between two edits — exactly what
+/// this drives: `set_view` is called TWICE, fixing line0's nit and adding a
+/// brand-new one on line2, with `nit_underlines()` never called in between —
+/// then the ONE read that follows both reshapes is checked against the
+/// independent `document_nits` oracle for the FINAL text. A cache that only
+/// patched the first edit (or diffed the two edits' texts against each other
+/// instead of each against its own true predecessor) would report a stale
+/// line0 nit, a missing line2 nit, or both.
+#[test]
+fn nit_projection_patches_across_two_reshapes_before_one_read() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_patches_across_two_reshapes_before_one_read: no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Step 0: plain prose, one nit on line0 ("one  two") only.
+    let text0 = "one  two\nanchor\nthree four\n";
+    let mut v0 = view(text0, 1, 0);
+    v0.is_markdown = true;
+
+    // Step 1: line0's nit is FIXED and a brand-new nit appears on line2
+    // ("three  four") — pushed right after step 0 with no read (no
+    // `nit_underlines()` call) in between.
+    let text1 = "one two\nanchor\nthree  four\n";
+    let mut v1 = view(text1, 1, 0);
+    v1.is_markdown = true;
+
+    let reshapes_start = p.reshape_count;
+    p.set_view(&v0);
+    p.set_view(&v1);
+    assert_eq!(
+        p.reshape_count,
+        reshapes_start + 2,
+        "both edits must reshape — an unread intermediate edit is not a no-op"
+    );
+
+    let got = p.nit_underlines().len();
+    let expected = crate::nits::document_nits(text1)
+        .iter()
+        .filter(|(line, ..)| *line != 1)
+        .count();
+    assert_eq!(
+        got, expected,
+        "the one read after two un-observed reshapes must reflect the LATEST text \
+         ({text1:?}: line0's nit fixed, line2's nit new), not a stale intermediate state"
+    );
+    crate::nits::set_nits_on(true);
+}
+
+/// BUFFER SWAP: a swap reuses the
+/// same live `TextPipeline` (the real app holds exactly one, per
+/// `CLAUDE.md`'s cache-key-discipline tripwire), so [`rects::NitProjection`]
+/// must never carry a stale document's spans over into a totally unrelated
+/// one. Drives that literally: after a real read has settled the cache on
+/// document A, `set_view` pushes document B — sharing NOT ONE line with A
+/// (no common prefix, no common suffix), the shape `unchanged_band` hands
+/// back as `(0, old_len, new_len)`, i.e. "replace everything" — and the very
+/// next read is checked against the independent `document_nits` oracle for B
+/// alone. A projection that kept A's slots (wrong length or wrong content)
+/// or half-merged the two would diverge from the oracle immediately.
+#[test]
+fn nit_projection_reseeds_clean_across_an_unrelated_buffer_swap() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_projection_reseeds_clean_across_an_unrelated_buffer_swap: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // Document A: plain prose, cursor on line0 (never nitting), one real nit
+    // on line1. Read once so the cache is fully settled on A before the swap.
+    let doc_a = "steady opener\ntrail \nno issue here\n";
+    let mut va = view(doc_a, 0, 0);
+    va.is_markdown = true;
+    p.set_view(&va);
+    let got_a = p.nit_underlines().len();
+    let expected_a = crate::nits::document_nits(doc_a)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(
+        got_a, expected_a,
+        "sanity: document A itself must read correctly"
+    );
+
+    // Document B: an entirely different manuscript — no shared line with A at
+    // any position, different length, different nits (two, on lines 1 and 3;
+    // cursor parked on line0's sibling-free own line, which never nits).
+    let doc_b = "brand new manuscript begins\nfresh  start\nmiddle line clean\nlast   line\n";
+    let mut vb = view(doc_b, 0, 0);
+    vb.is_markdown = true;
+    p.set_view(&vb);
+
+    let got_b = p.nit_underlines().len();
+    let expected_b = crate::nits::document_nits(doc_b)
+        .iter()
+        .filter(|(line, ..)| *line != 0)
+        .count();
+    assert_eq!(
+        got_b, expected_b,
+        "the swapped-to document must read exactly its own nits, not a residue of the \
+         document it replaced"
+    );
+    crate::nits::set_nits_on(true);
 }

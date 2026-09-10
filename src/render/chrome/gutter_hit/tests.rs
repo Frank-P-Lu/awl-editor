@@ -65,7 +65,16 @@ fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
                 .expect("the one-file block always draws a Name line");
             let band = plan.rows[row_line];
             let mark_chars = gutter_stack::CLOSE_MARK_TEXT.chars().count();
-            let text_w = (layout.name.chars().count() + mark_chars) as f32 * label_char_w;
+            // A synthetic stand-in for `shaped_line_widths` — this law is about
+            // `stack_hit_from_plan`'s own math given a known ink width, not
+            // about real font shaping (`render/tests/gutter_stack_pixels.rs`
+            // covers that on real pixels).
+            let ink_widths: Vec<f32> = layout
+                .lines()
+                .iter()
+                .map(|(text, _)| (text.chars().count() + mark_chars) as f32 * label_char_w)
+                .collect();
+            let text_w = ink_widths[row_line];
             let mark_w = mark_chars as f32 * label_char_w;
             let zone = gutter_stack::close_zone(band, text_w, mark_w);
             let label = format!("avail={avail} changed={changed}");
@@ -73,6 +82,7 @@ fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
                 &layout,
                 &plan,
                 label_char_w,
+                &ink_widths,
                 zone[0] - 1.0,
                 band[1] + band[3] * 0.5,
             )
@@ -81,6 +91,7 @@ fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
                 &layout,
                 &plan,
                 label_char_w,
+                &ink_widths,
                 zone[0] + 1.0,
                 band[1] + band[3] * 0.5,
             )
@@ -127,6 +138,7 @@ fn only_the_identity_line_enrols_the_lone_margin_in_row_click_geometry() {
             &layout,
             &plan,
             6.0,
+            &[],
             band[0] + band[2] - 1.0,
             band[1] + band[3] * 0.5
         )

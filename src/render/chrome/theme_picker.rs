@@ -53,7 +53,7 @@ impl TextPipeline {
         let mut out = Vec::with_capacity(self.overlay_items.len());
         let mut prev: Option<String> = None;
         let location = self.overlay_location.as_deref();
-        let location_needs_row = theme::active().render_caps.location_style.needs_plan_row();
+        let location_needs_row = crate::render::effective_location_style().needs_plan_row();
         for i in 0..self.overlay_items.len() {
             let sect = self
                 .overlay_sections

@@ -8,7 +8,9 @@ use super::{
     ornament::{FoldMark, Ornaments, fold_mark_for, ornament_register},
 };
 mod chrome;
-pub use chrome::{PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle};
+pub use chrome::{
+    Elevation, PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle,
+};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -71,13 +73,6 @@ impl CaretBlockStyle {
 pub enum Backdrop {
     Blur,
     Flat,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Elevation {
-    Flat,
-    Recessed,
-    Bordered,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -648,8 +643,8 @@ pub struct Theme {
     pub ko: &'static [&'static str],
     pub ornaments: Ornaments,
     pub ornament_face: &'static str,
-    /// List bullets keep their existing face until the separate bullet-pair
-    /// fitting round assigns pairs derived from each world's new ornament set.
+    /// The face `bullets` draws from — the Nishiki register on every world,
+    /// the same face that world's own ornament trio already reads from.
     pub bullet_face: &'static str,
     pub ornament_scale: f32,
     pub bullets: (char, char, char),

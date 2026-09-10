@@ -292,8 +292,7 @@ mod tests {
     use super::*;
 
     fn fonts_dir() -> std::path::PathBuf {
-        // Tests run with CWD == the crate root.
-        std::path::PathBuf::from(DEFAULT_FONTS_DIR)
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(DEFAULT_FONTS_DIR)
     }
 
     /// THE LAW: every shipped world's display face resolves to a bundled file.

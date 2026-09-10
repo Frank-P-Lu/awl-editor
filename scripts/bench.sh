@@ -22,8 +22,8 @@
 #   scripts/bench.sh --update-baseline   # run suite, then bank it as the new baseline
 #
 # The intended cadence (see benches/README.md): every merge-train day and
-# before every tag. Expect a few minutes of wall time; the XPARA search cell
-# alone is ~2min by design (a real, documented pathology).
+# before every tag. The report records wall time and per-cell samples; runtime
+# depends on the host and its current load.
 #
 set -euo pipefail
 

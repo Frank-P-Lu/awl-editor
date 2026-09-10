@@ -58,7 +58,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         OverlayKind::Caret => OverlayState::new_caret(crate::caret::CaretMode::ALL[0]),
         OverlayKind::Dictionary => OverlayState::new_dictionary(crate::spell::DictVariant::ALL[0]),
         OverlayKind::CjkLang => {
-            OverlayState::new_cjk_lang(crate::frontmatter::DEFAULT_CJK_PRIORITY[0])
+            OverlayState::new_cjk_lang(false, crate::frontmatter::DEFAULT_CJK_PRIORITY[0])
         }
         OverlayKind::Date => {
             OverlayState::new_date(crate::dateformat::DateFormat::ALL[0], (2024, 1, 1))

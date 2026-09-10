@@ -104,6 +104,34 @@ printf 'shard %s %s\n' "${AWL_CONVENTION_FORCE:-unset}" "$$" >>"$AWL_NATIVE_GATE
 # `cargo` writes cannot see it at all — and a law reading only those would report
 # an unswept axis as swept the moment the arm stopped going through Cargo.
 printf 'shardbar %s\n' "${AWL_MENU_BAR_FORCE:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+# THE TWO-WRITE SHAPE, ON PURPOSE AND WITHOUT A RACE. libtest writes a test's
+# NAME and its RESULT as separate writes with the test running in between; six
+# shards sharing one stdout can therefore complete each other's dangling names.
+# Exactly one shard wins the `mkdir` election and leaves its name unterminated
+# until another shard has written a whole line of its own, so the splice either
+# happens or the gate's per-shard reader prevented it — never "it depends".
+# Inert unless the probe asks for it, so every other probe's output is
+# byte-identical to what it was.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_SPLIT_LINES:-}" ]]; then
+  splice_dir="$(dirname "$AWL_NATIVE_GATE_PROBE_LOG")/splice"
+  mkdir -p "$splice_dir"
+  if mkdir "$splice_dir/leader" 2>/dev/null; then
+    printf 'test probe::the_leaders_own_test ... '
+    : >"$splice_dir/leader-armed"
+    for _ in $(seq 1 200); do
+      [[ -e "$splice_dir/other-done" ]] && break
+      sleep 0.05
+    done
+    printf 'ok\n'
+  else
+    for _ in $(seq 1 200); do
+      [[ -e "$splice_dir/leader-armed" ]] && break
+      sleep 0.05
+    done
+    printf 'test probe::a_follower_shards_test ... ok\n'
+    : >"$splice_dir/other-done"
+  fi
+fi
 printf '\nrunning %s tests\n' "${#selected[@]}"
 printf 'test result: ok. %s passed; 0 failed; 0 ignored; 0 measured\n' "${#selected[@]}"
 # A shard that fails under a forcing — the full-suite arm's own red, which no
@@ -176,8 +204,35 @@ elif [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_SECONDS:-}" ]]; then
   # rather than drop. Letting the conventions themselves be the newcomers was
   # flaky: whether they beat the gate's baseline sample was a fork race.
   sleep "${AWL_NATIVE_GATE_PROBE_SPIN_DELAY:-0}"
+  spin_wall_start="$SECONDS"
   bash -c 'printf "%s\n" "$$" >>"$1"; SECONDS=0; while (( SECONDS < $2 )); do :; done' \
     _ "$AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE" "$AWL_NATIVE_GATE_PROBE_SPIN_SECONDS"
+  # GROUND TRUTH, independent of the heartbeat's own `ps -A` sampling: `times`
+  # reads the kernel's rusage accounting for the child that just exited, so it
+  # reports what the spinner ACTUALLY got — on an idle host or a loaded one —
+  # without going anywhere near the `ps`-based mechanism under test.
+  if [[ -n "${AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE:-}" ]]; then
+    spin_wall_seconds=$(( SECONDS - spin_wall_start ))
+    (( spin_wall_seconds < 1 )) && spin_wall_seconds=1
+    # `times` must run un-subshelled: `$(times)` forks a command-substitution
+    # subshell, and a fresh subshell has no children of its own yet, so it
+    # silently reports zero for the very child this line exists to measure.
+    # `{ times; } >file` redirects the current shell's own builtin instead.
+    times_tmp="$AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE.times.$$"
+    { times; } >"$times_tmp"
+    children_line="$(sed -n '2p' "$times_tmp")"
+    rm -f "$times_tmp"
+    cpu_seconds="$(awk '{
+        total = 0
+        for (i = 1; i <= NF; i++) {
+          t = $i; sub(/s$/, "", t); split(t, mm, "m")
+          total += mm[1] * 60 + mm[2]
+        }
+        printf "%.3f", total
+      }' <<<"$children_line")"
+    printf 'cpu_seconds=%s wall_seconds=%s\n' "$cpu_seconds" "$spin_wall_seconds" \
+      >>"$AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE"
+  fi
 else
   sleep "${AWL_NATIVE_GATE_PROBE_SLEEP:-0.2}"
 fi
@@ -195,11 +250,98 @@ fi
 EOF
 chmod +x "$WORK/cargo"
 
-cat >"$WORK/free-oracle" <<'EOF'
+# THE FREE-ORACLE IS DERIVED FROM DISK-PREFLIGHT'S OWN FLOOR, NOT A REMEMBERED
+# NUMBER. A hardcoded 40 GiB sat above the healthy floor (27 GiB) only by
+# coincidence: raise HEALTHY_BYTES past it and every probe below silently stops
+# exercising the no-recovery path and starts taking the preflight's real lock
+# and sweep — a policy change with no test going red. Read the real floor off
+# disk-preflight's own receipt (the same technique test-disk-preflight.sh's
+# band_field uses) rather than parsing its source arithmetic, so a change to
+# HOW the floor is computed cannot desync the two files — only a huge
+# probe value is needed here, so the healthy branch is reached regardless of
+# what the real floor currently is.
+disk_preflight_floor_oracle="$WORK/disk-preflight-floor-oracle"
+cat >"$disk_preflight_floor_oracle" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' $((40 * 1024 * 1024 * 1024))
+printf '%s\n' $((1024 * 1024 * 1024 * 1024))
+EOF
+chmod +x "$disk_preflight_floor_oracle"
+disk_preflight_floor_receipt="$(
+  env -u CI \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$disk_preflight_floor_oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-preflight-floor-lock" \
+    "$ROOT/.orchestrator/disk-preflight.sh"
+)"
+disk_preflight_healthy_bytes="${disk_preflight_floor_receipt#*healthy_bytes=}"
+disk_preflight_healthy_bytes="${disk_preflight_healthy_bytes%% *}"
+[[ "$disk_preflight_healthy_bytes" =~ ^[0-9]+$ ]] || {
+  echo "test-native-gate: could not read disk-preflight's healthy_bytes floor from its own receipt: $disk_preflight_floor_receipt" >&2
+  exit 1
+}
+# A STATED margin, not a coincidence: every probe's oracle sits exactly this
+# far above the real floor, so the gap is legible on its own rather than only
+# discoverable by reading two files side by side.
+readonly free_oracle_margin_bytes=$((1 * 1024 * 1024 * 1024))
+free_oracle_bytes=$((disk_preflight_healthy_bytes + free_oracle_margin_bytes))
+
+cat >"$WORK/free-oracle" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' $free_oracle_bytes
 EOF
 chmod +x "$WORK/free-oracle"
+
+# LAW: the oracle exceeds the real floor by exactly the stated margin — a
+# presence floor first, since a zero-or-negative margin would satisfy a bare
+# ">" comparison for free (the shape where a law is satisfiable by deleting
+# its own subject).
+(( free_oracle_margin_bytes > 0 )) || {
+  echo "test-native-gate: free_oracle_margin_bytes=$free_oracle_margin_bytes; a non-positive margin makes the coupling law vacuous" >&2
+  exit 1
+}
+(( free_oracle_bytes - disk_preflight_healthy_bytes == free_oracle_margin_bytes )) || {
+  echo "test-native-gate: free-oracle is $free_oracle_bytes but the real healthy floor is $disk_preflight_healthy_bytes (want exactly +$free_oracle_margin_bytes)" >&2
+  exit 1
+}
+
+# MUTATION PROOF: raise the floor the way the item warns about — past the OLD
+# hardcoded 40 GiB — and show (a) the scenario is real, (b) this file's DERIVED
+# oracle keeps its margin with no code change, and (c) the retired hardcode
+# would have gone silently wrong under exactly this mutation, which is the bug
+# this fix retires.
+legacy_hardcoded_oracle_bytes=$((40 * 1024 * 1024 * 1024))
+mutated_disk_preflight="$WORK/disk-preflight-with-raised-floor.sh"
+cp "$ROOT/.orchestrator/disk-preflight.sh" "$mutated_disk_preflight"
+perl -pi -e 's/readonly MINIMUM_BYTES=\$\(\(24 \* 1024 \* 1024 \* 1024\)\)/readonly MINIMUM_BYTES=\$((60 * 1024 * 1024 * 1024))/' \
+  "$mutated_disk_preflight"
+chmod +x "$mutated_disk_preflight"
+mutated_floor_receipt="$(
+  env -u CI \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$disk_preflight_floor_oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-preflight-mutated-floor-lock" \
+    "$mutated_disk_preflight"
+)"
+mutated_healthy_bytes="${mutated_floor_receipt#*healthy_bytes=}"
+mutated_healthy_bytes="${mutated_healthy_bytes%% *}"
+[[ "$mutated_healthy_bytes" =~ ^[0-9]+$ ]] || {
+  echo "test-native-gate: mutation fixture did not raise a readable floor: $mutated_floor_receipt" >&2
+  exit 1
+}
+(( mutated_healthy_bytes > legacy_hardcoded_oracle_bytes )) || {
+  echo "test-native-gate: mutation fixture raised the floor to $mutated_healthy_bytes, which is not past the legacy hardcode $legacy_hardcoded_oracle_bytes — the scenario this law guards against was not reproduced" >&2
+  exit 1
+}
+mutated_derived_oracle_bytes=$((mutated_healthy_bytes + free_oracle_margin_bytes))
+(( mutated_derived_oracle_bytes - mutated_healthy_bytes == free_oracle_margin_bytes )) || {
+  echo "test-native-gate: derivation did not keep its margin under a raised floor: floor=$mutated_healthy_bytes derived=$mutated_derived_oracle_bytes" >&2
+  exit 1
+}
+(( legacy_hardcoded_oracle_bytes <= mutated_healthy_bytes )) || {
+  echo "test-native-gate: mutation did not exceed the legacy hardcode; the regression this law names was not reproduced" >&2
+  exit 1
+}
+echo "test-native-gate: free-oracle margin law — real floor $disk_preflight_healthy_bytes, oracle $free_oracle_bytes (margin $free_oracle_margin_bytes); a raised floor of $mutated_healthy_bytes keeps its margin under the derived value and would have silently passed the retired $legacy_hardcoded_oracle_bytes hardcode"
 
 cat >"$WORK/git" <<'EOF'
 #!/usr/bin/env bash
@@ -713,6 +855,57 @@ vitals_peak() {
     } END { printf "%g\n", peak }' "$probe_output"
 }
 
+# The last heartbeat's reading of a scalar field — used for load1/cpu_count,
+# which describe the HOST rather than a tracked process, so the most recent
+# sample (closest to when a livelock law actually asserted) is the one worth
+# printing beside that assertion.
+vitals_field_last() {
+  awk -v key="$1=" '
+    /^native-gate-vitals/ {
+      for (i = 1; i <= NF; i++) if (index($i, key) == 1) value = substr($i, length(key) + 1)
+    }
+    END { print (value == "" ? "unknown" : value) }
+  ' "$probe_output"
+}
+
+# Ground truth for the livelock direction below, one line per spinner
+# (`cpu_seconds=.. wall_seconds=..`), written by the fixture itself from
+# bash's `times` builtin — the kernel's own rusage for the child that just
+# exited, reached by a path that shares nothing with the heartbeat's `ps -A`
+# sampling under test. The MAX across spinners is the fixture's own answer to
+# "what did the busiest one actually get", on an idle host or a loaded one.
+ground_truth_peak_pct() {
+  awk -F'[= ]' '
+    { if ($4 > 0) { pct = $2 * 100 / $4; if (pct > peak) peak = pct } }
+    END { printf "%.1f", peak + 0 }
+  ' "$1"
+}
+
+# The relationship, not the absolute: an absolute floor assumes the fixture
+# always gets a whole core, which this fleet's whole design makes false. What
+# the law actually needs is agreement between the heartbeat's own delta-over-
+# `ps` reading and the ground truth above, over the same stretch — true on an
+# idle host, true on a loaded one, and still false if the heartbeat loses
+# sight of the process altogether, which is the defect this law exists for.
+#
+# A presence floor comes first, in the shape CLAUDE.md names for a law that
+# grades a treatment: a ground truth near zero means the fixture itself never
+# got meaningful CPU — the host is starved past what any comparison here can
+# speak to — and a bare ratio against noise would be satisfiable by silence.
+# That is reported as a loud, named skip, not a pass and not a hard failure:
+# the whole point of this item is that a busy fleet must still get a receipt.
+assert_pct_tracks_ground_truth() {
+  local label="$1" heartbeat_pct="$2" heartbeat_who="$3" truth_pct="$4" load1="$5" cpu_count="$6"
+  awk -v t="$truth_pct" 'BEGIN { exit !(t >= 5) }' || {
+    echo "test-native-gate: SKIPPED $label: the spinner's own ground truth was only ${truth_pct}% of a core (load1=$load1 cpu_count=$cpu_count) — this host is too starved right now for the probe to say anything" >&2
+    return 2
+  }
+  awk -v h="$heartbeat_pct" -v t="$truth_pct" 'BEGIN { exit !(h >= t * 0.5) }' || {
+    echo "test-native-gate: $label read ${heartbeat_pct}% ($heartbeat_who) while the spinner's own ground truth was ${truth_pct}% of a core (load1=$load1 cpu_count=$cpu_count) — the heartbeat is not tracking the fixture's real CPU use" >&2
+    exit 1
+  }
+}
+
 # The system load average is the heartbeat's headline and it is the field most
 # likely to come back as a brace or an empty string: macOS hands it over as
 # `{ 5.70 12.72 16.79 }` and Linux as the first field of /proc/loadavg. A probe
@@ -744,21 +937,41 @@ if (( process_cpu_table_available )); then
 # doing it: a bare load average would rise here too, and would not say which of
 # the gate's own processes to attach a debugger to.
 : >"$WORK/spinners"
+: >"$WORK/spin-truth"
 probe cpu-spin AWL_NATIVE_GATE_VITALS_SECONDS=3 AWL_NATIVE_GATE_PROBE_SPIN_SECONDS=9 \
-  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners"
+  AWL_NATIVE_GATE_PROBE_SPIN_DELAY=4 AWL_NATIVE_GATE_PROBE_SPIN_PID_FILE="$WORK/spinners" \
+  AWL_NATIVE_GATE_PROBE_SPIN_TRUTH_FILE="$WORK/spin-truth"
 (( probe_status == 0 )) || { echo "test-native-gate: cpu-spin probe failed ($probe_status)" >&2; exit 1; }
 [[ -s "$WORK/spinners" ]] || {
   echo "test-native-gate: the fixture never entered its spin, so this law proved nothing" >&2
   exit 1
 }
-read -r spin_peak spin_who <<<"$(busiest_peak)"
-# One core fully pegged is 100. The floor is 50 because `ps -o time=` quantises
-# to whole seconds on Linux, so a 3 s window can under-read a pegged process by
-# a third; macOS reports hundredths and measures nearer 100.
-awk -v peak="$spin_peak" 'BEGIN { exit !(peak >= 50) }' || {
-  echo "test-native-gate: two conventions spun for 9s and the busiest tracked process peaked at ${spin_peak}% ($spin_who) — the CPU probe cannot see a livelock" >&2
+[[ -s "$WORK/spin-truth" ]] || {
+  echo "test-native-gate: the fixture recorded no ground truth for its own spin, so this law has no oracle to compare against" >&2
   exit 1
 }
+# THE CONFIGURATION THIS RAN IN, printed unconditionally — a reader sees, on a
+# green run or a red one, whether this was an idle box or a busy afternoon
+# without re-running anything.
+spin_load1="$(vitals_field_last load1)"
+spin_cpu_count="$(vitals_field_last cpu_count)"
+spin_truth_peak="$(ground_truth_peak_pct "$WORK/spin-truth")"
+read -r spin_peak spin_who <<<"$(busiest_peak)"
+echo "test-native-gate: cpu-spin probe ran at load1=$spin_load1 cpu_count=$spin_cpu_count — the spinners' own ground truth peaked at ${spin_truth_peak}% of a core, the heartbeat's busiest reading was ${spin_peak}% ($spin_who)"
+
+# The relationship, not the absolute: 0.5 preserves the exact historical
+# guarantee on an idle host (ground truth ~100, so the floor is still ~50 —
+# where `ps -o time=`'s whole-second quantisation on Linux can under-read a
+# pegged process by about a third), and it scales down honestly on a loaded
+# one instead of assuming a core this fleet does not promise to have free.
+spin_direction_status=0
+if assert_pct_tracks_ground_truth "the busiest tracked process" "$spin_peak" "$spin_who" \
+  "$spin_truth_peak" "$spin_load1" "$spin_cpu_count"; then
+  :
+else
+  spin_direction_status=$?
+fi
+
 # A process that appeared INSIDE the window must be measured over its own age,
 # not dropped. The first draft dropped it, and the receipt run of 2026-08-02
 # shows what that cost: two heartbeats reporting `tracked_procs=0` and `0.6%`
@@ -780,22 +993,34 @@ read -r new_peak new_who <<<"$(awk 'BEGIN { peak = -1 }
       }
       if (fresh >= 1 && value > peak) { peak = value; bestwho = who; found = 1 }
     } END { if (found) printf "%.1f %s\n", peak, bestwho; else print "-1 no-heartbeat-reported-a-newcomer" }' "$probe_output")"
-awk -v peak="$new_peak" 'BEGIN { exit !(peak >= 50) }' || {
-  echo "test-native-gate: the busiest NEW process across every heartbeat read ${new_peak}% ($new_who) — a process that appeared inside the window is dropped instead of measured over its own age" >&2
-  exit 1
-}
-new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
-grep -Fxq "$new_pid" "$WORK/spinners" || {
-  echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
-  exit 1
-}
-spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
-grep -Fxq "$spin_pid" "$WORK/spinners" || {
-  echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2
-  exit 1
-}
+new_direction_status=0
+if assert_pct_tracks_ground_truth "the busiest NEW process" "$new_peak" "$new_who" \
+  "$spin_truth_peak" "$spin_load1" "$spin_cpu_count"; then
+  :
+else
+  new_direction_status=$?
+fi
 
-echo "test-native-gate: a spinning convention is reported as a pegged core and named by pid, not merely as a busy machine"
+if (( new_direction_status == 0 )); then
+  new_pid="${new_who##*:}"; new_pid="${new_pid%%=*}"
+  grep -Fxq "$new_pid" "$WORK/spinners" || {
+    echo "test-native-gate: the newcomer heartbeat blamed pid $new_pid ($new_who), which is not one of the fixture's spinners ($(tr '\n' ' ' <"$WORK/spinners"))" >&2
+    exit 1
+  }
+fi
+if (( spin_direction_status == 0 )); then
+  spin_pid="${spin_who##*:}"; spin_pid="${spin_pid%%=*}"
+  grep -Fxq "$spin_pid" "$WORK/spinners" || {
+    echo "test-native-gate: the heartbeat blamed pid $spin_pid ($spin_who) but the processes actually spinning were $(tr '\n' ' ' <"$WORK/spinners")— a load number nobody can attribute is not a diagnosis" >&2
+    exit 1
+  }
+fi
+
+if (( spin_direction_status == 0 && new_direction_status == 0 )); then
+  echo "test-native-gate: a spinning convention is reported as a pegged core and named by pid, not merely as a busy machine"
+else
+  echo "test-native-gate: cpu-spin livelock law SKIPPED (see above) — load1=$spin_load1 cpu_count=$spin_cpu_count, ground truth ${spin_truth_peak}%"
+fi
 
 # Direction 2 — DEADLOCK. Same silence, same flat memory, zero CPU. This is the
 # half that makes the pair non-vacuous, and `tracked_procs` is asserted
@@ -876,6 +1101,27 @@ require "shard mutation" "missing="
 refuse "shard mutation" "native-gate-receipt"
 
 echo "test-native-gate: six shards are complete, the one-shard wave knob is live, and deleting one generated prefix refuses by missing test name"
+
+# ── NO SHARD MAY FINISH ANOTHER SHARD'S LINE ──
+# The transcript is the only account anyone reads of a wave, and six shards
+# share one stdout. libtest leaves "test NAME ... " unterminated while the test
+# runs, so a neighbour's whole line can land inside it and the reader is handed
+# a line that names one test and carries another's verdict — a green suite
+# reading as a named test failing, with that name in no `failures:` block at
+# all. The stub above stages exactly that collision without a race, so this
+# probe answers the same way every time.
+rm -rf "$WORK/splice"
+probe shard-lines AWL_NATIVE_GATE_PROBE_SPLIT_LINES=1
+(( probe_status == 0 )) || {
+  echo "test-native-gate: the shard-lines probe failed ($probe_status)" >&2
+  exit 1
+}
+# The negative first: it is the subject, and it names the exact shape.
+refuse "shard lines" \
+  "test probe::the_leaders_own_test ... test probe::a_follower_shards_test ... ok"
+require "shard lines" "test probe::the_leaders_own_test ... ok"
+require "shard lines" "test probe::a_follower_shards_test ... ok"
+echo "test-native-gate: a shard's dangling test name is completed by its own shard, never by a neighbour's verdict"
 
 for failing in mac linux; do
   run_probe "$failing" 23

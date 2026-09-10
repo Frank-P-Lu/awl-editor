@@ -12,8 +12,12 @@
 // screen-DOWN). A plain `sin` would start at the vertical center (a zero-crossing)
 // and dive DOWN first; the cosine start lands a crest right under the first letter.
 // The wave keeps FULL amplitude to both ends — the mark reads as one continuous
-// chunky ripple — and only its opacity fades over the last pixel or two, so an end
-// landing mid-crest stops softly instead of hard-cutting.
+// chunky ripple, and the CENTERLINE never moves — but the STROKE WIDTH eases
+// down to a small rounded tip over the last quarter-wavelength, so an end
+// landing mid-crest lifts off like a brush stroke instead of hard-cutting.
+// This applies only to the wavy mark (`amp > 0`); the flat writing-nit tick
+// (`amp == 0`, see below) keeps its original two-sided OPACITY fade unchanged
+// — a nit has no crest to taper toward, and the taper math assumes a period.
 //
 // Coordinates are in PIXELS (top-left origin). `viewport` maps pixel space to
 // clip space ([-1,1], y-up) in the vertex stage, identical to selection.wgsl.
@@ -62,12 +66,26 @@ struct VsOut {
 
 const PI: f32 = 3.14159265;
 
+// Tip-taper tuning (squiggle only, `amp > 0`). The tip is a fraction of the
+// full stroke, floored so it can never fully vanish — the floor matches the
+// 0.5px minimum `SpellUnderlinePipeline::prepare` already clamps `thickness`
+// to (`src/spellunderline.rs`), so the tip is never thinner than the thinnest
+// full-width stroke this same pipeline already ships elsewhere.
+const TIP_FRACTION: f32 = 0.35;
+const TIP_FLOOR_PX: f32 = 0.5;
+
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     let corner = QUAD_NDC[vid];
-    // 2px margin so the antialiased stroke + wave crests are not clipped by the
-    // quad (the band height already includes the amplitude, but pad for AA).
-    let extent = inst.hsize + vec2<f32>(2.0, 2.0);
+    // Margin so the antialiased stroke + wave crests + tip-taper end caps are
+    // not clipped by the quad itself (the band height already includes the
+    // amplitude, but pad for AA). The X margin grows with stroke thickness so
+    // a large zoom's rounded end cap (bounded by the same tip radius the
+    // fragment stage computes) always has room to render, not just the small
+    // flat 2px pad that was enough before an end could bulge past the band.
+    let tip_half_bound = max(inst.thickness * 0.5 * TIP_FRACTION, TIP_FLOOR_PX);
+    let margin_x = max(2.0, tip_half_bound + 1.5);
+    let extent = inst.hsize + vec2<f32>(margin_x, 2.0);
     let local = corner * extent;
     let px = inst.center + local;
 
@@ -91,35 +109,81 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
-    // Horizontal extent of the band (clip the wave to the word, with a tiny
-    // soft edge at each end so it doesn't hard-cut mid-crest).
+    // Horizontal extent of the band (the word's own span).
     let left = in.center.x - in.hsize.x;
     let right = in.center.x + in.hsize.x;
+    let span = right - left;
     let phase = (in.px.x - in.x0) * (2.0 * PI / in.period);
     // Curve height about the band's vertical center. `-cos` so the wave BEGINS at
     // its TOP (crest) under the first glyph (phase 0 → center.y - amp); see the
-    // header note.
+    // header note. UNCHANGED by the taper below — only the stroke width varies,
+    // never the centerline.
     let wave_y = in.center.y - in.amp * cos(phase);
 
-    // Distance from this fragment to the curve. We approximate the true
-    // perpendicular distance by dividing the vertical gap by the local slope
-    // magnitude sqrt(1 + dy/dx^2), which keeps the stroke an even width even
-    // on the steep parts of the wave (a plain vertical |dy| would fatten the
-    // flats and thin the slopes). Slope of `-amp*cos(phase)` is `+amp*(…)*sin(phase)`.
+    // Slope of `-amp*cos(phase)` is `+amp*(…)*sin(phase)`; see below.
     let dydx = in.amp * (2.0 * PI / in.period) * sin(phase);
-    let dist = abs(in.px.y - wave_y) / sqrt(1.0 + dydx * dydx);
 
-    // Antialiased stroke of half-width thickness/2 with a ~1px feather.
-    let half_w = in.thickness * 0.5;
+    var dist: f32;
+    var half_w = in.thickness * 0.5;
+
+    if (in.amp > 0.0) {
+        // THICKNESS TAPER: ease the stroke's half-width down to a small
+        // nonzero tip over the last `taper_len` (a quarter wavelength,
+        // shortened for a span too short to hold one — never more than half
+        // the span, so a one-character word still tapers instead of
+        // overlapping its own opposite end). `u` is 0 exactly at the word's
+        // boundary and 1 by one taper length inward; the cubic ease
+        // (`3u²-2u³`) is the same smoothstep shape the antialiasing below
+        // already uses, so the taper reads as one continuous easing, not a
+        // kink. `tip_half` is a PRESENCE floor, not a fade target: the tip
+        // never thins past it, so the end stays a locatable dot rather than
+        // vanishing.
+        let tip_half = max(half_w * TIP_FRACTION, TIP_FLOOR_PX);
+        let taper_len = min(in.period * 0.25, span * 0.5);
+        let local_x = clamp(in.px.x - left, 0.0, span);
+        let d = min(local_x, span - local_x);
+        let u = clamp(d / max(taper_len, 0.0001), 0.0, 1.0);
+        let eased = u * u * (3.0 - 2.0 * u);
+        half_w = mix(tip_half, half_w, eased);
+
+        if (in.px.x < left || in.px.x > right) {
+            // Past the word's own boundary: this is the ROUNDED CAP, not a
+            // re-creation of the old hard clip. Distance is to the curve's
+            // own endpoint (still at full amplitude — the crest/trough the
+            // wave actually reaches at x=left/right), so the cap is a small
+            // circle of radius `tip_half` centered exactly where the curve
+            // stops, matching a round line-cap. Deliberately NOT used inside
+            // [left, right]: there, the slope-compensated perpendicular
+            // distance below is the correct measure on the wave's steep
+            // sections, and a point-distance approximation would fatten them.
+            let anchor_x = select(right, left, in.px.x < left);
+            let anchor_phase = (anchor_x - in.x0) * (2.0 * PI / in.period);
+            let anchor_y = in.center.y - in.amp * cos(anchor_phase);
+            dist = length(in.px - vec2<f32>(anchor_x, anchor_y));
+        } else {
+            // Perpendicular distance to the curve: divide the vertical gap by
+            // the local slope magnitude sqrt(1 + dy/dx^2), which keeps the
+            // stroke an even width even on the steep parts of the wave (a
+            // plain vertical |dy| would fatten the flats and thin the slopes).
+            dist = abs(in.px.y - wave_y) / sqrt(1.0 + dydx * dydx);
+        }
+    } else {
+        dist = abs(in.px.y - wave_y) / sqrt(1.0 + dydx * dydx);
+    }
+
+    // Antialiased stroke with a ~1px feather around the (possibly tapered)
+    // half-width.
     var a = 1.0 - smoothstep(half_w - 0.75, half_w + 0.75, dist);
 
-    // Fade the very ends so the squiggle starts/stops softly within the word.
-    // OPACITY only, shared by the wavy spelling mark and the straight nit: the
-    // curve keeps full amplitude to the boundary, so the ripple is the same
-    // height under the first letter as under the last.
-    let edge = 1.5;
-    a = a * smoothstep(left - 0.5, left + edge, in.px.x);
-    a = a * (1.0 - smoothstep(right - edge, right + 0.5, in.px.x));
+    if (in.amp <= 0.0) {
+        // Zero-amplitude writing-nit: UNCHANGED. Fade the very ends by
+        // OPACITY only, exactly as before the taper above existed — the flat
+        // tick has no crest to lift off of, so it keeps its original soft cut
+        // rather than the wave's geometric taper.
+        let edge = 1.5;
+        a = a * smoothstep(left - 0.5, left + edge, in.px.x);
+        a = a * (1.0 - smoothstep(right - edge, right + 0.5, in.px.x));
+    }
 
     a = clamp(a, 0.0, 1.0) * in.color.a;
     return vec4<f32>(in.color.rgb, a);

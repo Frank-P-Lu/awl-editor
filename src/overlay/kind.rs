@@ -429,7 +429,11 @@ impl OverlayKind {
             OverlayKind::Assets => "unused assets",
             OverlayKind::UserWords => "personal dictionary",
             OverlayKind::Rename => "rename",
-            OverlayKind::InsertLink => "insert link",
+            // A LABEL, not a verb: this is the ONE kind that draws its title
+            // as a real field label (`Self::draws_title_prefix`) rather than
+            // a muted picker prefix, so it keeps the user's own casing
+            // instead of the roster's house lowercase.
+            OverlayKind::InsertLink => "Link destination",
             OverlayKind::KeepName => "keep version",
             OverlayKind::Context => "context menu",
             OverlayKind::TableDims => "insert table",
@@ -439,7 +443,10 @@ impl OverlayKind {
 
     pub fn row_path_splits(self) -> bool {
         match self {
-            OverlayKind::InsertLink => true,
+            // No kind splits row content on a path boundary today: the one
+            // URL/path a row ever carried (`InsertLink`) now lives in the
+            // FIELD line instead (`Self::draws_title_prefix`, mirrored into
+            // `OverlayState::query`), never a candidate row.
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::ProjectBrowse
@@ -461,6 +468,7 @@ impl OverlayKind {
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
+            | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
             | OverlayKind::TableDims
@@ -479,11 +487,20 @@ impl OverlayKind {
     pub fn draws_title_prefix(self) -> bool {
         !matches!(
             self,
-            OverlayKind::Rename
-                | OverlayKind::InsertLink
-                | OverlayKind::KeepName
-                | OverlayKind::Context
+            OverlayKind::Rename | OverlayKind::KeepName | OverlayKind::Context
         )
+    }
+
+    /// Ghost text the query FIELD shows while it's empty — a promise no
+    /// picker's fuzzy-filter field makes (an empty query there just means
+    /// "everything"), but this kind's field has nothing behind it until
+    /// something is typed. `None` for every other kind, so the query line's
+    /// paint stays exactly as blank as it always was there.
+    pub fn field_placeholder(self) -> Option<&'static str> {
+        match self {
+            OverlayKind::InsertLink => Some("Paste or type a URL"),
+            _ => None,
+        }
     }
 
     /// **DOES TYPING ON THIS CARD FILTER ANYTHING?**
