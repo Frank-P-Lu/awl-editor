@@ -72,6 +72,32 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     assert!(ov.accepts().contains(&"b.txt"), "the new file is listed");
 }
 
+#[test]
+fn every_files_entry_action_rescans_before_building_its_goto_corpus() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _serial = crate::testlock::serial();
+    for action in [
+        Action::OpenGoto,
+        Action::OpenProject,
+        Action::OpenRecentProjects,
+    ] {
+        let mem = InMemoryFs::new().with_file("/proj/old.md", "old\n");
+        crate::fs::with_fs(Arc::new(mem.clone()), || {
+            let mut app = app_on(None, "/proj", Config::empty());
+            mem.write(std::path::Path::new("/proj/new.md"), b"new\n")
+                .unwrap();
+            let exit = crate::app::schedule::RecordingExit::new();
+            app.apply(action.clone(), false, &exit, crate::stats::Door::Chord);
+            assert!(
+                app.project_location
+                    .file_index
+                    .contains(&"new.md".to_string()),
+                "{action:?} must rescan before its Files/Goto card is built"
+            );
+        });
+    }
+}
+
 // ── THE KEYMAP FLAVOR ROUND — the "Keymap…" picker's accept round-trip ────
 
 /// Accepting a row of the "Keymap…" sub-picker (`App::apply_keymap_flavor`,

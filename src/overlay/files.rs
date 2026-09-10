@@ -1,8 +1,54 @@
 //! Files card construction, presentation, and directory-level outcomes.
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::Path};
 
 use super::{OverlayKind, OverlayRow, OverlayState, RowMeta};
+
+/// The Files corpus after its one byte-aware eligibility pass.  The parallel
+/// ranking vectors are rebuilt from the original positions, so filtering a
+/// binary cannot point an open or recent marker at its next neighbour.
+pub(crate) struct FilesCorpus {
+    pub paths: Vec<String>,
+    pub open: Vec<usize>,
+    pub recent: Vec<usize>,
+    pub times: Vec<String>,
+}
+
+/// Keep every UTF-8/NUL-free file regardless of its name, while excluding
+/// binary paths from the Files card's browse and root-wide search corpus.
+pub(crate) fn files_corpus(
+    root: &Path,
+    paths: &[String],
+    open: &[usize],
+    recent: &[usize],
+    times: &[String],
+) -> FilesCorpus {
+    let mut remap = vec![None; paths.len()];
+    let mut kept = Vec::new();
+    let mut kept_times = Vec::new();
+    for (old, path) in paths.iter().enumerate() {
+        if matches!(
+            crate::openable::classify(&crate::index::resolve(root, path)),
+            crate::openable::Openable::Text
+        ) {
+            remap[old] = Some(kept.len());
+            kept.push(path.clone());
+            kept_times.push(times.get(old).cloned().unwrap_or_default());
+        }
+    }
+    let remap_indices = |indices: &[usize]| {
+        indices
+            .iter()
+            .filter_map(|&old| remap.get(old).and_then(|new| *new))
+            .collect()
+    };
+    FilesCorpus {
+        paths: kept,
+        open: remap_indices(open),
+        recent: remap_indices(recent),
+        times: kept_times,
+    }
+}
 
 /// The keyboard target inside the Files card. Selection remains a separate fact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

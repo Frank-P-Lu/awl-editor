@@ -9,20 +9,42 @@ pub(super) struct FilesOverlayBuilder {
     corpus: Vec<String>,
     open: Vec<usize>,
     recent: Vec<usize>,
+    times: Vec<String>,
 }
 
 impl FilesOverlayBuilder {
     pub(super) fn new(root: PathBuf, ctx: &BuildCtx<'_>) -> Self {
+        let filtered = crate::overlay::files_corpus(
+            &root,
+            &ctx.goto_corpus,
+            &ctx.goto_open,
+            &ctx.goto_recent,
+            &ctx.goto_times,
+        );
         Self {
             root,
-            corpus: ctx.goto_corpus.clone(),
-            open: ctx.goto_open.clone(),
-            recent: ctx.goto_recent.clone(),
+            corpus: filtered.paths,
+            open: filtered.open,
+            recent: filtered.recent,
+            times: filtered.times,
         }
     }
 
     pub(super) fn build(&self, kind: OverlayKind, ctx: &BuildCtx<'_>) -> Option<OverlayState> {
-        let overlay = crate::overlay::build(kind, ctx)?;
+        let overlay = if kind == OverlayKind::Goto {
+            let mut overlay = OverlayState::new_files(
+                self.corpus.clone(),
+                self.open.clone(),
+                self.recent.clone(),
+                None,
+            );
+            overlay.set_times(self.times.clone());
+            overlay.attach_headings(ctx.goto_headings.clone());
+            overlay.attach_line_jump(ctx.goto_line_count);
+            overlay
+        } else {
+            crate::overlay::build(kind, ctx)?
+        };
         Some(if kind == OverlayKind::Goto {
             self.attach_level(overlay, None)
         } else {

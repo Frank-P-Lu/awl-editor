@@ -258,8 +258,28 @@ impl ReplaySession<'_> {
             search_corpus: inputs.search_corpus,
         };
         let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
+        let files = crate::overlay::files_corpus(
+            root,
+            &build_ctx.goto_corpus,
+            &build_ctx.goto_open,
+            &build_ctx.goto_recent,
+            &build_ctx.goto_times,
+        );
         let mut make_overlay = |kind: crate::overlay::OverlayKind| {
-            let mut overlay = crate::overlay::build(kind, &build_ctx)?;
+            let mut overlay = if kind == crate::overlay::OverlayKind::Goto {
+                let mut overlay = crate::overlay::OverlayState::new_files(
+                    files.paths.clone(),
+                    files.open.clone(),
+                    files.recent.clone(),
+                    None,
+                );
+                overlay.set_times(files.times.clone());
+                overlay.attach_headings(build_ctx.goto_headings.clone());
+                overlay.attach_line_jump(build_ctx.goto_line_count);
+                overlay
+            } else {
+                crate::overlay::build(kind, &build_ctx)?
+            };
             if kind == crate::overlay::OverlayKind::Goto {
                 let level = crate::index::try_list_dir_level(root, None);
                 overlay.attach_file_directories(
@@ -275,7 +295,7 @@ impl ReplaySession<'_> {
             }
             Some(overlay)
         };
-        let files_corpus = self.corpus.clone();
+        let files_corpus = files.paths.clone();
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
             if kind == crate::overlay::OverlayKind::Goto {
                 let mut overlay = crate::overlay::OverlayState::new_files(
