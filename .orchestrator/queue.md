@@ -6,6 +6,84 @@
 
 ## Ready to build
 
+### 641 — picker-specific construction inputs (user request, 2026-09-10)
+
+🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+
+Build: replace the catch-all `overlay::BuildCtx` with focused input types so each
+picker receives only the data it consumes. Start by mapping the current
+`overlay/build/ctx.rs` fields to `overlay/build.rs` consumers and the live App,
+replay, tests and benchmark construction sites. Choose typed constructors or a
+request enum carrying per-picker inputs; avoid a picker kind plus an unrelated
+payload, or another all-purpose bag hidden behind defaults. Share genuinely common
+binding/config inputs through one small owner. Preserve the single construction
+path shared by live and replay, including deliberate differences in recency,
+history clocks, dictionary and filesystem data. Keep absent spell-target behavior,
+row gates, ranking, labels, search budgets and navigable-explorer routing unchanged.
+
+Done: production callers cannot supply irrelevant picker inputs or need to fill
+unrelated fields with empty values. Remove redundant gathering and explanatory
+bookkeeping where the new types make it unnecessary; retain comments about units,
+lifetimes and real invariants. Do not introduce eager I/O, extra copying, new
+picker behavior or a generic construction framework. No speedup is claimed without
+release measurements at the affected work owner.
+
+Coordination: separate from 615's mouse extraction. Integrate overlapping changes
+serially with 637–639 and 628/589; rebase on their actual current state rather than
+freezing the old Go-to shape or changing the approved UI contract. This refactor is
+not an additional product-design approval gate.
+
+Verify: read docs/render.md and docs/verification.md; enumerate every picker variant
+with exhaustive handling, update all construction sites and source-law enrollment,
+and compare observable construction results against base (rows/order, selection,
+labels, gates, missing inputs and live/replay differences). Run targeted picker,
+action and replay laws plus compiler checks for native and wasm consumers. Follow
+any identity comparison with an outcome audit; repair missing laws for findings.
+Use the verification policy's single integrated native/wasm gate, not duplicate
+full worker gates. Read docs/harness-reach.md before choosing any render captures.
+
+---
+
+### 642 — animation state owns complete transitions (user request, 2026-09-10)
+
+🟢 READY — queue only, not dispatched. Behavior-preserving ownership refactor.
+
+Build: census related animation fields and their writers, starting with the
+TextPipeline overlay entrance/selection-band fields in render.rs and their input,
+prepare, advance and dismissal paths. Group fields by the animation whose invariant
+they share, with private state and named shared transitions for start, retarget,
+advance, settle and reset as applicable. Migrate every live, replay and test caller
+so callers cannot reset the phase while leaving an old origin, target, pending
+input epoch or active flag behind. Existing cohesive animation owners stay intact;
+do not combine unrelated animations into one global state machine or generic engine.
+
+Preserve authored curves, durations, retarget behavior, first-open/close behavior,
+preview commit/revert and Reduce Motion endpoints. Preserve FrameSample's shared
+presentation time, input-epoch accounting, pause/occlusion/failed-present semantics,
+post-prepare activity reporting and clock-free capture deltas. This changes state
+ownership, not animation feel or redraw policy. Reduce bookkeeping/comments only
+where the type and transitions now express the invariant; retain meaningful units
+and temporal contracts. Runtime performance claims require release before/after
+measurements, not fewer fields or lines.
+
+Coordination: separate from 615; serialize edits to shared callers with that branch
+and the UI/picker work in 628/637–639. Reconcile against the current frame-clock and
+theme-preview owners before implementation. No dependence on 641 unless the actual
+call graph exposes one; do not require both refactors to land in one large change.
+
+Verify: map animation state × transition × input sequence, including interrupted
+retargets, repeated resets, close/reopen, buffer/world changes and Reduce Motion
+mid-animation. Use injected time to compare poses and activity against base at
+start, intermediate and settled samples; test stale pending-state removal and
+prove a headline partial-reset regression law fails under a compiling mutation.
+Run targeted motion/frame-clock/scheduling laws and an independent outcome audit;
+read docs/render.md, docs/verification.md and docs/harness-reach.md before selecting
+render probes. Apply the required render vision-smoke when rendering is touched,
+then one integrated native/wasm gate. Deterministic state/pose checks do not verify
+wall-clock feel; identify any remaining live timing checks honestly.
+
+---
+
 ### 636 — file navigation: shared interaction and information-hierarchy contract (user approval, 2026-09-10)
 
 🟢 READY — queue only, not dispatched. First dependency for 637–639; no native
