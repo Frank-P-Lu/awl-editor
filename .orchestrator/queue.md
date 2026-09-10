@@ -375,10 +375,28 @@ Review update (2026-09-10): the user likes the saved Settings layout and explici
 asked to continue Find/Replace and theme-picker refinement on the interactive design
 site alongside it. Preserve the bounded Settings label/value column and category
 rail. The site extends the approved Files study with separated find/navigation/
-replacement groups and stable world preview with explicit Keep/Cancel. This HTML
+replacement groups and stable theme preview; the Switch/Cancel refinement below supersedes Keep/Cancel. This HTML
 review is explicitly user-authorized for this study; it does not replace the native
 composition, accessibility, world/DPI checks or final taste review below.
-Reference: https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 04).
+Reference: https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05; earlier study 04 reviewed the initial composition).
+
+Approved theme-picker refinement (2026-09-11; study 05): use **Themes** in
+user-facing labels, not Worlds. Keep the same top-right placement, size and layout
+across all themes at a given viewport/UI scale, including when reopened under a
+different theme. Narrow windows use one shared centered layout. This is stronger
+than merely freezing the opening theme's anchor during a preview. Select to preview;
+**Switch** / Enter commits and closes, **Cancel** / Esc restores the prior theme.
+Keep the quieter, opaque bordered chrome and hold its appearance steady during
+preview. Remove “Preview on the page”, the explanatory chooser subtitle, palette
+blurbs and redundant Keep wording. Remove background/partial blur from these
+reviewed picker surfaces; keep the document sharp behind them. This does not remove
+unrelated authored theme backgrounds or motion. Use actual effective shortcut labels.
+
+Verify the placement contract across opening themes as well as preview destinations,
+normal/narrow viewports and UI scale/DPI. Check Switch/Cancel through keyboard,
+pointer and direct Actions, with focus restored to the invoking surface (including
+Settings). The approved direction is queued for native implementation; it does not
+mark the existing native prototype integrated or its outstanding checks passed.
 
 The native prototype report flags an existing workspace-width law as failing and
 leaves theme composition untouched. Re-measure against current main before integration;
@@ -435,7 +453,7 @@ Surface compositions:
    composition still needs deliberate proportion. Narrow mode uses successive
    category/detail views and preserves search/focus/editor restoration.
 3. Theme picker: stable chooser using the same fields/rows/surface family. Explicit
-   stable panel composition, not the opening world's arbitrary list arrangement.
+   stable panel composition and cross-theme placement per the approved refinement above.
    Freeze position, width, UI face/size, row height/count, border geometry and
    selection treatment throughout preview. For the FIRST PROTOTYPE also freeze
    picker colors until dismissal; everything behind it continues live theme preview.
