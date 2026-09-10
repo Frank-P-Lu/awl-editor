@@ -569,6 +569,11 @@ enum InputConsumer {
     Ime,
     Keys,
     Mouse,
+    MouseDocument,
+    MouseFeedback,
+    MouseOverlay,
+    MouseScroll,
+    MouseSurfaces,
     MouseButton,
     PointerSync,
     Press,
@@ -594,6 +599,11 @@ impl InputConsumer {
         Self::Ime,
         Self::Keys,
         Self::Mouse,
+        Self::MouseDocument,
+        Self::MouseFeedback,
+        Self::MouseOverlay,
+        Self::MouseScroll,
+        Self::MouseSurfaces,
         Self::MouseButton,
         Self::PointerSync,
         Self::Press,
@@ -621,6 +631,11 @@ impl InputConsumer {
             Self::Ime => ("src/app/input/ime.rs", true),
             Self::Keys => ("src/app/input/keys.rs", true),
             Self::Mouse => ("src/app/input/mouse.rs", true),
+            Self::MouseDocument => ("src/app/input/mouse/document.rs", true),
+            Self::MouseFeedback => ("src/app/input/mouse/feedback.rs", true),
+            Self::MouseOverlay => ("src/app/input/mouse/overlay.rs", true),
+            Self::MouseScroll => ("src/app/input/mouse/scroll.rs", true),
+            Self::MouseSurfaces => ("src/app/input/mouse/surfaces.rs", true),
             Self::MouseButton => ("src/app/input/mouse_button.rs", true),
             Self::PointerSync => ("src/app/input/pointer_sync.rs", true),
             Self::Press => ("src/app/press.rs", false),
@@ -629,6 +644,31 @@ impl InputConsumer {
             Self::Viewstate => ("src/app/viewstate.rs", false),
             Self::Window => ("src/app/window.rs", false),
         }
+    }
+}
+
+/// Pointer-event precedence stays at the one small dispatcher. Gesture and
+/// surface behavior belongs to its named children, so a new handler cannot
+/// silently turn this file back into the input monolith.
+#[test]
+fn mouse_dispatcher_keeps_only_the_three_event_entries() {
+    let source = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/input/mouse.rs"),
+    )
+    .expect("mouse dispatcher source must be readable");
+    let entries = ["on_cursor_moved", "on_cursor_left", "on_mouse_wheel"];
+    assert_eq!(
+        source.matches("pub(in crate::app) fn ").count(),
+        entries.len(),
+        "mouse.rs is the event-precedence dispatcher only; put new pointer behavior in \
+         document, feedback, overlay, scroll, or surfaces"
+    );
+    for entry in entries {
+        assert_eq!(
+            source.matches(&format!("fn {entry}(")).count(),
+            1,
+            "mouse.rs must keep exactly one {entry} event entry"
+        );
     }
 }
 
@@ -867,24 +907,8 @@ fn the_usage_records_have_exactly_one_dirty_stamping_site() {
     );
 }
 
-// ── THE SUMMONED-LAYER BYPASS COUNT ─────────────────────────────────────
-//
-// `WorkspaceState` hands out two escape hatches from its own ladder, each
-// justified in its own doc, and each is only justified while it has ONE call
-// site:
-//
-//  - `popover_summon_bit()` — the raw summon flag, ladder-free, for the
-//    cursor-icon composition's byte-identity.
-//  - `core_slots()` — `&mut` on both slots, for the shared `ActionCtx` seam
-//    for the shared action core. Production has exactly two: `App::apply`'s `run_action_core`
-//    and its palette re-dispatch's `stamp_return_to`; the live search-key
-//    intercept is the third, since `search::keys::intercept` is the seam
-//    shared verbatim with the headless replay.
-//
-// COUNTING, not merely locating: CLAUDE.md's tripwire is that a
-// needle-locating audit stays green forever while a second copy lives happily
-// beside it. The needles are assembled at runtime so this file's own text
-// cannot match them.
+// Workspace escape hatches have a fixed caller census. Count calls across
+// the source tree so a second consumer cannot silently bypass the ladder.
 /// The files that NAME the two escape hatches without calling them: the owner
 /// module (declaration + doc) and this law's own prose.
 #[cfg(test)]
@@ -902,9 +926,9 @@ fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {
     let mut bit_hits: std::collections::BTreeMap<String, usize> = Default::default();
     super::source_audit::scan_dir_collapsed(&root, &root, &raw_bit, &mut bit_hits);
     // Declaration + doc-reference in `app/workspace.rs`, the one consumer in
-    // `app/input/mouse.rs`, and the summon-gate law's assertions.
+    // `app/input/mouse/feedback.rs`, and the summon-gate law's assertions.
     assert_eq!(
-        bit_hits.get("app/input/mouse.rs"),
+        bit_hits.get("app/input/mouse/feedback.rs"),
         Some(&1),
         "the raw popover summon bit must have exactly ONE consumer \
          (`sync_cursor_icon`); every other reader asks `popover_holds_attention`. \
@@ -916,7 +940,9 @@ fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {
     // stops matching is a loud failure instead of a silent one.
     let outside: Vec<&String> = bit_hits
         .keys()
-        .filter(|f| !DECLARING_FILES.contains(&f.as_str()) && f.as_str() != "app/input/mouse.rs")
+        .filter(|f| {
+            !DECLARING_FILES.contains(&f.as_str()) && f.as_str() != "app/input/mouse/feedback.rs"
+        })
         .collect();
     assert!(
         outside.is_empty(),

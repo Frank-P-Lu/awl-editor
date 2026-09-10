@@ -6,9 +6,9 @@
 
 ## Open build and design tasks
 
-**11 open numbered tasks.** Ready: 641, 642, 637.
+**10 open numbered tasks.** Ready: 641, 642, 637.
 Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
-628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
+628 and 582. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 641 — picker-specific construction inputs (user request, 2026-09-10)
@@ -355,30 +355,6 @@ and pointer routing, theme preview stability and cancel/restore. Assert real geo
 and relative rendered-pixel presence/legibility, with mutation proof and five-shot
 vision smoke; appropriate native/wasm gates follow implementation. Headless captures
 do not settle taste or live motion. This board-only decision claims no receipt.
-
----
-
-### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
-
-🟡 IN PROGRESS — `mouse_615` (Codex), branch `codex/615-mouse`, worktree
-`.worktrees/615-mouse`. Recovery owner was instructed to commit the staged extraction
-before any further work. Not integrated.
-
-`app/input/mouse.rs` combines document hit testing and selection, overlay navigation,
-search/menu clicks, cursor feedback, and wheel routing in one oversized module.
-Separate these responsibilities into focused mouse submodules, leaving the event
-entry points and precedence visible in one dispatcher. Preserve gesture ordering,
-selection/undo/fold semantics, redraw scheduling, and existing input-state ownership.
-Shorten historical and repetitive commentary while retaining units and invariants.
-No picker-input or animation-state redesign belongs in this item.
-
-Verify: compare extracted method bodies against base, update source-law enrollment
-for every moved consumer, and run targeted pointer/selection/scroll and ownership
-laws. Independently audit outcomes and add a missing law if the audit finds a gap;
-prove any new headline law with a compiling mutation. Then commit and run the full
-native gate plus wasm smoke before landing. Pointer timing/feel remains live-only;
-no keyboard capture is claimed to verify mouse events. No render geometry or styling
-change is intended.
 
 ---
 

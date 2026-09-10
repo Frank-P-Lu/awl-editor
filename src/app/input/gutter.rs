@@ -179,7 +179,7 @@ impl App {
     /// * a press that misses the block ENTIRELY while the panel is open is a
     ///   CLICK-AWAY: it collapses the panel and is swallowed, mirroring the
     ///   awl-drawn menu bar's own click-away contract
-    ///   (`app/input/mouse.rs::menubar_press`) rather than inventing a second
+    ///   (`app/input/mouse/surfaces.rs::menubar_press`) rather than inventing a second
     ///   one.
     ///
     /// Returns whether the press was consumed by the margin, so the caller

@@ -267,7 +267,7 @@ device gives real shaped-glyph geometry without a window — but the gesture
 ITSELF (a live `CursorMoved` stream, and the `about_to_wait` re-arm that keeps
 a held drag scrolling once the pointer stops moving) can only be driven by a
 real window and pointer. Scroll-on-drag (`App::step_drag_scroll`,
-`app/input/mouse.rs`) follows this shape exactly: the overshoot-to-rate curve
+`app/input/mouse/document.rs`) follows this shape exactly: the overshoot-to-rate curve
 and the composed overshoot -> scroll -> hit-test tick are pipeline laws
 (`render::tests::drag_scroll`); the App wiring that drives them from a real
 drag is live-only, flagged for human confirmation like every other pointer
@@ -410,8 +410,8 @@ table above already says: an EXPLICIT, non-default `cjk_priority` setting
 still never reaches a rendered pixel through either capture door.
 
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
-`app/input/keys.rs`, `app/input/mouse.rs`, `app/input/drags.rs`, `app/menu.rs`,
-`app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter
+`app/input/keys.rs`, `app/input/mouse.rs` and its children, `app/input/drags.rs`,
+`app/menu.rs`, `app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter
 re-blinds every transition reachable through it, in one line, and nothing else
 in the suite would notice.
 

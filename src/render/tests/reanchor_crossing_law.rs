@@ -68,7 +68,7 @@ fn cross_to(ov: &mut OverlayState, name: &str) {
 }
 
 /// A PASSIVE hover onto `name`: re-highlight + the BARE `preview_overlay` (the
-/// same call `app/input/mouse.rs::overlay_hover` runs).
+/// same call `app/input/mouse/overlay.rs::overlay_hover` runs).
 fn hover_to(ov: &mut OverlayState, name: &str) {
     let ci = ov
         .rows

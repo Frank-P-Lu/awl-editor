@@ -179,7 +179,7 @@ fn esc_cancels_with_no_buffer_change() {
 
 /// A POINTER PICK is the mouse's own route to the exact state an arrow-key
 /// sculpt reaches (`OverlayState::table_dims_pick`, wired to a real click in
-/// `app/input/mouse.rs::overlay_click` -- the live gesture itself has no
+/// `app/input/mouse/overlay.rs::overlay_click` -- the live gesture itself has no
 /// `--keys` vocabulary and is flagged for human confirmation, but the STATE
 /// MUTATION it drives is this seam). Picking a cell then committing with
 /// `Enter` inserts exactly that size.

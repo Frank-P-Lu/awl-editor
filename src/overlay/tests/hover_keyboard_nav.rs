@@ -36,7 +36,7 @@ fn hover_only_highlights_visible_rows_and_never_scrolls() {
 
 /// THE REAL-MOTION GATE LAW: a world's re-layout under a STATIONARY
 /// pointer must never synthesize a new hover selection. `hover_at` is the
-/// production seam `app/input/mouse.rs::overlay_hover` calls on every
+/// production seam `app/input/mouse/overlay.rs::overlay_hover` calls on every
 /// `CursorMoved` (real travel OR a platform-synthesized duplicate at the
 /// identical coordinates); its ONLY input beyond the OverlayState itself is the
 /// `(px, py, hit)` triple the caller resolved, so this test drives it exactly

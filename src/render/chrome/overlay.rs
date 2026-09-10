@@ -841,7 +841,7 @@ impl TextPipeline {
     /// this pipeline's live overlay row geometry ([`Self::overlay_row_at`]),
     /// then run the result through [`crate::overlay::OverlayState::hover_at`]'s
     /// real-motion + movement-slop gate. Both `App::overlay_hover` (the live
-    /// `CursorMoved` path, `app/input/mouse.rs`) and the headless `--keys`
+    /// `CursorMoved` path, `app/input/mouse/overlay.rs`) and the headless `--keys`
     /// pointer-replay step (`ReplaySession::apply_move`, `main/run.rs`, via
     /// `capture::OraclePipeline::resolve_overlay_hover`, which wraps the
     /// SAME [`crate::render::TextPipeline`] this method is on) route through

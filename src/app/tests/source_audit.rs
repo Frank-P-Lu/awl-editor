@@ -730,14 +730,16 @@ fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
          or account for it here AND in docs/harness-reach.md. Found: {hits:?}"
     );
 
-    // THE INPUT-DISPATCH CHAIN, named file by file rather than swept by a
-    // wildcard: these are the doors a user's keypress, menu pick, palette
-    // command, click, drag or scripted probe chord travels, and they are the
-    // reason the live effect-interpretation surface is reachable at all.
+    // Input dispatch stays reachable without an OS event-loop handle.
     for file in [
         "app/apply.rs",
         "app/input/keys.rs",
         "app/input/mouse.rs",
+        "app/input/mouse/document.rs",
+        "app/input/mouse/feedback.rs",
+        "app/input/mouse/overlay.rs",
+        "app/input/mouse/scroll.rs",
+        "app/input/mouse/surfaces.rs",
         "app/input/drags.rs",
         "app/menu.rs",
         "app/probe.rs",
@@ -911,10 +913,7 @@ fn the_gated_pointer_resync_has_exactly_one_call_site_in_sync_view() {
 /// BOTH lifecycle edges that lose the pointer outright — the OS cursor
 /// leaving the window (`on_cursor_left`) and the window losing focus
 /// (`on_focus_lost`) — clear pointer hover state through the SAME owner,
-/// never a partial clear of their own. `on_cursor_left` used to clear only
-/// the working-set stack hover, forgetting the fold chevron; `on_focus_lost`
-/// cleared neither. A regression to either shape drops one of the two
-/// expected call sites below.
+/// never a partial clear of their own.
 #[test]
 fn both_pointer_lost_lifecycle_edges_clear_hover_through_the_one_owner() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");

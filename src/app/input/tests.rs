@@ -724,7 +724,7 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     );
 }
 
-/// `App::step_drag_scroll` (`app/input/mouse.rs`) is the drag-scroll owner
+/// `App::step_drag_scroll` (`app/input/mouse/document.rs`) is the drag-scroll owner
 /// both `on_drag` and `App::schedule_drag_scroll` (the idle-timer re-arm)
 /// drive, gated on `App::drag_scroll_primed`. A hermetic test `App` never has
 /// a live GPU pipeline (only a real window builds one), so this pins the
@@ -929,7 +929,7 @@ fn press_with_card_open_pages_streaks_on_card_and_dismisses_off_it() {
 
 /// **THE OVERLAY-CLOSE EDGE MUST RETIRE `query_drag`, NOT JUST THE BUTTON
 /// RELEASE.** A press on the summoned overlay's own query line arms
-/// `query_drag` (`overlay_click`'s query-hit arm, `app/input/mouse.rs`) for
+/// `query_drag` (`overlay_click`'s query-hit arm, `app/input/mouse/overlay.rs`) for
 /// the rest of that gesture, ordinarily released by the matching
 /// `ButtonReleased` in `on_mouse_input`. But a keyboard action can close the
 /// overlay out from under a still-held press — the button-up arm that owns

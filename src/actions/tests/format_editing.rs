@@ -356,7 +356,7 @@ fn code_block_toggle_through_apply_transition_wraps_and_undoes() {
 /// the keyboard/palette route fires (law-tested,
 /// `commands::tests::every_popover_button_fires_a_catalog_command`), and the
 /// live click handler dispatches it through the identical `App::apply` seam
-/// (`app/input/mouse.rs`: `self.apply(button.action(), …)`). So driving
+/// (`app/input/mouse_button.rs`: `self.apply(button.action(), …)`). So driving
 /// `PopoverButton::Code.action()` through `apply_transition` here IS the real
 /// popover route, not a stand-in for it — premise-checked before the fix
 /// landed: a bare-two-line selection already round-tripped on `main`; the

@@ -29,7 +29,7 @@ fn toggle_fold_collapses_then_expands_the_section_under_the_caret() {
 
 // The fold CHEVRON's own click target, `Buffer::toggle_fold_at_line`,
 // toggles a SPECIFIC heading line directly (no caret resolution), the owner a
-// mouse click on the chevron drives (mirrored live-only by `mouse.rs`'s
+// mouse click on the chevron drives (mirrored live-only by `mouse/document.rs`'s
 // `fold_chevron_at_pointer`).
 #[test]
 fn toggle_fold_at_line_flips_a_specific_heading_both_directions() {

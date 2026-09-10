@@ -75,6 +75,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   an `impl App` block in a new module. Its single `InputRuntime` handle contains
   private `KeyboardInput` and `PointerInput` substates; only `app/input/`
   projects them, while sibling domains use named transitions and typed snapshots.
+  `input/mouse.rs` keeps cursor and wheel event precedence; `input/mouse/`
+  separates `document` (hit tests, selection and drag scrolling), `overlay`
+  (picker hover, wheel and query interaction), `surfaces` (search/menu presses),
+  `feedback` (cursor and fold hover), and `scroll` (wheel route helpers).
+  Button press/release dispatch remains in `input/mouse_button.rs`.
   `app/tests/domains.rs` is the gate: every
   root `App` field is classified to exactly one owner, and the field count is a
   ratchet that may only go down.
