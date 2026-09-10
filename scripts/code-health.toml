@@ -86,6 +86,9 @@ file = "src/app/input/keys.rs"
 lines = 508
 reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel now falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses."
 
+[[file_size_mark]]
+file = "src/app/input/mouse.rs"
+lines = 104
 
 [[file_size_mark]]
 file = "src/app/session.rs"
