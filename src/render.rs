@@ -3034,11 +3034,8 @@ fn background_desc() -> BgDesc {
         warp_twist: bg.warp_shape().1,
         // INERT 0.0 off `WarpedGrid` (the quantizer's own floor is 5.0, so
         // it cannot express "no tunnel" on its own).
-        warp_ribs: if bg.is_warped_grid() {
-            crate::warpgrid::ribs_seam_safe(bg.warp_shape().2)
-        } else {
-            0.0
-        },
+        warp_ribs: bg.warp_shape().2,
+        warp_forward_drift: bg.forward_drift(),
     }
 }
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because

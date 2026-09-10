@@ -127,10 +127,9 @@ pub enum Background {
         /// `warpgrid::forward_speed_cells_per_sec`, the one owner that turns
         /// this into the shader's `warp_travel` cells).
         forward_drift: f32,
-        /// Longitudinal wireframe line count around the FULL turn — the
-        /// tube's visible ribs. Quantized to a multiple of the shader's
-        /// major-line hierarchy before upload; see
-        /// `warpgrid::ribs_seam_safe`.
+        /// Projected cross-section count across the study's fixed depth range.
+        /// The shipped profile keeps its literal 58; the shared renderer owns a
+        /// separate fixed roster of 24 longitudinal rails.
         ribs: f32 },
 }
 
@@ -373,10 +372,8 @@ impl Background {
         matches!(self, Background::WarpedGrid { .. })
     }
     /// The tube's authored radius-fold amplitude, angular roll rate, and
-    /// (unquantized) rib count — `0.0` for every ground that has no tunnel,
-    /// so no other world's upload changes shape. Ribs is quantized to a
-    /// shader-safe multiple by `warpgrid::ribs_seam_safe`, not here — this
-    /// stays the raw authored number so a law can compare against it.
+    /// cross-section count — `0.0` for every ground that has no tunnel, so no
+    /// other world's upload changes shape.
     pub fn warp_shape(&self) -> (f32, f32, f32) {
         match self {
             Background::WarpedGrid {

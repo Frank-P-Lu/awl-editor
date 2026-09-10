@@ -6,9 +6,9 @@
 
 ## Open build and design tasks
 
-**9 open numbered tasks.** Ready: 641, 642, 638, and 628. Dependencies/coordination:
+**8 open numbered tasks.** Ready: 641, 642, 638, and 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
-628 and 582. User decision: 579.
+628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 641 — picker-specific construction inputs (user request, 2026-09-10)
@@ -375,120 +375,6 @@ Vulkan driver lands here, so it is a product-shape question and not an engineeri
 Leftover: Docker volumes `awl579-cargo-registry` and `awl579-target` hold the built arm64 rig
 for a clean re-measurement without repaying the build.
 
-### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
-
-🟡 REPAIR IN PROGRESS — `kite_582_repair` (Codex), based on current `main`.
-Independent reference comparison is in progress with `kite_582_judge` against
-committed repair `b0081fe7`; it is review evidence, not integration approval.
-The `item-582` candidate was rejected by independent visual review on 2026-09-11
-and remains unintegrated. It improved rail curvature and retained clean haze,
-legibility, static character and DPI behavior, but did not reach the approved
-projected geometry: measured native section-radius variation remained about
-4–5% versus the reference's 42–45%, its centreline bend was incorrectly scaled
-by the fold amplitude, section roll had no equivalent owner, and the transit
-pose still read as a concentric target. Repair must preserve the successful
-veil/far-core/antialiasing work while replacing the log-ring approximation with
-geometry that carries section centre, full multiplicative radius, roll and
-fixed-theta longitudinal curvature directly. Fresh judge artifacts are in the
-untracked scratch directory `/private/tmp/item582-judge`; they are evidence,
-not product inputs or a gate receipt. Live motion parity and human acceptance
-remain owed after a mechanically acceptable repair.
-
-**Outcome.** The user rejected the delivered appearance: regular concentric
-circles and straight spokes, unlike the approved organic tunnel prototype.
-Restore the prototype's depth-dependent bending, section rotation, and folded
-silhouette in the shared background renderer. Matching parameter labels is not
-visual parity. Item 564's engineering completion does not constitute acceptance
-of its appearance; this item owns the correction and renewed visual sign-off.
-
-**Evidence and first check.** Source comparison finds the saved prototype
-projects individual 3D tube points with depth-dependent centre displacement,
-radius and roll. Current `shaders/background.wgsl` instead uses a single polar
-axis, adds a bounded shift to a logarithmic ring coordinate, tapers folds back
-to circles outside a depth band, and derives rails directly from `theta`.
-These are substantive geometric differences. First reproduce with a fresh
-native capture and explicit config; record build and motion policy so an old
-running binary cannot be mistaken for current source. The user's screenshot
-contains private prose: do not copy it into tracked fixtures or reports.
-
-**Reference.** Existing approved standalone study (read-only reference, no new
-web artifact): `$HOME/.codex/visualizations/2026/08/18/01a01547-26ee-7cf3-be19-203fc0c69a13/living-tunnel-study.html`,
-especially `tunnelPoint`, its sampling loops, and motion update. Read the actual
-file before implementing. Preserve reference evidence outside the repo; capture
-only seeded public prose for any tracked native comparison. The core mapping is
-recorded here so the brief remains useful if that local artifact is unavailable:
-
-```text
-turn = theta + worldZ * twist
-pulse = 1 + .075*sin(worldZ*1.25) + .035*sin(worldZ*2.7 + theta*2)
-radius = max(.46, 1 + fold*(.46*cos(3*turn)
-                          + .18*sin(5*turn - worldZ*.35))) * pulse
-pathX = .22*sin(worldZ*.48) + .07*sin(worldZ*1.17)
-pathY = .17*cos(worldZ*.39) - .06*sin(worldZ*.91)
-angle = theta + .12*sin(worldZ*.31) + spin
-x3 = pathX + radius*cos(angle)
-y3 = pathY + radius*sin(angle)
-scale = min(width,height)*.72 / z
-p = clamp((z-.72)/(10.8-.72), 0, 1)
-bend = p*p*(3-2*p)
-centre = viewportCentre + (vanishingPoint-viewportCentre)*bend
-screenPoint = centre + (x3,y3)*scale
-```
-
-**Build / scope.** Preserve the resulting projected surface, including curved
-longitudinal ribs, displaced sections, and visible folds/overlap where the
-reference has them. One continuous tube can have a centreline that bends with
-depth: continuity does not require every section to share one screen centre.
-Choose a bounded reusable rendering mechanism appropriate to that geometry;
-do not force it into the existing closed-form polar approximation if that loses
-the shape. Keep theme choices as data, one motion owner, and native/browser
-support. No Kite-name branch, separate per-margin tunnels, or general scene
-editor. Revisit laws that enforce straight radial rails or concentricity: those
-properties describe the rejected implementation, not the product contract.
-
-Retain the approved light lavender/mineral palette, calm central page, fold .34,
-twist .72, forward drift .05, and 58 ribs as visual reference settings. Any
-necessary parameter/unit conversion must preserve appearance and be explained.
-Retain random corner targets with no immediate repeat, 15-second dwell,
-12-second smooth transit, and very slow section roll (study spin rate
-`twist*.035` per second). Retain subtle convergence haze without orb/crosshair.
-Handle dense distant lines with antialiasing and depth/contrast fading while
-preserving the near-field surface; flattening the tube is not the fallback.
-Reduce Motion and Ambient-off use a deterministic authored static folded pose;
-ordinary pause/lost focus freeze the current pose. Static mode must keep the
-same characteristic geometry. No new user-facing controls are needed.
-
-**Done / verify.** Read THEMES.md, docs/render.md, CAPTURE.md and
-docs/harness-reach.md before implementation. Produce matched reference/native
-views at recorded viewport, page width, pose and settings: top-right and
-bottom-left dwell, a transit midpoint, and the motion-safe pose; include both
-1200×800 and 1600×1000 and DPI 1/2. Native captures use an explicit hermetic
-fixture/config. Use the existing deterministic motion seam where it reaches
-these states; extend the shared seam if necessary rather than inventing a
-parallel renderer for tests. Sidecars verify state; pixels verify visible
-curvature, fold presence, page legibility and continuity across page masking.
-Compare projected landmarks/curves against the reference geometry with an
-explicit tolerance; a nonzero fold uniform alone proves nothing. Add a law
-that fails on the current concentric-ring/straight-spoke approximation and
-prove it fails after the mutation builds and runs. Sweep narrow/wide pages,
-corner/transit poses, and static/moving states for crowding and aliasing.
-
-Perform the standing vision smoke over about five real gallery shots with
-concrete questions about curved ribs and folded sections; obtain a visual
-judge's reference comparison before declaring visual parity. Keep real-time
-comfort and final resemblance acceptance explicitly OWED to the user; present
-the comparison images, not just test receipts. Measure release rendering cost
-before/after, preserve bounded wake/freeze behavior, and run native gate and
-web smoke for the implementation. A passed engineering gate cannot close the
-user's visual rejection by itself.
-
-Worker routing when dispatched: `gpt-5.6-sol` high for geometry/implementation;
-visual judge `gpt-5.6-sol` xhigh; outcome audit `gpt-5.6-terra` medium. Follow the
-board's claim/worktree protocol and integrate serially with overlapping shader
-work. This brief authorizes the correction, not unrelated background redesigns.
-
----
-
 ### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
 
 Coordination update (2026-09-08): **628 owns the shared visual specification and
@@ -528,6 +414,18 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
+- **582 — projected Wagtail tunnel landed; blocked on live motion and user taste.**
+  The replacement renders one bounded projected mesh with depth-dependent bend,
+  full 42–45%-class folded sections, independent roll and curved fixed-theta rails.
+  An independent judge accepted the reference match mechanically after checking
+  16 native views across pose, viewport and DPI. The focused 31-law render suite,
+  compiling concentric/page-mask mutations, WebGL2 validation and release frame
+  benchmark are clean; the measured median change was +0.007 ms at 2400×1600 @2x.
+  Remaining judgment is live dwell/transit/settle comfort, pause/focus freeze,
+  Reduce Motion in the bundled app, and whether the intentionally quieter far core
+  has the right density. Keep the repaired projection is recommended; the merge is
+  a single reversible unit if live review rejects it. The ignored scratch gallery
+  used by the judge remains review evidence rather than a product input.
 - **588 — mechanically complete; blocked on user taste.** The current plain
   `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
   all three Brolga depths are present, distinct, aligned, contained, unclipped and

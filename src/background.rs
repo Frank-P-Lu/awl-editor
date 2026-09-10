@@ -1,4 +1,6 @@
+mod bytes;
 mod params;
+mod tunnel;
 mod waves;
 use params::{ground_params, warp_shape_params};
 pub(crate) use waves::{env_phase, waves_drift_radians};
@@ -71,10 +73,14 @@ pub struct BgDesc {
     /// `0.0` off that ground (`Background::warp_shape`).
     pub warp_fold: f32,
     pub warp_twist: f32,
-    /// WARPED GRID's rib count, already quantized to a shader-safe multiple
-    /// of the major-line hierarchy (`crate::warpgrid::ribs_seam_safe`) — the
-    /// shader never quantizes on its own. INERT `0.0` off that ground.
+    /// WARPED GRID's literal projected cross-section count. The shader owns a
+    /// separate fixed roster of 24 longitudinal rails. INERT `0.0` off that
+    /// ground.
     pub warp_ribs: f32,
+    /// WARPED GRID's authored forward speed. Kept with the rest of the
+    /// profile data so the shader can recover the reference's linear-z travel
+    /// and independent section roll from the shared phase upload.
+    pub warp_forward_drift: f32,
 }
 
 /// The PER-FRAME ambient scalars the background pass carries — everything about
@@ -99,6 +105,7 @@ pub struct AmbientUpload {
 /// over the cleared background, before selection + text.
 pub struct BackgroundPipeline {
     pipeline: wgpu::RenderPipeline,
+    tunnel_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     globals_buf: wgpu::Buffer,
     from: [f32; 4],
@@ -199,8 +206,11 @@ impl BackgroundPipeline {
             })
         });
 
+        let tunnel_pipeline = tunnel::pipeline(device, format, &shader, &bind_group_layout);
+
         Self {
             pipeline,
+            tunnel_pipeline,
             bind_group,
             globals_buf,
             from: srgba_u8_to_linear(desc.from),
@@ -257,7 +267,7 @@ impl BackgroundPipeline {
             warp_shape: self.warp_shape,
             warp_axis: [ambient.warp_axis.0, ambient.warp_axis.1, 0.0, 0.0],
         };
-        queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
+        queue.write_buffer(&self.globals_buf, 0, bytes::of(&globals));
     }
 
     /// Record the fullscreen-triangle draw into an open render pass, FIRST (right
@@ -266,6 +276,10 @@ impl BackgroundPipeline {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.draw(0..3, 0..1);
+        if self.shader == 10 {
+            pass.set_pipeline(&self.tunnel_pipeline);
+            pass.draw(0..6, 0..10_528);
+        }
     }
 }
 
@@ -285,25 +299,7 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
     [lin[0], lin[1], lin[2], PATTERN_MAX_COVERAGE]
 }
 
-// ---------------------------------------------------------------------------
-// Minimal local Pod/bytemuck shim (same approach as selection.rs, no extra crate).
-// ---------------------------------------------------------------------------
-mod bytemuck_lite {
-    /// Marker for types safe to reinterpret as bytes.
-    ///
-    /// # Safety
-    /// Implementors must have a stable layout with no padding and only
-    /// plain-old-data fields.
-    pub unsafe trait Pod: Copy + 'static {}
-
-    pub fn bytes_of<T: Pod>(t: &T) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>())
-        }
-    }
-}
-
-unsafe impl bytemuck_lite::Pod for Globals {}
+unsafe impl bytes::Pod for Globals {}
 
 #[cfg(test)]
 mod tests;

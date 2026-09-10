@@ -1,8 +1,7 @@
-//! Hidden `--bench-frame` profiler. It replays the live redraw order headlessly,
-//! using real document state and a fixed report canvas; `set_view` is timed separately.
-//!
-//! The replay includes every live preparation stage; `STAGE_NAMES` and `mark()` calls
-//! must remain in lockstep.
+//! Hidden `--bench-frame` replay of the live redraw order on a fixed canvas.
+//! `STAGE_NAMES` and `mark()` calls remain in lockstep.
+
+mod warp;
 
 use anyhow::{Context as _, ensure};
 use glyphon::{Cache, Resolution};
@@ -137,6 +136,7 @@ async fn run_async() -> anyhow::Result<()> {
     println!(
         "(headless: submit+poll SERIALIZES the GPU cost; the window overlaps it and adds present/acquire)"
     );
+    warp::profile(&device, &queue)?;
     for name in ["CAPTURE.md", "CLAUDE.md"] {
         profile_doc(&device, &queue, &cache, &spell, name)?;
     }

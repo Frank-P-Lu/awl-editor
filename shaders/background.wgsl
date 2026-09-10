@@ -985,32 +985,15 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
     return tri_tone_mix(px.y, b1, b2, sampling_feather(1.5));
 }
 
-// --- 10: WARPED GRID — ONE camera, ONE projected cylinder, cropped at the page
-// (the projection is recomposed). ---
+// --- 10: WARPED GRID — ONE camera, ONE projected tube, clipped at the page. ---
 //
-// There is no geometry, no depth buffer and no 3-D engine here: the whole
-// tunnel is a closed-form ray cast done per fragment.
-//
-// The camera travels straight through a circular tube. A ring is a level set of
-// projected radius; a rail is a level set of polar angle.
-//
-// The cylinder never rescales. `WARP_SECTION_ROOM_FRAC` sizes the anchor
-// ring against the ROOM's own height and nothing else, and the section is a
-// CIRCLE — no aspect, no affine fit, one isotropic space — so its projected
-// aspect ratio is the constant 1.00 at every page width the adaptive column can
-// reach. The page width moves nothing at all.
-//
-// ONE AXIS, AT THE ROOM'S OWN CENTRE, AND THAT IS THE WHOLE OF THE PLACEMENT.
-// An axis that is a function of WHICH MARGIN a fragment falls in gives each
-// margin its own vanishing point, and a reader sees exactly what that is: two
-// tunnels, side by side, disagreeing across the page. One axis at `vp.x * 0.5`
-// is the whole fix: it puts the vanishing point BEHIND THE PAGE. That is the
-// composition — the thing you are travelling toward is hidden behind your own
-// writing, and each margin carries one flank of the single tube around it.
-//
-// The placement takes no page term and no margin term, so the page column can
-// only MASK this field. Both flanks are equidistant from the axis at every page
-// width, by construction rather than by tuning.
+// The approved study is not invertible everywhere once its folded sections and
+// depth-dependent centreline overlap. Draw that projection directly: a bounded,
+// procedural line mesh with no vertex buffers, allocations, depth texture, or
+// theme-name branch. Fifty-eight depth sections and twenty-four fixed-theta
+// longitudinal rails share `warp_project`; native and WebGL2 compile the same
+// vertex/fragment pair. The full multiplicative radius, independent path, and
+// separate roll live inside that projection rather than perturbing a polar grid.
 //
 // THE FIELD CROSSES THE PAGE, SIMPLIFIED TO ITS SCAFFOLD. Two flanks with
 // nothing between them are still two pictures as far as the eye is concerned;
@@ -1023,12 +1006,17 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // the veil is held by a legibility floor measured over the rendered page, not
 // by taste alone — see `render/tests/warp_one_tunnel_item268.rs`.
 
-// The anchor ring's projected RADIUS, as a fraction of the room's height. The
-// section is a circle, so this is the whole of its size and shape. 0.432 is
-// first placement's anchor at the narrowest page on the canonical 1600x1000 canvas
-// (`3 * page_half` at measure 20 = 432px), which is the composition the live
-// review approved.
-const WARP_SECTION_ROOM_FRAC: f32 = 0.432;
+// The projection is the approved study's camera, expressed in logical pixels.
+// `focal = min(viewport) * .72`; its z range is the study's literal range.
+const WARP_FOCAL_FRAC: f32 = 0.72;
+const WARP_NEAR_Z: f32 = 0.72;
+const WARP_FAR_Z: f32 = 10.8;
+const WARP_TAU: f32 = 6.2831853;
+const WARP_RAIL_COUNT: f32 = 24.0;
+const WARP_RAIL_MAJOR_EVERY: f32 = 6.0;
+const WARP_FORWARD_SPEED_SCALE: f32 = 0.7272;
+const WARP_STUDY_TRAVEL_SCALE: f32 = 1.7;
+const WARP_STUDY_SPIN_SCALE: f32 = 0.035;
 // THE UNDER-PAGE VEIL: what fraction of its full strength the scaffold keeps
 // once it crosses onto the page. It is the only quantity in this ground that
 // draws where prose does, so it is the only one bounded by a LEGIBILITY floor
@@ -1052,35 +1040,6 @@ const WARP_PAGE_EASE_PX: f32 = 52.0;
 const WARP_WINDOW_FULL: f32 = 1.0;
 const WARP_WINDOW_TIGHT: f32 = 0.35;
 const WARP_WINDOW_STRADDLE: f32 = 0.4;
-// Rings per octave of depth is DERIVED from the authored `spacing_px`, which is
-// the projected pitch of the minor rings at `WARP_RING_PITCH_AT` of the anchor
-// radius — a fixed place on the fixed section, so the lattice's own scale is as
-// constant as the section's. Bounded so a very short or very tall room cannot
-// drive the lattice into a knot or into three lonely rings.
-//
-// THE REFERENCE POINT MOVED WHEN THE AXIS DID, and it had to. `spacing_px` is
-// only meaningful where the reader is actually looking. With an axis parked in
-// each margin, that was the near field — a third of the anchor. With ONE axis at
-// the room's centre the near field is behind the page, and what the margins show
-// is the band from the page edge out to the room's corner: roughly 1.1 to 2.2
-// anchors on the canonical canvas. Leaving the reference at a third of the anchor
-// honours the authored pitch at a radius no reader can see and hands the margins
-// three lonely arcs. So this is the same design re-derived against the geometry
-// that replaced it — the authored pitch is realised in the middle of the band
-// the reader has.
-const WARP_RING_PITCH_AT: f32 = 0.8333333;
-const WARP_RPO_MIN: f32 = 3.0;
-// The ceiling exists to bite only at extreme rooms — high enough that it never
-// fires on an ordinary 4K-at-1x desktop. Ring DENSITY is not what makes a
-// converging lattice unsafe — `alias_fade` and `WARP_CORE_FRAC` are the moire
-// defences, and neither one reads this bound.
-const WARP_RPO_MAX: f32 = 20.0;
-const WARP_LN2: f32 = 0.6931472;
-// Every fifth line is the strong one. The polar angle's own seam is at +/-PI,
-// which maps to +/-WARP_RAILS_PER_HALF_TURN: unless that integer is a multiple
-// of the modulus, the rail beside the seam is classed major on one side and
-// minor on the other and draws a hard discontinuity.
-const WARP_RAILS_PER_HALF_TURN: f32 = 10.0;
 const WARP_MAJOR_EVERY: f32 = 5.0;
 // Drawn line WEIGHTS — composition, in logical px (the Pinstripe/Zigzag rule).
 const WARP_MINOR_HALF_PX: f32 = 0.45;
@@ -1097,8 +1056,8 @@ const WARP_AA_PX: f32 = 1.0;
 // same way for `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX`. It is also the
 // conservative reading: at 2x these logical pixels carry twice the device
 // samples, so the moire it exists to prevent is further away, not nearer.
-const WARP_ALIAS_FADE_LO_PX: f32 = 4.5;
-const WARP_ALIAS_FADE_HI_PX: f32 = 9.0;
+const WARP_ALIAS_FADE_LO_PX: f32 = 0.25;
+const WARP_ALIAS_FADE_HI_PX: f32 = 0.9;
 // Quiet beside the page: no mark reaches the page edge, so nothing competes
 // with prose at the boundary the eye reads across.
 const WARP_EDGE_QUIET_PX: f32 = 10.0;
@@ -1107,16 +1066,9 @@ const WARP_EDGE_FADE_MAX_PX: f32 = 56.0;
 // narrows, leaving the major scaffold alone.
 const WARP_NARROW_LO_PX: f32 = 84.0;
 const WARP_NARROW_HI_PX: f32 = 210.0;
-// THE CAMERA NEVER REACHES THE FAR END. A floor under the projected radius,
-// as a fraction of the anchor, BOUNDS both lattices' projected pitch (ring
-// pitch grows as `u*ln2/rpo`, rail pitch as `pi*u/rails`) and keeps the fixed
-// deepest visible rings resolvable. No-moire is a property of this expression;
-// the alias fade is a second line of defence.
-const WARP_CORE_FRAC: f32 = 0.055;
-// Both families retire INTO the far end rather than crowding into a knot: the
-// far end of a real tunnel is haze, not a solid lattice.
-const WARP_CORE_FADE_LO: f32 = 1.0;
-const WARP_CORE_FADE_HI: f32 = 4.0;
+// The sampled study itself ends at z=10.8. A narrow feather retires lines into
+// that far section and outside the near opening; no infinite log lattice exists
+// beyond either bound to alias into a knot.
 // Mutation arms for page-derived scale, margin-derived placement, and reversed
 // travel. Each threshold occupies its own unit-wide band.
 const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
@@ -1128,69 +1080,23 @@ const WARP_TUNNEL_REVERSED: f32 = 2.5;
 const WARP_PAGE_SCALED_RATIO: f32 = 3.0;
 const WARP_PAGE_SCALED_FIT: f32 = 0.42;
 // THE FOLD's two harmonics (fixed orders, not authored — `fold`/`twist` are
-// the authored amplitude and roll rate; 3 and 5 are the study's own shape).
+// the authored amplitude and longitudinal twist; 3 and 5 are the study's own shape).
 // `WARP_FOLD_RADIUS_FLOOR` is the non-negotiable: the passage never closes,
 // whatever `fold` a future profile authors.
 const WARP_FOLD_RADIUS_FLOOR: f32 = 0.46;
 const WARP_FOLD_H1: f32 = 0.46;
 const WARP_FOLD_H2: f32 = 0.18;
-// The taper band, in ring-depth units (the same units `rpo` counts in — a
-// span of one `WARP_MAJOR_EVERY` on either side of the anchor's own depth).
-const WARP_FOLD_TAPER_LO: f32 = 3.0;
-const WARP_FOLD_TAPER_HI: f32 = 6.0;
-// The fold's contribution to the RING coordinate, in ring-widths per unit of
-// `(radius_norm - 1.0)` — deliberately NOT `rpo`, which is what let the
-// fold's own depth-derivative blow up. Bounded so `d(ring)/d(depth0)` stays
-// positive at the fold's authored ceiling: the harmonic sum's own worst-case
-// slope is `H1*3*twist + H2*|5*twist - 0.35|`, which peaks under ~1.6 for
-// any `twist` in a sane roll-rate range, so at `fold <= 0.5` and this scale
-// the fold's derivative contribution stays under 0.8 — short of the 1.0
-// that would cancel the base term's own unit slope.
-const WARP_FOLD_SHIFT_SCALE: f32 = 1.0;
-// See `WARP_RIBS_DRAWN_FRACTION`'s own doc, at the rail count it scales.
-const WARP_RIBS_DRAWN_FRACTION: f32 = 0.5;
-// The longitudinal breathe: very small (a fraction of a percent) and slow
-// relative to the forward-travel clock, so it reads as atmosphere rather
-// than a pulse. Zero travel (the calm pose, a synthetic corner/transit
-// capture) collapses `sin(0) == 0`, so the breathe is inert there for free
-// — no separate "is this calm" branch needed.
-const WARP_PULSE_AMP: f32 = 0.015;
-const WARP_PULSE_RATE: f32 = 0.15;
+const WARP_PULSE_H1: f32 = 0.075;
+const WARP_PULSE_H2: f32 = 0.035;
 // THE HAZE: the convergence is communicated by the lattice alone (no bright
 // core/dot/crosshair) — at most this small, broad, low-alpha wash near the
 // resolved axis, reusing the SAME `core`-relative falloff the ring/rail
 // family already fades into rather than a second full-frame effect. Wide
 // (HI several times the ring/rail's own core fade) and faint, so it reads
 // as defocus, not an object.
-const WARP_HAZE_LO_FRAC: f32 = 1.3;
-const WARP_HAZE_HI_FRAC: f32 = 9.0;
+const WARP_HAZE_LO_FRAC: f32 = 0.55;
+const WARP_HAZE_HI_FRAC: f32 = 2.8;
 const WARP_HAZE_ALPHA: f32 = 0.07;
-// Anti-aliased distance to the nearest integer level set of `coord`, in units of
-// its own screen-space gradient — so one expression draws a line of constant
-// width at every projected spacing, near and far.
-//
-// THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
-// `fwidth` differentiates against the RASTERISER's grid whatever space its
-// argument was computed in, so `d` here is PHYSICAL however logical the
-// coordinate is. The two quantities meet it from their own sides — the drawn
-// WEIGHT is composition and converts UP into that space, the AA skirt is
-// sampling and is already in it — which is what keeps a 2x display drawing the
-// same line, more finely, rather than a line half as wide.
-fn warp_line(coord: f32, half_px: f32) -> f32 {
-    let fw = max(fwidth(coord), 0.0001);
-    let d = abs(fract(coord + 0.5) - 0.5) / fw;
-    let half_phys = half_px * dpr();
-    return 1.0 - smoothstep(half_phys, half_phys + WARP_AA_PX, d);
-}
-
-// Every fifth line is the strong one: classify the NEAREST integer level set,
-// so a fragment's own hierarchy agrees with the line it is drawing.
-fn warp_is_major(coord: f32) -> f32 {
-    let i = round(coord);
-    let m = abs(i - WARP_MAJOR_EVERY * round(i / WARP_MAJOR_EVERY));
-    return 1.0 - step(0.5, m);
-}
-
 // THE ROOM'S OWN CENTRE: no page argument, no margin argument, no SIDE
 // argument — the pre-roaming default every law in this file that still
 // uploads `g.warp_axis: (0.5, 0.5)` resolves to exactly this point. Kept as
@@ -1211,246 +1117,255 @@ fn warp_window_hide(span: f32, page_half: f32, anchor: f32) -> f32 {
     return mix(-WARP_WINDOW_STRADDLE * span, page_half, full);
 }
 
-// `in_page` is decided ONCE, by the caller, in the PHYSICAL space the host
-// measured the column in — the same test that punches every other ground away.
-// Re-deciding it here against the logical bounds would put a half-pixel seam
-// between the punch and the veil at any scale factor but 1.
-fn warped_grid_rgba(p: vec2<f32>, in_page: bool) -> vec4<f32> {
-    let vp = viewport_l();
-    let cl = col_left_l();
-    let cw = col_w_l();
-    let spacing = max(g.params.x, 8.0);
-    let density = clamp(g.params.y, 0.0, 1.0);
+fn warp_bend(t: f32) -> f32 {
+    let p = clamp(t, 0.0, 1.0);
+    return p * p * (3.0 - 2.0 * p);
+}
 
-    // THE ONE CAMERA, AT ONE CONSTANT SCALE. The section is a circle sized
-    // against the ROOM alone and the horizon is the room's middle, so no page
-    // width can rescale, flatten or re-shape the cylinder.
+fn warp_path(world_z: f32) -> vec2<f32> {
+    return vec2<f32>(
+        0.22 * sin(world_z * 0.48) + 0.07 * sin(world_z * 1.17),
+        0.17 * cos(world_z * 0.39) - 0.06 * sin(world_z * 0.91),
+    );
+}
+
+fn warp_roll(world_z: f32, spin: f32) -> f32 {
+    return 0.12 * sin(world_z * 0.31) + spin;
+}
+
+fn warp_radius(theta: f32, world_z: f32, fold: f32, twist: f32) -> f32 {
+    let turn = theta + world_z * twist;
+    let pulse = 1.0 + WARP_PULSE_H1 * sin(world_z * 1.25)
+        + WARP_PULSE_H2 * sin(world_z * 2.7 + theta * 2.0);
+    let petals = fold * (
+        WARP_FOLD_H1 * cos(3.0 * turn)
+        + WARP_FOLD_H2 * sin(5.0 * turn - world_z * 0.35)
+    );
+    return max(WARP_FOLD_RADIUS_FLOOR, 1.0 + petals) * pulse;
+}
+
+fn warp_project(
+    theta: f32,
+    z: f32,
+    world_z: f32,
+    spin: f32,
+    fold: f32,
+    twist: f32,
+    focal: f32,
+    room_centre: vec2<f32>,
+    vanish: vec2<f32>,
+) -> vec2<f32> {
+    let scale = focal / max(z, WARP_NEAR_Z * 0.5);
+    let centre = mix(
+        room_centre,
+        vanish,
+        warp_bend((z - WARP_NEAR_Z) / (WARP_FAR_Z - WARP_NEAR_Z)),
+    );
+    let angle = theta + warp_roll(world_z, spin);
+    let radius = warp_radius(theta, world_z, fold, twist);
+    return centre + (warp_path(world_z) + radius * vec2<f32>(cos(angle), sin(angle))) * scale;
+}
+
+const WARP_RING_SEGMENTS: u32 = 128u;
+const WARP_RING_SLOTS: u32 = 65u;
+const WARP_RAIL_SEGMENTS: u32 = 92u;
+const WARP_RAIL_SLOTS: u32 = 24u;
+const WARP_RING_INSTANCES: u32 = WARP_RING_SEGMENTS * WARP_RING_SLOTS;
+
+struct WarpMotion {
+    travel_z: f32,
+    spin: f32,
+};
+
+fn warp_motion() -> WarpMotion {
+    let authored_speed = max(g.warp_shape.w, 0.0001);
+    let mode = g.params.w;
+    let reversed = mode >= WARP_TUNNEL_REVERSED;
+    let phase_seconds = g.warp_travel / (authored_speed * WARP_FORWARD_SPEED_SCALE);
+    let signed_phase = select(phase_seconds, -phase_seconds, reversed);
+    return WarpMotion(
+        signed_phase * authored_speed * WARP_STUDY_TRAVEL_SCALE,
+        signed_phase * g.warp_shape.y * WARP_STUDY_SPIN_SCALE,
+    );
+}
+
+fn warp_camera() -> vec4<f32> {
+    let vp = viewport_l();
+    let cw = col_w_l();
     let page_half = max(cw * 0.5, 1.0);
     let mode = g.params.w;
     let page_scaled = mode >= WARP_TUNNEL_PAGE_SCALED && mode < WARP_TUNNEL_MARGIN_PLACED;
     let margin_placed = mode >= WARP_TUNNEL_MARGIN_PLACED && mode < WARP_TUNNEL_REVERSED;
-    let reversed = mode >= WARP_TUNNEL_REVERSED;
-    var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);
-    var aspect = 1.0;
+    var focal = WARP_FOCAL_FRAC * max(min(vp.x, vp.y), 1.0);
     if (page_scaled) {
-        // Mutation arm: scale and flatten the section from the page column.
-        anchor = WARP_PAGE_SCALED_RATIO * page_half;
-        let flank = sqrt(max(anchor * anchor - page_half * page_half, 1.0));
-        aspect = clamp(flank / max(WARP_PAGE_SCALED_FIT * vp.y, 1.0), 1.0, 4.0);
+        focal = WARP_PAGE_SCALED_RATIO * page_half * WARP_PAGE_SCALED_FIT;
     }
-    // THE AXIS SOURCE — ONE FIXED POINT, NO SPATIAL FADE. Every arm shares
-    // the SAME folded/roaming pipeline from here on — they differ only in
-    // axis source and travel sign, never in a second geometry path.
-    // `Fixed`/`Reversed` roam the room-owned vanishing point (`g.warp_axis`,
-    // resolved host-side by `warpgrid::resolved_render` — a viewport
-    // FRACTION, independent of page geometry) DIRECTLY: `axis` is the same
-    // constant point for every fragment in the frame, so a ring is a true
-    // circle of Euclidean distance from it and both flanks are windows onto
-    // the exact same ring family by construction, at any resolved axis
-    // position (the room's own centre or a vanishing point roamed into a
-    // screen corner) — not merely near it.
-    //
-    // An earlier revision faded the axis back toward the room's centre the
-    // farther a fragment sat from the target (screen-distance weighted), so
-    // a HELD corner target still only pulled the NEARBY geometry fully while
-    // the opposite flank stayed close to the centre. Measured directly on
-    // rendered pixels this did not read as one tube contorting — it drew
-    // TWO: a family of rings genuinely centred on the target where it was
-    // close, and an entirely different family centred near the room's own
-    // centre where it was not, so a ring predicted from the target's own
-    // axis stopped landing on real ink partway across a margin
-    // (`render::tests::warp_roam::one_axis_holds_under_every_roam_state_including_mid_transit`,
-    // whose mutation proof recovers a 100%-to-0% split between the correct
-    // axis and a deliberately wrong one only once this fade is gone). A
-    // transit already reads as motion rather than a snap because
-    // `g.warp_axis` itself is what moves smoothly, frame to frame
-    // (`warpgrid::roam::WarpPose::at_progress`'s smootherstep) — nothing
-    // spatial is needed on top of that to keep it from feeling like a cut.
-    //
-    // The two page-derived placements keep their own single point too
-    // (`placed`, unrelated to the roam target), so this is a genuine
-    // one-axis-per-frame rule for every mutation arm, not just the
-    // room-owned ones.
-    let col_right = cl + cw;
-    let on_right = p.x >= col_right;
-    let span = max(select(cl, vp.x - col_right, on_right), 1.0);
-    let hide = select(warp_window_hide(span, page_half, anchor), page_half, page_scaled);
-    let placed = select(cl + hide, col_right - hide, on_right);
-    let axis_roam = vec2<f32>(g.warp_axis.x * vp.x, g.warp_axis.y * vp.y);
-    let page_placed_arm = page_scaled || margin_placed;
-    let axis = select(axis_roam, vec2<f32>(placed, vp.y * 0.5), page_placed_arm);
-    // The tunnel's own space. Under the shipping profile it is the glass's own
-    // space too — the section is a circle and the projection isotropic, which is
-    // what makes "the aspect ratio is invariant" true by construction rather
-    // than by tuning. Only `PageScaled` puts an affine transform here.
-    let q = vec2<f32>(p.x - axis.x, (p.y - axis.y) * aspect);
+    var vanish = vec2<f32>(g.warp_axis.x * vp.x, g.warp_axis.y * vp.y);
+    if (page_scaled || margin_placed) {
+        let cl = col_left_l();
+        let span = max(cl, 1.0);
+        let hide = select(warp_window_hide(span, page_half, focal), page_half, page_scaled);
+        vanish = vec2<f32>(cl + hide, vp.y * 0.5);
+    }
+    return vec4<f32>(vanish, focal, 0.0);
+}
 
-    // The projected radius and polar angle.
-    let core = WARP_CORE_FRAC * anchor;
-    let w = q;
-    let u_raw = length(w);
-    let u = max(u_raw, core);
-    let theta = atan2(w.y, w.x);
+struct TunnelVsOut {
+    @builtin(position) clip: vec4<f32>,
+    @location(0) side_px: f32,
+    @location(1) px: vec2<f32>,
+    @location(2) visibility: f32,
+    @location(3) @interpolate(flat) family: u32,
+    @location(4) @interpolate(flat) major: u32,
+    @location(5) @interpolate(flat) half_px: f32,
+};
 
-    // Rings are level sets of `log(u)`, and forward travel is one ADDITION.
-    //
-    // The ring labelled `n` is drawn where
-    // `rpo*log2(anchor/u) + Z = n`, i.e. at `u = anchor * 2^((Z - n)/rpo)`.
-    // `warp_travel` strictly increases with time, so
-    // every ring's projected radius GROWS and the lattice sweeps outward past
-    // the reader — which is approach. Subtracting `Z`, as this line did before,
-    // shrinks every radius toward the axis instead: the rings converge into the
-    // far end and the world reads as travelling backwards. `Tunnel::Reversed`
-    // is that sign kept as data.
-    let rpo = clamp(
-        WARP_RING_PITCH_AT * anchor * WARP_LN2 / spacing,
-        WARP_RPO_MIN,
-        WARP_RPO_MAX,
+fn warp_depth_alpha(z: f32) -> f32 {
+    return clamp((0.78 - z * 0.075) / 0.58, 0.15, 1.0);
+}
+
+fn warp_segment_point(theta: f32, z: f32, motion: WarpMotion, camera: vec4<f32>) -> vec2<f32> {
+    return warp_project(
+        theta,
+        z,
+        z + motion.travel_z,
+        motion.spin,
+        g.warp_shape.x,
+        g.warp_shape.y,
+        camera.z,
+        viewport_l() * 0.5,
+        camera.xy,
     );
-    let travel = select(g.warp_travel, -g.warp_travel, reversed);
-    // THE FOLD. `depth0` is the UNFOLDED ring estimate (what the old,
-    // perfectly circular tunnel drew) — used only as the depth argument to
-    // the fold formula, never drawn directly, which keeps this closed-form:
-    // no per-fragment solve, no data-dependent iteration. `turn` is the
-    // study's own `theta + z*twist`; `radius_norm` is its harmonic radius,
-    // re-derived for this projection's actual coordinates rather than copied
-    // verbatim (the study's own two fixed positive-radius harmonics at
-    // orders 3 and 5 are unchanged). The floor keeps the passage from ever
-    // closing; folding a MULTIPLICATIVE correction into the ring's own log
-    // argument (rather than perturbing `u` before the log) is what makes the
-    // folds read as the WALL's surface — a ring's screen radius genuinely
-    // bulges and pulls in with angle — instead of a flat wavy overlay drawn
-    // on top of an unrelated circular ring.
-    let depth0 = rpo * log2(anchor / u) + travel;
-    let turn = theta + depth0 * g.warp_shape.y;
-    // THE FOLD TAPER. A multiplicative perturbation on a LOG-radius level
-    // set can locally cancel the level set's own screen-space derivative —
-    // the projection develops a fold-induced caustic (rings visually
-    // bunching without bound) wherever `d(ring)/d(screen position)`
-    // approaches zero. Constraining the fold to a band of DEPTH around the
-    // section currently being travelled — full strength near the anchor
-    // (`depth0 == travel`, the ring the camera is level with), fading to a
-    // plain circle well before or behind it — keeps the wall's fold
-    // legible exactly where the brief asks for it (the near field around
-    // the page) without ever letting the far margin's log-compressed
-    // rings amplify the fold into a singularity. Measured, not guessed: the
-    // untapered formula produced a real 72%-inked 14x14 tile deep in an open
-    // margin; this is the fix, not a retuned tolerance on the symptom.
-    let fold_taper = 1.0 - smoothstep(WARP_FOLD_TAPER_LO, WARP_FOLD_TAPER_HI, abs(depth0 - travel));
-    let fold_eff = g.warp_shape.x * fold_taper;
-    let radius_norm_raw = 1.0 + fold_eff * (
-        WARP_FOLD_H1 * cos(3.0 * turn) + WARP_FOLD_H2 * sin(5.0 * turn - 0.35 * depth0)
+}
+
+@vertex
+fn vs_tunnel(
+    @builtin(vertex_index) vid: u32,
+    @builtin(instance_index) iid: u32,
+) -> TunnelVsOut {
+    let motion = warp_motion();
+    let camera = warp_camera();
+    var a = vec2<f32>(-10000.0, -10000.0);
+    var b = a;
+    var visibility = 0.0;
+    var family = 0u;
+    var major = 0u;
+    var half_px = WARP_MINOR_HALF_PX;
+
+    if (iid < WARP_RING_INSTANCES) {
+        let ring_i = iid / WARP_RING_SEGMENTS;
+        let segment_i = iid % WARP_RING_SEGMENTS;
+        let rings = clamp(round(g.warp_shape.z), 1.0, f32(WARP_RING_SLOTS - 1u));
+        let step_z = (WARP_FAR_Z - WARP_NEAR_Z) / rings;
+        let offset_z = fract(motion.travel_z / step_z) * step_z;
+        let z = WARP_NEAR_Z + f32(ring_i) * step_z - offset_z;
+        if (f32(ring_i) <= rings && z >= WARP_NEAR_Z * 0.72 && z <= WARP_FAR_Z) {
+            let theta0 = WARP_TAU * f32(segment_i) / f32(WARP_RING_SEGMENTS);
+            let theta1 = WARP_TAU * f32(segment_i + 1u) / f32(WARP_RING_SEGMENTS);
+            a = warp_segment_point(theta0, z, motion, camera);
+            b = warp_segment_point(theta1, z, motion, camera);
+            let projected_step = camera.z * step_z / max(z * z, 0.01);
+            visibility = warp_depth_alpha(z)
+                * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
+            major = select(0u, 1u, ring_i % 5u == 0u);
+            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u);
+        }
+    } else {
+        family = 1u;
+        let rail_iid = iid - WARP_RING_INSTANCES;
+        let rail_i = rail_iid / WARP_RAIL_SEGMENTS;
+        let segment_i = rail_iid % WARP_RAIL_SEGMENTS;
+        if (rail_i < WARP_RAIL_SLOTS) {
+            let theta = WARP_TAU * f32(rail_i) / f32(WARP_RAIL_SLOTS);
+            let z0 = mix(WARP_NEAR_Z, WARP_FAR_Z, f32(segment_i) / f32(WARP_RAIL_SEGMENTS));
+            let z1 = mix(WARP_NEAR_Z, WARP_FAR_Z, f32(segment_i + 1u) / f32(WARP_RAIL_SEGMENTS));
+            a = warp_segment_point(theta, z0, motion, camera);
+            b = warp_segment_point(theta, z1, motion, camera);
+            let radius_px = camera.z * warp_radius(
+                theta, z0 + motion.travel_z, g.warp_shape.x, g.warp_shape.y,
+            ) / z0;
+            let projected_step = radius_px * WARP_TAU / WARP_RAIL_COUNT;
+            visibility = min(warp_depth_alpha(z0), warp_depth_alpha(z1))
+                * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
+            major = select(0u, 1u, rail_i % u32(WARP_RAIL_MAJOR_EVERY) == 0u);
+            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u);
+        }
+    }
+
+    let d = b - a;
+    let segment_len = max(length(d), 0.0001);
+    let tangent = d / segment_len;
+    let normal = vec2<f32>(-tangent.y, tangent.x);
+    let corner = array<vec2<f32>, 6>(
+        vec2<f32>(0.0, -1.0), vec2<f32>(1.0, -1.0), vec2<f32>(1.0, 1.0),
+        vec2<f32>(0.0, -1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
+    )[vid];
+    let outer_px = half_px * dpr() + WARP_AA_PX;
+    let logical = mix(a, b, corner.x) + normal * corner.y * outer_px / dpr();
+    let physical = logical * dpr();
+    let ndc = vec2<f32>(
+        physical.x / g.viewport.x * 2.0 - 1.0,
+        1.0 - physical.y / g.viewport.y * 2.0,
     );
-    // Gated on `fold` itself (not `fold_taper`): a `fold: 0.0` profile is a
-    // perfect, EXACTLY periodic circle — the reference every circular-
-    // symmetry and hierarchy-repeat law in this ground is measured
-    // against — so the breathe, like the fold, is inert there too.
-    let pulse = 1.0 + WARP_PULSE_AMP * g.warp_shape.x * sin(travel * WARP_PULSE_RATE);
-    let radius_norm = max(WARP_FOLD_RADIUS_FLOOR, radius_norm_raw) * pulse;
-    // BOUNDED, RPO-INDEPENDENT RING SHIFT. `rpo * log2(radius_norm)` — the
-    // "literal" reading of "the wall's radius is `anchor*radius_norm`, fed
-    // through the same ring-counting formula" — amplifies the fold's own
-    // depth-derivative BY rpo (up to `WARP_RPO_MAX`, 20), which can push
-    // `d(ring)/d(depth0)` negative: a fold-induced caustic where the level
-    // set's own monotonicity reverses and rings visually bunch without
-    // bound. `WARP_FOLD_SHIFT_SCALE` is chosen (with `fold_taper` above) so
-    // this can never happen for any authored `fold` at or below the
-    // non-negotiable floor's own headroom — see the constant's own doc.
-    let ring = depth0 + WARP_FOLD_SHIFT_SCALE * (radius_norm - 1.0);
-    // THE RIBS: `g.warp_shape.z` is the FULL-turn count, already quantized
-    // host-side to a multiple of `WARP_MAJOR_EVERY`
-    // (`warpgrid::ribs_seam_safe`) so the major/minor hierarchy agrees with
-    // itself across the +/-PI seam whatever a future profile authors.
-    // `WARP_RIBS_DRAWN_FRACTION` keeps the DRAWN density inside the same
-    // antialiasing budget `WARP_ALIAS_FADE_*`/`MAX_TILE_COVERAGE` were tuned
-    // against — measured, not guessed: at a literal 1:1 mapping Kite's own
-    // shipped 60 (58, quantized) drove a real 71%-inked 14x14 tile in an
-    // open margin (the previous, unscaled hardcoded density never did).
-    // Ribs still authors a real, visible increase over the old fixed count;
-    // it no longer maps 1:1 onto the raw drawn line count.
-    let rails_per_half_turn = max(g.warp_shape.z, WARP_MAJOR_EVERY) * 0.5 * WARP_RIBS_DRAWN_FRACTION;
-    let rail = theta * (rails_per_half_turn / 3.14159265);
+    var out: TunnelVsOut;
+    out.clip = vec4<f32>(ndc, 0.0, 1.0);
+    out.side_px = corner.y * outer_px;
+    out.px = physical;
+    out.visibility = visibility;
+    out.family = family;
+    out.major = major;
+    out.half_px = half_px * dpr();
+    return out;
+}
 
-    // The four families, kept APART until the masks have had their say — because
-    // only one of them crosses the page. A RING is the depth cue: it is a closed
-    // curve around the axis, so a ring that leaves the left flank has to arrive
-    // in the right one, and that arrival is the whole evidence that there is one
-    // tube. A RAIL is radial; it runs INTO the page rather than across it, and
-    // the two rails through the axis would draw a full-width horizontal and a
-    // full-height vertical straight through the prose — chrome, not depth. So
-    // the rails retire at the page edge with the minor lattice.
-    let ring_major = warp_is_major(ring);
-    let rail_major = warp_is_major(rail);
-    let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);
-    let ring_hi = warp_line(ring, WARP_MAJOR_HALF_PX) * ring_major * core_fade;
-    let rail_hi = warp_line(rail, WARP_MAJOR_HALF_PX) * rail_major * core_fade;
-    let lattice = max(
-        warp_line(ring, WARP_MINOR_HALF_PX) * (1.0 - ring_major),
-        warp_line(rail, WARP_MINOR_HALF_PX) * (1.0 - rail_major),
-    ) * core_fade;
-
-    // Legibility masks, on the SAME side test the window placement already made
-    // — how far into a margin this fragment is, and how wide that margin is.
-    // Masks on one field, never a second camera.
-    let edge_d = max(select(cl - p.x, p.x - col_right, on_right), 0.0);
-    // THE CROSSING, as ONE signed profile over the whole room. `sd` is the
-    // distance to the nearer page edge: positive out in a margin, negative under
-    // the page. The margin ramp's FLOOR is the veil, not zero: the field
-    // continues past the page edge, so the stroke that leaves the left flank is
-    // the same stroke that arrives in the right one. A ramp that touched zero in
-    // between would break exactly the continuity this ground exists to show.
-    let depth_in = max(min(p.x - cl, col_right - p.x), 0.0);
+@fragment
+fn fs_tunnel(in: TunnelVsOut) -> @location(0) vec4<f32> {
+    let lp = in.px / dpr();
+    let cl = col_left_l();
+    let cr = cl + col_w_l();
+    let in_page = lp.x >= cl && lp.x < cr;
+    let on_right = lp.x >= cr;
+    let span = max(select(cl, viewport_l().x - cr, on_right), 1.0);
+    let edge_d = max(select(cl - lp.x, lp.x - cr, on_right), 0.0);
+    let depth_in = max(min(lp.x - cl, cr - lp.x), 0.0);
     let sd = select(edge_d, -depth_in, in_page);
-    // THE RAMP LIVES ENTIRELY IN THE MARGIN. It starts AT the page edge, so the
-    // page carries exactly the veil everywhere and nothing bleeds inward at half
-    // strength across the first inch of prose — where a line of text starts.
     let edge_fade = mix(
         WARP_PAGE_VEIL,
         1.0,
-        smoothstep(
-            0.0,
-            WARP_EDGE_QUIET_PX + min(WARP_EDGE_FADE_MAX_PX, span * 0.5),
-            sd,
-        ),
+        smoothstep(0.0, WARP_EDGE_QUIET_PX + min(WARP_EDGE_FADE_MAX_PX, span * 0.5), sd),
     );
-    // WHAT CROSSES IS THE MAJOR RINGS ALONE: the minor lattice and the whole
-    // rail family are absent from the page entirely and fade in over the first
-    // `WARP_PAGE_EASE_PX` of MARGIN, so the only marks that ever share space
-    // with prose are the sparse concentric arcs.
     let margin_only = smoothstep(0.0, WARP_PAGE_EASE_PX, sd);
-    let major = max(ring_hi, rail_hi * margin_only);
-    let minor = lattice * margin_only;
-    // The projected spacing of whichever lattice is finer here. `fwidth` is a
-    // device-grid derivative (see `warp_line`), so the reciprocal is physical and
-    // is divided back into the LOGICAL space the bound is authored in.
-    let finest_px = 1.0 / (max(max(fwidth(ring), fwidth(rail)), 0.0001) * dpr());
-    let alias_fade = smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, finest_px);
     let narrow_fade = smoothstep(WARP_NARROW_LO_PX, WARP_NARROW_HI_PX, span);
-
-    let minor_cov =
-        clamp(minor * alias_fade * narrow_fade * edge_fade * density * 0.60, 0.0, 1.0);
-    let major_cov = clamp(major * alias_fade * edge_fade * density * 0.88, 0.0, 1.0);
-    if (in_page) {
-        // OVER the page's own flat clear, in straight alpha — this ground is the
-        // one that does not punch. There is no `c_from` here: the page's tone is
-        // the page's business, and the field only tints it by the coverage it
-        // actually drew.
-        let a = clamp(minor_cov + major_cov, 0.0, 1.0);
-        return vec4<f32>(select(g.c_pat.rgb, g.c_to.rgb, major_cov >= minor_cov), a);
+    let line_aa = 1.0 - smoothstep(in.half_px, in.half_px + WARP_AA_PX, abs(in.side_px));
+    var mask = edge_fade;
+    if (in.family == 1u || in.major == 0u) {
+        mask *= margin_only;
     }
-    let with_minor = mix(g.c_from.rgb, g.c_pat.rgb, minor_cov);
-    let with_major = mix(with_minor, g.c_to.rgb, major_cov);
-    // NO ORB: the convergence reads through the lattice's own ring/rail
-    // family alone. This is at most a small, broad, low-alpha wash toward
-    // the SAME major-line tint, reusing the ring/rail family's own
-    // `core`-relative falloff rather than a second full-frame effect —
-    // MARGIN ONLY (the page never carries it, so the writing surface is
-    // never touched by anything but the veiled major rings), and gated on
-    // `density` so `density == 0.0` still collapses to the flat `ground`
-    // tone EXACTLY.
-    let haze = (1.0 - smoothstep(core * WARP_HAZE_LO_FRAC, core * WARP_HAZE_HI_FRAC, u_raw))
-        * WARP_HAZE_ALPHA * density;
-    return vec4<f32>(mix(with_major, g.c_to.rgb, haze), 1.0);
+    if (in.major == 0u) {
+        mask *= narrow_fade;
+    }
+    let hierarchy = select(0.60, 0.88, in.major == 1u);
+    let alpha = clamp(
+        line_aa * in.visibility * mask * g.params.y * hierarchy * g.c_pat.a,
+        0.0,
+        1.0,
+    );
+    let rgb = select(g.c_pat.rgb, g.c_to.rgb, in.major == 1u);
+    return vec4<f32>(rgb, alpha);
+}
+
+fn warped_grid_rgba(p: vec2<f32>, in_page: bool) -> vec4<f32> {
+    if (in_page) {
+        return vec4<f32>(0.0);
+    }
+    let camera = warp_camera();
+    let far_radius = camera.z / WARP_FAR_Z;
+    let haze = (1.0 - smoothstep(
+        far_radius * WARP_HAZE_LO_FRAC,
+        far_radius * WARP_HAZE_HI_FRAC,
+        length(p - camera.xy),
+    )) * WARP_HAZE_ALPHA * g.params.y;
+    return vec4<f32>(mix(g.c_from.rgb, g.c_to.rgb, haze), 1.0);
 }
 
 // `BAYER8`/`bayer_threshold01` (the dither matrix `shaders/common/dither.wgsl`

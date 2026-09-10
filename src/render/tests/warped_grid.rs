@@ -18,7 +18,7 @@
 //! "state oracle, not an appearance oracle" tripwire.
 
 use super::bands_waves::{bg_desc_for, headless_dq};
-use super::zigzag_ground::{SWEEP, margins};
+use super::zigzag_ground::margins;
 use crate::background::BgDesc;
 use crate::theme;
 use crate::warpgrid;
@@ -76,37 +76,6 @@ pub(super) fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme
             spacing_px,
             density,
             fold,
-            twist,
-            forward_drift,
-            ribs,
-            ..
-        } => theme::Background::WarpedGrid {
-            ground,
-            minor,
-            major,
-            tunnel,
-            spacing_px,
-            density,
-            fold,
-            twist,
-            forward_drift,
-            ribs,
-        },
-        other => other,
-    }
-}
-
-/// Override just the fold amplitude — a `fold: 0.0` reference is a perfect
-/// circle, which isolates the harmonic wall shape from every other claim.
-pub(super) fn with_fold(bg: theme::Background, fold: f32) -> theme::Background {
-    match bg {
-        theme::Background::WarpedGrid {
-            ground,
-            minor,
-            major,
-            tunnel,
-            spacing_px,
-            density,
             twist,
             forward_drift,
             ribs,
@@ -199,6 +168,33 @@ pub(super) fn render_travel_axis(
     warp_travel: f32,
     warp_axis: (f32, f32),
 ) -> Vec<[u8; 4]> {
+    render_travel_axis_dpi(
+        device,
+        queue,
+        desc,
+        w,
+        h,
+        col_left,
+        col_w,
+        warp_travel,
+        warp_axis,
+        1.0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_travel_axis_dpi(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: BgDesc,
+    w: u32,
+    h: u32,
+    col_left: f32,
+    col_w: f32,
+    warp_travel: f32,
+    warp_axis: (f32, f32),
+    dpi: f32,
+) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
     bg.prepare(
         queue,
@@ -211,7 +207,7 @@ pub(super) fn render_travel_axis(
             warp_axis,
             ..Default::default()
         },
-        1.0,
+        dpi,
     );
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -273,14 +269,6 @@ pub(super) fn field(
                 .sum::<i32>()
         })
         .collect()
-}
-
-/// Marked pixels inside `[x0, x1)` over the whole height.
-fn ink_in(f: &[i32], w: u32, h: u32, x0: u32, x1: u32) -> usize {
-    (0..h)
-        .flat_map(|y| (x0..x1).map(move |x| (y, x)))
-        .filter(|&(y, x)| f[(y * w + x) as usize] > INK_FLOOR)
-        .count()
 }
 
 /// The two page margins at the canonical geometry.
@@ -447,120 +435,13 @@ fn zero_density_is_an_exact_flat_ground_reference() {
 // APPEARANCE: the page, the margins, and the composition.
 // ---------------------------------------------------------------------------
 
-/// THE WRITING PAGE CARRIES THE FIELD, AT ONE CONSTANT VEIL, AT EVERY GEOMETRY.
-///
-/// ⚠️ THIS LAW REPLACES `the_grid_never_enters_the_writing_page_at_any_geometry_
-/// _or_phase`, WHICH ASSERTED THE OPPOSITE, and the reversal is a decision
-/// rather than a regression. When the tunnel had an axis in each margin,
-/// punching the page away was right — there was nothing under it to see. With
-/// ONE axis at the room's centre the vanishing point IS under the page, and two
-/// flanks with a hard hole between them read as two pictures, which is exactly
-/// the defect the user reported. The crossing is what makes them one.
-///
-/// THE STATISTIC IS THE STRONGEST MARK, AND CHOOSING IT WAS THE WHOLE DESIGN OF
-/// THIS LAW. Two earlier drafts graded the wrong quantity and both passed while
-/// measuring nothing. Counting marked PIXELS grades the geometry: in a short
-/// wide room the page holds whole concentric rings while the margins are tangent
-/// slivers, so the margin loses on count though every one of its marks is far
-/// stronger. Averaging over marked pixels grades the ANTIALIAS population: the
-/// margin's dense minor lattice contributes a huge tail of barely-inked pixels
-/// that drags its mean below the page's few strong arcs. Only the peak grades
-/// the veil.
-///
-/// The three clauses are deliberately different in kind. That the page is inked
-/// is the crossing existing at all. That its peak is CONSTANT across twelve
-/// geometries and five phases is the strong one — it says the page column can
-/// only MASK this field and can never rescale it, which is the same invariant
-/// the shipping profile's placement claims, checked from the other side. And
-/// that the peak sits far under an open margin's is prose keeping figure/ground.
+/// The retired whole-page maximum compared unrelated depths and line
+/// intersections. Its replacement samples the same projected major-section
+/// family at known page and open-margin landmarks, proving that the veil is
+/// present, materially quieter, and able to reject an unmasked-page mutation.
 #[test]
-fn the_writing_page_carries_the_field_at_one_constant_veil_at_every_geometry() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    // The strongest mark inside `[a, b)`, over the whole height. Both bands are
-    // inset off the column boundary: `fs_main` decides the page in PHYSICAL
-    // pixels against a fractional column edge, so the boundary pixel belongs to
-    // neither band — read uninset, it once made the page look STRONGER than the
-    // margin and would have hidden the real ratio entirely.
-    let peak = |f: &[i32], w: u32, h: u32, a: u32, b: u32| -> i32 {
-        (0..h)
-            .flat_map(|y| (a..b).map(move |x| (y, x)))
-            .map(|(y, x)| f[(y * w + x) as usize])
-            .max()
-            .unwrap_or(0)
-    };
-
-    // THE FULL-STRENGTH REFERENCE is taken once, from an OPEN margin at the
-    // canonical geometry — never from the local margin, which at some swept
-    // shapes is a sliver lying entirely inside the page-edge ramp and is
-    // therefore not at full strength either.
-    let canon = field(
-        &device,
-        &queue,
-        kite(),
-        W,
-        H,
-        COL_LEFT,
-        COL_W,
-        warpgrid::FROZEN_PHASE,
-    );
-    let open_margin = canon_margins()
-        .into_iter()
-        .map(|(a, b)| peak(&canon, W, H, a, b.saturating_sub(4)))
-        .max()
-        .unwrap_or(0);
-    assert!(
-        open_margin > 100,
-        "the open-margin reference must be a real full-strength field, got {open_margin}"
-    );
-
-    let mut seen: Vec<(String, i32)> = Vec::new();
-    let restore = crate::page::measure();
-    for (ww, wh, measure) in SWEEP {
-        let Some(p) = super::headless_dqp(ww as f32, wh as f32) else {
-            return;
-        };
-        let (_d, _q, mut pipe) = p;
-        crate::page::set_measure(measure);
-        pipe.set_view(&super::view("hello", 0, 0));
-        let col_left = pipe.column_left();
-        let col_w = pipe.column_width();
-        for phase in sampled_phases() {
-            let f = field(&device, &queue, kite(), ww, wh, col_left, col_w, phase);
-            let x0 = col_left.max(0.0) as u32 + 4;
-            let x1 = ((col_left + col_w).ceil() as u32).min(ww).saturating_sub(4);
-            let page = peak(&f, ww, wh, x0, x1);
-            assert!(
-                page > INK_FLOOR,
-                "{ww}x{wh}/m{measure} @phase {phase}: the page carries NO field — the two \
-                 flanks are then two pictures with a hole between them, which is the \
-                 two-tunnels read item 268 exists to remove"
-            );
-            assert!(
-                page * 3 <= open_margin,
-                "{ww}x{wh}/m{measure} @phase {phase}: the page's strongest mark is {page} \
-                 against an open margin's {open_margin} — the crossing must stay a whisper \
-                 under prose, not a second margin"
-            );
-            seen.push((format!("{ww}x{wh}/m{measure}@{phase}"), page));
-        }
-    }
-    crate::page::set_measure(restore);
-    assert!(
-        seen.len() >= 60,
-        "the sweep must actually grade cells, got {}",
-        seen.len()
-    );
-    let (ref lo_name, lo) = *seen.iter().min_by_key(|(_, v)| *v).unwrap();
-    let (ref hi_name, hi) = *seen.iter().max_by_key(|(_, v)| *v).unwrap();
-    assert_eq!(
-        lo, hi,
-        "the under-page veil is not one constant: {lo} at {lo_name} against {hi} at \
-         {hi_name}. The page column may MASK this field and may never rescale it — a veil \
-         that reads the page is the same class of defect as an axis that read the margin"
-    );
+fn the_writing_page_carries_a_quiet_projected_veil() {
+    super::warp_projection::projected_page_veil_is_present_and_quiet();
 }
 
 fn sampled_phases() -> [f32; 5] {
@@ -570,61 +451,12 @@ fn sampled_phases() -> [f32; 5] {
     [warpgrid::FROZEN_PHASE, 69.0, 134.0, 235.5, 329.0]
 }
 
-/// BOTH MARGINS carry a real field at every swept geometry — the composition is
-/// two slices, never one live margin and one blank one.
+/// The retired arbitrary-sliver area floor is superseded by real projected
+/// pixels in both margins across the supported viewports, DPIs, rest corners,
+/// and transit. Its blank-margin mutation proves presence is load-bearing.
 #[test]
-fn both_margins_carry_a_real_field_at_every_swept_geometry() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let _g = crate::testlock::serial();
-    let restore = crate::page::measure();
-    for (ww, wh, measure) in SWEEP {
-        let Some((_d, _q, mut pipe)) = super::headless_dqp(ww as f32, wh as f32) else {
-            return;
-        };
-        crate::page::set_measure(measure);
-        pipe.set_view(&super::view("hello", 0, 0));
-        let (col_left, col_w) = (pipe.column_left(), pipe.column_width());
-        let f = field(
-            &device,
-            &queue,
-            kite(),
-            ww,
-            wh,
-            col_left,
-            col_w,
-            warpgrid::FROZEN_PHASE,
-        );
-        for (i, (x0, x1)) in margins(ww, col_left, col_w).into_iter().enumerate() {
-            let span = x1.saturating_sub(x0);
-            if span < 24 {
-                continue; // a sliver narrower than the edge-quiet band is allowed to hold nothing
-            }
-            let area = (span * wh) as f64;
-            let ink = ink_in(&f, ww, wh, x0, x1) as f64;
-            // THE FLOOR IS THE WORLD'S OWN NARROW-MARGIN BAND, not one number.
-            // `WARP_NARROW_LO_PX`..`_HI_PX` (84..210) already retires the MINOR
-            // lattice as a margin narrows — shipped, deliberate simplification —
-            // so a margin inside that band is DESIGNED to be quiet and holding it
-            // to the open-margin figure would assert against the design. It is
-            // also where the centred axis costs most: a thin strip far
-            // from the axis runs nearly TANGENT to every ring, so its crossings
-            // are short. Measured worst in this sweep is 1400x700/m86's 80px
-            // flanks at 0.571%; every margin at or above the band's top clears 5%.
-            let floor = if span >= 210 { 0.02 } else { 0.003 };
-            assert!(
-                ink / area >= floor,
-                "{ww}x{wh}/m{measure} margin {i} [{x0},{x1}) ({span}px): only {:.3}% of it \
-                 carries field ink against a {:.1}% floor — a margin wide enough to draw \
-                 must read as a slice of the tunnel",
-                100.0 * ink / area,
-                100.0 * floor
-            );
-        }
-    }
-    crate::page::set_measure(restore);
+fn both_supported_margins_carry_the_projected_surface() {
+    super::warp_projection::projected_surface_marks_both_supported_margins();
 }
 
 /// THE LINE HIERARCHY IS TWO MEASURABLE RUNGS, every fifth line the strong one.
@@ -672,90 +504,13 @@ fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
     assert!(quiet > 5_000, "the quiet rung must dominate, got {quiet}");
 }
 
-/// THE FIELD QUIETS BESIDE THE PAGE — BUT NO LONGER TO NOTHING, AND BOTH HALVES
-/// OF THAT ARE ASSERTED. Nothing may compete with prose at the boundary the eye
-/// reads across, so the band immediately outside the column carries materially
-/// less ink than the open margin further out. The FLOOR of that recession is
-/// `WARP_PAGE_VEIL` rather than zero, because the field continues ACROSS the
-/// page instead of ending at its edge. A
-/// ramp that still touched zero here would break every ring at exactly the one
-/// boundary a reader can check the two flanks against each other. So the near
-/// band must be quieter than the open margin AND must not be empty, and the two
-/// clauses fail on opposite mistakes.
+/// The retired fixed-strip mean could miss a curved contour on one side of the
+/// edge while measuring it on the other. Its replacement follows actual
+/// projected major-section segments through both boundaries and rejects a
+/// deliberately severed margin.
 #[test]
-fn the_field_fades_toward_the_page_edge() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    let f = field(
-        &device,
-        &queue,
-        kite(),
-        W,
-        H,
-        COL_LEFT,
-        COL_W,
-        warpgrid::FROZEN_PHASE,
-    );
-    let col_right = (COL_LEFT + COL_W).ceil() as u32;
-    let mean = |x0: u32, x1: u32| {
-        let mut sum = 0f64;
-        for y in 0..H {
-            for x in x0..x1 {
-                sum += f[(y * W + x) as usize] as f64;
-            }
-        }
-        sum / ((x1 - x0) * H) as f64
-    };
-    // THE CROSSING ITSELF: the 8px band just OUTSIDE the page edge against the
-    // 8px band just INSIDE it. A stroke that leaves one flank must arrive in the
-    // other, and the only place that can be checked directly is the boundary. If
-    // the ramp still fell to zero at the page edge these two would differ by
-    // everything; at the veil they are the same field seen from either side.
-    for (label, out_band, in_band) in [
-        (
-            "left",
-            mean(COL_LEFT as u32 - 8, COL_LEFT as u32),
-            mean(COL_LEFT as u32 + 2, COL_LEFT as u32 + 10),
-        ),
-        (
-            "right",
-            mean(col_right, col_right + 8),
-            mean(col_right - 10, col_right - 2),
-        ),
-    ] {
-        let (lo, hi) = (out_band.min(in_band), out_band.max(in_band));
-        assert!(
-            lo > 0.05 && hi < lo * 3.0,
-            "{label} page edge: {out_band:.2} just outside against {in_band:.2} just \
-             inside — the field must CROSS the boundary at one strength, not break at it"
-        );
-    }
-    for (label, near, far) in [
-        (
-            "left",
-            mean(COL_LEFT as u32 - 8, COL_LEFT as u32),
-            mean(COL_LEFT as u32 - 90, COL_LEFT as u32 - 50),
-        ),
-        (
-            "right",
-            mean(col_right, col_right + 8),
-            mean(col_right + 50, col_right + 90),
-        ),
-    ] {
-        assert!(
-            near * 2.0 < far,
-            "{label} page edge: the 8px beside the page carries mean {near:.2} against \
-             {far:.2} out in the open margin — the field must recede at the edge"
-        );
-        assert!(
-            near > 0.05,
-            "{label} page edge: the 8px beside the page carries mean {near:.2} — the field \
-             must recede to the VEIL, never to nothing, or every ring breaks at the one \
-             boundary a reader can check the two flanks against each other"
-        );
-    }
+fn projected_sections_continue_across_both_page_edges() {
+    super::warp_projection::projected_major_sections_cross_both_page_edges();
 }
 
 /// NO HIGH-FREQUENCY ALIASING, swept over DPI, canvas and phase. A converging
@@ -963,55 +718,17 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 // MOTION: determinism, the invisible wrap, and the composed still.
 // ---------------------------------------------------------------------------
 
-/// THE RING HIERARCHY'S OWN REPEAT IS INVISIBLE IN REAL PIXELS, and the claim
-/// is made where it can actually fail.
-///
-/// Forward travel no longer wraps a fixed-length stored phase — the roaming
-/// vanishing point retired that loop (see `warpgrid::forward_cells`'s own
-/// doc: the field is continuous, `fract()` inside the shader's own level
-/// sets is what stays seamless). What DOES still have to repeat exactly is
-/// the major/minor HIERARCHY: a whole `MAJOR_EVERY` cells of forward travel
-/// must land the field back on its own lattice and its own line hierarchy,
-/// which happens if and only if the travel is a multiple of the major
-/// modulus — `warpgrid::wrap_seconds` is the phase that produces exactly
-/// that travel for a given profile, and is what a capture names via
-/// `AWL_WARP_PHASE=wrap`.
-///
-/// `fold: 0.0` for the EXACT-repeat half of this claim — see
-/// `warp_one_tunnel.rs::circular_kite`'s doc for why: the fold's own
-/// `turn = theta + depth*twist` does not return to itself after any small
-/// integer number of cells (`2*PI/twist` cells for Kite's `twist: 0.72` is
-/// irrational-ish against `MAJOR_EVERY`), so exact repetition is a claim
-/// about the RING/RAIL machinery alone. The REAL, folded profile gets its
-/// own, weaker claim below: CONTINUITY across the same boundary (no visible
-/// jump), which is the property that actually matters for a viewer.
+/// The retired log-polar hierarchy-repeat assertion is superseded by the
+/// projected surface's actual motion invariant: linear-z travel is continuous
+/// through the old named wrap instant, and costs no more than the same small
+/// time step at ordinary positions. This grades the real folded surface; it
+/// does not flatten the subject to manufacture a periodic circular lattice.
 #[test]
-fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
+fn projected_linear_z_travel_is_continuous_at_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    let circular = with_fold(kite(), 0.0);
-    let at = |forward: f32| {
-        render_travel(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            forward,
-        )
-    };
-    let start = at(0.0);
-    // The comparison is a per-pixel BOUND, not byte equality. The ring
-    // coordinate is `depth*k - forward`, so a whole loop of travel is an exact
-    // integer shift of a lattice whose period divides it — the lattice and the
-    // hierarchy are mathematically unmoved — but `fwidth` of a coordinate offset
-    // by several cells loses a few f32 bits, so the antialiased edge of a line
-    // can land one 8-bit step away. One step is not a visible seam; a shifted
-    // lattice is, and the two are orders of magnitude apart.
     let worst = |a: &[[u8; 4]], b: &[[u8; 4]]| {
         a.iter()
             .zip(b.iter())
@@ -1024,94 +741,6 @@ fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
             .max()
             .unwrap_or(0)
     };
-    let loop_delta = worst(&at(warpgrid::MAJOR_EVERY), &start);
-    assert!(
-        loop_delta <= 3,
-        "{} cells of forward travel (one hierarchy repeat) must land the field back on its \
-         own lattice and hierarchy — worst channel delta {loop_delta}, which is a moved \
-         line, not rounding",
-        warpgrid::MAJOR_EVERY
-    );
-    // NON-VACUITY, both ways: a travel that is a whole number of MINOR cells but
-    // not of MAJOR ones rotates the hierarchy, and a fractional one moves the
-    // lattice itself. Both must be far outside the rounding bound.
-    let off_by_one = worst(&at(warpgrid::MAJOR_EVERY - 1.0), &start);
-    assert!(
-        off_by_one > 20,
-        "one cell short of a hierarchy repeat must rotate it visibly (delta {off_by_one})"
-    );
-    let fractional = worst(&at(0.4), &start);
-    assert!(
-        fractional > 20,
-        "a fractional travel must move the lattice visibly (delta {fractional})"
-    );
-    // And the phase-level resolution agrees, which is what the App actually
-    // drives: `wrap_seconds` is defined to be exactly the phase that produces
-    // `MAJOR_EVERY` cells of travel for this profile. A BOUND, not byte
-    // equality — same reasoning as `loop_delta` above: `wrap_seconds` reaches
-    // its target cell count through a seconds -> speed -> cells round trip
-    // rather than the raw cell count `at(MAJOR_EVERY)` uses directly, and
-    // that indirection can land the antialiased edge of a line one 8-bit
-    // step away without moving the lattice (measured: 70 of 1.6M pixels
-    // differ, every one by exactly 1 level — ordinary AA rounding, not a
-    // shifted ring).
-    let wrap = warpgrid::wrap_seconds(circular.forward_drift());
-    let wrap_delta = worst(
-        &render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            0.0,
-        ),
-        &render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            wrap,
-        ),
-    );
-    assert!(
-        wrap_delta <= 3,
-        "AWL_WARP_PHASE=wrap must reproduce the hierarchy at fold: 0.0 — worst channel delta \
-         {wrap_delta}, which is a moved line, not rounding"
-    );
-    assert_ne!(
-        render(
-            &device,
-            &queue,
-            bg_desc_for(circular),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            wrap * 0.37
-        ),
-        start,
-        "the travel clock must actually move the field"
-    );
-
-    // THE REAL, FOLDED PROFILE: not exact repetition, but CONTINUITY — the
-    // field just before and just after the same boundary must change by
-    // materially the SAME amount a tiny travel step changes it ANYWHERE ELSE,
-    // not by an absolute pixel bound. Kite's own lattice is dense (60 rings),
-    // so EVERY tiny continuous travel step moves dozens of antialiased edges
-    // at once and a worst-single-pixel delta saturates almost immediately —
-    // measured directly: an arbitrary travel point far from any boundary
-    // produces a worst-channel delta of 62 for the SAME +/-0.02-cell window,
-    // materially the same magnitude the boundary itself produces, so an
-    // absolute "<= 8" floor was never satisfiable for this ground and would
-    // have flagged ordinary continuous motion as a jump. What IS diagnostic
-    // of a genuine jump is the boundary costing MUCH more than an arbitrary
-    // point does for the identical tiny step; this compares the two directly
-    // rather than trusting one hand-picked absolute number.
     let wrap_folded = warpgrid::wrap_seconds(kite().forward_drift());
     let wrap_cells = warpgrid::forward_cells(wrap_folded, kite().forward_drift());
     let step_delta = |cells: f32| -> i32 {
@@ -1237,8 +866,8 @@ fn every_calm_path_renders_the_one_composed_still() {
 // STRUCTURE: the WGSL tripwire.
 // ---------------------------------------------------------------------------
 
-/// The shader keeps one fixed framing, direct straight-tube geometry, the
-/// forward sign, and no dormant steering machinery.
+/// The shader keeps one fixed framing, direct bounded projected geometry, the
+/// forward sign, and no dormant inverse/steering machinery.
 #[test]
 fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
     let wgsl = include_str!("../../../shaders/background.wgsl");
@@ -1250,15 +879,19 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
          depends on them being the same number"
     );
     for expr in [
-        "var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);",
-        // ONE axis owner, and its SIGNATURE is the proof: no side argument, so
-        // the shader cannot give the two margins different vanishing points.
-        "fn warp_room_axis(vp_x: f32) -> f32 {",
-        "return vp_x * 0.5;",
-        "let w = q;",
-        "let u = max(u_raw, core);",
-        "let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);",
-        "let travel = select(g.warp_travel, -g.warp_travel, reversed);",
+        "@vertex\nfn vs_tunnel(",
+        "const WARP_RING_SEGMENTS: u32 = 128u;",
+        "const WARP_RING_SLOTS: u32 = 65u;",
+        "const WARP_RAIL_SEGMENTS: u32 = 92u;",
+        "const WARP_RAIL_SLOTS: u32 = 24u;",
+        "let rings = clamp(round(g.warp_shape.z), 1.0, f32(WARP_RING_SLOTS - 1u));",
+        "let radius = warp_radius(theta, world_z, fold, twist);",
+        "warp_path(world_z)",
+        "warp_roll(world_z, spin)",
+        "fn warp_depth_alpha(z: f32) -> f32 {",
+        "clamp((0.78 - z * 0.075) / 0.58, 0.15, 1.0)",
+        "if (in.family == 1u || in.major == 0u) {",
+        "mask *= margin_only;",
     ] {
         assert!(
             wgsl.contains(expr),
@@ -1269,6 +902,8 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "WARP_PULL_FRAC",
         "WARP_BEND_GAIN",
         "WARP_SOLVE_STEPS",
+        "warp_surface_coord",
+        "warped_grid_inverse_rgba",
         "per_margin",
         "g.pose",
         // THE PER-MARGIN WINDOW PLACEMENT AND THE INSET THAT SIZED IT. These ARE
