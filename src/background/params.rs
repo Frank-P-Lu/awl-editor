@@ -5,7 +5,12 @@ use super::BgDesc;
 /// changes shape.
 pub(super) fn warp_shape_params(desc: &BgDesc) -> [f32; 4] {
     if desc.shader == 10 {
-        [desc.warp_fold, desc.warp_twist, desc.warp_ribs, 0.0]
+        [
+            desc.warp_fold,
+            desc.warp_twist,
+            desc.warp_ribs,
+            desc.warp_forward_drift,
+        ]
     } else {
         [0.0; 4]
     }

@@ -100,20 +100,11 @@ fn peaks(profile: &[f32], lo: f32, frac: f32) -> Vec<f32> {
     out
 }
 
-/// The canonical room's single axis and its page half-width.
-fn axis_and_page_half(w: u32, h: u32, col_left: f32, col_w: f32) -> ((f32, f32), f32) {
-    let axis = (w as f32 * 0.5, h as f32 * 0.5);
-    // How far the page reaches from the axis on its NEARER side — the radius
-    // out to which every direction is still under the page.
-    let half = (axis.0 - col_left).min(col_left + col_w - axis.0);
-    (axis, half.max(1.0))
-}
-
 // ---------------------------------------------------------------------------
 // ONE AXIS — and the same measurement proves the section is a circle.
 // ---------------------------------------------------------------------------
 
-/// THE FIELD UNDER THE PAGE IS A FUNCTION OF RADIUS ALONE.
+/// THE FIELD UNDER THE PAGE PRESERVES THE FOLDED REFERENCE SECTION.
 ///
 /// Under the page only the major RING family draws, so ink at radius `r` must
 /// be the same in every direction — which is simultaneously the statement that
@@ -126,75 +117,8 @@ fn axis_and_page_half(w: u32, h: u32, col_left: f32, col_w: f32) -> ((f32, f32),
 /// onto them, and they are also exactly the two an author would pick. This
 /// sweeps twenty-four.
 #[test]
-fn the_field_under_the_page_is_a_function_of_radius_alone() {
-    let _g = crate::testlock::serial();
-    let Some((device, queue)) = headless_dq() else {
-        return;
-    };
-    // Centred and deliberately OFF-CENTRE columns: an axis that read the page or
-    // the margin would survive the symmetric case and die here.
-    for (col_left, col_w) in [(COL_LEFT, COL_W), (200.0, 1100.0), (420.0, 900.0)] {
-        let f = field(
-            &device,
-            &queue,
-            circular_kite(),
-            W,
-            H,
-            col_left,
-            col_w,
-            warpgrid::FROZEN_PHASE,
-        );
-        let (axis, page_half) = axis_and_page_half(W, H, col_left, col_w);
-        // Clear of the core haze at the near end and of the page edge at the far
-        // end, so every sampled direction is in the uniform veiled band.
-        let (lo, hi) = (100.0f32, page_half - 12.0);
-        assert!(hi > lo + 80.0, "the under-page band must be worth sweeping");
-
-        let angles: Vec<f32> = (0..24)
-            .map(|i| std::f32::consts::TAU * i as f32 / 24.0)
-            .collect();
-        let profiles: Vec<Vec<f32>> = angles
-            .iter()
-            .map(|t| ray(&f, W, H, axis, *t, lo, hi))
-            .collect();
-        let n = profiles.iter().map(Vec::len).min().unwrap_or(0);
-        assert!(n > 100, "profiles too short to grade: {n}");
-
-        // WHAT IS COMPARED IS THE LADDER OF RING RADII PER DIRECTION, never the
-        // ink pointwise. A ring is a one-pixel line, so two directions sampled at
-        // the same radius land at different sub-pixel offsets across the raster
-        // and their ink differs by everything while the geometry is identical —
-        // a pointwise comparison grades the rounding, not the section.
-        let ladders: Vec<Vec<f32>> = profiles.iter().map(|p| peaks(p, lo, 0.5)).collect();
-        let rings = ladders[0].len();
-        assert!(
-            rings >= 3,
-            "the under-page band must carry at least three rings, found {rings}: {:?}",
-            ladders[0]
-        );
-        for (k, l) in ladders.iter().enumerate() {
-            assert_eq!(
-                l.len(),
-                rings,
-                "column [{col_left},{col_w}]: direction {k} ({:.0} deg) finds {} rings \
-                 against {rings} straight along +x — {l:?} vs {:?}",
-                angles[k].to_degrees(),
-                l.len(),
-                ladders[0]
-            );
-            for i in 0..rings {
-                assert!(
-                    (l[i] - ladders[0][i]).abs() <= 2.0,
-                    "column [{col_left},{col_w}]: ring {i} sits at {:.1} straight along +x \
-                     and at {:.1} at {:.0} deg — the section is not circular, or the two \
-                     flanks are not looking at one axis",
-                    ladders[0][i],
-                    l[i],
-                    angles[k].to_degrees()
-                );
-            }
-        }
-    }
+fn the_field_under_the_page_keeps_the_folded_reference_section() {
+    super::warp_projection::the_visible_far_section_is_folded_not_a_circular_target();
 }
 
 /// THE ARC THAT LEAVES A MARGIN ARRIVES UNDER THE PAGE, at the radius one
@@ -224,107 +148,71 @@ fn every_direction_finds_its_arc_where_one_tunnel_predicts_it() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    // `rpo` and the major modulus mirror `background.wgsl`; the ratio is the
-    // projection's own, never a number fitted to the output.
-    let anchor = 0.432f32 * H as f32;
-    let spacing = match kite() {
-        theme::Background::WarpedGrid { spacing_px, .. } => spacing_px,
+    use crate::warpgrid::projection::{FAR_Z, NEAR_Z, Point, Projection};
+    let (fold, twist) = match kite() {
+        theme::Background::WarpedGrid { fold, twist, .. } => (fold, twist),
         _ => unreachable!(),
     };
-    let rpo = (0.8333333 * anchor * std::f32::consts::LN_2 / spacing).clamp(3.0, 20.0);
-    let step = (warpgrid::MAJOR_EVERY / rpo).exp2();
-
     for (col_left, col_w) in [(COL_LEFT, COL_W), (200.0, 1100.0), (420.0, 900.0)] {
         let f = field(
             &device,
             &queue,
-            circular_kite(),
+            kite(),
             W,
             H,
             col_left,
             col_w,
             warpgrid::FROZEN_PHASE,
         );
-        let axis = (W as f32 * 0.5, H as f32 * 0.5);
-        // Straight up is under the page at every column this sweeps, so the seed
-        // arc is read at the veil, in the one direction no page width can move.
-        let up = ray(&f, W, H, axis, -std::f32::consts::FRAC_PI_2, 100.0, 420.0);
-        let seed = peaks(&up, 100.0, 0.5);
-        assert!(
-            seed.len() >= 2,
-            "column [{col_left},{col_w}]: no seed ladder straight up — {seed:?}"
-        );
-        let r0 = seed[0];
-
+        let projection = Projection {
+            width: W as f32,
+            height: H as f32,
+            vanish: Point {
+                x: W as f32 * 0.5,
+                y: H as f32 * 0.5,
+            },
+            fold,
+            twist,
+            travel_z: 0.0,
+            spin: 0.0,
+        };
+        let step_z = (FAR_Z - NEAR_Z) / 58.0;
         let mut graded = 0usize;
-        let mut r = r0;
-        while r < 900.0 {
-            for k in 0..24 {
-                // OFF THE RAILS, DELIBERATELY. `WARP_RAILS_PER_HALF_TURN` puts a
-                // MAJOR rail at 0, 90, 180 and 270 degrees, and a ray fired
-                // straight along one runs inside it for its whole length — every
-                // window then reads rail ink and the measurement says nothing
-                // about rings. The half-step offset keeps all twenty-four
-                // directions between rails.
-                let theta = std::f32::consts::TAU * (k as f32 + 0.5) / 24.0;
-                let win = (0.12 * r).max(8.0);
-                // THE PAGE-EDGE RAMP IS NOT GRADED, and the reason is the same one
-                // that keeps `the_field_under_the_page_is_a_function_of_radius_alone`
-                // clear of it: inside that band the field is transitioning between
-                // the veil and full strength, so a window straddling it compares one
-                // arc at one strength against another at a different one and grades
-                // the RAMP. The two uniform regions either side of it are where a
-                // geometric claim can be read at all.
-                let sx = axis.0 + theta.cos() * r;
-                if (sx - col_left).abs() < 90.0 || (sx - (col_left + col_w)).abs() < 90.0 {
+        let mut confirmed = 0usize;
+        for ring_i in (5..=55).step_by(5) {
+            let z = NEAR_Z + ring_i as f32 * step_z;
+            for theta_i in (0..128).step_by(4) {
+                let theta = std::f32::consts::TAU * theta_i as f32 / 128.0;
+                let point = projection.point(theta, z);
+                if point.x < 4.0
+                    || point.y < 4.0
+                    || point.x >= W as f32 - 4.0
+                    || point.y >= H as f32 - 4.0
+                {
                     continue;
                 }
-                let prof = ray(&f, W, H, axis, theta, r - win, r + win);
-                if prof.iter().any(|v| v.is_nan()) {
-                    continue; // this direction runs off the canvas at this radius
-                }
-                // THE TOLERANCE SCALES WITH THE RADIUS, because the prediction
-                // is a PRODUCT: the seed arc is located to about a pixel and each
-                // step multiplies that error along with everything else, so by the
-                // fourth ring a fixed few-pixel window has drifted off the arc it
-                // was aimed at. Half the local ring spacing is the bound that
-                // matters — the window must never be wide enough to admit the
-                // neighbouring ring — and at this ratio it stays far inside it.
-                let half = 3.0 + 0.012 * r;
-                let idx = |x: f32| ((x - (r - win)) / 0.5) as usize;
-                let (lo, hi) = (idx(r - half), idx(r + half).min(prof.len() - 1));
-                let on = prof[lo..=hi].iter().cloned().fold(0.0f32, f32::max);
-                let off = prof[..idx(r - half - 2.0)]
-                    .iter()
-                    .chain(prof[idx(r + half + 2.0).min(prof.len() - 1)..].iter())
-                    .cloned()
-                    .fold(0.0f32, f32::max);
-                assert!(
-                    on > INK_FLOOR as f32,
-                    "column [{col_left},{col_w}]: nothing at radius {r:.1} at {:.0} deg — \
-                     one tunnel predicts an arc there and this direction has none",
-                    theta.to_degrees()
-                );
-                // The 0.85 is quantization slack, not a weakened claim: at the
-                // veil an arc reads about 53 total-channel units and two arcs a
-                // window apart can tie within a couple of them. A ring centred
-                // somewhere else does not miss by two units — it misses by the
-                // whole difference between full strength and blank ground.
-                assert!(
-                    on >= off * 0.85,
-                    "column [{col_left},{col_w}]: at {:.0} deg the strongest mark near \
-                     radius {r:.1} is {off:.0} OFF the prediction against {on:.0} on it — \
-                     this direction's arcs are centred somewhere else, which is what two \
-                     tunnels look like",
-                    theta.to_degrees()
-                );
                 graded += 1;
+                let mut strongest = 0.0f32;
+                for dy in -3..=3 {
+                    for dx in -3..=3 {
+                        strongest = strongest.max(ink_at(
+                            &f,
+                            W,
+                            H,
+                            point.x + dx as f32,
+                            point.y + dy as f32,
+                        ));
+                    }
+                }
+                let in_page = point.x >= col_left && point.x < col_left + col_w;
+                let floor = if in_page { 0.0 } else { INK_FLOOR as f32 };
+                confirmed += usize::from(strongest > floor);
             }
-            r *= step;
         }
         assert!(
-            graded >= 40,
-            "column [{col_left},{col_w}]: only {graded} direction/radius cells graded"
+            graded >= 40 && confirmed * 4 >= graded * 3,
+            "column [{col_left},{col_w}]: only {confirmed}/{graded} approved projected \
+             section landmarks carry real GPU ink"
         );
     }
 }

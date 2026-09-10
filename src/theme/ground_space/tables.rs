@@ -203,12 +203,10 @@ pub(super) const DECKLE_STRATA: &[GroundQuantity] = &[
 
 pub(super) const WARPED_GRID: &[GroundQuantity] = &[
     logical(
-        "spacing_px (the ring pitch at WARP_RING_PITCH_AT of the anchor)",
-        "the projected PITCH of the cross-rings at one fixed place on a section \
-         that itself never rescales — so it is a length the reader measures \
-         against the marks beside it. It is what `WARP_RPO_MIN..MAX` bounds and \
-         what sets how many rings a margin holds, which is the composition \
-         itself",
+        "ribs (the 58 projected depth sections)",
+        "a literal count across the study's fixed z range, separate from the \
+         renderer's fixed 24 longitudinal rails. Both are composition rosters, \
+         independent of device scale",
     ),
     logical(
         "density (the coverage multiplier)",
@@ -218,17 +216,16 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          is what gives the family item 86's `mark_field` differential oracle",
     ),
     logical(
-        "forward_cells",
-        "a count of ring cells, so a 2x display travels at the same speed \
-         through the same lattice. The host resolves the scalar; the shader \
-         carries no clock arithmetic",
+        "forward travel and independent section spin",
+        "the host resolves one deterministic presentation phase; the projected \
+         mesh derives the study's linear-z travel and separate roll from it, so \
+         a 2x display visits the same geometry",
     ),
     logical(
-        "WARP_SECTION_ROOM_FRAC (the anchor ring's radius, in room heights)",
-        "the whole size and shape of the cross-section: a ratio of a quantity \
-         the host measured (the room), so it is density-independent by \
-         construction. `Tunnel::PageScaled` is the mutation arm that instead \
-         lets the page column rescale and flatten the field",
+        "WARP_FOCAL_FRAC and the fixed z range",
+        "the camera focal length is a ratio of the room's shorter side and the \
+         depth range is dimensionless. `Tunnel::PageScaled` is the mutation arm \
+         that instead lets the page column rescale the field",
     ),
     logical(
         "WARP_WINDOW_FULL / WARP_WINDOW_TIGHT / WARP_WINDOW_STRADDLE (where a \
@@ -243,13 +240,9 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          arm that puts them back in charge",
     ),
     logical(
-        "the ring/rail half-widths (0.45px minor, 1.00px major) and \
-         WARP_CORE_FRAC's radius floor",
+        "the ring/rail half-widths (0.45px minor, 1.00px major)",
         "the drawn WEIGHT of a line, which the eye reads against its neighbours \
-         (the Pinstripe hairline rule), and a floor on a COMPOSITION quantity — \
-         which is itself composition, or the clamp hands the far end's pitch \
-         back to the display exactly where it binds (the FINDS_MIN_SCALE_PX \
-         argument)",
+         (the Pinstripe hairline rule)",
     ),
     logical(
         "WARP_EDGE_QUIET_PX / WARP_EDGE_FADE_MAX_PX and \

@@ -199,6 +199,33 @@ pub(super) fn render_travel_axis(
     warp_travel: f32,
     warp_axis: (f32, f32),
 ) -> Vec<[u8; 4]> {
+    render_travel_axis_dpi(
+        device,
+        queue,
+        desc,
+        w,
+        h,
+        col_left,
+        col_w,
+        warp_travel,
+        warp_axis,
+        1.0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_travel_axis_dpi(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: BgDesc,
+    w: u32,
+    h: u32,
+    col_left: f32,
+    col_w: f32,
+    warp_travel: f32,
+    warp_axis: (f32, f32),
+    dpi: f32,
+) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
     bg.prepare(
         queue,
@@ -211,7 +238,7 @@ pub(super) fn render_travel_axis(
             warp_axis,
             ..Default::default()
         },
-        1.0,
+        dpi,
     );
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -1237,8 +1264,8 @@ fn every_calm_path_renders_the_one_composed_still() {
 // STRUCTURE: the WGSL tripwire.
 // ---------------------------------------------------------------------------
 
-/// The shader keeps one fixed framing, direct straight-tube geometry, the
-/// forward sign, and no dormant steering machinery.
+/// The shader keeps one fixed framing, direct bounded projected geometry, the
+/// forward sign, and no dormant inverse/steering machinery.
 #[test]
 fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
     let wgsl = include_str!("../../../shaders/background.wgsl");
@@ -1250,15 +1277,15 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
          depends on them being the same number"
     );
     for expr in [
-        "var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);",
-        // ONE axis owner, and its SIGNATURE is the proof: no side argument, so
-        // the shader cannot give the two margins different vanishing points.
-        "fn warp_room_axis(vp_x: f32) -> f32 {",
-        "return vp_x * 0.5;",
-        "let w = q;",
-        "let u = max(u_raw, core);",
-        "let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);",
-        "let travel = select(g.warp_travel, -g.warp_travel, reversed);",
+        "@vertex\nfn vs_tunnel(",
+        "const WARP_RING_SEGMENTS: u32 = 128u;",
+        "const WARP_RING_SLOTS: u32 = 65u;",
+        "const WARP_RAIL_SEGMENTS: u32 = 92u;",
+        "const WARP_RAIL_SLOTS: u32 = 24u;",
+        "let rings = clamp(round(g.warp_shape.z), 1.0, f32(WARP_RING_SLOTS - 1u));",
+        "let radius = warp_radius(theta, world_z, fold, twist);",
+        "warp_path(world_z)",
+        "warp_roll(world_z, spin)",
     ] {
         assert!(
             wgsl.contains(expr),
@@ -1269,6 +1296,8 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "WARP_PULL_FRAC",
         "WARP_BEND_GAIN",
         "WARP_SOLVE_STEPS",
+        "warp_surface_coord",
+        "warped_grid_inverse_rgba",
         "per_margin",
         "g.pose",
         // THE PER-MARGIN WINDOW PLACEMENT AND THE INSET THAT SIZED IT. These ARE

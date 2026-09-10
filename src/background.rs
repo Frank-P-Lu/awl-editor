@@ -71,10 +71,14 @@ pub struct BgDesc {
     /// `0.0` off that ground (`Background::warp_shape`).
     pub warp_fold: f32,
     pub warp_twist: f32,
-    /// WARPED GRID's rib count, already quantized to a shader-safe multiple
-    /// of the major-line hierarchy (`crate::warpgrid::ribs_seam_safe`) — the
-    /// shader never quantizes on its own. INERT `0.0` off that ground.
+    /// WARPED GRID's literal projected cross-section count. The shader owns a
+    /// separate fixed roster of 24 longitudinal rails. INERT `0.0` off that
+    /// ground.
     pub warp_ribs: f32,
+    /// WARPED GRID's authored forward speed. Kept with the rest of the
+    /// profile data so the shader can recover the reference's linear-z travel
+    /// and independent section roll from the shared phase upload.
+    pub warp_forward_drift: f32,
 }
 
 /// The PER-FRAME ambient scalars the background pass carries — everything about
@@ -99,6 +103,7 @@ pub struct AmbientUpload {
 /// over the cleared background, before selection + text.
 pub struct BackgroundPipeline {
     pipeline: wgpu::RenderPipeline,
+    tunnel_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     globals_buf: wgpu::Buffer,
     from: [f32; 4],
@@ -199,8 +204,47 @@ impl BackgroundPipeline {
             })
         });
 
+        let tunnel_pipeline =
+            crate::gpu_cache::render_pipeline("background tunnel mesh", format, || {
+                let pipeline_layout =
+                    device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                        label: Some("background tunnel pipeline layout"),
+                        bind_group_layouts: &[Some(&bind_group_layout)],
+                        immediate_size: 0,
+                    });
+                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("background tunnel pipeline"),
+                    layout: Some(&pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: Some("vs_tunnel"),
+                        buffers: &[],
+                        compilation_options: Default::default(),
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: Some("fs_tunnel"),
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format,
+                            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: Default::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        ..Default::default()
+                    },
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview_mask: None,
+                    cache: None,
+                })
+            });
+
         Self {
             pipeline,
+            tunnel_pipeline,
             bind_group,
             globals_buf,
             from: srgba_u8_to_linear(desc.from),
@@ -266,6 +310,10 @@ impl BackgroundPipeline {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.draw(0..3, 0..1);
+        if self.shader == 10 {
+            pass.set_pipeline(&self.tunnel_pipeline);
+            pass.draw(0..6, 0..10_528);
+        }
     }
 }
 

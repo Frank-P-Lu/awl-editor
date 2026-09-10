@@ -1,15 +1,14 @@
 //! WARPED GRID — the fold/twist/path vocabulary and the roaming vanishing
 //! point, owned once so a future world can author the same tunnel by data.
 //!
-//! This module owns three things: continuous forward travel (unchanged in
-//! shape from the original straight tunnel — a phase in seconds, bounded-step
-//! on a delayed wake), the folded-section quantization
-//! ([`ribs_seam_safe`]/[`forward_speed_cells_per_sec`], the two places an
-//! authored profile is turned into shader-safe numbers), and the roaming
-//! vanishing point (`roam`, `seam`). Nothing here reads a theme's name — a
-//! world adopts this vocabulary by filling in [`WarpProfile`], the same way
+//! This module owns continuous forward travel (a phase in seconds, bounded-step
+//! on a delayed wake), the pure projection mirror used by landmark laws, and the
+//! roaming vanishing point (`roam`, `seam`). Nothing here reads a theme's name —
+//! a world adopts this vocabulary by filling in [`WarpProfile`], the same way
 //! `theme::Tunnel`/`theme::Weave` are adopted by naming a dial value.
 
+#[cfg(test)]
+pub(crate) mod projection;
 pub(crate) mod roam;
 mod seam;
 
@@ -61,19 +60,6 @@ impl WarpProfile {
             _ => None,
         }
     }
-}
-
-/// Quantize an authored rib count to the nearest positive multiple of
-/// [`MAJOR_EVERY`] — the ONE owner of rib-count seam-safety (the shader
-/// never quantizes; it only ever receives an already-safe count). Without
-/// this, an arbitrary authored `ribs` (Kite ships 58, not a multiple of 5)
-/// puts the rail family's own major/minor hierarchy out of step with itself
-/// at the angular +/-PI seam — the residue class jumps once per revolution,
-/// a hard discontinuity a roaming vanishing point sweeps directly through
-/// the margins. 58 rounds to 60 (`(58/5).round() == 12`).
-pub fn ribs_seam_safe(ribs: f32) -> f32 {
-    let quanta = (ribs / MAJOR_EVERY).round().max(1.0);
-    quanta * MAJOR_EVERY
 }
 
 /// Derived so the SHIPPED Kite profile (`forward_drift: 0.05`, `twist:
@@ -257,42 +243,6 @@ pub fn resolved_render(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn ribs_seam_safety_quantizes_to_a_multiple_of_five() {
-        for (input, want) in [
-            (58.0, 60.0),
-            (60.0, 60.0),
-            (1.0, 5.0),
-            (0.0, 5.0),
-            (7.0, 5.0),
-            (8.0, 10.0),
-        ] {
-            let got = ribs_seam_safe(input);
-            assert_eq!(got, want, "ribs_seam_safe({input}) = {got}, want {want}");
-            assert_eq!(got % MAJOR_EVERY, 0.0);
-        }
-    }
-
-    #[test]
-    fn ribs_seam_safety_holds_over_arbitrary_authored_values() {
-        // Sweep well past Kite's own 58, so this is a property of the
-        // quantizer, not a fact pinned to one world's dial.
-        let mut ribs = 1.0f32;
-        while ribs < 500.0 {
-            assert_eq!(ribs_seam_safe(ribs) % MAJOR_EVERY, 0.0, "ribs={ribs}");
-            assert!(ribs_seam_safe(ribs) > 0.0);
-            ribs += 3.3;
-        }
-    }
-
-    #[test]
-    fn kite_shipped_ribs_round_to_sixty() {
-        let kite = WarpProfile::from_background(&crate::theme::KITE.background)
-            .expect("Kite is a WarpedGrid world");
-        assert_eq!(kite.ribs, 58.0);
-        assert_eq!(ribs_seam_safe(kite.ribs), 60.0);
-    }
 
     #[test]
     fn kite_roll_period_is_about_four_minutes() {
