@@ -269,8 +269,24 @@ Never relabel a stale pass as new evidence or enable full-gate reuse as part of 
 
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
-🟢 READY FOR COORDINATED PROTOTYPE — queued only, not dispatched. Implementation follows
-user review of the composed prototype.
+🟡 PROTOTYPE REVIEW IN PROGRESS — native prototype exists on `item-628` at
+`e37a13ba`; verified not integrated into main (2026-09-10). The earlier “not
+dispatched” status was stale. This is not implementation acceptance.
+
+Review update (2026-09-10): the user likes the saved Settings layout and explicitly
+asked to continue Find/Replace and theme-picker refinement on the interactive design
+site alongside it. Preserve the bounded Settings label/value column and category
+rail. The site extends the approved Files study with separated find/navigation/
+replacement groups and stable world preview with explicit Keep/Cancel. This HTML
+review is explicitly user-authorized for this study; it does not replace the native
+composition, accessibility, world/DPI checks or final taste review below.
+Reference: https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 04).
+
+The native prototype report flags an existing workspace-width law as failing and
+leaves theme composition untouched. Re-measure against current main before integration;
+prototype captures are neither a gate receipt nor evidence that the running app has
+these changes. Continue through 636/639's interaction contract without duplicating
+this item's visual ownership. No native implementation dispatched by this review.
 
 Problem: the user rejected the live Find strip as crowded and the live Settings
 workspace as a huge surface with a tiny, tightly packed cluster and distant values.
@@ -429,7 +445,10 @@ for a clean re-measurement without repaying the build.
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
-⬜ READY — corrective follow-up to 564. Queue only; not dispatched.
+🟡 CANDIDATE EXISTS, REVIEW PENDING — corrective follow-up to 564. Branch
+`item-582` contains candidate `c82e4b53`, verified not integrated into main on
+2026-09-10. The previous “not dispatched” status was stale. Candidate existence does
+not establish live motion parity or human acceptance; those checks remain owed.
 
 **Outcome.** The user rejected the delivered appearance: regular concentric
 circles and straight spokes, unlike the approved organic tunnel prototype.
@@ -652,7 +671,7 @@ Gumtree's dash is a 4-glyph snake run, so equalizing its height also grew its wi
 Unmeasured: star and underscore share one `ornament_scale` dial with dash, so they grew
 proportionally without being checked against their own ink-to-em ratios.
 
-**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed). REJECTED AGAIN LIVE, 2026-09-08:** the user looked and said "Kite is still really wrong" — nothing has changed since 582 was written, because 582 is queued and NOT dispatched. The next dispatch wave should take 582 ahead of new taste work; the user asked whether it was finished and the answer is no.
+**564 — Kite's living warped-grid tunnel (merged `c3c3032e`, cleanup `002f09fe`; pushed). REJECTED AGAIN LIVE, 2026-09-08:** the user looked and said "Kite is still really wrong" — the live rejection remains unresolved. Status reconciled 2026-09-10: 582 has an unintegrated candidate, with live review still owed. The next dispatch wave should take 582 ahead of new taste work; the user asked whether it was finished and the answer is no.
 Live human sign-off is owed for the several-minute drift and contortion feel — the harness
 verifies single-frame trajectories and the motion-safe still, not wall-clock feel over
 minutes. Also owed: at the default 1200×800 capture geometry the roaming vanishing point can
