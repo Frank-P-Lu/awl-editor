@@ -570,22 +570,26 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-- **588 — Brolga bullet taste decision (visual audit in progress,
-  `landed_visual_review`).** The current plain `•◦▪` remains the
-  fallback: no tested Dovecote scale satisfied both contrast and the fixed-width
-  box. A different glyph or wider box would be a separate mechanism decision.
-  The twenty-theme gallery still needs a taste review; legibility checks alone
-  do not supply it.
+- **588 — mechanically complete; blocked on user taste.** The current plain
+  `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
+  all three Brolga depths are present, distinct, aligned, contained, unclipped and
+  legible (sampled contrast 13.46:1, 5.23:1, 13.46:1). Evidence is in the ignored
+  `gallery/landed-visual-review/588-bullets/`. Keeping it is recommended. A
+  different glyph or wider box is a separate mechanism decision only the user
+  can authorize; mechanical checks do not supply that taste decision.
 - **553 — folder-search highlight review.** Real-pixel match-highlight legibility
   remains unverified. Retain the known boundaries: results use summon-time disk
   contents, grouping differs from lens headers, and CRLF matches can retain a
   cosmetic trailing carriage return. Review with 639/640 rather than treating
   the original implementation as unfinished.
-- **561 / 618 — ornament follow-up (visual audit in progress,
-  `landed_visual_review`).** The requested ~15% reduction is merged
-  (`760f4f43`, merge `b3e8d2aa`). Outstanding: live proportions and the inherited
-  star/underscore ink-to-em check; those share the dash's scale dial. Do not
-  requeue the already-landed size reduction.
+- **561 / 618 — mechanically complete; blocked on user taste.** The requested
+  reduction is merged (`760f4f43`, merge `b3e8d2aa`) and remeasured at 15.02%.
+  Fresh release and live-headless-App captures show every Gumtree ornament present
+  and legible; measured ink heights are snake 3.41em, fish 5.84em and snail 3.87em.
+  Their distinct shapes are not independently ink-equalized and the existing law
+  deliberately measures the shared dash scale. Accepting the fish-forward character
+  is recommended; a per-glyph scale is a new mechanism requiring the user's taste
+  decision. True-window live proportion judgment remains part of that decision.
 
 Kite's unresolved appearance and live motion review belong to **582** above;
 there is no separate 564 build item. Its review must include convergence near
