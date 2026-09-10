@@ -188,6 +188,69 @@
 
 Picker rows go through `render/rowlayout` — never place row text directly. A primary cell (never dropped, elided last-resort) + optional secondary right column (first to yield). `rowlayout::plan` → `fits` → `fit_primary` (the only elision door). The law test enumerates `OverlayKind` with a no-wildcard match. The bottom-left page-mode gutter rides the same owner (`gutter_plan`) — stacked, so neither line yields from width pressure (the filename never wraps; the fix for "DESIGN.md → DESIG/N.md and the project vanishes").
 
+## File navigation: hierarchy, focus and commitment
+
+Files / Recent is one contextual overlay for the **folder → file → writing**
+journey. It does not absorb the working set, Outline, Commands, Settings or
+History: the working set switches files already open; Files / Recent chooses what
+to open; Outline moves within the current document; Commands runs actions;
+Settings changes behaviour; History examines changes to the named document.
+
+The visible order is context, query/views, choices, actions:
+
+1. The title and current root name the scope. Files adds breadcrumbs and an Up
+   affordance for the browse location; Recent stays scoped to the same root.
+2. One bounded query and the separate Files / Recent choices say how the roster
+   is being viewed. A filename/path query searches the named root; it is not a
+   document-content search.
+3. Rows lead with names. Root-relative paths appear when they disambiguate a
+   result, including duplicate names and search results below the current level.
+4. Change folder and New document are explicit actions. New document names the
+   destination: the displayed directory while browsing, otherwise the root.
+
+The Files overlay opens with the query focused and the Files view active. Its
+forward Tab route is `query → Files → Recent → Up → choices → Change
+folder → New document → query`; Shift-Tab walks the same route backwards.
+Up is skipped at the root and in Recent, and an absent or disabled action is
+skipped. Narrow presentation may stage or move regions, but it does not alter
+this order. A child system/fallback folder chooser parks the parent; Esc in the
+child returns to the same parent control, while Esc in Files / Recent dismisses
+the overlay and restores editor focus.
+
+| Focus | Text and arrows | Enter / accept | Pointer |
+| --- | --- | --- | --- |
+| Query | Text edits the query; Left/Right moves its caret; Up/Down transfers to the choices and selects the nearest surviving row. | Accepts the selected row when one exists. | Clicking the field focuses it without committing a row. |
+| Files or Recent | Left/Right moves only between these two view choices; typing transfers to the query and filters. | Activates that view and restores its useful selection and scroll. | Clicking activates that view. |
+| Up | Left or Enter ascends one directory; typing transfers to the query. Right is inert. | Ascends without changing the writing root. | Clicking ascends. |
+| Choices | Up/Down changes selection; typing transfers to the query and filters. With an empty Files query, Left ascends and Right enters a selected folder; Left/Right are inert for files, Recent, and flat search results. | A folder enters that folder in place. A file opens or activates it and dismisses the overlay. | Clicking selects; activating uses the same folder/file action as Enter. |
+| Change folder | Arrows do not mutate the document or browsing root. | Opens the platform or fallback root chooser. Success returns to Files showing the chosen root; cancel preserves the prior context. | Clicking invokes the same action. |
+| New document | Arrows do not mutate the document or browsing root. | Creates at the destination named by the control, through the existing New document action. | Clicking invokes the same action. |
+
+Selection, focus, hover, preview and commitment are separate facts. One row may
+remain selected while keyboard focus moves to another region. Focus marks the
+single region receiving keys. Hover identifies the pointer target without
+changing selection. Files / Recent has no document preview: moving selection,
+changing views, searching and browsing leave the background buffer and its root
+untouched. Commitment occurs only when a file, root choice, or New document is
+accepted. Accessibility publishes the same separation as focus, selection,
+active view, expanded-folder state and action roles rather than collapsing them
+into one highlight.
+
+Direct menu, context-menu and palette Actions cross the same action-level surface
+gate as their key bindings. In particular, New document names and uses the
+current Files destination whether it arrived through a key, menu item or row;
+a menu key equivalent must not bypass the summoned surface and act on the
+background document.
+
+One concrete interaction proves the route is connected rather than a collection
+of labels: summon Files through its actual native or Emacs binding, type to
+filter, press Down to focus a surviving folder, Right to enter it, Tab forward
+through Change folder and New document, Shift-Tab back to the choices, then Enter
+on a file. The overlay closes only on that final commitment; the original buffer
+is untouched until then. Footers name the current verb (`enter folder`, `open
+file`, `change folder`, or `new document`) and read the effective rebound/platform
+binding from the command owner rather than printing a default literal.
+
 ## The margin working set's active-file plate (`render/chrome/gutter_stack.rs`)
 
 - **THE ACTIVE FILE IS ALWAYS PLATED — the lone identity line included** (user decision; it supersedes an earlier deliberate calm-when-alone contract that three rounds had kept, and which a reader hit head-on: one open file read as "not selected"). One owner answers "which line is filled", `gutter_stack::plate_rects`, over a no-wildcard match on `GutterLine`: `Name` (the lone file, active by construction — no working-set row exists to consult) and an active `File` row both plate; `Project` and `Changed` never do, and neither does a Group heading even when it is the current project (one plate per frame, or two fills answer two different questions and read as two selections). A new line kind fails to compile there rather than inheriting an answer.

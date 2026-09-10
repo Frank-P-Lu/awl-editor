@@ -6,14 +6,14 @@
 
 ## Open build and design tasks
 
-**15 open numbered tasks.** Ready: 643, 641, 642, 636, 634, 635.
-Dependencies/coordination: 637–640 and 589. Native prototype/candidate review:
+**14 open numbered tasks.** Ready: 643, 641, 642, 637, 634, 635.
+Dependencies/coordination: 638–640 and 589. Native prototype/candidate review:
 628 and 582. Uncommitted work in its claimed worktree: 615. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 643 — use frank@awl.md for awl contact details (user request, 2026-09-10)
 
-🟢 READY — queue only, not dispatched.
+🟡 IN PROGRESS — `contact_643` (Codex), branch `codex/643-contact`.
 
 Build: replace the user's personal email with `frank@awl.md` wherever awl publishes
 or embeds the maintainer's contact address: app/About, first-party documentation,
@@ -109,69 +109,9 @@ wall-clock feel; identify any remaining live timing checks honestly.
 
 ---
 
-### 636 — file navigation: shared interaction and information-hierarchy contract (user approval, 2026-09-10)
-
-🟢 READY — queue only, not dispatched. First dependency for 637–639; no native
-implementation is claimed by the approved HTML prototype.
-
-Decision: organize navigation around folder → file → writing. The bottom-left
-working set answers what is already open; Files / Recent answers what to open;
-the document outline answers where in the document; Commands answers what to do;
-Settings controls behavior; History explains changes to the named document.
-Retire mixed Go-to-everything as the primary file-opening experience. Preserve
-access to heading/line navigation and existing rebindings through deliberate
-routes and compatibility, rather than silently deleting capabilities.
-
-Reference: [approved interactive direction](https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/),
-study 03. This brief is self-contained: the reference is mutable, may require
-owner access, and is not the implementation contract. The user explicitly allowed
-HTML design exploration and visual improvement after inspection of actual awl.
-Earlier screenshot-only proposals that retained all five Go-to lenses are superseded
-by the Files / Recent flow. Keep awl's page, compact summoned navigation, and
-bottom-left stack; no permanent tree, top tab strip, or generic application shell.
-
-Build: write the concrete focus/action table and information hierarchy in the
-existing design/feature docs before dependent implementation. Context comes first,
-then query/views, choices, and actions. Names lead; paths disambiguate. Distinguish
-selected, hovered, keyboard-focused, previewed, and committed states. The picker
-names its browsing root independently of the background document's remembered
-root; switching an existing buffer preserves awl's root-restoration semantics.
-
-Accepted keyboard direction: Up/Down selects; Enter opens a file or enters a
-folder; Esc leaves the summoned surface (a child chooser cancels back to its
-parent); Tab/Shift-Tab provides the path between Files and Recent or workspace
-regions. Left/Right edits a focused query, traverses a focused folder list, or
-adjusts a focused value; it must not secretly change file-picker lenses while
-browsing. New document uses the existing platform/rebound New document action
-(Cmd-N on the advertised Mac map), creating in the destination its label names.
-Footers use the current verb: enter folder, open file, apply, restore, etc.
-
-Detail to resolve here, not an excuse to block all work: specify the ENTIRE Tab
-route, initial focus, focus transfer from typing to list navigation, reverse
-traversal, and access to Change folder/New document. Do not implement a two-view
-Tab loop that strands other controls, or let a hidden focus mode change arrows.
-Show the table and small native interaction proof; ask the user only if a genuine
-conflict with the accepted direction remains. Do not treat the HTML demo's missing
-Cmd-N/folder-arrow support or ordinary DOM tab order as approved native behavior.
-
-Coordination: 628 remains owner of shared chrome measurements and its outstanding
-Find/Settings/theme composition review; 589 remains the Commands implementation
-owner. This item supplies interaction/semantic requirements, not a competing skin.
-Preserve 628's explicit stable-theme-preview exception. Native prototypes and
-implementation use existing renderer/rowlayout and theme-data owners; the HTML
-reference does not authorize hardcoded Potoroo colors or a universal centered panel.
-
-Verify: review every entry/exit and key against the table, including pointer,
-accessibility, menu Actions, native/Emacs maps, and narrow layouts. Inspect current
-dispatch before asserting a defect. Read PHILOSOPHY.md, DESIGN.md, docs/config.md,
-docs/render.md, docs/verification.md and docs/harness-reach.md. This design-document
-step uses diff/link checks; product proofs belong to its dependent items.
-
----
-
 ### 637 — implement the folder-to-file-to-writing journey (user approval, 2026-09-10)
 
-🟡 DEPENDS ON 636 — queue only, not dispatched. Coordinate renderer changes with
+🟢 READY — queue only, not dispatched. Coordinate renderer changes with
 628; preserve its shared visual review requirement rather than reopening this
 approved navigation direction.
 
@@ -251,8 +191,9 @@ the integrated gate.
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
 
-🟡 DEPENDS ON 636; use 637 as the navigation reference. Queue only, not dispatched.
-Coordinate with 628 and 589 rather than launching another shared-chrome rewrite.
+🟡 COORDINATE WITH 637 and 628/589 — queue only, not dispatched. The 636
+interaction contract is now in DESIGN.md and docs/render.md; use 637 as the native
+navigation reference rather than launching another shared-chrome rewrite.
 
 Build: apply context → query/views → choices → actions across the actual surface
 roster, preserving task-specific composition. Commands remains actions, the outline
@@ -321,7 +262,7 @@ Do not dispatch or claim implementation merely because this acceptance work is q
 
 ### 634 — preflight must run the document-substitution ownership audit (user request, 2026-09-09)
 
-🟢 READY — queued only, not dispatched.
+🟡 IN PROGRESS — `preflight_634` (Codex), branch `codex/634-preflight`.
 
 Problem: `scripts/preflight.sh` selects `println_audit view_policy`. The intended
 view-text replacement audit is actually
@@ -490,10 +431,9 @@ do not settle taste or live motion. This board-only decision claims no receipt.
 
 ### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
 
-🟡 WORKTREE CHANGES PRESENT — branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
-Checked 2026-09-11: staged, uncommitted extraction; no branch-only commits.
-Not integrated. Confirm the worker's status before resuming; this is not evidence
-of an agent currently running.
+🟡 IN PROGRESS — `mouse_615` (Codex), branch `codex/615-mouse`, worktree
+`.worktrees/615-mouse`. Recovery owner was instructed to commit the staged extraction
+before any further work. Not integrated.
 
 `app/input/mouse.rs` combines document hit testing and selection, overlay navigation,
 search/menu clicks, cursor feedback, and wheel routing in one oversized module.
