@@ -521,9 +521,10 @@ five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 These are follow-ups, not additional unimplemented build tasks. Completed work and
 past verification reports remain in `git log -p -- .orchestrator/queue.md`.
 
-- **637 — outcome audit in progress.** `files_637_audit` is probing the landed
-  Files/Recent journey across state, surface, world and focus axes, including
-  real-pixel selection presence. Findings must add the missing law before closure.
+- **637 — audit defect repair in progress.** `files_637_audit` found a binary-only
+  root rendered as an ordinary file list instead of the named unsupported-only
+  state. A focused failing law exists on `codex/637-files-audit-law`; repair must
+  preserve path-based text classification and open/recent index alignment.
 - **588 — mechanically complete; blocked on user taste.** The current plain
   `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
   all three Brolga depths are present, distinct, aligned, contained, unclipped and
