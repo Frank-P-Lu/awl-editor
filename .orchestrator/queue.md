@@ -438,9 +438,20 @@ for a clean re-measurement without repaying the build.
 
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
-🟡 VISUAL REVIEW IN PROGRESS — `kite_582_judge` (Codex), candidate branch
-`item-582` at `c82e4b53`. Verified not integrated into main. Candidate existence
-does not establish live motion parity or human acceptance; those checks remain owed.
+🟡 REPAIR IN PROGRESS — `kite_582_repair` (Codex), based on current `main`.
+The `item-582` candidate was rejected by independent visual review on 2026-09-11
+and remains unintegrated. It improved rail curvature and retained clean haze,
+legibility, static character and DPI behavior, but did not reach the approved
+projected geometry: measured native section-radius variation remained about
+4–5% versus the reference's 42–45%, its centreline bend was incorrectly scaled
+by the fold amplitude, section roll had no equivalent owner, and the transit
+pose still read as a concentric target. Repair must preserve the successful
+veil/far-core/antialiasing work while replacing the log-ring approximation with
+geometry that carries section centre, full multiplicative radius, roll and
+fixed-theta longitudinal curvature directly. Fresh judge artifacts are in the
+untracked scratch directory `/private/tmp/item582-judge`; they are evidence,
+not product inputs or a gate receipt. Live motion parity and human acceptance
+remain owed after a mechanically acceptable repair.
 
 **Outcome.** The user rejected the delivered appearance: regular concentric
 circles and straight spokes, unlike the approved organic tunnel prototype.
