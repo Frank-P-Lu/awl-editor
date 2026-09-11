@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::overlay::{BuildCtx, OverlayKind, OverlayState};
+use crate::overlay::{OverlayKind, OverlayState, PickerInput};
 
 pub(super) struct FilesOverlayBuilder {
     root: PathBuf,
@@ -12,17 +12,25 @@ pub(super) struct FilesOverlayBuilder {
 }
 
 impl FilesOverlayBuilder {
-    pub(super) fn new(root: PathBuf, ctx: &BuildCtx<'_>) -> Self {
-        Self {
-            root,
-            corpus: ctx.goto_corpus.clone(),
-            open: ctx.goto_open.clone(),
-            recent: ctx.goto_recent.clone(),
+    pub(super) fn new(root: PathBuf, input: Option<&PickerInput<'_>>) -> Self {
+        match input {
+            Some(PickerInput::Goto(inputs)) => Self {
+                root,
+                corpus: inputs.corpus.clone(),
+                open: inputs.open.clone(),
+                recent: inputs.recent.clone(),
+            },
+            _ => Self {
+                root,
+                corpus: Vec::new(),
+                open: Vec::new(),
+                recent: Vec::new(),
+            },
         }
     }
 
-    pub(super) fn build(&self, kind: OverlayKind, ctx: &BuildCtx<'_>) -> Option<OverlayState> {
-        let overlay = crate::overlay::build(kind, ctx)?;
+    pub(super) fn build(&self, kind: OverlayKind, input: &PickerInput<'_>) -> Option<OverlayState> {
+        let overlay = crate::overlay::build_for(kind, input)?;
         Some(if kind == OverlayKind::Goto {
             self.attach_level(overlay, None)
         } else {

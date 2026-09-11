@@ -474,9 +474,8 @@ impl Journey {
         self.parked().map(|p| &p.resume)
     }
 
-    /// TEST-ONLY: which surface is parked beneath the card (the sidecar's
+    /// Which surface is parked beneath the card (the sidecar's
     /// `overlay.return_to`, as a kind).
-    #[cfg(test)]
     pub fn parked_kind(&self) -> Option<OverlayKind> {
         self.parked().map(|p| p.kind)
     }

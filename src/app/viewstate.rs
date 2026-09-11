@@ -291,7 +291,7 @@ impl App {
             // unrelated toast expiring on top of it.
             gutter_changed: self.change_unresolved(),
             // THE MENU BAR'S CONFIG-AWARE CHORD COLUMN: the SAME two
-            // values `BuildCtx::config_keys`/`config_linux_keep` hand the palette
+            // values `BindingInputs::keys`/`linux_keep` hand the palette
             // (`app/apply.rs`'s `build_ctx`), so a `[keys]` rebind or a live
             // `keymap` flavor toggle reaches the awl-drawn menu bar's chord
             // column the next `sync_view`, not just the palette's.

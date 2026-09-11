@@ -1,31 +1,19 @@
 use super::*;
 
-/// A minimal [`BuildCtx`] with every field empty/None — the tests that only
-/// care about ONE input fill just that one.
-fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a> {
-    BuildCtx {
-        goto_corpus: Vec::new(),
-        goto_open: Vec::new(),
-        goto_recent: Vec::new(),
-        goto_times: Vec::new(),
-        config_keys,
-        config_linux_keep: &[],
-        config_keymap_flavor: crate::keymap::KeymapFlavor::Native,
-        goto_headings: Vec::new(),
-        goto_line_count: 0,
-        goto_folders: Vec::new(),
-        goto_recent_folders: Vec::new(),
-        spell_target: None,
-        history_entries: Vec::new(),
-        history_now: None,
-        history_session_start: None,
+/// Command's focused input contains only its binding/readout inputs and gates.
+fn command_input<'a>(
+    config_keys: &'a [(String, Vec<String>)],
+    row_gates: crate::commands::RowGates,
+) -> PickerInput<'a> {
+    PickerInput::Command(CommandInputs {
+        bindings: BindingInputs {
+            keys: config_keys,
+            linux_keep: &[],
+            keymap_flavor: crate::keymap::KeymapFlavor::Native,
+        },
         settings_values: Default::default(),
-        assets: Vec::new(),
-        user_words: Vec::new(),
-        row_gates: Default::default(),
-        search_root: std::path::PathBuf::new(),
-        search_corpus: Vec::new(),
-    }
+        row_gates,
+    })
 }
 
 /// FINISH BUFFER GATING: the palette row list excludes "Finish file"
@@ -36,15 +24,11 @@ fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a>
 /// confirmation in the report — the daemon itself is structurally live-only).
 #[test]
 fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() {
-    // NO waiter (the default `BuildCtx`, matching headless capture / a fresh
+    // NO waiter (the default command input, matching headless capture / a fresh
     // live App with nothing waiting): "Finish file" is absent from what's
     // rankable/selectable...
-    let ctx_idle = BuildCtx {
-        row_gates: Default::default(),
-        ..empty_build_ctx(&[])
-    };
-    let ov_idle = crate::overlay::build(OverlayKind::Command, &ctx_idle)
-        .expect("the Command palette always summons");
+    let ctx_idle = command_input(&[], Default::default());
+    let ov_idle = crate::overlay::build(&ctx_idle).expect("the Command palette always summons");
     assert!(
         !ov_idle.item_strings().contains(&"Finish file".to_string()),
         "Finish file must be hidden from the palette with no active daemon waiter"
@@ -63,15 +47,15 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
     );
 
     // A waiter IS active: the row reappears...
-    let ctx_waiting = BuildCtx {
-        row_gates: crate::commands::RowGates {
+    let ctx_waiting = command_input(
+        &[],
+        crate::commands::RowGates {
             has_waiter: true,
             ..Default::default()
         },
-        ..empty_build_ctx(&[])
-    };
-    let mut ov_waiting = crate::overlay::build(OverlayKind::Command, &ctx_waiting)
-        .expect("the Command palette always summons");
+    );
+    let mut ov_waiting =
+        crate::overlay::build(&ctx_waiting).expect("the Command palette always summons");
     assert!(
         ov_waiting
             .item_strings()

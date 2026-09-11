@@ -402,37 +402,22 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
     let (mut instances, mut passes) = (0u64, FramePasses { content_hug: false });
     let mut open_frame: Option<image::RgbaImage> = None;
     for i in 0..SAMPLES {
-        let build_ctx = crate::overlay::BuildCtx {
-            goto_corpus: Vec::new(),
-            goto_open: Vec::new(),
-            goto_recent: Vec::new(),
-            goto_times: Vec::new(),
-            config_keys: &cx.config.keys,
-            config_linux_keep: &keep,
-            config_keymap_flavor: cx.config.keymap_flavor(),
-            goto_headings: Vec::new(),
-            goto_line_count: 0,
-            goto_folders: Vec::new(),
-            goto_recent_folders: Vec::new(),
-            spell_target: None,
-            history_entries: Vec::new(),
-            history_now: None,
-            history_session_start: None,
+        let build_input = crate::overlay::PickerInput::Command(crate::overlay::CommandInputs {
+            bindings: crate::overlay::BindingInputs {
+                keys: &cx.config.keys,
+                linux_keep: &keep,
+                keymap_flavor: cx.config.keymap_flavor(),
+            },
             settings_values: crate::settings::SettingsValues::gather(
                 cx.config,
                 &temp_root,
                 1.0,
                 crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
             ),
-            assets: Vec::new(),
-            user_words: Vec::new(),
             row_gates: Default::default(),
-            search_root: std::path::PathBuf::new(),
-            search_corpus: Vec::new(),
-        };
+        });
         let t0 = Instant::now();
-        let ov = crate::overlay::build(crate::overlay::OverlayKind::Command, &build_ctx)
-            .context("the command palette must build")?;
+        let ov = crate::overlay::build(&build_input).context("the command palette must build")?;
         cx.open_overlay(&ov);
         cx.sync_frame()?;
         samples.push(ms(t0));

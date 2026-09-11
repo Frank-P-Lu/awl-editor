@@ -1132,7 +1132,7 @@ pub(super) fn all_actions() -> Vec<Action> {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(super) enum SmokeKind {
     /// Summons a modal overlay — `ctx.overlay` must be `Some` after dispatch
-    /// (the smoke `BuildCtx`/`browse_to` feed each picker what it needs to open).
+    /// (the smoke picker request / `browse_to` feed each picker what it needs to open).
     Opener,
     /// Signals a caller-level deferred [`Effect`] the pure core can't perform
     /// itself (quit / buffer-swap / notes-swap / pinned snapshot / daemon finish
@@ -1157,7 +1157,7 @@ pub(super) enum SmokeKind {
 macro_rules! classify_smoke_command {
     ($action:expr) => {
         match $action {
-        // Overlay summons that open given the smoke BuildCtx / browse_to.
+        // Overlay summons that open given the smoke picker request / browse_to.
         Action::OpenGoto
         | Action::OpenProject
         | Action::OpenRecentProjects

@@ -635,7 +635,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         }
         // Cmd-P → "Clean unused assets…": summon the ASSET CLEANER. The caller's
         // `make_overlay` builds it from the scanned orphan list (`assets::scan`,
-        // threaded via `BuildCtx::assets`); an empty list still opens (the calm "no
+        // threaded via `PickerInput::Assets`); an empty list still opens (the calm "no
         // unused assets" row), so this is never a silent no-op. Enter then requests the
         // highlighted orphan be trashed (`Effect::TrashAsset`), keeping the picker open.
         Action::OpenAssetClean => {
@@ -643,7 +643,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         }
         // Cmd-P → "Personal dictionary…": summon the picker over the words the
         // user has added to spell-check. The caller's `make_overlay` builds it
-        // from the gathered word list (`BuildCtx::user_words`); an empty list
+        // from the gathered word list (`PickerInput::UserWords`); an empty list
         // still opens (the calm row naming where words come from), so this is
         // never a silent no-op. Enter then requests the highlighted word be
         // forgotten (`Effect::ForgetUserWord`), keeping the picker open.
@@ -653,7 +653,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         }
         // Cmd-P → "Search in folder…": summon the FULL-TEXT SEARCH picker over
         // the active folder. The caller's `make_overlay` builds it from the
-        // already-loaded corpus (`BuildCtx::search_corpus`); an empty query is
+        // already-loaded corpus (`PickerInput::SearchFolder`); an empty query is
         // the summon state (the calm "no matches" row), so this is never a
         // silent no-op. Enter then opens the highlighted match's file at its
         // line/col through `Effect::OpenPathAtLine`

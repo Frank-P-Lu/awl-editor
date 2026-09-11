@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::overlay::{BuildCtx, OverlayKind, OverlayState};
+use crate::overlay::{OverlayKind, OverlayState, PickerInput};
 
 pub(super) struct ReplayFilesBuilder<'a> {
     root: &'a Path,
@@ -19,8 +19,8 @@ impl<'a> ReplayFilesBuilder<'a> {
         }
     }
 
-    pub(super) fn build(&self, kind: OverlayKind, ctx: &BuildCtx<'_>) -> Option<OverlayState> {
-        let overlay = crate::overlay::build(kind, ctx)?;
+    pub(super) fn build(&self, kind: OverlayKind, input: &PickerInput<'_>) -> Option<OverlayState> {
+        let overlay = crate::overlay::build_for(kind, input)?;
         Some(if kind == OverlayKind::Goto {
             self.attach_level(overlay, None)
         } else {

@@ -232,28 +232,6 @@ impl App {
             search_corpus,
         }
     }
-
-    pub(super) fn gather_goto_folders(
-        &self,
-        action: &Action,
-    ) -> (Vec<(String, bool)>, Vec<String>) {
-        if !matches!(
-            action,
-            Action::OpenGoto
-                | Action::OpenProject
-                | Action::OpenRecentProjects
-                | Action::OpenOutline
-        ) {
-            return (Vec::new(), Vec::new());
-        }
-        let recent: Vec<String> = self
-            .project_location
-            .recent_projects
-            .iter()
-            .map(|path| path.to_string_lossy().to_string())
-            .collect();
-        crate::overlay::goto_folder_roster(self.project_location.workspace_root.as_deref(), &recent)
-    }
 }
 
 #[cfg(test)]

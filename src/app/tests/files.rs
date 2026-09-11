@@ -121,32 +121,15 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     // Build the ACTUAL overlay the way `App::apply`'s Goto arm does, to prove
     // the fresh index really reaches the summoned picker's corpus (the same
     // `overlay::build` the live App and headless replay both call).
-    let effective_keep = app.config.effective_linux_keep();
-    let build_ctx = crate::overlay::BuildCtx {
-        goto_corpus: app.project_location.file_index.clone(),
-        goto_open: Vec::new(),
-        goto_recent: Vec::new(),
-        goto_times: Vec::new(),
-        config_keys: &app.config.keys,
-        config_linux_keep: &effective_keep,
-        config_keymap_flavor: app.config.keymap_flavor(),
-        goto_headings: Vec::new(),
-        goto_line_count: 0,
-        goto_folders: Vec::new(),
-        goto_recent_folders: Vec::new(),
-        spell_target: None,
-        history_entries: Vec::new(),
-        history_now: None,
-        history_session_start: None,
-        settings_values: Default::default(),
-        assets: Vec::new(),
-        user_words: Vec::new(),
-        row_gates: Default::default(),
-        search_root: std::path::PathBuf::new(),
-        search_corpus: Vec::new(),
-    };
-    let ov = crate::overlay::build(crate::overlay::OverlayKind::Goto, &build_ctx)
-        .expect("Goto always summons");
+    let build_input = crate::overlay::PickerInput::Goto(crate::overlay::GotoInputs {
+        corpus: app.project_location.file_index.clone(),
+        open: Vec::new(),
+        recent: Vec::new(),
+        times: Vec::new(),
+        headings: Vec::new(),
+        line_count: 0,
+    });
+    let ov = crate::overlay::build(&build_input).expect("Goto always summons");
     assert!(ov.accepts().contains(&"b.txt"), "the new file is listed");
 }
 

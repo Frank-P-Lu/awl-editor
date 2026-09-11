@@ -2897,7 +2897,7 @@ pub struct TextPipeline {
     /// draw here either.
     gutter_drag_indicator_plate: crate::selection::SelectionPipeline,
     /// Mirror of [`ViewState::config_keys`] — the user's `[keys]` overrides, the
-    /// SAME slice `overlay::BuildCtx::config_keys` hands the palette. Read by the
+    /// SAME slice `overlay::BindingInputs::keys` hands the palette. Read by the
     /// awl-drawn menu bar's chord column (`chrome::menubar::dropdown`) so a
     /// rebind updates that label exactly like it already updates the palette's.
     config_keys: Vec<(String, Vec<String>)>,

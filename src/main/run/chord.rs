@@ -14,21 +14,6 @@ struct ResolvedChord {
     shift: bool,
 }
 
-use crate::overlay::SpellSuggestTarget;
-
-struct ReplayActionInputs {
-    goto_headings: Vec<(String, usize)>,
-    goto_line_count: usize,
-    spell_target: Option<SpellSuggestTarget>,
-    history_entries: Vec<crate::history::TimelineRow>,
-    assets: Vec<crate::assets::Orphan>,
-    user_words: Vec<String>,
-    goto_folders: Vec<(String, bool)>,
-    goto_recent_folders: Vec<String>,
-    settings_values: crate::settings::SettingsValues,
-    search_corpus: Vec<(String, String)>,
-}
-
 impl ReplaySession<'_> {
     pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
         let Some(resolved) = self.resolve_chord(chord)? else {
@@ -94,12 +79,14 @@ impl ReplaySession<'_> {
         Ok(())
     }
 
-    /// Gather the data whose cost or meaning depends on the action being
-    /// applied. This is replay's input half of the shared overlay builder; it
-    /// performs no editor transition itself.
-    fn gather_action_inputs(&self, action: &Action) -> ReplayActionInputs {
-        let goto_headings = if matches!(action, Action::OpenGoto | Action::OpenOutline)
-            && self.buffer.is_markdown()
+    fn gather_goto_input(&self, action: &Action) -> crate::overlay::GotoInputs {
+        let headings = if matches!(
+            action,
+            Action::OpenGoto
+                | Action::OpenProject
+                | Action::OpenRecentProjects
+                | Action::OpenOutline
+        ) && self.buffer.is_markdown()
         {
             crate::markdown::headings(&self.buffer.text())
                 .into_iter()
@@ -108,51 +95,75 @@ impl ReplaySession<'_> {
         } else {
             Vec::new()
         };
-        // Go to Line's numeric companion: ANY buffer, not only markdown --
-        // the same summon gate as `goto_headings`, minus the markdown check.
-        let goto_line_count = if matches!(action, Action::OpenGoto | Action::OpenOutline) {
-            self.buffer.line_count()
-        } else {
-            0
-        };
-        let spell_target = if matches!(action, Action::OpenSpellSuggest) {
-            self.spell.as_ref().and_then(|checker| {
-                let (line, col) = self.buffer.cursor_line_col();
-                checker
-                    .suggest_at(&self.buffer.text(), line, col, self.buffer.syntax_lang())
-                    .map(|target| {
+        crate::overlay::GotoInputs {
+            corpus: self.corpus.to_vec(),
+            open: Vec::new(),
+            recent: Vec::new(),
+            times: Vec::new(),
+            headings,
+            line_count: matches!(
+                action,
+                Action::OpenGoto
+                    | Action::OpenProject
+                    | Action::OpenRecentProjects
+                    | Action::OpenOutline
+            )
+            .then(|| self.buffer.line_count())
+            .unwrap_or_default(),
+        }
+    }
+
+    fn gather_spell_target(&self, action: &Action) -> Option<crate::overlay::SpellSuggestTarget> {
+        if !matches!(action, Action::OpenSpellSuggest) {
+            return None;
+        }
+        self.spell.as_ref().and_then(|checker| {
+            let (line, col) = self.buffer.cursor_line_col();
+            checker
+                .suggest_at(&self.buffer.text(), line, col, self.buffer.syntax_lang())
+                .map(|target| {
+                    (
+                        target.suggestions,
                         (
-                            target.suggestions,
-                            (
-                                target.misspelling.line,
-                                target.misspelling.start_col,
-                                target.misspelling.end_col,
-                            ),
-                            target.word,
-                        )
-                    })
-            })
-        } else {
-            None
-        };
-        let history_entries = if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-            crate::history::source_path(self.buffer.path(), self.buffer.is_unnamed_fresh())
-                .map(|path| {
-                    crate::history::timeline_rows(
-                        &path,
-                        &self.buffer.text(),
-                        crate::history::now_millis(),
+                            target.misspelling.line,
+                            target.misspelling.start_col,
+                            target.misspelling.end_col,
+                        ),
+                        target.word,
                     )
                 })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let assets = if matches!(action, Action::OpenAssetClean) {
-            crate::assets::scan(&self.root, &self.corpus)
-        } else {
-            Vec::new()
-        };
+        })
+    }
+
+    fn gather_history_entries(&self, action: &Action) -> Vec<crate::history::TimelineRow> {
+        if !matches!(action, Action::OpenHistory | Action::CompareVersion) {
+            return Vec::new();
+        }
+        crate::history::source_path(self.buffer.path(), self.buffer.is_unnamed_fresh())
+            .map(|path| {
+                crate::history::timeline_rows(
+                    &path,
+                    &self.buffer.text(),
+                    crate::history::now_millis(),
+                )
+            })
+            .unwrap_or_default()
+    }
+
+    fn gather_assets(&self, action: &Action) -> Vec<crate::assets::Orphan> {
+        if !matches!(action, Action::OpenAssetClean) {
+            return Vec::new();
+        }
+        crate::assets::scan(&self.root, &self.corpus)
+    }
+
+    /// Replay's checker has no ambient personal dictionary. The empty roster is
+    /// intentional: ordinary captures stay hermetic while `--screenshot-app`
+    /// reaches the App's loaded dictionary.
+    fn gather_user_words(&self, action: &Action) -> Vec<String> {
+        if !matches!(action, Action::OpenUserWords) {
+            return Vec::new();
+        }
         // The replay's OWN checker, and it is ALWAYS EMPTY here: `SpellChecker`
         // is constructed with no personal dictionary and only the live `App`
         // ever fills one (`App::load_user_dictionary` is the sole caller of
@@ -163,59 +174,28 @@ impl ReplaySession<'_> {
         // oversight: a replay reading the ambient word list would photograph
         // whoever ran it. `docs/harness-reach.md` records the ceiling and
         // `capture::tests::personal_dictionary_journey` holds it there.
-        let user_words = if matches!(action, Action::OpenUserWords) {
-            self.spell
-                .as_ref()
-                .map(|checker| checker.user_words_sorted())
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let (goto_folders, goto_recent_folders) = if matches!(
-            action,
-            Action::OpenGoto
-                | Action::OpenProject
-                | Action::OpenRecentProjects
-                | Action::OpenOutline
-        ) {
-            crate::overlay::goto_folder_roster(Some(&self.workspace), &[])
-        } else {
-            (Vec::new(), Vec::new())
-        };
-        // SEARCH IN FOLDER's headless twin of the live gather above: same
-        // budget, same `crate::fs` seam, so a `--keys` capture sees the real
-        // corpus a live summon would.
-        let search_corpus = if matches!(action, Action::OpenSearchFolder) {
-            let root = self.root.clone();
-            crate::search_folder::load_corpus(
-                &self.corpus,
-                &crate::search_folder::SearchBudget::default(),
-                |rel| {
-                    crate::fs::active()
-                        .read_to_string(&crate::index::resolve(&root, rel))
-                        .ok()
-                },
-            )
-        } else {
-            Vec::new()
-        };
-        ReplayActionInputs {
-            goto_headings,
-            goto_line_count,
-            spell_target,
-            history_entries,
-            assets,
-            user_words,
-            goto_folders,
-            goto_recent_folders,
-            settings_values: crate::settings::SettingsValues::gather(
-                self.config,
-                &self.root,
-                self.zoom,
-                crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
-            ),
-            search_corpus,
+        self.spell
+            .as_ref()
+            .map(|checker| checker.user_words_sorted())
+            .unwrap_or_default()
+    }
+
+    // SEARCH IN FOLDER's headless twin of the live gather above: same budget,
+    // same `crate::fs` seam, so a `--keys` capture sees the real corpus.
+    fn gather_search_corpus(&self, action: &Action) -> Vec<(String, String)> {
+        if !matches!(action, Action::OpenSearchFolder) {
+            return Vec::new();
         }
+        let root = self.root.clone();
+        crate::search_folder::load_corpus(
+            &self.corpus,
+            &crate::search_folder::SearchBudget::default(),
+            |rel| {
+                crate::fs::active()
+                    .read_to_string(&crate::index::resolve(&root, rel))
+                    .ok()
+            },
+        )
     }
 
     /// Apply one action through the sole pure transition seam, then append its
@@ -233,35 +213,128 @@ impl ReplaySession<'_> {
         if let Some(oracle) = self.oracle.as_deref_mut() {
             oracle.refresh(self.buffer, self.zoom);
         }
-        let inputs = self.gather_action_inputs(&action);
         let effective_keep = self.config.effective_linux_keep();
-        let build_ctx = crate::overlay::BuildCtx {
-            goto_corpus: self.corpus.to_vec(),
-            goto_open: Vec::new(),
-            goto_recent: Vec::new(),
-            goto_times: Vec::new(),
-            config_keys: &self.config.keys,
-            config_linux_keep: &effective_keep,
-            config_keymap_flavor: self.config.keymap_flavor(),
-            goto_headings: inputs.goto_headings,
-            goto_line_count: inputs.goto_line_count,
-            goto_folders: inputs.goto_folders,
-            goto_recent_folders: inputs.goto_recent_folders,
-            spell_target: inputs.spell_target,
-            history_entries: inputs.history_entries,
-            history_now: None,
-            history_session_start: None,
-            settings_values: inputs.settings_values,
-            assets: inputs.assets,
-            user_words: inputs.user_words,
-            // Headless replay is daemon-free, so Finish file stays hidden.
-            row_gates: Default::default(),
-            search_root: self.root.clone(),
-            search_corpus: inputs.search_corpus,
+        let settings_values = || {
+            crate::settings::SettingsValues::gather(
+                self.config,
+                &self.root,
+                self.zoom,
+                crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+            )
+        };
+        let picker_kind = match action {
+            Action::OpenGoto
+            | Action::OpenProject
+            | Action::OpenRecentProjects
+            | Action::OpenOutline => Some(crate::overlay::OverlayKind::Goto),
+            Action::OpenThemeMenu => Some(crate::overlay::OverlayKind::Theme),
+            Action::OpenCaretMenu => Some(crate::overlay::OverlayKind::Caret),
+            Action::OpenDictionaryMenu => Some(crate::overlay::OverlayKind::Dictionary),
+            Action::OpenKeymapMenu => Some(crate::overlay::OverlayKind::Keymap),
+            Action::OpenCommandPalette => Some(crate::overlay::OverlayKind::Command),
+            Action::OpenKeybindings => Some(crate::overlay::OverlayKind::Keybindings),
+            Action::OpenSpellSuggest => Some(crate::overlay::OverlayKind::Spell),
+            Action::OpenHistory | Action::CompareVersion => {
+                Some(crate::overlay::OverlayKind::History)
+            }
+            Action::OpenSettingsMenu => Some(crate::overlay::OverlayKind::Settings),
+            Action::OpenAssetClean => Some(crate::overlay::OverlayKind::Assets),
+            Action::OpenUserWords => Some(crate::overlay::OverlayKind::UserWords),
+            Action::OpenSearchFolder => Some(crate::overlay::OverlayKind::SearchFolder),
+            Action::OpenCredits => Some(crate::overlay::OverlayKind::Credits),
+            Action::Cancel | Action::Newline | Action::AcceptAlternate => {
+                self.journey.parked_kind()
+            }
+            _ => self
+                .journey
+                .card()
+                .filter(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+                .map(|_| crate::overlay::OverlayKind::Settings),
+        };
+        let picker_input = match picker_kind {
+            Some(crate::overlay::OverlayKind::Goto) => Some(crate::overlay::PickerInput::Goto(
+                self.gather_goto_input(&action),
+            )),
+            Some(crate::overlay::OverlayKind::Theme) => Some(crate::overlay::PickerInput::Theme),
+            Some(crate::overlay::OverlayKind::Caret) => Some(crate::overlay::PickerInput::Caret),
+            Some(crate::overlay::OverlayKind::Dictionary) => {
+                Some(crate::overlay::PickerInput::Dictionary)
+            }
+            Some(crate::overlay::OverlayKind::Keymap) => {
+                Some(crate::overlay::PickerInput::Keymap {
+                    configured: self.config.keymap.clone().unwrap_or_default(),
+                })
+            }
+            Some(crate::overlay::OverlayKind::Command) => Some(
+                crate::overlay::PickerInput::Command(crate::overlay::CommandInputs {
+                    bindings: crate::overlay::BindingInputs {
+                        keys: &self.config.keys,
+                        linux_keep: &effective_keep,
+                        keymap_flavor: self.config.keymap_flavor(),
+                    },
+                    settings_values: settings_values(),
+                    row_gates: Default::default(),
+                }),
+            ),
+            Some(crate::overlay::OverlayKind::Keybindings) => Some(
+                crate::overlay::PickerInput::Keybindings(crate::overlay::BindingInputs {
+                    keys: &self.config.keys,
+                    linux_keep: &effective_keep,
+                    keymap_flavor: self.config.keymap_flavor(),
+                }),
+            ),
+            Some(crate::overlay::OverlayKind::Spell) => Some(crate::overlay::PickerInput::Spell(
+                self.gather_spell_target(&action),
+            )),
+            Some(crate::overlay::OverlayKind::History) => Some(
+                crate::overlay::PickerInput::History(crate::overlay::HistoryInputs {
+                    entries: self.gather_history_entries(&action),
+                    now: None,
+                    session_start: None,
+                }),
+            ),
+            Some(crate::overlay::OverlayKind::Settings) => {
+                Some(crate::overlay::PickerInput::Settings(settings_values()))
+            }
+            Some(crate::overlay::OverlayKind::Assets) => Some(crate::overlay::PickerInput::Assets(
+                self.gather_assets(&action),
+            )),
+            Some(crate::overlay::OverlayKind::UserWords) => Some(
+                crate::overlay::PickerInput::UserWords(self.gather_user_words(&action)),
+            ),
+            Some(crate::overlay::OverlayKind::SearchFolder) => Some(
+                crate::overlay::PickerInput::SearchFolder(crate::overlay::SearchFolderInputs {
+                    root: self.root.clone(),
+                    corpus: self.gather_search_corpus(&action),
+                }),
+            ),
+            Some(crate::overlay::OverlayKind::Credits) => {
+                Some(crate::overlay::PickerInput::Credits)
+            }
+            Some(
+                crate::overlay::OverlayKind::CjkLang
+                | crate::overlay::OverlayKind::Date
+                | crate::overlay::OverlayKind::Browse
+                | crate::overlay::OverlayKind::MoveDest
+                | crate::overlay::OverlayKind::ExportDest
+                | crate::overlay::OverlayKind::Project
+                | crate::overlay::OverlayKind::ProjectBrowse
+                | crate::overlay::OverlayKind::Rename
+                | crate::overlay::OverlayKind::InsertLink
+                | crate::overlay::OverlayKind::KeepName
+                | crate::overlay::OverlayKind::Context
+                | crate::overlay::OverlayKind::TableDims
+                | crate::overlay::OverlayKind::Conflict,
+            )
+            | None => None,
         };
         let files_builder =
             files_overlay::ReplayFilesBuilder::new(&self.root, &self.workspace, &self.corpus);
-        let mut make_overlay = |kind| files_builder.build(kind, &build_ctx);
+        let mut make_overlay = |kind| {
+            picker_input
+                .as_ref()
+                .and_then(|input| files_builder.build(kind, input))
+        };
         let mut browse_to = |kind, rel| files_builder.browse(kind, rel);
         let mut ctx = actions::ActionCtx {
             buffer: &mut *self.buffer,

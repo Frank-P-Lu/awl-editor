@@ -4,78 +4,37 @@ use super::{OverlayKind, OverlayState};
 use std::path::Path;
 
 mod ctx;
-pub use ctx::{BuildCtx, SpellSuggestTarget};
+pub use ctx::{
+    BindingInputs, CommandInputs, GotoInputs, HistoryInputs, PickerInput, SearchFolderInputs,
+    SpellSuggestTarget,
+};
 
-/// Author the folder half of Go-to's destination roster from the configured
-/// workspace and persisted folder MRU. The workspace itself and its direct
-/// child folders are always known destinations; valid remembered folders may
-/// live deeper. Paths are absolute so accepting a row has unambiguous identity.
-pub fn goto_folder_roster(
-    workspace: Option<&Path>,
-    recent_folders: &[String],
-) -> (Vec<(String, bool)>, Vec<String>) {
-    let Some(workspace) = workspace else {
-        return (Vec::new(), Vec::new());
-    };
-    let mut folders = vec![(
-        workspace.to_string_lossy().to_string(),
-        workspace.join(".git").is_dir(),
-    )];
-    for entry in crate::index::list_dir_level(workspace, None)
-        .into_iter()
-        .filter(|entry| entry.is_dir)
-    {
-        folders.push((
-            workspace.join(entry.name).to_string_lossy().to_string(),
-            entry.is_git,
-        ));
-    }
-    let mut recent = Vec::new();
-    for raw in recent_folders {
-        let path = std::path::PathBuf::from(raw);
-        if !path.is_dir() {
-            continue;
-        }
-        let display = path.to_string_lossy().to_string();
-        if !folders.iter().any(|(known, _)| known == &display) {
-            folders.push((display.clone(), path.join(".git").is_dir()));
-        }
-        if !recent.contains(&display) {
-            recent.push(display);
-        }
-    }
-    (folders, recent)
-}
-
-/// Build the SUMMONED overlay for a non-navigable picker kind (Goto / Theme /
-/// Command, plus the buffer-scoped Spell) from the caller-gathered [`BuildCtx`].
-/// Returns `None` for the navigable explorers (Browse / MoveDest / Project) —
-/// those need a directory LEVEL, built by [`browse_level`] — and for an unresolved
-/// Spell target. Live App and ordinary replay share this construction path;
-/// their caller-gathered inputs may differ.
-pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
-    match kind {
+/// Build the SUMMONED overlay for one focused picker input. Navigable explorers
+/// use [`browse_level`]; an unresolved Spell target returns `None`. Live App and
+/// ordinary replay share this construction path while gathering different facts.
+pub fn build(input: &PickerInput<'_>) -> Option<OverlayState> {
+    match input {
         // Go-to: the active project's file index. The open/recent tiers + the
         // relative "last edited" labels are caller-supplied (live-only; empty in
         // headless capture, so `set_times([])` is a no-op there).
-        OverlayKind::Goto => {
+        PickerInput::Goto(ctx) => {
             let mut ov = OverlayState::new_files(
-                ctx.goto_corpus.clone(),
-                ctx.goto_open.clone(),
-                ctx.goto_recent.clone(),
+                ctx.corpus.clone(),
+                ctx.open.clone(),
+                ctx.recent.clone(),
                 None,
             );
-            ov.set_times(ctx.goto_times.clone());
+            ov.set_times(ctx.times.clone());
             // Fold the current doc's HEADINGS in as the Headings lens's corpus (the
             // retired Outline picker). Appended after the files; empty for a
             // non-markdown buffer (the lens then reads "no headings yet").
-            ov.attach_headings(ctx.goto_headings.clone());
-            ov.attach_line_jump(ctx.goto_line_count);
+            ov.attach_headings(ctx.headings.clone());
+            ov.attach_line_jump(ctx.line_count);
             Some(ov)
         }
         // Theme picker: every world name + the active index (for revert). Built
         // from THEMES so it auto-extends as worlds are added.
-        OverlayKind::Theme => {
+        PickerInput::Theme => {
             let names: Vec<String> = crate::theme::THEMES
                 .iter()
                 .map(|t| t.name.to_string())
@@ -84,16 +43,16 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         }
         // Caret-style picker: the three looks + the active one (for revert). Built
         // from CaretMode::ALL so it auto-extends if a look is added.
-        OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
+        PickerInput::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
         // Dictionary picker: the three variants + the active one (pre-selected;
         // there is nothing to revert since nothing previews on move).
-        OverlayKind::Dictionary => {
+        PickerInput::Dictionary => {
             Some(OverlayState::new_dictionary(crate::spell::active_variant()))
         }
         // CJK-priority language picker: Auto + the four languages, whichever
         // is currently active pre-selected (nothing previews on move,
         // mirroring Dictionary).
-        OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
+        PickerInput::CjkLang => Some(OverlayState::new_cjk_lang(
             crate::frontmatter::cjk_priority_is_auto(),
             crate::frontmatter::cjk_priority()
                 .first()
@@ -106,9 +65,9 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // so both surfaces agree), the active format pre-selected. Nothing
         // previews on move (the example dates ARE the preview), so no revert
         // bookkeeping — the Dictionary shape.
-        OverlayKind::Date => Some(OverlayState::new_date(
+        PickerInput::Date { today_ymd } => Some(OverlayState::new_date(
             crate::dateformat::active_format(),
-            ctx.settings_values.today_ymd,
+            *today_ymd,
         )),
         // Keymap-flavor picker: native/emacs + the active one (pre-selected;
         // nothing previews on move, mirroring Dictionary/Date). The flavor is
@@ -118,24 +77,23 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // EVERY overlay build regardless of kind (see `SettingsValues::gather`'s
         // call sites), so this reads correctly whether opened from the Settings
         // menu or straight from the palette's "Keymap…".
-        OverlayKind::Keymap => {
-            let active =
-                crate::keymap::KeymapFlavor::parse(&ctx.settings_values.keymap).unwrap_or_default();
+        PickerInput::Keymap { configured } => {
+            let active = crate::keymap::KeymapFlavor::parse(configured).unwrap_or_default();
             Some(OverlayState::new_keymap(active))
         }
         // Command palette: the PLATFORM-FILTERED command catalog
         // (`commands::visible()` — hides desktop-only commands on web; byte-identical
         // to the full catalog on native), each row showing its EFFECTIVE chord (config
         // `[keys]` rebinds included), so it teaches the live binding.
-        OverlayKind::Command => {
+        PickerInput::Command(ctx) => {
             let mut ov = OverlayState::new_command(
                 crate::commands::visible_names(),
                 crate::commands::visible_effective_bindings(
-                    ctx.config_keys,
-                    ctx.config_linux_keep,
-                    ctx.config_keymap_flavor,
+                    ctx.bindings.keys,
+                    ctx.bindings.linux_keep,
+                    ctx.bindings.keymap_flavor,
                 ),
-                // Conditional rows read the caller's runtime facts (`BuildCtx::row_gates`).
+                // Conditional rows read the caller's runtime facts.
                 crate::commands::visible_hidden_mask(ctx.row_gates),
             );
             // The Recent lens reads the in-memory recently-run MRU (empty in a fresh
@@ -167,95 +125,90 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         }
         // Rebind menu: the same platform-filtered command catalog + effective chords
         // as the palette, but opened in capture mode (Enter rebinds rather than runs).
-        OverlayKind::Keybindings => Some(OverlayState::new_keybindings(
+        PickerInput::Keybindings(bindings) => Some(OverlayState::new_keybindings(
             crate::commands::visible_names(),
             crate::commands::visible_effective_bindings(
-                ctx.config_keys,
-                ctx.config_linux_keep,
-                ctx.config_keymap_flavor,
+                bindings.keys,
+                bindings.linux_keep,
+                bindings.keymap_flavor,
             ),
         )),
         // Spell: the caller-resolved word target + its corrections. None when the
         // cursor isn't on a flagged word, so the summon no-ops.
-        OverlayKind::Spell => ctx
-            .spell_target
+        PickerInput::Spell(target) => target
             .clone()
             .map(|(sugg, target, word)| OverlayState::new_spell(sugg, target, word)),
         // History: the caller-gathered timeline rows. ALWAYS summons: an empty list
         // becomes the calm "no history yet" row, so the picker never silently no-ops
         // on a file that simply hasn't been snapshotted yet.
-        OverlayKind::History => Some(OverlayState::new_history(
-            ctx.history_entries.clone(),
-            ctx.history_now,
-            ctx.history_session_start,
+        PickerInput::History(ctx) => Some(OverlayState::new_history(
+            ctx.entries.clone(),
+            ctx.now,
+            ctx.session_start,
         )),
         // Settings menu: the flat settings corpus (display names) + each setting's
         // current VALUE in the secondary (binding) column, read via the settings
         // readout against the caller-gathered config/project values. It FACETS by
         // category (the scheme is registered), so it lands on the flat All home and
         // ←/→ step through the category lenses. Always summons.
-        OverlayKind::Settings => {
+        PickerInput::Settings(values) => {
             let mut ov = OverlayState::new(
-                kind,
+                OverlayKind::Settings,
                 crate::settings::visible_names(),
                 Vec::new(),
                 Vec::new(),
             );
-            ov.set_secondaries(crate::settings::visible_value_cells(&ctx.settings_values));
+            ov.set_secondaries(crate::settings::visible_value_cells(values));
             // The RAIL column beside the value text — the same gathered
             // values, read through the range-spec owner, so the thumb and the
             // number are one instant's truth.
-            ov.set_range_cells(crate::settings::visible_range_cells(&ctx.settings_values));
+            ov.set_range_cells(crate::settings::visible_range_cells(values));
             Some(ov)
         }
         // Asset cleaner: the caller-scanned orphan list. ALWAYS summons (like
         // History): an empty list becomes the calm "no unused assets" row.
-        OverlayKind::Assets => Some(OverlayState::new_assets(ctx.assets.clone())),
+        PickerInput::Assets(assets) => Some(OverlayState::new_assets(assets.clone())),
         // Personal dictionary: the caller-gathered word list. ALWAYS summons,
         // like the Asset Cleaner above; an empty list becomes the calm row that
         // names where words come from.
-        OverlayKind::UserWords => Some(OverlayState::new_user_words(ctx.user_words.clone())),
+        PickerInput::UserWords(words) => Some(OverlayState::new_user_words(words.clone())),
         // Search in folder: the caller-loaded, budget-bounded corpus. ALWAYS
         // summons; an empty query (the summon state) shows the calm "no
         // matches" row until something is typed.
-        OverlayKind::SearchFolder => Some(OverlayState::new_search_folder(
-            ctx.search_root.clone(),
-            ctx.search_corpus.clone(),
+        PickerInput::SearchFolder(ctx) => Some(OverlayState::new_search_folder(
+            ctx.root.clone(),
+            ctx.corpus.clone(),
         )),
-        // Navigable explorers open via `browse_level` (they need a dir level).
-        OverlayKind::Browse
-        | OverlayKind::MoveDest
-        | OverlayKind::ExportDest
-        | OverlayKind::Project
-        | OverlayKind::ProjectBrowse => None,
-        // NOTES VERBS round: the Rename minibuffer is built directly at its
-        // `Action::OpenRenameNote` apply_transition arm (`OverlayState::new_rename`) — it
-        // needs only the buffer's own path, no caller-gathered context — so this
-        // generic builder never constructs one. This arm exists for exhaustiveness.
-        OverlayKind::Rename => None,
-        // LINKS V2: the InsertLink minibuffer is built directly at its
-        // `Action::InsertLink` apply_transition arm (`link::open_insert_link` →
-        // `OverlayState::new_link_edit`) — it needs only the buffer's own
-        // selection/cursor/text, no caller-gathered context — so this generic
-        // builder never constructs one. This arm exists for exhaustiveness.
-        OverlayKind::InsertLink => None,
-        // NAMED SAVE POINTS: the Keep-version minibuffer is built directly at
-        // its `Action::KeepVersion` apply_transition arm (`OverlayState::new_keep_name`)
-        // — it needs no caller-gathered context at all (the prompt opens empty) —
-        // so this generic builder never constructs one. Exhaustiveness arm.
-        // The CONFLICT workspace is built from the App's own latched conflict
-        // (`OverlayState::new_conflict`, at the `Effect::ReviewExternalChange`
-        // arm) — the path and the disk text it carries are live-App facts this
-        // shared builder has no access to, and no headless summon can invent.
-        // Exhaustiveness arm.
-        OverlayKind::Conflict => None,
         // CREDITS: a summoned read-only viewer over the embedded document, not
         // a buffer swap. Needs no caller-gathered context at all — unlike
         // every navigable/live-gathered kind above, the corpus is a compiled-in
         // constant — so it ALWAYS summons, exactly like History/Assets.
-        OverlayKind::Credits => Some(OverlayState::new_credits()),
-        // TableDims is built directly at Action::InsertTable's own apply_transition arm.
-        OverlayKind::KeepName | OverlayKind::Context | OverlayKind::TableDims => None,
+        PickerInput::Credits => Some(OverlayState::new_credits()),
+    }
+}
+
+/// Build `kind` from its focused request. Settings owns the one small shared
+/// config/readout input needed by its parent card and its picker children; each
+/// child still receives only the value it consumes at the construction arm.
+pub fn build_for(kind: OverlayKind, input: &PickerInput<'_>) -> Option<OverlayState> {
+    if input.kind() == kind {
+        return build(input);
+    }
+    let PickerInput::Settings(values) = input else {
+        return None;
+    };
+    match kind {
+        OverlayKind::Theme => build(&PickerInput::Theme),
+        OverlayKind::Caret => build(&PickerInput::Caret),
+        OverlayKind::Dictionary => build(&PickerInput::Dictionary),
+        OverlayKind::CjkLang => build(&PickerInput::CjkLang),
+        OverlayKind::Date => build(&PickerInput::Date {
+            today_ymd: values.today_ymd,
+        }),
+        OverlayKind::Keymap => build(&PickerInput::Keymap {
+            configured: values.keymap.clone(),
+        }),
+        _ => None,
     }
 }
 

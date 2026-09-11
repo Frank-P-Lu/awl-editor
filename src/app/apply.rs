@@ -452,67 +452,174 @@ impl App {
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
         let config_keymap_flavor = self.config.keymap_flavor();
-        // Gather live picker inputs before the mutable buffer borrow below. File
-        // and asset pickers rescan only when summoned, so their transient corpus
-        // reflects disk changes without a watcher or per-keystroke I/O.
-        let GotoInputs {
-            goto_corpus,
-            goto_times,
-            goto_open,
-            goto_recent,
-            goto_headings,
-            goto_line_count,
-        } = self.gather_goto_inputs(action);
-        let OverlayInputs {
-            spell_target,
-            history_entries,
-            assets,
-            user_words,
-            row_gates,
-            search_root,
-            search_corpus,
-        } = self.gather_overlay_inputs(action);
-        let (goto_folders, goto_recent_folders) = self.gather_goto_folders(action);
-        let location = &self.project_location;
-        let build_ctx = crate::overlay::BuildCtx {
-            goto_corpus,
-            goto_open,
-            goto_recent,
-            goto_times,
-            config_keys: &config_keys,
-            config_linux_keep: &config_linux_keep,
-            config_keymap_flavor,
-            goto_headings,
-            goto_line_count,
-            goto_folders,
-            goto_recent_folders,
-            spell_target,
-            history_entries,
-            history_now: Some(crate::history::now_millis()),
-            history_session_start: crate::history::session_epoch_ms(),
-            settings_values: crate::settings::SettingsValues::gather(
-                &self.config,
-                &location.root,
-                self.frame.zoom(),
+        // Gather only the selected picker's inputs before the mutable buffer
+        // borrow below. Filesystem-backed inputs still rescan only at summon.
+        let project_root = self.project_location.root.clone();
+        let settings_values = |app: &Self| {
+            crate::settings::SettingsValues::gather(
+                &app.config,
+                &project_root,
+                app.frame.zoom(),
                 crate::dateformat::today_from_system_clock(),
+            )
+        };
+        let picker_kind = match action {
+            Action::OpenGoto
+            | Action::OpenProject
+            | Action::OpenRecentProjects
+            | Action::OpenOutline => Some(crate::overlay::OverlayKind::Goto),
+            Action::OpenThemeMenu => Some(crate::overlay::OverlayKind::Theme),
+            Action::OpenCaretMenu => Some(crate::overlay::OverlayKind::Caret),
+            Action::OpenDictionaryMenu => Some(crate::overlay::OverlayKind::Dictionary),
+            Action::OpenKeymapMenu => Some(crate::overlay::OverlayKind::Keymap),
+            Action::OpenCommandPalette => Some(crate::overlay::OverlayKind::Command),
+            Action::OpenKeybindings => Some(crate::overlay::OverlayKind::Keybindings),
+            Action::OpenSpellSuggest => Some(crate::overlay::OverlayKind::Spell),
+            Action::OpenHistory | Action::CompareVersion => {
+                Some(crate::overlay::OverlayKind::History)
+            }
+            Action::OpenSettingsMenu => Some(crate::overlay::OverlayKind::Settings),
+            Action::OpenAssetClean => Some(crate::overlay::OverlayKind::Assets),
+            Action::OpenUserWords => Some(crate::overlay::OverlayKind::UserWords),
+            Action::OpenSearchFolder => Some(crate::overlay::OverlayKind::SearchFolder),
+            Action::OpenCredits => Some(crate::overlay::OverlayKind::Credits),
+            Action::Cancel | Action::Newline | Action::AcceptAlternate => {
+                self.workspace_state.journey().parked_kind()
+            }
+            _ => self
+                .workspace_state
+                .overlay()
+                .filter(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+                .map(|_| crate::overlay::OverlayKind::Settings),
+        };
+        let picker_input = match picker_kind {
+            Some(crate::overlay::OverlayKind::Goto) => {
+                let GotoInputs {
+                    goto_corpus,
+                    goto_times,
+                    goto_open,
+                    goto_recent,
+                    goto_headings,
+                    goto_line_count,
+                } = self.gather_goto_inputs(action);
+                Some(crate::overlay::PickerInput::Goto(
+                    crate::overlay::GotoInputs {
+                        corpus: goto_corpus,
+                        open: goto_open,
+                        recent: goto_recent,
+                        times: goto_times,
+                        headings: goto_headings,
+                        line_count: goto_line_count,
+                    },
+                ))
+            }
+            Some(crate::overlay::OverlayKind::Theme) => Some(crate::overlay::PickerInput::Theme),
+            Some(crate::overlay::OverlayKind::Caret) => Some(crate::overlay::PickerInput::Caret),
+            Some(crate::overlay::OverlayKind::Dictionary) => {
+                Some(crate::overlay::PickerInput::Dictionary)
+            }
+            Some(crate::overlay::OverlayKind::Keymap) => {
+                Some(crate::overlay::PickerInput::Keymap {
+                    configured: self.config.keymap.clone().unwrap_or_default(),
+                })
+            }
+            Some(crate::overlay::OverlayKind::Command) => {
+                let OverlayInputs { row_gates, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Command(
+                    crate::overlay::CommandInputs {
+                        bindings: crate::overlay::BindingInputs {
+                            keys: &config_keys,
+                            linux_keep: &config_linux_keep,
+                            keymap_flavor: config_keymap_flavor,
+                        },
+                        settings_values: settings_values(self),
+                        row_gates,
+                    },
+                ))
+            }
+            Some(crate::overlay::OverlayKind::Keybindings) => Some(
+                crate::overlay::PickerInput::Keybindings(crate::overlay::BindingInputs {
+                    keys: &config_keys,
+                    linux_keep: &config_linux_keep,
+                    keymap_flavor: config_keymap_flavor,
+                }),
             ),
-            assets,
-            user_words,
-            row_gates,
-            search_root,
-            search_corpus,
+            Some(crate::overlay::OverlayKind::Spell) => {
+                let OverlayInputs { spell_target, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Spell(spell_target))
+            }
+            Some(crate::overlay::OverlayKind::History) => {
+                let OverlayInputs {
+                    history_entries, ..
+                } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::History(
+                    crate::overlay::HistoryInputs {
+                        entries: history_entries,
+                        now: Some(crate::history::now_millis()),
+                        session_start: crate::history::session_epoch_ms(),
+                    },
+                ))
+            }
+            Some(crate::overlay::OverlayKind::Settings) => {
+                Some(crate::overlay::PickerInput::Settings(settings_values(self)))
+            }
+            Some(crate::overlay::OverlayKind::Assets) => {
+                let OverlayInputs { assets, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Assets(assets))
+            }
+            Some(crate::overlay::OverlayKind::UserWords) => {
+                let OverlayInputs { user_words, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::UserWords(user_words))
+            }
+            Some(crate::overlay::OverlayKind::SearchFolder) => {
+                let OverlayInputs {
+                    search_root,
+                    search_corpus,
+                    ..
+                } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::SearchFolder(
+                    crate::overlay::SearchFolderInputs {
+                        root: search_root,
+                        corpus: search_corpus,
+                    },
+                ))
+            }
+            Some(crate::overlay::OverlayKind::Credits) => {
+                Some(crate::overlay::PickerInput::Credits)
+            }
+            Some(
+                crate::overlay::OverlayKind::CjkLang
+                | crate::overlay::OverlayKind::Date
+                | crate::overlay::OverlayKind::Browse
+                | crate::overlay::OverlayKind::MoveDest
+                | crate::overlay::OverlayKind::ExportDest
+                | crate::overlay::OverlayKind::Project
+                | crate::overlay::OverlayKind::ProjectBrowse
+                | crate::overlay::OverlayKind::Rename
+                | crate::overlay::OverlayKind::InsertLink
+                | crate::overlay::OverlayKind::KeepName
+                | crate::overlay::OverlayKind::Context
+                | crate::overlay::OverlayKind::TableDims
+                | crate::overlay::OverlayKind::Conflict,
+            )
+            | None => None,
         };
         let files_builder =
-            files_overlay::FilesOverlayBuilder::new(location.root.clone(), &build_ctx);
-        let mut make_overlay = |kind| files_builder.build(kind, &build_ctx);
+            files_overlay::FilesOverlayBuilder::new(project_root.clone(), picker_input.as_ref());
+        let mut make_overlay = |kind| {
+            picker_input
+                .as_ref()
+                .and_then(|input| files_builder.build(kind, input))
+        };
         // Browse rebuild hook: list ONE level via the shared `overlay::browse_level`
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
         // `MoveDest` (C-x m) walks the SAME active root and shows FOLDERS only (you
         // move a document into a folder within it); `Project` (C-x p) walks the
         // workspace by absolute path. Cloned roots dodge the &mut self.document.buffer()
         // borrow.
-        let workspace = location.workspace_root.clone();
-        let recent_projects: Vec<String> = location
+        let workspace = self.project_location.workspace_root.clone();
+        let recent_projects: Vec<String> = self
+            .project_location
             .recent_projects
             .iter()
             .map(|p| p.display().to_string())
