@@ -71,6 +71,30 @@ impl SemanticView<'_> {
     pub(super) fn comparison_text(&self) -> Option<&str> {
         self.comparison_text.as_deref()
     }
+
+    /// The relocated document/comparison pane owns workspace focus only on
+    /// the detail side of a rows-primary workspace.
+    pub(super) fn comparison_detail_focused(&self) -> bool {
+        self.workspace_state.overlay().is_some_and(|overlay| {
+            overlay.detail_focus
+                && overlay
+                    .workspace_shape()
+                    .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
+        })
+    }
+
+    /// Name the relocated reading pane as the surface it is, rather than as
+    /// the editable buffer hidden behind it.
+    pub(super) fn comparison_document_name(&self) -> Option<String> {
+        let overlay = self.workspace_state.overlay()?;
+        overlay.shows_read_only_prose().then(|| {
+            if overlay.kind == crate::overlay::OverlayKind::Credits {
+                "Credits".to_string()
+            } else {
+                format!("Comparison — {}", overlay.title())
+            }
+        })
+    }
 }
 
 impl App {

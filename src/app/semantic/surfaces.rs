@@ -147,9 +147,11 @@ impl SemanticView<'_> {
             ));
         }
         dialog.children.push(query_id.clone());
+        files_overlay::append_workspace_rail(overlay, &dialog_id, &mut dialog, nodes);
         files_overlay::append_controls(overlay, &dialog_id, &mut dialog, nodes);
         dialog.children.push(list_id.clone());
-        if labels.is_empty() && !overlay.files_mode {
+        let focus_id = files_overlay::focus_id(overlay, &dialog_id, query_id.clone());
+        if focus_id == query_id {
             query.focused = true;
         }
         nodes.push(query);
@@ -157,7 +159,7 @@ impl SemanticView<'_> {
         nodes.push(dialog);
         nodes[0].children.push(dialog_id.clone());
 
-        files_overlay::focus_id(overlay, &dialog_id, query_id)
+        focus_id
     }
 
     pub(super) fn fold_popover(&self, nodes: &mut Vec<SemanticNode>) -> String {

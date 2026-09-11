@@ -17,6 +17,10 @@ pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize)
     if contextual_text_field_owns_focus(overlay) {
         return false;
     }
+    if let Some(shape) = overlay.workspace_shape() {
+        let rows_focused = overlay.detail_focus != shape.rows_are_primary();
+        return rows_focused;
+    }
     if !overlay.files_mode {
         return true;
     }
@@ -29,6 +33,37 @@ pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize)
         FilesFocus::NewDocument => matches!(overlay.rows[corpus].meta, RowMeta::NewDocument),
         _ => false,
     }
+}
+
+/// Publish the category rail Settings actually draws. Its active category and
+/// keyboard focus are separate facts: entering the rows keeps the category
+/// selected without continuing to tell assistive technology it owns focus.
+pub(super) fn append_workspace_rail(
+    overlay: &OverlayState,
+    dialog_id: &str,
+    dialog: &mut SemanticNode,
+    nodes: &mut Vec<SemanticNode>,
+) {
+    let Some(shape) = overlay.workspace_shape() else {
+        return;
+    };
+    if shape.rows_are_primary() {
+        return;
+    }
+    let rail_id = format!("{dialog_id}.rail");
+    let mut rail = SemanticNode::new(&rail_id, SemanticRole::ListBox, "Categories");
+    for (index, (label, active)) in overlay.lens_strip().into_iter().enumerate() {
+        let id = workspace_rail_row_id(dialog_id, index);
+        let mut item = SemanticNode::new(&id, SemanticRole::Option, label);
+        item.focusable = true;
+        item.selected = Some(active);
+        item.focused = active && !overlay.detail_focus;
+        item.actions = vec![SemanticAction::Focus, SemanticAction::Click];
+        rail.children.push(id);
+        nodes.push(item);
+    }
+    dialog.children.push(rail_id);
+    nodes.push(rail);
 }
 
 pub(super) fn append_controls(
@@ -76,9 +111,21 @@ pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String
             FilesFocus::Up => format!("{dialog_id}.up"),
             _ => selected_row_id(overlay, dialog_id).unwrap_or(query_id),
         }
+    } else if let Some(shape) = overlay.workspace_shape() {
+        if overlay.detail_focus && shape.rows_are_primary() {
+            DOCUMENT_ID.to_string()
+        } else if !overlay.detail_focus && !shape.rows_are_primary() {
+            workspace_rail_row_id(dialog_id, overlay.facet_lens)
+        } else {
+            selected_row_id(overlay, dialog_id).unwrap_or(query_id)
+        }
     } else {
         selected_row_id(overlay, dialog_id).unwrap_or(query_id)
     }
+}
+
+pub(super) fn workspace_rail_row_id(dialog_id: &str, index: usize) -> String {
+    format!("{dialog_id}.rail.{index}")
 }
 
 /// Contextual fields whose text entry remains the keyboard recipient while

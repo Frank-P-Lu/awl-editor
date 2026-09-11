@@ -8,6 +8,26 @@ fn move_dest(folders: &[&str]) -> OverlayState {
 }
 
 #[test]
+fn contextual_errands_name_their_subject_and_scope() {
+    let mut export =
+        OverlayState::new(OverlayKind::ExportDest, vec!["docs".into()], vec![], vec![]);
+    export.subject_name = Some("September.md".into());
+    assert_eq!(export.title(), "export September.md to");
+    export.browse_dir = Some("archive".into());
+    assert_eq!(export.title(), "export September.md to archive/");
+
+    let mut history = OverlayState::new_history(super::history_rows(), None, None);
+    history.subject_name = Some("September.md".into());
+    assert_eq!(history.title(), "history of September.md");
+
+    let search = OverlayState::new_search_folder(
+        std::path::PathBuf::from("/notes/Writing"),
+        vec![("draft.md".into(), "prose".into())],
+    );
+    assert_eq!(search.title(), "search in Writing");
+}
+
+#[test]
 fn move_here_leads_at_rest_and_new_folder_stays_hidden() {
     let ov = move_dest(&["docs", "assets"]);
     assert_eq!(ov.selected_value(), Some("Move here"));

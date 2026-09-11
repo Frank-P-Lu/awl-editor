@@ -48,6 +48,7 @@ mod files;
 mod files_focus;
 mod filter;
 mod hint;
+mod hover;
 mod journey;
 mod kind;
 mod kind_composition;
@@ -62,6 +63,7 @@ mod search;
 mod semantic;
 mod state;
 mod table_dims;
+mod title;
 mod user_words;
 pub(crate) mod workspace;
 
@@ -78,6 +80,8 @@ pub(crate) use route::picker_kind_for;
 pub(crate) use build::recent::is_remembered_root;
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
+#[cfg(test)]
+pub(crate) use files::DEEP_FILE_CHECK_MAX_BYTES;
 pub use files::FilesFocus;
 pub(crate) use files::unsupported_level_files;
 #[allow(unused_imports)]

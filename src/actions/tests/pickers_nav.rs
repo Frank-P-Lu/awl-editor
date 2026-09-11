@@ -41,6 +41,7 @@ fn command_palette_opens_then_filters() {
 #[test]
 fn save_copy_uses_the_shared_folder_then_filename_journey() {
     let mut buffer = Buffer::from_str("text\n");
+    buffer.set_path(std::path::PathBuf::from("/root/September.md"));
     let mut journey = crate::overlay::Journey::default();
     let mut shift = false;
     let mut zoom = 1.0;
@@ -64,7 +65,7 @@ fn save_copy_uses_the_shared_folder_then_filename_journey() {
     ));
     let card = ctx.journey.card().unwrap();
     assert_eq!(card.kind, OverlayKind::ExportDest);
-    assert_eq!(card.title(), "save a copy to");
+    assert_eq!(card.title(), "save a copy of September.md to");
     assert!(card.foot_hint().contains("save a copy here"));
     let mut destination = OverlayState::new(
         OverlayKind::ExportDest,

@@ -848,15 +848,14 @@ impl TextPipeline {
 
     /// THE ONE HOVER-RESOLUTION SEAM: hit-test `(px, py)` against
     /// this pipeline's live overlay row geometry ([`Self::overlay_row_at`]),
-    /// then run the result through [`crate::overlay::OverlayState::hover_at`]'s
-    /// real-motion + movement-slop gate. Both `App::overlay_hover` (the live
+    /// then run the result through [`crate::overlay::OverlayState::preview_hover_at`]'s
+    /// typed preview + real-motion gate. Both `App::overlay_hover` (the live
     /// `CursorMoved` path, `app/input/mouse/overlay.rs`) and the headless `--keys`
     /// pointer-replay step (`ReplaySession::apply_move`, `main/run.rs`, via
     /// `capture::OraclePipeline::resolve_overlay_hover`, which wraps the
     /// SAME [`crate::render::TextPipeline`] this method is on) route through
-    /// this single function — "what counts as a hover move" can never drift
-    /// between live input and a scripted reproduction, and a new caller can't
-    /// grow a second, hand-rolled hit-test-then-hover_at pair.
+    /// this single function — ordinary hover can never steal keyboard selection
+    /// in one door while live-preview hover still works in the other.
     pub fn resolve_overlay_hover(
         &self,
         overlay: &mut crate::overlay::OverlayState,
@@ -864,7 +863,7 @@ impl TextPipeline {
         py: f32,
     ) -> bool {
         let hit = self.overlay_row_at(px, py);
-        overlay.hover_at(px, py, hit)
+        overlay.preview_hover_at(px, py, hit)
     }
 
     /// Hit-test a pointer at PHYSICAL `(px, py)` against the SUMMONED overlay's

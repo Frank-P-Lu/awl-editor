@@ -74,6 +74,7 @@ impl App {
         if let Some(ov) = self.workspace_state.overlay_mut() {
             crate::actions::preview_move(ov);
         }
+        self.refresh_deep_file_status();
         // Wheel navigation bypasses App::apply: stamp the resting pointer so a
         // duplicate CursorMoved cannot take selection back after scrolling.
         let (px, py) = self.input.resting_pointer().px();
@@ -143,6 +144,7 @@ impl App {
                 ov.set_facet_lens(rail_idx);
             }
             self.workspace_state.focus_workspace_detail();
+            self.refresh_deep_file_status();
             self.sync_view(true);
             self.request_frame();
             return;
@@ -159,6 +161,7 @@ impl App {
             if let Some(ov) = self.workspace_state.overlay() {
                 crate::actions::preview_overlay(ov);
             }
+            self.refresh_deep_file_status();
             self.retint_theme_preview(prev);
             self.sync_view(false);
             self.request_frame();

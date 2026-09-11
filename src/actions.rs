@@ -511,6 +511,7 @@ fn begin_export(ctx: &mut ActionCtx, format: crate::export::Format) -> Effect {
     }
     let card = (ctx.browse_to)(crate::overlay::OverlayKind::ExportDest, None).map(|mut card| {
         card.export_format = Some(format);
+        card.subject_name = Some(ctx.buffer.display_name());
         card
     });
     ctx.journey.enter(card);

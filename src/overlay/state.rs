@@ -18,6 +18,12 @@ pub struct HugRoster {
     pub candidate_rows: usize,
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct DeepFileCheck {
+    pub row: usize,
+    pub original_secondary: String,
+}
+
 pub use super::add_to_dictionary_label;
 
 #[derive(Debug, Clone)]
@@ -93,12 +99,17 @@ pub struct OverlayState {
     /// the compatibility shape used by the heading/line APIs.
     pub files_mode: bool,
     pub files_focus: FilesFocus,
+    /// The one deep filename/path result whose bytes were preview-classified.
+    /// Its ordinary secondary is restored before another result is checked.
+    pub(super) deep_file_check: Option<DeepFileCheck>,
     /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
     /// know this -- only the summon did -- so `title()` reads it to name the
     /// errand ("move welcome.md") instead of the generic kind title, and it
     /// survives every descend/ascend via `carry_level_payload_from`. `None`
     /// on every non-`MoveDest` card.
     pub move_filename: Option<String>,
+    /// The active document named by a contextual export/history errand.
+    pub subject_name: Option<String>,
     /// "Search in folder…"'s root + its already-loaded, budget-bounded
     /// corpus (`(root-relative path, content)` pairs, read once at summon —
     /// [`Self::new_search_folder`]). `refilter`'s [`OverlayKind::SearchFolder`]
@@ -112,67 +123,6 @@ pub struct OverlayState {
 }
 
 impl OverlayState {
-    /// The visible errand, including a root-relative destination once the
-    /// navigator descends. Save Copy and Move keep their typed purpose here.
-    pub fn title(&self) -> String {
-        if self.save_copy && self.kind == OverlayKind::ExportDest {
-            self.with_browse_dir_suffix("save a copy to".to_string())
-        } else if self.save_copy_dest.is_some() && self.rename_edit.is_some() {
-            "save a copy as".to_string()
-        } else if let Some(name) = self
-            .move_filename
-            .as_deref()
-            .filter(|_| self.kind == OverlayKind::MoveDest)
-        {
-            self.move_dest_title(name)
-        } else if self.kind == OverlayKind::ExportDest {
-            self.with_browse_dir_suffix(self.kind.title().to_string())
-        } else if let Some(title) = self.files_title() {
-            title
-        } else {
-            self.kind.title().to_string()
-        }
-    }
-
-    /// `title`'s composition for [`OverlayKind::MoveDest`]: `"move {name}"`
-    /// at the level it opened at, `"move {name} to {dir}/"` once descended —
-    /// `to` belongs to Move's own phrasing (it names an action, not a
-    /// question), unlike [`OverlayKind::ExportDest`]'s `"export to"`, whose
-    /// title already ends in the word a plain append would double.
-    fn move_dest_title(&self, name: &str) -> String {
-        match self.browse_dir_display() {
-            Some(dir) => format!("move {name} to {dir}"),
-            None => format!("move {name}"),
-        }
-    }
-
-    /// Append the current destination folder to `base`, unchanged when
-    /// [`Self::browse_dir_display`] has nothing to show. `base` is assumed to
-    /// already read naturally with a folder after it (`"export to"`, `"save a
-    /// copy to"`) — every caller's own title already ends in a preposition,
-    /// so this never doubles one.
-    fn with_browse_dir_suffix(&self, base: String) -> String {
-        match self.browse_dir_display() {
-            Some(dir) => format!("{base} {dir}"),
-            None => base,
-        }
-    }
-
-    /// A root-relative destination with a trailing slash, or `None` at its
-    /// opening level and for absolute workspace walkers.
-    fn browse_dir_display(&self) -> Option<String> {
-        if !super::consumer_for_card(self)
-            .is_some_and(super::LocationConsumer::shows_relative_breadcrumb)
-        {
-            return None;
-        }
-        let dir = self.browse_dir.as_deref()?;
-        if dir.is_empty() {
-            return None;
-        }
-        Some(format!("{dir}/"))
-    }
-
     pub fn new(
         kind: OverlayKind,
         corpus: Vec<String>,
@@ -279,7 +229,9 @@ impl OverlayState {
             goto_outline_only: false,
             files_mode: false,
             files_focus: FilesFocus::Query,
+            deep_file_check: None,
             move_filename: None,
+            subject_name: None,
             search_root: None,
             search_corpus: Vec::new(),
             hug_roster: None,
@@ -324,6 +276,7 @@ impl OverlayState {
         self.save_copy = prev.save_copy;
         self.save_copy_dest = prev.save_copy_dest.clone();
         self.move_filename = prev.move_filename.clone();
+        self.subject_name = prev.subject_name.clone();
         self.goto_outline_only = prev.goto_outline_only;
         self.files_mode = prev.files_mode;
         self.files_focus = prev.files_focus;

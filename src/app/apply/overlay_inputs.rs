@@ -200,6 +200,7 @@ impl App {
                         entries: history_entries,
                         now: Some(crate::history::now_millis()),
                         session_start: crate::history::session_epoch_ms(),
+                        subject_name: self.document.buffer().display_name(),
                     },
                 ))
             }

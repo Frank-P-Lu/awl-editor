@@ -2,7 +2,12 @@
 
 use std::{collections::BTreeSet, path::Path};
 
-use super::{OverlayKind, OverlayRow, OverlayState, RowMeta};
+use super::{OverlayKind, OverlayRow, OverlayState, RowMeta, state::DeepFileCheck};
+
+/// A filename/path result may inspect at most this many bytes before accept.
+/// Larger or size-unknown files remain safely deferred to the existing open
+/// capability gate, which was going to read the whole file on commitment.
+pub const DEEP_FILE_CHECK_MAX_BYTES: u64 = 256 * 1024;
 
 /// The keyboard target inside the Files card. Selection remains a separate fact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +50,59 @@ pub(crate) fn unsupported_level_files(
 }
 
 impl OverlayState {
+    /// Classify only the selected deep filename/path result, under a declared
+    /// byte budget. This is the presentation twin of the accept-time
+    /// `openable::classify` gate: it makes a deep result's state observable
+    /// without turning a query into a recursive full-tree read.
+    pub fn refresh_selected_deep_file_status(&mut self, root: &Path) {
+        let candidate = self
+            .selected_corpus_index()
+            .filter(|&row| self.files_mode && self.row_is_deep_file(row));
+        if self.deep_file_check.as_ref().map(|check| check.row) == candidate {
+            return;
+        }
+        if let Some(check) = self.deep_file_check.take()
+            && let Some(row) = self.rows.get_mut(check.row)
+        {
+            row.secondary = check.original_secondary;
+        }
+        let Some(row_index) = candidate else { return };
+        let relative = self.rows[row_index].accept.clone();
+        let path = crate::index::resolve(root, &relative);
+        let status = match crate::fs::active().metadata(&path).ok().and_then(|m| m.len) {
+            Some(len) if len <= DEEP_FILE_CHECK_MAX_BYTES => {
+                match crate::openable::classify(&path) {
+                    crate::openable::Openable::Text => "text \u{b7} ready".to_string(),
+                    crate::openable::Openable::Unsupported { label } => {
+                        format!("{label} \u{b7} not editable")
+                    }
+                }
+            }
+            Some(_) => "large file \u{b7} checked when opened".to_string(),
+            None => "checked when opened".to_string(),
+        };
+        let original_secondary = std::mem::replace(&mut self.rows[row_index].secondary, status);
+        self.deep_file_check = Some(DeepFileCheck {
+            row: row_index,
+            original_secondary,
+        });
+    }
+
+    fn row_is_deep_file(&self, row: usize) -> bool {
+        let Some(row) = self.rows.get(row) else {
+            return false;
+        };
+        if !matches!(row.meta, RowMeta::GotoFile { .. }) {
+            return false;
+        }
+        let parent = Path::new(&row.accept)
+            .parent()
+            .map(|path| path.to_string_lossy().replace('\\', "/"))
+            .filter(|path| path != ".")
+            .unwrap_or_default();
+        parent != self.browse_dir.as_deref().unwrap_or("")
+    }
+
     /// Remove binary leaves discovered at the currently displayed directory
     /// level.  The root-wide index stays unread until a level reaches it;
     /// ranking indices follow the surviving rows rather than drifting.
