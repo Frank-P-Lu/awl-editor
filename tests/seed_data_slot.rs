@@ -87,9 +87,12 @@ fn fnv1a(s: &str) -> u64 {
 }
 
 /// A loose document plus the exact nested store layout History reads.
-fn arrange_history(dir: &Path) -> (PathBuf, PathBuf) {
+fn arrange_history(dir: &Path) -> (PathBuf, PathBuf, String) {
     let doc = dir.join("history-draft.md");
-    std::fs::write(&doc, "# Current draft\n\nNow.\n").unwrap();
+    let current = (0..96)
+        .map(|line| format!("Current draft line {line:02}\n"))
+        .collect::<String>();
+    std::fs::write(&doc, &current).unwrap();
     let old = "# Earlier draft\n\nBefore.\n";
     let seed = dir.join("history-seed");
     let history = seed.join("history");
@@ -105,7 +108,7 @@ fn arrange_history(dir: &Path) -> (PathBuf, PathBuf) {
         )
         .unwrap();
     }
-    (doc, seed)
+    (doc, seed, current)
 }
 
 /// **THE SLOT OPENS THE STATE — and the same run without it still cannot.**
@@ -201,7 +204,27 @@ fn a_nested_seeded_history_log_supports_compare_and_cancel() {
     let root = tmp_dir("history");
     let home = root.join("home");
     std::fs::create_dir_all(&home).unwrap();
-    let (doc, seed) = arrange_history(&root);
+    let (doc, seed, current) = arrange_history(&root);
+
+    // Establish the exact editor view that History must return. Document End
+    // makes both facts nonzero, so deleting either restoration cannot satisfy
+    // this law with the default 0:0 / top-of-document state.
+    let baseline = root.join("history-baseline.png");
+    run_ok(
+        &home,
+        &[
+            "--screenshot-app",
+            baseline.to_str().unwrap(),
+            doc.to_str().unwrap(),
+            "--seed-data",
+            seed.to_str().unwrap(),
+            "--keys",
+            "s-Down",
+        ],
+    );
+    let baseline = sidecar(&baseline);
+    assert_ne!(baseline["cursor"]["line"].as_u64(), Some(0));
+    assert_ne!(baseline["scroll_lines"].as_u64(), Some(0));
 
     let compare = root.join("history-compare.png");
     run_ok(
@@ -213,7 +236,7 @@ fn a_nested_seeded_history_log_supports_compare_and_cancel() {
             "--seed-data",
             seed.to_str().unwrap(),
             "--keys",
-            "s-S-h Enter",
+            "s-Down s-S-h Enter",
         ],
     );
     let json = sidecar(&compare);
@@ -244,19 +267,32 @@ fn a_nested_seeded_history_log_supports_compare_and_cancel() {
             "--seed-data",
             seed.to_str().unwrap(),
             "--keys",
-            "s-S-h Enter Escape",
+            "s-Down s-S-h Enter Escape",
         ],
     );
     let json = sidecar(&cancel);
     assert_eq!(json["overlay"]["active"].as_bool(), Some(false));
     assert_eq!(
+        json["overlay"]["preview_id"],
+        serde_json::Value::Null,
+        "leaving History clears the preview identity"
+    );
+    assert_eq!(
+        json["cursor"], baseline["cursor"],
+        "History cancel restores the exact nonzero caret"
+    );
+    assert_eq!(
+        json["scroll_lines"], baseline["scroll_lines"],
+        "History cancel restores the exact nonzero document scroll"
+    );
+    assert_eq!(
         json["text"].as_str(),
-        Some("# Current draft\n\nNow.\n"),
+        Some(current.as_str()),
         "Esc leaves History and restores the live document view"
     );
     assert_eq!(
         std::fs::read_to_string(&doc).unwrap(),
-        "# Current draft\n\nNow.\n",
+        current,
         "comparison and cancel never write the source"
     );
 }
