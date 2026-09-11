@@ -223,7 +223,7 @@ fn smart_punct_marks_resolve_each_kind_to_its_own_glyph() {
     let kinds: Vec<_> = p
         .smart_punct_marks()
         .into_iter()
-        .map(|(_, _, k, _)| k)
+        .map(|(_, _, k, _, _)| k)
         .collect();
     assert_eq!(
         kinds,
@@ -268,7 +268,7 @@ fn smart_punct_selection_touch_suppresses_conceal_and_ornament_for_full_roster()
     let disjoint_marks: Vec<_> = p
         .smart_punct_marks()
         .into_iter()
-        .map(|(_, _, kind, _)| kind)
+        .map(|(_, _, kind, _, _)| kind)
         .collect();
     assert_eq!(
         disjoint_marks,
@@ -421,6 +421,119 @@ fn smart_punct_advances_use_each_worlds_body_shaping_no_wildcard() {
     assert_eq!(
         graded,
         theme::THEMES.len() * crate::markdown::SmartPunctKind::ALL.len()
+    );
+    crate::markdown::set_wysiwyg_on(true);
+}
+
+/// HEADLINE LAW — smart punctuation is the heading sentence's punctuation, so
+/// off-caret preview uses the same heading metrics as the literal on-caret
+/// source: size, row-centred baseline, face, weight and features. The whole
+/// ATX ladder is enrolled (H4–H6 deliberately share H3's rung), every world
+/// and every punctuation kind; source conceal plus ornament presence prevents
+/// this from passing by dropping either subject.
+#[test]
+fn smart_punct_heading_preview_matches_the_raw_heading_ladder() {
+    let _w = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping smart_punct_heading_preview_matches_the_raw_heading_ladder: no wgpu adapter"
+        );
+        return;
+    };
+    let mut graded = 0usize;
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for level in 1..=6u8 {
+            for kind in crate::markdown::SmartPunctKind::ALL {
+                let text = format!(
+                    "{} heading {}\n\npark\n",
+                    "#".repeat(level as usize),
+                    kind.literal()
+                );
+                let literal = text.find(kind.literal()).unwrap();
+                let mut off = view(&text, 2, 0);
+                off.is_markdown = true;
+                p.set_view(&off);
+                let marks = p.smart_punct_marks();
+                assert_eq!(
+                    marks.len(),
+                    1,
+                    "{} h{level} {kind:?}: preview must paint one substitute",
+                    world.name
+                );
+                let (_, _, marked_kind, slot, marked_level) = marks[0];
+                assert_eq!(
+                    marked_kind, kind,
+                    "{} h{level}: the source run chooses its own glyph",
+                    world.name
+                );
+                assert_eq!(
+                    marked_level, level,
+                    "{} h{level}: mark carries its source heading level (the cache itself folds H4–H6 onto H3)",
+                    world.name
+                );
+                assert!(
+                    p.concealed_at(0, literal),
+                    "{} h{level} {kind:?}: preview source must really conceal",
+                    world.name
+                );
+                let (_, expected) = crate::render::spans::shape_smart_punct_glyph(
+                    &mut p.font_system,
+                    crate::render::spans::smart_punct_metrics(p.metrics, level),
+                    p.shaped_font,
+                    kind,
+                    theme::base_content().to_glyphon(),
+                );
+                assert!(
+                    (slot - expected).abs() < 0.01,
+                    "{} h{level} {kind:?}: preview slot {slot}px must equal raw-heading glyph {expected}px",
+                    world.name
+                );
+                assert!(
+                    slot > p.substitute_advances.advance(kind) + 0.1,
+                    "{} h{level} {kind:?}: heading slot must exceed body slot, proving this grades the old body-sized regression",
+                    world.name
+                );
+                p.prepare(&device, &queue, 1200, 800).unwrap();
+
+                let mut caret = view(&text, 0, 0);
+                caret.is_markdown = true;
+                p.set_view(&caret);
+                assert!(
+                    !p.concealed_at(0, literal),
+                    "{} h{level} {kind:?}: caret reveal must keep literal source bytes",
+                    world.name
+                );
+                assert!(
+                    p.smart_punct_marks().is_empty(),
+                    "{} h{level} {kind:?}: caret reveal must suppress painted substitute",
+                    world.name
+                );
+
+                let mut selected = view(&text, 2, 0);
+                selected.is_markdown = true;
+                selected.selection = Some(((0, 0), (0, 1)));
+                p.set_view(&selected);
+                assert!(
+                    !p.concealed_at(0, literal),
+                    "{} h{level} {kind:?}: touching selection must reveal literal source",
+                    world.name
+                );
+                assert!(
+                    p.smart_punct_marks().is_empty(),
+                    "{} h{level} {kind:?}: touching selection must suppress substitute",
+                    world.name
+                );
+                graded += 1;
+            }
+        }
+    }
+    assert_eq!(
+        graded,
+        theme::THEMES.len() * 6 * crate::markdown::SmartPunctKind::ALL.len()
     );
     crate::markdown::set_wysiwyg_on(true);
 }

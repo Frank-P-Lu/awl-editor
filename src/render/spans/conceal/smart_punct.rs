@@ -146,6 +146,7 @@ pub(super) fn add_smart_punct_conceal_spans(
     hi: usize,
     hidden: &Attrs<'static>,
     advances: SubstituteAdvances,
+    heading_level: u8,
 ) {
     let local_range = (lo - line_doc_start)..(hi - line_doc_start);
     let Some(kind) = smart_punct_kind_for(line_text, local_range) else {
@@ -159,7 +160,7 @@ pub(super) fn add_smart_punct_conceal_spans(
     if first_end > lo {
         let forcing = hidden
             .clone()
-            .letter_spacing(advances.forcing_spacing(kind));
+            .letter_spacing(advances.smart_punct_forcing_spacing(kind, heading_level));
         al.add_span(
             (lo - line_doc_start)..(first_end - line_doc_start),
             &forcing,

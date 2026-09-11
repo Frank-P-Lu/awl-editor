@@ -43,6 +43,7 @@ pub(in crate::render) fn cell_inline_attrs(
         None,
         None,
         None,
+        0,
     );
     al
 }

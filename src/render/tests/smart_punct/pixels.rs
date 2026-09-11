@@ -15,6 +15,7 @@ const WIDTH_RATIO_BAND: std::ops::RangeInclusive<f64> = 0.75..=1.35;
 struct InkGeometry {
     count: usize,
     left: i64,
+    top: i64,
     width: i64,
     height: i64,
 }
@@ -56,6 +57,7 @@ fn core_ink_geometry(
     Some(InkGeometry {
         count,
         left: min_x,
+        top: min_y,
         width: max_x - min_x + 1,
         height: max_y - min_y + 1,
     })
@@ -308,4 +310,102 @@ fn smart_punct_ornament_matches_body_advance_horizontal_extent_and_ink_every_wor
         theme::THEMES.len() * crate::markdown::SmartPunctKind::ALL.len(),
         "full world × punctuation roster enrolled: {enrolled:?}"
     );
+}
+
+/// Heading punctuation is not a body-sized ornament: its preview ink must use
+/// the same scaled glyph box, baseline and following-prose position as a raw
+/// Unicode control on the same H3 row. This is deliberately backend-relative
+/// (paired pixels from one frame), and sweeps the world roster at both authored
+/// DPI meanings. The slot-only mutation cannot satisfy the ink-size or baseline
+/// comparisons below because the painted buffer is enrolled independently.
+#[test]
+fn smart_punct_heading_ellipsis_matches_raw_heading_ink_at_every_world_and_dpi() {
+    let _t = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping smart_punct_heading_ellipsis_matches_raw_heading_ink_at_every_world_and_dpi: no wgpu adapter"
+        );
+        return;
+    };
+    let mut graded = 0usize;
+    for dpi in [1.0, 2.0] {
+        p.set_dpi(dpi);
+        let w = (W as f32 * dpi) as u32;
+        let h = (H as f32 * dpi) as u32;
+        for world in theme::THEMES {
+            theme::set_active_by_name(world.name).unwrap();
+            p.sync_theme();
+            let doc = "### A ... tail\n\n### A … tail\n\npark\n";
+            let mut v = view(doc, 4, 0);
+            v.is_markdown = true;
+            p.set_view(&v);
+            let mark = p
+                .smart_punct_marks()
+                .pop()
+                .expect("preview ellipsis enrolls");
+            assert_eq!(mark.2, crate::markdown::SmartPunctKind::Ellipsis);
+            let source = p.visual_rows(0)[0].clone();
+            let control = p.visual_rows(2)[0].clone();
+            p.prepare(&device, &queue, w, h).unwrap();
+            let pixels = pixeldiff::render_frame(p, &device, &queue, w, h);
+            let control_col = "### A …".chars().count() - 1;
+            let suffix_col = "### A … ".chars().count();
+            let source_cell = pixeldiff::Region::new(
+                mark.1 - 3.0,
+                mark.0 - 3.0,
+                mark.3 + 6.0,
+                source.line_height + 6.0,
+            );
+            let control_top = p.line_ornament_top(2);
+            let control_left = p.text_left() + control.xs[control_col];
+            let control_cell = pixeldiff::Region::new(
+                control_left - 3.0,
+                control_top - 3.0,
+                mark.3 + 6.0,
+                control.line_height + 6.0,
+            );
+            let pair = RenderedPair {
+                pixels,
+                source_cell,
+                control_cell,
+                source_suffix_cell: pixeldiff::Region::new(
+                    p.text_left() + source.xs[suffix_col] - 3.0,
+                    mark.0 - 3.0,
+                    12.0 * dpi,
+                    source.line_height + 6.0,
+                ),
+                control_suffix_cell: pixeldiff::Region::new(
+                    p.text_left() + control.xs[suffix_col] - 3.0,
+                    control_top - 3.0,
+                    12.0 * dpi,
+                    control.line_height + 6.0,
+                ),
+            };
+            let ratio = preview.geometry.height as f64 / raw.geometry.height.max(1) as f64;
+            let preview_y = preview.geometry.top as f64 - pair.source_cell.y;
+            let raw_y = raw.geometry.top as f64 - pair.control_cell.y;
+            assert!(
+                (0.70..=1.40).contains(&ratio),
+                "{} dpi {dpi}: heading ellipsis ink height must match raw control (ratio {ratio:.2})",
+                world.name
+            );
+            assert!(
+                (preview_y - raw_y).abs() <= 2.5 * dpi as f64,
+                "{} dpi {dpi}: heading ellipsis baseline must match raw control ({preview_y:.1} vs {raw_y:.1})",
+                world.name
+            );
+            let source_suffix = p.text_left() + source.xs[suffix_col];
+            let control_suffix = p.text_left() + control.xs[suffix_col];
+            assert!(
+                (source_suffix - control_suffix).abs() <= 1.5 * dpi,
+                "{} dpi {dpi}: preview slot must keep heading suffix spacing ({source_suffix} vs {control_suffix})",
+                world.name
+            );
+            graded += 1;
+        }
+    }
+    assert_eq!(graded, theme::THEMES.len() * 2);
+    p.set_dpi(1.0);
 }

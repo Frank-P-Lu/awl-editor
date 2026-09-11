@@ -12,7 +12,9 @@ mod substitutes;
 pub(in crate::render) use bare_url::is_bare_url_tail;
 pub(in crate::render) use cell::cell_inline_attrs;
 pub(in crate::render) use smart_punct::{shape_smart_punct_glyph, smart_punct_kind_for};
-pub(in crate::render) use substitutes::{SubstituteAdvances, shape_footnote_number};
+pub(in crate::render) use substitutes::{
+    SubstituteAdvances, shape_footnote_number, smart_punct_metrics,
+};
 
 pub(in crate::render) const RULE_CONCEAL_COLOR: glyphon::Color = glyphon::Color::rgba(0, 0, 0, 0);
 
@@ -380,6 +382,7 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
     image_force: Option<(f32, f32)>,
     selection_touch: Option<&std::ops::Range<usize>>,
     substitute_advances: Option<SubstituteAdvances>,
+    heading_level: u8,
 ) {
     if !crate::markdown::wysiwyg_on() {
         return;
@@ -456,6 +459,7 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
             &hidden,
             ck,
             substitute_advances,
+            heading_level,
         ) {
             continue;
         }

@@ -1171,7 +1171,7 @@ impl TextPipeline {
     }
 
     /// Visible smart-punctuation substitute marks: `(row top, absolute left,
-    /// which glyph, reserved slot width)`. The span's source is collapsed by
+    /// which glyph, reserved slot width, heading level)`. The span's source is collapsed by
     /// `add_wysiwyg_conceal_spans` (via `add_smart_punct_conceal_spans`); this
     /// reads its char boundary in the SAME shaped row and re-derives WHICH
     /// glyph from the same raw bytes ([`smart_punct_kind_for`]), so the
@@ -1180,7 +1180,7 @@ impl TextPipeline {
     /// with a per-mark KIND payload instead of a per-mark NUMBER.
     pub(super) fn smart_punct_marks(
         &self,
-    ) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32)> {
+    ) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32, u8)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || self.md_spans.is_empty() {
             return Vec::new();
         }
@@ -1226,11 +1226,15 @@ impl TextPipeline {
                     .find(|row| row.start_col <= col && col <= row.end_col)?;
                 let local = col.saturating_sub(row.start_col);
                 let x = *row.xs.get(local)?;
+                let heading_level =
+                    crate::render::spans::md_line_heading_level(line_text, self.md_enabled);
                 Some((
                     doc_top + row.line_top,
                     text_left + x,
                     kind,
-                    self.substitute_advances.advance(kind),
+                    self.substitute_advances
+                        .smart_punct_advance(kind, heading_level),
+                    heading_level,
                 ))
             })
             .collect()
