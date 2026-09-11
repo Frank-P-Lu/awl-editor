@@ -7,7 +7,7 @@
 //! living morph and the ordinary sliding-band override.
 
 use super::super::*;
-use super::headless_pipeline;
+use super::{headless_pipeline, view};
 use crate::clock::Clock;
 use crate::render::livingband::{self, Choreo, MotionForce};
 
@@ -45,7 +45,7 @@ fn phase_and_top(p: &mut TextPipeline, seam: Seam, target: f32) -> (f32, f32) {
         }
         Seam::Sliding => {
             let top = p.overlay_band_drawn(target);
-            (p.overlay_band_t, top)
+            (p.overlay_band.progress(), top)
         }
     }
 }
@@ -149,7 +149,7 @@ fn full_delay_by_input_cadence_sweep_never_targets_a_superseded_row() {
                         "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: \
                          no frame may animate toward stale row 1"
                     );
-                    if phase >= 1.0 || p.overlay_band_pending_snap {
+                    if phase >= 1.0 || p.overlay_band.pending_snap() {
                         assert!(
                             (top - target(2)).abs() < EPS,
                             "{seam:?}: latest-selection-wins must draw the superseding row"
@@ -163,7 +163,7 @@ fn full_delay_by_input_cadence_sweep_never_targets_a_superseded_row() {
                     at(&clock, &mut p, delay_ms);
                     let _ = phase_and_top(&mut p, seam, target(2));
                     assert_eq!(
-                        p.overlay_band_last,
+                        p.overlay_band.last(),
                         Some(target(2)),
                         "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: \
                          the animator may start at the old pose, but its destination is \
@@ -173,8 +173,9 @@ fn full_delay_by_input_cadence_sweep_never_targets_a_superseded_row() {
 
                 // Regardless of when prepare occurred, 110 ms from the latest
                 // input is a hard settlement ceiling, never prepare + 110 ms.
-                if p.overlay_band_t < 1.0 {
-                    let remain = ((1.0 - p.overlay_band_t) * OVERLAY_BAND_SLIDE_MS.0).ceil() as u64;
+                if p.overlay_band.active() {
+                    let remain =
+                        ((1.0 - p.overlay_band.progress()) * OVERLAY_BAND_SLIDE_MS.0).ceil() as u64;
                     at(&clock, &mut p, remain);
                     let (_, top) = phase_and_top(&mut p, seam, target(2));
                     assert!(
@@ -278,6 +279,59 @@ fn parked_band_keeps_the_last_presented_pose_across_a_large_wall_gap() {
         "parked pose changed across a 30s wall gap: before=({before_phase}, {before_top}) \
          after=({after_phase}, {after_top})"
     );
+
+    set_motion_test_override(None);
+    crate::motion::set_reduced(saved_reduced);
+}
+
+/// Close/reopen is a transition boundary, not a handful of phase assignments.
+/// This matrix deliberately reaches a repeated unprepared input first, so every
+/// member of the input epoch is non-default before reset. Reinstating the former
+/// partial close reset (which left the pending source/snap behind) fails here.
+#[test]
+fn close_reopen_resets_the_complete_band_epoch_after_repeated_input() {
+    let _g = crate::testlock::serial();
+    let saved_reduced = crate::motion::reduced();
+    crate::motion::set_reduced(false);
+    let mut p = headless_pipeline().expect("shared test adapter");
+    arm_seam(&mut p, Seam::Sliding);
+    let clock = crate::clock::VirtualClock::new();
+    let mut open = view("hello\n", 0, 0);
+    open.overlay_active = true;
+    p.set_view(&open);
+    p.begin_overlay_frame(clock.now());
+    let _ = phase_and_top(&mut p, Seam::Sliding, target(0));
+
+    // Two inputs before prepare are the smallest real sequence that makes the
+    // pending source AND rapid-snap flag meaningful at once.
+    p.stamp_overlay_movement(clock.now());
+    clock.advance_ms(20);
+    p.stamp_overlay_movement(clock.now());
+    let (_, _, _, pending_at, pending_from, pending_snap) = p.overlay_band.epoch();
+    assert!(pending_at.is_some(), "fixture needs a live epoch");
+    assert!(pending_snap, "fixture needs the repeated-input arm");
+    assert_ne!(pending_from, 0.0, "fixture needs an old pose");
+
+    let closed = view("hello\n", 0, 0);
+    p.set_view(&closed);
+    let mut reopened = view("hello\n", 0, 0);
+    reopened.overlay_active = true;
+    p.set_view(&reopened);
+
+    assert_eq!(p.overlay_band.progress(), 1.0, "close settles the phase");
+    assert_eq!(p.overlay_band.last(), None, "close clears the old target");
+    assert_eq!(
+        p.overlay_band.epoch(),
+        (0.0, None, None, None, 0.0, false),
+        "close clears source, presentation time, and every pending-input component"
+    );
+
+    // A reopened card still receives first-open's settled policy, never the
+    // old row's pending epoch.
+    p.begin_overlay_frame(clock.now());
+    let (phase, top) = phase_and_top(&mut p, Seam::Sliding, target(2));
+    assert_eq!(phase, 1.0);
+    assert!((top - target(2)).abs() < EPS);
 
     set_motion_test_override(None);
     crate::motion::set_reduced(saved_reduced);

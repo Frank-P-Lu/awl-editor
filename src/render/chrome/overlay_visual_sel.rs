@@ -308,7 +308,7 @@ impl TextPipeline {
         // state break upstream or a present break downstream.
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
-            let phase = self.overlay_band_t;
+            let phase = self.overlay_band.progress();
             crate::probe::trace(format_args!(
                 "prepare_highlight logical={sel} target={target:.1} \
                  band_top={band_top:?} phase={phase:.3} reads={rows:?}"

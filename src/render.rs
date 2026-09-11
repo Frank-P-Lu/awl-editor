@@ -2728,24 +2728,8 @@ pub struct TextPipeline {
     /// is the only state it can ever render), regardless of the dev-only
     /// motion override.
     juice_live: bool,
-    overlay_enter_t: f32,
-    /// Selection-BAND slide state: the row-top the band is easing FROM and
-    /// the ease progress (`1.0` = settled on target). `band_last` memoizes
-    /// the last TARGET row-top so a selection move is detected at the draw
-    /// seam ([`Self::overlay_band_drawn`]); `None` when no overlay is open.
-    overlay_band_from: f32,
-    overlay_band_t: f32,
-    overlay_band_last: Option<f32>,
-    /// Live theme-picker timing. The movement epoch is stamped before the
-    /// synchronous preview reshape, then sampled at the redraw's injected
-    /// `now`; headless pipelines never stamp it and therefore never read a
-    /// clock. `pending_from` is the old pose sampled at input time, before a
-    /// rapid retarget applies the latest-selection-wins snap policy.
-    overlay_band_started_at: Option<crate::clock::Instant>,
-    overlay_band_frame_now: Option<crate::clock::Instant>,
-    overlay_band_pending_at: Option<crate::clock::Instant>,
-    overlay_band_pending_from: f32,
-    overlay_band_pending_snap: bool,
+    overlay_entrance: pipeline_overlay::OverlayEntranceState,
+    overlay_band: pipeline_overlay::OverlayBandState,
     page_drag_readout: Option<(f32, f32, usize)>,
     zoom_readout: Option<(f32, f32, f32)>,
     debug: DebugDefaults,

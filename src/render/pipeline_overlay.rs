@@ -5,6 +5,230 @@ use super::*;
 /// overlap-cross band's rects, in that order.
 type LivingBandRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
+/// One complete overlay-entrance transition. Its phase never escapes this
+/// owner, so a close/reopen cannot leave an old progress value behind.
+pub(super) struct OverlayEntranceState {
+    t: f32,
+}
+
+impl OverlayEntranceState {
+    pub(super) const fn settled() -> Self {
+        Self { t: 1.0 }
+    }
+
+    pub(super) fn start(&mut self) {
+        self.t = 0.0;
+    }
+
+    pub(super) fn settle(&mut self) {
+        self.t = 1.0;
+    }
+
+    pub(super) fn advance(&mut self, dt: f32) {
+        self.t = (self.t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
+    }
+
+    pub(super) fn active(&self) -> bool {
+        self.t < 1.0
+    }
+
+    pub(super) fn progress(&self) -> f32 {
+        self.t
+    }
+}
+
+/// One complete selected-band transition, including its live input epoch.
+/// Keeping the source, target, phase and pending epoch together makes a partial
+/// reset unrepresentable to callers.
+pub(super) struct OverlayBandState {
+    from: f32,
+    t: f32,
+    last: Option<f32>,
+    started_at: Option<crate::clock::Instant>,
+    frame_now: Option<crate::clock::Instant>,
+    pending_at: Option<crate::clock::Instant>,
+    pending_from: f32,
+    pending_snap: bool,
+}
+
+impl OverlayBandState {
+    pub(super) const fn settled() -> Self {
+        Self {
+            from: 0.0,
+            t: 1.0,
+            last: None,
+            started_at: None,
+            frame_now: None,
+            pending_at: None,
+            pending_from: 0.0,
+            pending_snap: false,
+        }
+    }
+
+    pub(super) fn reset(&mut self) {
+        *self = Self::settled();
+    }
+
+    pub(super) fn settle_to(&mut self, target: f32) {
+        self.from = target;
+        self.t = 1.0;
+        self.last = Some(target);
+        self.started_at = None;
+        self.pending_at = None;
+        self.pending_snap = false;
+    }
+
+    pub(super) fn settle(&mut self) {
+        self.settle_to(self.last.unwrap_or(self.from));
+    }
+
+    pub(super) fn active(&self) -> bool {
+        self.t < 1.0
+    }
+
+    pub(super) fn progress(&self) -> f32 {
+        self.t
+    }
+
+    pub(super) fn source(&self) -> f32 {
+        self.from
+    }
+    pub(super) fn target(&self) -> Option<f32> {
+        self.last
+    }
+
+    #[cfg(test)]
+    pub(super) fn arm_for_activity_law(&mut self) {
+        self.started_at = None;
+        self.t = 0.0;
+    }
+
+    pub(super) fn advance(&mut self, dt: f32) {
+        if self.started_at.is_none() && self.active() {
+            self.t = (self.t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
+        }
+    }
+
+    pub(super) fn retarget(&mut self, target: f32) {
+        match self.last {
+            Some(last) if (last - target).abs() > 0.5 => {
+                self.from = if self.active() {
+                    let e = crate::ease::out_back(self.t);
+                    self.from + (last - self.from) * e
+                } else {
+                    last
+                };
+                self.t = 0.0;
+                self.last = Some(target);
+                self.started_at = None;
+            }
+            None => self.settle_to(target),
+            _ => {}
+        }
+    }
+
+    pub(super) fn chase(&mut self, target: f32) {
+        if self.consume_input(target) {
+            return;
+        }
+        let in_flight_move =
+            matches!(self.last, Some(last) if (last - target).abs() > 0.5) && self.active();
+        if in_flight_move {
+            self.from = target;
+            self.last = Some(target);
+            self.t = 0.0;
+            self.started_at = None;
+        } else {
+            self.retarget(target);
+        }
+    }
+
+    pub(super) fn drawn(&self, target: f32) -> f32 {
+        if self.active() {
+            let e = crate::ease::out_back(self.t);
+            self.from + (target - self.from) * e
+        } else {
+            target
+        }
+    }
+
+    pub(super) fn stamp_input(&mut self, at: crate::clock::Instant) {
+        self.sample(at);
+        self.pending_from = self.drawn(self.last.unwrap_or(self.from));
+        self.pending_snap = self.pending_at.is_some() || self.active();
+        self.pending_at = Some(at);
+    }
+
+    pub(super) fn begin_frame(&mut self, now: crate::clock::Instant) {
+        self.frame_now = Some(now);
+        self.sample(now);
+    }
+
+    fn sample(&mut self, now: crate::clock::Instant) {
+        if let Some(started_at) = self.started_at {
+            self.t = OVERLAY_BAND_SLIDE_MS
+                .progress_per(now.saturating_duration_since(started_at).as_secs_f32())
+                .min(1.0);
+            if !self.active() {
+                self.started_at = None;
+            }
+        }
+    }
+
+    fn consume_input(&mut self, target: f32) -> bool {
+        let Some(at) = self.pending_at.take() else {
+            return false;
+        };
+        let Some(last) = self.last else {
+            self.settle_to(target);
+            return true;
+        };
+        if (last - target).abs() <= 0.5 {
+            return true;
+        }
+        self.from = if self.pending_snap {
+            target
+        } else {
+            self.pending_from
+        };
+        self.last = Some(target);
+        self.started_at = Some(at);
+        self.sample(self.frame_now.unwrap_or(at));
+        true
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn last(&self) -> Option<f32> {
+        self.last
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn pending_snap(&self) -> bool {
+        self.pending_snap
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn epoch(
+        &self,
+    ) -> (
+        f32,
+        Option<crate::clock::Instant>,
+        Option<crate::clock::Instant>,
+        Option<crate::clock::Instant>,
+        f32,
+        bool,
+    ) {
+        (
+            self.from,
+            self.started_at,
+            self.frame_now,
+            self.pending_at,
+            self.pending_from,
+            self.pending_snap,
+        )
+    }
+}
+
 impl TextPipeline {
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
     /// + selection-band slide — the FIRETAIL-MAXIMALIST-SHOWCASE round's
@@ -37,40 +261,33 @@ impl TextPipeline {
     /// motion` (render/tests/motion_juice.rs).
     pub(in crate::render) fn step_overlay_entrance(&mut self, dt: f32) -> bool {
         if crate::motion::reduced() {
-            self.overlay_enter_t = 1.0;
+            self.overlay_entrance.settle();
             return false;
         }
-        if self.overlay_enter_t < 1.0 {
-            self.overlay_enter_t =
-                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
+        if self.overlay_entrance.active() {
+            self.overlay_entrance.advance(dt);
         }
-        self.overlay_enter_t < 1.0
+        self.overlay_entrance.active()
     }
 
     pub(in crate::render) fn step_overlay_band(&mut self, dt: f32) -> bool {
         if crate::motion::reduced() {
-            self.overlay_band_t = 1.0;
-            self.overlay_band_started_at = None;
-            self.overlay_band_pending_at = None;
+            self.overlay_band.settle();
             return false;
         }
-        if self.overlay_band_started_at.is_none() && self.overlay_band_t < 1.0 {
-            self.overlay_band_t =
-                (self.overlay_band_t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
-        }
-        self.overlay_band_t < 1.0
+        self.overlay_band.advance(dt);
+        self.overlay_band.active()
     }
 
     pub(in crate::render) fn overlay_entrance_offset(&self) -> f32 {
-        if self.overlay_enter_t >= 1.0 {
+        if !self.overlay_entrance.active() {
             return 0.0;
         }
         let drop = self.metrics.px(OVERLAY_ENTRANCE_DROP_PX);
-        -(1.0 - crate::ease::out_back(self.overlay_enter_t)) * drop
+        -(1.0 - crate::ease::out_back(self.overlay_entrance.progress())) * drop
     }
 
-    /// THE ONE band-RETARGET owner: point the shared chase state
-    /// (`overlay_band_from`/`overlay_band_last`/`overlay_band_t`) at a NEW
+    /// THE ONE band-RETARGET owner: point the shared chase state at a NEW
     /// `target`, continuing smoothly from wherever the band is actually drawn
     /// RIGHT NOW if a transition is still in flight. Shared by both animators
     /// that chase the selected row — the ordinary [`Self::overlay_band_drawn`]
@@ -92,31 +309,6 @@ impl TextPipeline {
     ///
     /// A fresh overlay (`overlay_band_last == None`) SETTLES rather than
     /// easing — there is no meaningful previous row to glide from.
-    fn retarget_band(&mut self, target: f32) {
-        match self.overlay_band_last {
-            Some(last) if (last - target).abs() > 0.5 => {
-                // A selection move: start the slide FROM wherever the band is
-                // drawn right now (mid-flight moves chain smoothly).
-                let cur = if self.overlay_band_t < 1.0 {
-                    let e = crate::ease::out_back(self.overlay_band_t);
-                    self.overlay_band_from + (last - self.overlay_band_from) * e
-                } else {
-                    last
-                };
-                self.overlay_band_from = cur;
-                self.overlay_band_t = 0.0;
-                self.overlay_band_last = Some(target);
-                self.overlay_band_started_at = None;
-            }
-            None => {
-                self.overlay_band_from = target;
-                self.overlay_band_last = Some(target);
-                self.overlay_band_t = 1.0;
-            }
-            _ => {}
-        }
-    }
-
     /// THE HYBRID glide+snap ARBITER (the user's decision), the ONE
     /// door both band seams ([`Self::overlay_band_drawn`] +
     /// [`Self::living_band_phase`]) route their re-target through. It picks
@@ -152,22 +344,7 @@ impl TextPipeline {
     /// BEFORE reaching here (see the two callers), so this arbiter is structurally
     /// unreachable in a deterministic capture — the byte-identity gates stand.
     fn chase_or_snap(&mut self, target: f32) {
-        if self.consume_overlay_movement(target) {
-            return;
-        }
-
-        let in_flight_move = matches!(
-            self.overlay_band_last,
-            Some(last) if (last - target).abs() > 0.5
-        ) && self.overlay_band_t < 1.0;
-        if in_flight_move {
-            self.overlay_band_from = target;
-            self.overlay_band_last = Some(target);
-            self.overlay_band_t = 0.0;
-            self.overlay_band_started_at = None;
-        } else {
-            self.retarget_band(target);
-        }
+        self.overlay_band.chase(target);
     }
 
     /// The selection BAND's drawn row-top for a target `row_top` this frame —
@@ -182,18 +359,14 @@ impl TextPipeline {
             && !crate::motion::reduced()
             && crate::render::effective_motion_juice().band == theme::BandResponse::Slide;
         if !slide {
-            self.overlay_band_last = Some(target);
-            self.overlay_band_t = 1.0;
-            self.overlay_band_started_at = None;
-            self.overlay_band_pending_at = None;
+            self.overlay_band.settle_to(target);
             return target;
         }
         self.chase_or_snap(target);
-        if self.overlay_band_t >= 1.0 {
+        if !self.overlay_band.active() {
             return target;
         }
-        let e = crate::ease::out_back(self.overlay_band_t);
-        self.overlay_band_from + (target - self.overlay_band_from) * e
+        self.overlay_band.drawn(target)
     }
 
     /// ARM B LIVING-BAND PROBE — the band's TRAVEL (`from_top`, `to_top`) + PHASE
@@ -227,17 +400,14 @@ impl TextPipeline {
             return (from, target, phase.clamp(0.0, 1.0));
         }
         if !self.juice_live || crate::motion::reduced() {
-            self.overlay_band_last = Some(target);
-            self.overlay_band_t = 1.0;
-            self.overlay_band_started_at = None;
-            self.overlay_band_pending_at = None;
+            self.overlay_band.settle_to(target);
             return (target, target, 1.0);
         }
         self.chase_or_snap(target);
         (
-            self.overlay_band_from,
-            self.overlay_band_last.unwrap_or(target),
-            self.overlay_band_t,
+            self.overlay_band.source(),
+            self.overlay_band.target().unwrap_or(target),
+            self.overlay_band.progress(),
         )
     }
 
@@ -287,7 +457,7 @@ impl TextPipeline {
         if !self.juice_live || crate::motion::reduced() {
             return 1.0;
         }
-        crate::ease::out_back(self.overlay_enter_t)
+        crate::ease::out_back(self.overlay_entrance.progress())
     }
 
     /// The selected-bar GROW-POP progress this frame (motion choreography 4): the
@@ -303,7 +473,7 @@ impl TextPipeline {
         if !self.juice_live || crate::motion::reduced() {
             return 1.0;
         }
-        crate::ease::out_back(self.overlay_band_t)
+        crate::ease::out_back(self.overlay_band.progress())
     }
 
     /// THE ROW COMPOSITION'S HORIZONTAL STEP this frame, in canvas px — how much

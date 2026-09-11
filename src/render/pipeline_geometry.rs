@@ -403,15 +403,11 @@ impl TextPipeline {
             && !crate::motion::reduced()
             && crate::render::effective_motion_juice().entrance == theme::OverlayEntrance::SpringIn
         {
-            self.overlay_enter_t = 0.0;
+            self.overlay_entrance.start();
         }
         if overlay_closed {
-            self.overlay_enter_t = 1.0;
-            self.overlay_band_t = 1.0;
-            self.overlay_band_last = None;
-            self.overlay_band_started_at = None;
-            self.overlay_band_frame_now = None;
-            self.overlay_band_pending_at = None;
+            self.overlay_entrance.settle();
+            self.overlay_band.reset();
         }
         self.overlay_crisp = view.overlay_crisp;
         self.overlay_query = view.overlay_query.clone();
