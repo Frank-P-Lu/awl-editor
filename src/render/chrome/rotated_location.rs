@@ -84,7 +84,7 @@ impl TextPipeline {
                     // from disagreeing on a card too tight for the authored step.
                     let axis_deg =
                         super::diagonal::location_axis_deg(cluster.spine_step(), row.height);
-                    let m = self.metrics;
+                    let m = self.metrics.ui();
                     let ui = crate::render::effective_overlay_scale();
                     let (color_a, color_b) = location_ink(label_style);
                     RotatedLabelPlacement {
@@ -235,14 +235,15 @@ impl TextPipeline {
     fn overlay_card_drawn_span(&self, geom: &OverlayGeom) -> (f32, f32) {
         let (mut left, mut right) = (geom.card_x, geom.card_x + geom.card_w);
         if crate::render::effective_list_style().draws_row_plates() {
-            let scale = self.metrics.scale;
+            let scale = self.metrics.dpi;
             let (bx, bw) = super::bar_full_span(geom.card_x, geom.card_w, scale);
             let grow = self
                 .metrics
+                .ui()
                 .px(Logical(crate::render::effective_bar_config().grow_px));
             let mirror = crate::render::resolve_overlay_anchor(self.overlay_align).mirrors_growth();
             let (gx, gw) = super::grow_span(bx, bw, grow, mirror);
-            let pad = self.metrics.px(super::BAR_SCRIM_PAD);
+            let pad = self.metrics.ui().px(super::BAR_SCRIM_PAD);
             left = left.min(gx - pad);
             right = right.max(gx + gw + pad);
         }

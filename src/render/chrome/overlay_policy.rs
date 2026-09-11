@@ -88,8 +88,8 @@ pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32, dpi: f32) -> f3
     (ww / 3.0 - CARD_MAX_W.px(scale, dpi) * 0.5).max(0.0)
 }
 
-pub(in crate::render) fn hint_yielding_explanation(hint: &str, logical_window_w: f32) -> String {
-    if logical_window_w < 800.0
+pub(in crate::render) fn hint_yielding_explanation(hint: &str, logical_text_w: f32) -> String {
+    if logical_text_w < 800.0
         && let Some(actions) = hint.strip_prefix(HINT_EXPLANATION)
     {
         return actions.to_string();

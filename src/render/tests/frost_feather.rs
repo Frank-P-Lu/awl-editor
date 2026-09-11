@@ -82,7 +82,7 @@ pub(super) fn theme_picker(text: &str) -> ViewState {
     v.overlay_sections = vec![String::new(); v.overlay_items.len()];
     v.overlay_selected = 11;
     v.overlay_title = "themes".to_string();
-    v.overlay_hint = "type to filter   ↵ keep   esc revert".to_string();
+    v.overlay_hint = "type to filter   ↵ switch   esc cancel".to_string();
     v
 }
 

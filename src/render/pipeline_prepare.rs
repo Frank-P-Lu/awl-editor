@@ -177,6 +177,12 @@ impl TextPipeline {
     /// picker even where the frost's skirt reaches, which is the right answer: the
     /// skirt is a defocus, not a surface.
     pub(in crate::render) fn frost_mode(&self) -> Option<blur::Frost> {
+        // The Themes card is an opaque bordered surface over a sharp document.
+        // Keep this typed distinction ahead of the shared crisp-picker rules:
+        // Caret still owns its local footprint treatment.
+        if self.overlay_theme_picker {
+            return None;
+        }
         // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge
         // into grey. That is true of a footprint too, so the exclusion is asked once,
         // above both arms. Read through `picker_chrome_theme()` — the SAME seam

@@ -26,6 +26,13 @@ pub enum Audition {
 }
 
 impl Audition {
+    pub fn theme_original(self) -> Option<usize> {
+        match self {
+            Self::Theme { original } => Some(original),
+            Self::None | Self::Caret { .. } => None,
+        }
+    }
+
     /// THE ONE OWNER of the revert, called on exactly the [`Event::Cancel`]
     /// event for whatever card is up: a directly-summoned picker and a
     /// suspended child revert identically.

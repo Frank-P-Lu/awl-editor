@@ -53,6 +53,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
     };
     opts.overlay = Some(OverlayInfo {
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: ov.kind.as_str(),
         title: ov.kind.title().to_string(),

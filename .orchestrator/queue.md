@@ -6,9 +6,8 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** Ready: none. Dependencies/coordination:
-639–640 and 589. Native candidate review:
-628. User decision: 579.
+**4 open numbered tasks.** Ready: none. Dependencies/coordination:
+639–640 and 589. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
@@ -86,129 +85,6 @@ pixel presence and legibility, and the standing five-shot vision smoke. Validate
 supported web behavior without claiming desktop chooser parity. Distinguish live
 feel/taste still owed to the user from mechanically proven state and geometry.
 Do not dispatch or claim implementation merely because this acceptance work is queued.
-
----
-
-### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
-
-🟡 IN PROGRESS — `chrome_628` (Codex), based on `27955b85`.
-`chrome_628_map` (Codex) mapped the
-surface-specific owners, shared-control boundary, accessibility/action routes,
-responsive geometry, roster probes and mutations. It found the prototype's intent
-salvageable but its new `Physical` spacing unsuitable for the required 1x/2x
-composition; implementation must use logical UI units and repair the Settings-cap
-law's sampling rather than bypass it. The prototype exists on `item-628` at
-`e37a13ba` and is not integrated. Native implementation is now unblocked.
-
-Review update (2026-09-10): the user likes the saved Settings layout and explicitly
-asked to continue Find/Replace and theme-picker refinement on the interactive design
-site alongside it. Preserve the bounded Settings label/value column and category
-rail. The site extends the approved Files study with separated find/navigation/
-replacement groups and stable theme preview; the Switch/Cancel refinement below supersedes Keep/Cancel. This HTML
-review is explicitly user-authorized for this study; it does not replace the native
-composition, accessibility, world/DPI checks or final taste review below.
-Reference: https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05; earlier study 04 reviewed the initial composition).
-
-Approved theme-picker refinement (2026-09-11; study 05): use **Themes** in
-user-facing labels, not Worlds. Keep the same top-right placement, size and layout
-across all themes at a given viewport/UI scale, including when reopened under a
-different theme. Narrow windows use one shared centered layout. This is stronger
-than merely freezing the opening theme's anchor during a preview. Select to preview;
-**Switch** / Enter commits and closes, **Cancel** / Esc restores the prior theme.
-Keep the quieter, opaque bordered chrome and hold its appearance steady during
-preview. Remove “Preview on the page”, the explanatory chooser subtitle, palette
-blurbs and redundant Keep wording. Remove background/partial blur from these
-reviewed picker surfaces; keep the document sharp behind them. This does not remove
-unrelated authored theme backgrounds or motion. Use actual effective shortcut labels.
-
-Verify the placement contract across opening themes as well as preview destinations,
-normal/narrow viewports and UI scale/DPI. Check Switch/Cancel through keyboard,
-pointer and direct Actions, with focus restored to the invoking surface (including
-Settings). The approved direction is queued for native implementation; it does not
-mark the existing native prototype integrated or its outstanding checks passed.
-
-The native prototype report flags an existing workspace-width law as failing and
-leaves theme composition untouched. Re-measure against current main before integration;
-prototype captures are neither a gate receipt nor evidence that the running app has
-these changes. Continue through 636/639's interaction contract without duplicating
-this item's visual ownership. No native implementation dispatched by this review.
-
-Problem: the user rejected the live Find strip as crowded and the live Settings
-workspace as a huge surface with a tiny, tightly packed cluster and distant values.
-They expected Find, Settings and the theme picker to share the approved bordered
-form's family. Individual feature briefs reproduced controls but lost composition.
-This item owns the coordinated correction; it is awl-rendered chrome, not a request
-for OS-native widgets.
-
-Coordination: supersedes conflicting visual choices in 591 (landed), 592 (reverted),
-and 609 (landed). 589's shared-control work must use this language; retain its Commands
-scope, but do not independently land overlapping visual changes ahead of this review.
-592's separate visual implementation waits for this prototype; retain its correctness
-findings and tests. 622/623's test-integrity repairs remain valid independently. Read
-current tree/status before implementation; do not reapply a reverted branch wholesale.
-
-Shared foundations (initial prototype measurements, not frozen final constants):
-- Interface scale and display DPI control chrome, independently of document zoom.
-  One UI face per world; labels/values share a readable size, titles about 1.25x and
-  quieter hints about 0.85x. Respect font metrics and readable minimum sizes.
-- Four-unit spacing rhythm: 8 within groups, 16 between groups, 20–24 panel padding.
-  Controls start at 32 logical units high, growing for font metrics. One corner family
-  per world, inner controls smaller-radius than their enclosing panel.
-- Figure/ground by value; caret retains the accent. Clear focus outline/selection;
-  distinguish selected, focused, pressed and disabled. Selection stays visible when
-  keyboard focus moves away. Hints use actual platform/rebound keys for the focus.
-- Start with opaque backing. Frost may express a world but cannot be necessary to
-  read its controls; ambient background effects are outside this item's scope.
-
-Shared components, one owner each: bounded text fields with persistent labels and
-placeholders distinct from labels; bounded named buttons with optional shortcuts;
-a checkbox plus label as one clickable group (no separate Aa beside Match case);
-choice rows with nearby values and a choice affordance; consistent selectable list
-rows; modest section headings with deliberate gaps and only useful dividers.
-Route interactions through existing Action owners and expose real accessibility
-roles/states/actions. Shared render components remain driven by theme data.
-
-Surface compositions:
-1. Find/Replace: compact form at the EXISTING top-right inset, starting 420–480 logical
-   units wide and clamped to the window. Find field, optional Replace field, then
-   count + previous/next + Match case group, optional Replace/Replace all actions,
-   then quiet hints. Labels beside fields where roomy, above where narrow. Find-only
-   shrinks vertically; never flatten all groups into one strip. Approved bordered
-   reference: `references/find-replace-chrome.png` beside this board.
-2. Settings: modest title and identifiable search; category rail around 140–180 units,
-   gap 24, bounded detail column around 360–520. Labels left, controls in a consistent
-   nearby column, rows initially 36–40 high. Extra window space surrounds useful
-   content rather than separating labels/values. Full-workspace backing is allowed;
-   composition still needs deliberate proportion. Narrow mode uses successive
-   category/detail views and preserves search/focus/editor restoration.
-3. Theme picker: stable chooser using the same fields/rows/surface family. Explicit
-   stable panel composition and cross-theme placement per the approved refinement above.
-   Freeze position, width, UI face/size, row height/count, border geometry and
-   selection treatment throughout preview. For the FIRST PROTOTYPE also freeze
-   picker colors until dismissal; everything behind it continues live theme preview.
-   Reopening adopts the chosen world's chrome styling. Preserve commit/cancel semantics.
-
-World contract: grouping, hierarchy, behavior, label/value relationships, minimum
-spacing/legibility, state meanings and responsive behavior are common. Worlds author
-UI face, palette, corner/border character, plates/rules, state styling and optional
-frost/motion. Plate/rule worlds retain identity while preserving recognizable controls
-and grouping. Theme picker's stable composition is the explicit layout exception.
-
-Phase 1 / review: show all THREE surfaces together in Kite and Mopoke, at normal and
-narrow actual window sizes, including focused fields, selected rows and replacement
-mode. Prototype in awl with headless captures per repo policy; no HTML artifacts.
-Measure useful content, hierarchy and spacing, not merely panel/control presence.
-User approves these coordinated compositions before Phase 2's shared implementation.
-Do not call an image-generation approximation a product screenshot.
-
-Phase 2 / done: implement reviewed measurements through shared owners; compare real
-awl captures against the approved compositions before declaring completion. Read
-`docs/render.md`, `docs/config.md`, `docs/harness-reach.md` and CAPTURE.md before
-choosing probes. Sweep roster compositions, narrow/wide, UI scale, 1x/2x DPI, keyboard
-and pointer routing, theme preview stability and cancel/restore. Assert real geometry
-and relative rendered-pixel presence/legibility, with mutation proof and five-shot
-vision smoke; appropriate native/wasm gates follow implementation. Headless captures
-do not settle taste or live motion. This board-only decision claims no receipt.
 
 ---
 

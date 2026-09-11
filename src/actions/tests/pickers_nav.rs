@@ -1842,17 +1842,17 @@ fn theme_move_previews_live() {
 fn theme_keyboard_crossing_never_relocates_the_card() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
-    crate::render::set_card_anchor_test_override(None); // world data drives the anchor
+    crate::render::set_card_anchor_test_override(None);
     crate::theme::set_active(0); // Tawny (TopCenter)
     let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
 
-    // At summon the frozen alignment == the opening world's own rail.
+    // Themes has one canonical rail regardless of the world's authored chrome.
     let summoned = overlay.card().unwrap().align;
     assert_eq!(
         summoned,
-        crate::theme::active().render_caps.card_anchor,
-        "the card freezes the opening world's rail at summon"
+        crate::theme::CardAnchor::TopRight,
+        "Themes opens on its canonical top-right rail"
     );
 
     let mut crossed: Vec<crate::theme::CardAnchor> = Vec::new();

@@ -74,6 +74,13 @@ pub struct ViewState {
     pub overlay_active: bool,
     pub overlay_align: Option<theme::CardAnchor>,
     pub overlay_crisp: bool,
+    /// The open card is the Themes chooser. Unlike the broader `overlay_crisp`
+    /// class (which also includes Caret), this projection lets the renderer
+    /// apply the chooser's reviewed fixed-composition and no-frost contract
+    /// without recovering an `OverlayKind` from display strings.
+    pub overlay_theme_picker: bool,
+    /// Summon-time world whose palette and face the open Themes card retains.
+    pub overlay_theme_chrome: Option<usize>,
     pub overlay_query: String,
     pub overlay_query_caret: usize,
     /// **DOES THE OPEN CARD'S HEAD LINE BEHAVE AS A SEARCH FIELD?**
@@ -385,6 +392,8 @@ impl ViewState {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_theme_picker: false,
+            overlay_theme_chrome: None,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,

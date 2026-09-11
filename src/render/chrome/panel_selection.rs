@@ -69,7 +69,7 @@ impl TextPipeline {
         let x1 = self.panel_glyph_x(shape.caret_row, e_byte, e_chars, text_left);
         // The band matches the caret's own cell height and centre, so the
         // highlight sits on the text rather than on the row's full leading.
-        let h = self.metrics.caret_h;
+        let h = self.metrics.panel_ui().caret_h;
         let cy = self.panel_caret_cy(text_top, shape.caret_row);
         let rects = [[x0, cy - h * 0.5, (x1 - x0).max(0.0), h]];
         self.panel_query_selection

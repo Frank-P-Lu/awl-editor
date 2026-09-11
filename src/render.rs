@@ -376,6 +376,23 @@ impl Metrics {
         }
     }
 
+    /// Metrics for interface furniture. Document zoom changes the writing,
+    /// while chrome remains at its authored logical size and still follows the
+    /// display density. Keeping this as a full `Metrics` value lets shaping,
+    /// geometry, hit testing and capture projection share the same currency.
+    pub fn ui(self) -> Self {
+        Self::with_dpi(1.0, self.dpi)
+    }
+
+    /// Find/Replace uses a slightly taller control row than the shared picker
+    /// list. The font stays at the common UI size; only its line box grows so
+    /// each bordered control has a 32-logical-pixel target with a quiet inset.
+    pub fn panel_ui(self) -> Self {
+        let mut ui = self.ui();
+        ui.line_height = 36.0 * self.dpi;
+        ui
+    }
+
     fn glyph_metrics(&self) -> GlyphMetrics {
         GlyphMetrics::new(self.font_size, self.line_height)
     }
@@ -1060,16 +1077,27 @@ fn panel_attrs() -> Attrs<'static> {
     // matching the document body, which now renders standard fi/fl too. On a mono
     // world the display face is IBM Plex Mono (no ligatures), so panels stay
     // fixed-pitch there exactly as before.
-    let ff = text::font_features(false, theme::active().font, code_ligatures_on());
+    panel_attrs_for(theme::active())
+}
+
+fn panel_attrs_for(chrome: theme::Theme) -> Attrs<'static> {
+    let ff = text::font_features(false, chrome.font, code_ligatures_on());
     Attrs::new()
-        .family(Family::Name(theme::active().font))
-        .weight(mono_safe_weight(theme::active().font))
+        .family(Family::Name(chrome.font))
+        .weight(mono_safe_weight(chrome.font))
         .font_features(ff)
+}
+
+/// Text attributes for the summoned overlay itself. During a Themes audition
+/// this keeps the card's opening face while [`panel_attrs`] lets persistent
+/// chrome behind it follow the previewed world.
+fn overlay_panel_attrs() -> Attrs<'static> {
+    panel_attrs_for(overlay_chrome_theme())
 }
 
 fn chrome_attrs() -> Attrs<'static> {
     match effective_chrome_face() {
-        theme::ChromeFace::Body => panel_attrs(),
+        theme::ChromeFace::Body => overlay_panel_attrs(),
         theme::ChromeFace::Named(family) => {
             let ff = text::font_features(false, family, code_ligatures_on());
             Attrs::new()
@@ -1490,6 +1518,7 @@ pub(crate) fn push_text_seeds(
 pub(crate) fn effective_title_style() -> theme::TitleStyle {
     match overrides::current().title_style {
         Some(style) => style,
+        None if picker_chrome_is_pinned() => shared_theme_picker_caps().title_style,
         None => theme::active().render_caps.title_style,
     }
 }
@@ -1551,6 +1580,7 @@ pub(crate) fn effective_card_elevation() -> theme::Elevation {
     }
     match awl_overlay_elevation_force() {
         Some(e) => *e,
+        None if picker_chrome_is_pinned() => theme::Elevation::Bordered,
         None => theme::active().render_caps.elevation,
     }
 }
@@ -1574,14 +1604,15 @@ fn awl_overlay_selrow_force() -> &'static Option<bool> {
 
 pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
     match awl_overlay_selrow_force() {
-        Some(false) => theme::surface_selected(),
-        _ => theme::selection_ui(),
+        Some(false) => theme::surface_selected_for(overlay_chrome_theme()),
+        _ => theme::selection_ui_for(overlay_chrome_theme()),
     }
 }
 
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     match overrides::current().chrome_face {
         Some(f) => f,
+        None if picker_chrome_is_pinned() => shared_theme_picker_caps().chrome_face,
         None => picker_chrome_theme().render_caps.chrome_face,
     }
 }
@@ -1658,10 +1689,32 @@ fn picker_chrome_theme() -> theme::Theme {
         .unwrap_or_else(theme::active)
 }
 
+fn picker_chrome_is_pinned() -> bool {
+    PICKER_CHROME_PIN.with(|c| c.get() < theme::THEMES.len())
+}
+
+/// Palette and authored surface character for the active summoned card. A
+/// Themes card keeps the palette it opened with while the document previews
+/// another world; every other surface reads the live world as before.
+pub(crate) fn overlay_chrome_theme() -> theme::Theme {
+    picker_chrome_theme()
+}
+
+/// Themes has one composition across the roster. Palette, corner treatment
+/// and texture still come from the opening world, but these layout-bearing
+/// caps do not make the chooser rearrange itself when it is reopened there.
+fn shared_theme_picker_caps() -> theme::RenderCaps {
+    theme::THEMES[theme::DEFAULT_THEME].render_caps
+}
+
 /// Pin the theme picker's own chrome to the world active RIGHT NOW — called
 /// once, at summon, from [`crate::overlay::OverlayState::new_marked`].
 pub(crate) fn pin_picker_chrome() {
     PICKER_CHROME_PIN.with(|c| c.set(theme::active_index()));
+}
+
+pub(crate) fn pin_picker_chrome_to(index: usize) {
+    PICKER_CHROME_PIN.with(|c| c.set(index));
 }
 
 /// Release the pin — called from the same constructor for every non-`Theme`
@@ -1734,6 +1787,7 @@ impl Drop for PickerChromePinRestore {
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     match overrides::current().list_style {
         Some(s) => s,
+        None if picker_chrome_is_pinned() => shared_theme_picker_caps().list_style,
         None => picker_chrome_theme().render_caps.list_style,
     }
 }
@@ -1751,6 +1805,7 @@ pub(crate) fn effective_bar_config() -> theme::BarConfig {
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     match overrides::current().facet_style {
         Some(s) => s,
+        None if picker_chrome_is_pinned() => shared_theme_picker_caps().facet_style,
         None => picker_chrome_theme().render_caps.facet_style,
     }
 }
@@ -1758,6 +1813,7 @@ pub(crate) fn effective_facet_style() -> theme::FacetStyle {
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     match overrides::current().pane_split {
         Some(s) => s,
+        None if picker_chrome_is_pinned() => shared_theme_picker_caps().pane_split,
         None => picker_chrome_theme().render_caps.pane_split,
     }
 }
@@ -2741,6 +2797,10 @@ pub struct TextPipeline {
     overlay_active: bool,
     overlay_align: Option<theme::CardAnchor>,
     overlay_crisp: bool,
+    /// The Themes chooser's stronger stable-chrome contract. Kept distinct
+    /// from `overlay_crisp`, whose roster also includes the Caret audition.
+    overlay_theme_picker: bool,
+    overlay_theme_chrome: Option<usize>,
     overlay_query: String,
     overlay_query_caret: usize,
     /// Mirror of [`ViewState::overlay_query_field`] — does the open card's head

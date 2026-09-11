@@ -83,9 +83,21 @@ fn prepared_at(
     editing_replacement: bool,
     dpi: f32,
 ) -> Option<(TextPipeline, PanelGeometry)> {
+    prepared_at_zoom(w, h, replace, editing_replacement, dpi, 1.0)
+}
+
+fn prepared_at_zoom(
+    w: f32,
+    h: f32,
+    replace: bool,
+    editing_replacement: bool,
+    dpi: f32,
+    zoom: f32,
+) -> Option<(TextPipeline, PanelGeometry)> {
     let (device, queue, mut p) = headless_dqp(w, h)?;
     p.set_dpi(dpi);
     let mut v = view("hello world\nhello again\n", 0, 0);
+    v.zoom = zoom;
     v.search_active = true;
     v.search_query = "hello".into();
     v.search_matches = vec![((0, 0), (0, 5)), ((1, 0), (1, 5))];
@@ -103,6 +115,58 @@ fn prepared_at(
         .panel_geometry()
         .expect("an active search must publish its panel");
     Some((p, g))
+}
+
+#[test]
+fn find_chrome_is_logical_across_dpi_and_independent_of_document_zoom() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!(concat!(
+            "skipping find_chrome_is_logical_across_dpi_and_independent_of_document_zoom: ",
+            "no wgpu adapter"
+        ));
+        return;
+    }
+    let mut expected: Option<[f32; 4]> = None;
+    let mut cells = 0usize;
+    for dpi in [1.0f32, 2.0] {
+        for zoom in [0.5f32, 1.0, 2.0] {
+            let (width, height) = (1200.0 * dpi, 800.0 * dpi);
+            let (_, geometry) = prepared_at_zoom(width, height, true, true, dpi, zoom)
+                .expect("the Find panel prepares");
+            let normalized = geometry.card.map(|value| value / dpi);
+            assert!(
+                (420.0..=480.0).contains(&normalized[2]),
+                "dpi={dpi} zoom={zoom}: ordinary Find width {} misses 420..=480 logical",
+                normalized[2]
+            );
+            for control in &geometry.controls {
+                assert!(
+                    control.rect[2] / dpi >= 32.0 && control.rect[3] / dpi >= 32.0,
+                    "dpi={dpi} zoom={zoom}: {} target is only {}x{} logical",
+                    control.name,
+                    control.rect[2] / dpi,
+                    control.rect[3] / dpi
+                );
+            }
+            if let Some(expected) = expected {
+                for (got, want) in normalized.into_iter().zip(expected) {
+                    assert!(
+                        (got - want).abs() <= 0.51,
+                        concat!("dpi={} zoom={}: normalized card {:?} ", "moved from {:?}"),
+                        dpi,
+                        zoom,
+                        normalized,
+                        expected
+                    );
+                }
+            } else {
+                expected = Some(normalized);
+            }
+            cells += 1;
+        }
+    }
+    assert_eq!(cells, 6);
 }
 
 /// Every control this state should have shaped, paired with the `PanelHit` a
@@ -372,9 +436,9 @@ fn published_panel_geometry_agrees_with_the_ink_and_the_pointer() {
 
     assert_eq!(e.bars.len(), 2, "both menu-bar arms must be swept");
     assert!(
-        e.row_counts.contains(&2) && e.row_counts.len() > 1,
+        e.row_counts.contains(&3) && e.row_counts.len() > 1,
         "the sweep must cross the row-count boundary (a plain find panel shapes \
-         two rows — find + nav — the replace state four), got {:?}",
+         find + nav + footer, while replace adds its field/actions), got {:?}",
         e.row_counts
     );
     assert!(
@@ -395,14 +459,18 @@ fn grade_caret_cy(
     p: &mut TextPipeline,
     g: &PanelGeometry,
     w: f32,
-    replace: bool,
     editing: bool,
 ) -> (usize, f32) {
     let tops = shaped_row_tops(p);
-    // The FOCUSED row, from the state this cell set rather than from the shaper —
-    // so the shaper's own focus→row mapping is graded too, instead of being read
-    // back out and compared to itself.
-    let want_row = usize::from(editing);
+    // The responsive field plan owns the row: 0/1 inline, 1/3 when labels stack
+    // above their fields. The separate narrow-layout law pins both branches;
+    // this law grades the caret centre against whichever branch was selected.
+    let (find_row, replace_row) = p.panel_field_rows_probe();
+    let want_row = if editing {
+        replace_row.expect("replacement focus requires a replacement field")
+    } else {
+        find_row.expect("Find always has a field")
+    } as usize;
     let caret_row = p.panel_shape_text(w as u32).caret_row;
     assert!(
         (caret_row - want_row as f32).abs() < 0.001,
@@ -458,7 +526,11 @@ fn grade_caret_cy(
     let [cx, _, cw, _] = g.card;
     assert_eq!(
         p.panel_hit(cx + cw * 0.5, cy),
-        Some(want_at(want_row as i64, replace)),
+        Some(if editing {
+            PanelHit::Replace
+        } else {
+            PanelHit::Find
+        }),
         "{label}: a press at the caret's own centre-y {cy} must land in the field \
          the caret is editing"
     );
@@ -477,8 +549,8 @@ fn grade_caret_cy(
 /// `0.5` in `PanelRowBands::center` moved the amber caret off every row's centre
 /// with the whole suite green.
 ///
-/// The axes are the ones that can hide it: **both field arms** (the focused row is
-/// 0 or 1, and a placer that ignored `caret_row` would pass on row 0 alone),
+/// The axes are the ones that can hide it: **both field arms** (the focused rows
+/// differ, and a placer that ignored `caret_row` would pass on the first alone),
 /// **both row counts** (one shaped row cannot show a wrong step), and **both
 /// DPIs** (the pitch scales while the card's pad does not, so a centre expressed
 /// against the wrong one of the two agrees at exactly one scale). The pitch is
@@ -506,7 +578,7 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
                     return;
                 };
                 let label = format!("dpi={dpi} {w}x{h} replace={replace} editing={editing}");
-                let (row, pitch) = grade_caret_cy(&label, &mut p, &g, w, replace, editing);
+                let (row, pitch) = grade_caret_cy(&label, &mut p, &g, w, editing);
                 cells += 1;
                 focused_rows.insert(row);
                 row_counts.insert(g.rows.len());
@@ -517,12 +589,12 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
 
     assert_eq!(
         focused_rows,
-        std::collections::BTreeSet::from([0, 1]),
+        std::collections::BTreeSet::from([0, 1, 3]),
         "both field arms must be swept — a placer that ignores caret_row passes on \
          row 0 alone, got {focused_rows:?}"
     );
     assert!(
-        row_counts.contains(&2) && row_counts.len() > 1,
+        row_counts.contains(&3) && row_counts.len() > 1,
         "the sweep must cross the row-count boundary, got {row_counts:?}"
     );
     // THE DPI AXIS IS PROVED, NOT ASSUMED: if the pitch did not move, the second

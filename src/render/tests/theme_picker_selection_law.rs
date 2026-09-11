@@ -148,6 +148,7 @@ const MOVE_AREA_ROWS: f32 = 8.0;
 fn theme_view(ov: &OverlayState, selected_item: usize) -> ViewState {
     let mut v = super::view("hello world\nsecond line\nthird line\n", 0, 0);
     v.overlay_active = true;
+    v.overlay_theme_picker = true;
     v.overlay_crisp = ov.kind.keeps_backdrop_crisp();
     v.overlay_title = ov.kind.title().to_string();
     v.overlay_items = ov.item_strings();
@@ -582,15 +583,13 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
          the roster it thinks it is",
         theme::THEMES.len() * 4
     );
-    // ENROLMENT, derived from the roster rather than pinned to named worlds: all
-    // four list families must have been reached, or this law is about a subset of
-    // the product wearing the whole product's name.
+    // Themes deliberately has one shared composition across every opener. The
+    // roster sweep must therefore reach exactly Pane; seeing another family
+    // means opener data leaked back into this surface's fixed layout.
     assert_eq!(
-        styles.len(),
-        4,
-        "the sweep reached list styles {styles:?} — the selection treatment has one owner \
-         shared by all four families, so a sweep that misses one cannot see a \
-         family-specific defect"
+        styles,
+        std::collections::BTreeSet::from(["Pane".to_string()]),
+        "the Themes roster must share one Pane composition, got {styles:?}"
     );
 }
 

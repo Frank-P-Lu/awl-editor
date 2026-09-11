@@ -16,6 +16,7 @@ fn picker_opts(ov: &crate::overlay::OverlayState, empty: Option<String>) -> Capt
     };
     opts.overlay = Some(OverlayInfo {
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: ov.kind.as_str(),
         title: ov.kind.title().to_string(),
@@ -290,6 +291,7 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     opts.overlay = Some(OverlayInfo {
         // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: ov.kind.as_str(),
         title: ov.kind.title().to_string(),
@@ -375,6 +377,7 @@ fn overlay_empty_state_renders_and_reports() {
     let fold = |ov: &crate::overlay::OverlayState| OverlayInfo {
         // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: ov.audition.theme_original(),
         active: true,
         mode: ov.kind.as_str(),
         title: ov.kind.title().to_string(),
@@ -606,6 +609,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         opts.overlay = Some(OverlayInfo {
             // Reproduce the prior live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
+            chrome_theme: None,
             active: true,
             mode: ov.kind.as_str(),
             title: ov.kind.title().to_string(),
@@ -932,6 +936,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
     opts.overlay = Some(OverlayInfo {
         // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "history",
         title: "version history".to_string(),
@@ -1027,6 +1032,7 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
     opts.preview_text = Some(fixture::TRANSCRIPT.to_string());
     opts.overlay = Some(OverlayInfo {
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "history",
         title: "version history".to_string(),

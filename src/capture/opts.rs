@@ -78,6 +78,8 @@ pub struct OverlayInfo {
     /// into `ViewState::overlay_align`; the `AWL_OVERLAY_ALIGN` capture knob is what
     /// this reflects for the audition gallery's right-aligned shots.
     pub align: crate::theme::CardAnchor,
+    /// Summon-time world retained by the Themes card's own chrome.
+    pub chrome_theme: Option<usize>,
     pub query: String,
     /// The query field's own CHAR-index caret ([`crate::textbox::TextBox::
     /// caret`]), so a click-to-place / drag / mid-query char-motion law can

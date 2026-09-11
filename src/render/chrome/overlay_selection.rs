@@ -201,11 +201,13 @@ impl TextPipeline {
             apply_living_row_spans(plan, &mut unselected);
             apply_living_row_spans(plan, &mut cross);
             self.overlay_bars.set_corner(2.5);
-            self.overlay_bars
-                .set_color(theme::surface_selected().rgba_bytes());
+            self.overlay_bars.set_color(
+                theme::surface_selected_for(crate::render::overlay_chrome_theme()).rgba_bytes(),
+            );
             self.overlay_cross.set_corner(2.5);
-            self.overlay_cross
-                .set_color(theme::overlay_band_overlap().rgba_bytes());
+            self.overlay_cross.set_color(
+                theme::overlay_band_overlap_for(crate::render::overlay_chrome_theme()).rgba_bytes(),
+            );
             return OverlaySelectionRects {
                 selected,
                 unselected,
@@ -267,7 +269,8 @@ impl TextPipeline {
         let line_height = plan.lh();
         // The gap arrives as the config's own dial; the plate it separates is
         // seated inside a row pitch that already resolved the same number.
-        let gap = self.metrics.px(Logical(cfg.gap.max(0.0)));
+        let ui = self.metrics.ui();
+        let gap = ui.px(Logical(cfg.gap.max(0.0)));
         let hugs = cfg.extent.hugs();
         let primary_px = if hugs {
             self.overlay_row_primary_px(geom)
@@ -283,15 +286,15 @@ impl TextPipeline {
             // The plate's own corner and its outward growth are config-owned
             // LENGTHS, resolved at the same boundary the gap between the plates
             // already passes — so a bar keeps its shape at every scale.
-            radius: self.metrics.px(Logical(cfg.radius.max(0.0))),
-            grow_px: self.metrics.px(Logical(cfg.grow_px)),
+            radius: ui.px(Logical(cfg.radius.max(0.0))),
+            grow_px: ui.px(Logical(cfg.grow_px)),
             extent: cfg.extent,
             coverage: cfg.coverage,
             bar_height: (line_height - gap).max(1.0),
             bar_offset: gap * 0.5,
             primary_px,
             chord_px,
-            scale: self.metrics.scale,
+            scale: self.metrics.dpi,
         }
     }
 
@@ -356,7 +359,7 @@ impl TextPipeline {
                 geom.band_w(),
                 plate_bottom,
                 footer_hug,
-                self.metrics.scale,
+                self.metrics.dpi,
             );
             rects.push(plate);
             Some(plate)
@@ -441,7 +444,7 @@ impl TextPipeline {
         /// A corner for no scrim at all on `Diagonal` (it emits no plates), kept
         /// so the shared pipeline is still prepared each frame.
         const DIAGONAL_SCRIM_CORNER: Logical = Logical(6.0);
-        let pad = self.metrics.px(BAR_SCRIM_PAD);
+        let pad = self.metrics.ui().px(BAR_SCRIM_PAD);
         // The `BarePlates` gate above is the CARD's question, not the row's, and
         // that is deliberate here even though the same name misleads a plate
         // claim: every bare-plate world must have `panel_card` prepared each
@@ -450,10 +453,10 @@ impl TextPipeline {
         // corner for no scrim at all — never let that number be read as an
         // authored dial.
         let radius = match list_style {
-            theme::ListStyle::Bars => self.metrics.px(Logical(
+            theme::ListStyle::Bars => self.metrics.ui().px(Logical(
                 crate::render::effective_bar_config().radius.max(0.0),
             )),
-            theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
+            theme::ListStyle::Diagonal(_) => self.metrics.ui().px(DIAGONAL_SCRIM_CORNER),
             // Like `Diagonal`, a corner for no scrim at all — `Ruled` emits
             // rules, not plates, and the gate below declines to pad them.
             theme::ListStyle::Ruled(_) => 0.0,

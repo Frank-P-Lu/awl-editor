@@ -133,7 +133,9 @@ pub(in crate::render) fn overlay_selected_rail_srgb() -> Option<theme::Srgb> {
 /// by name: no file under `render/chrome/` but this one may reach
 /// `effective_overlay_selrow_band` again.
 pub(in crate::render) fn overlay_selected_band_srgb() -> theme::Srgb {
-    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+    match crate::render::overlay_chrome_theme()
+        .highlight_treatment(crate::render::effective_overlay_selrow_band())
+    {
         theme::HighlightTreatment::ValueBand(c) => c,
         theme::HighlightTreatment::InverseFill { band, .. } => band,
     }
@@ -144,11 +146,12 @@ pub(in crate::render) fn overlay_selected_band_srgb() -> theme::Srgb {
 /// so the shaper, the theme picker's own shaper, and the selection probe cannot
 /// disagree about what "this row's label reads selected" looks like.
 pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color> {
-    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+    let chrome = crate::render::overlay_chrome_theme();
+    match chrome.highlight_treatment(crate::render::effective_overlay_selrow_band()) {
         theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink.to_glyphon()),
         theme::HighlightTreatment::ValueBand(band) => {
-            let flipped = theme::selected_row_ink(band);
-            (flipped != theme::base_content()).then(|| flipped.to_glyphon())
+            let flipped = theme::selected_row_ink_for(chrome, band);
+            (flipped != chrome.base_content).then(|| flipped.to_glyphon())
         }
     }
 }
@@ -158,7 +161,11 @@ pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color
 /// surface that draws one label on one band asks this rather than unwrapping the
 /// `Option` itself, so "no flip needed" cannot be spelled two ways.
 pub(in crate::render) fn overlay_selected_label_ink() -> glyphon::Color {
-    overlay_selected_primary_ink().unwrap_or_else(|| theme::base_content().to_glyphon())
+    overlay_selected_primary_ink().unwrap_or_else(|| {
+        crate::render::overlay_chrome_theme()
+            .base_content
+            .to_glyphon()
+    })
 }
 
 /// The SECONDARY column's on-band ink (the shortcut / time / git value beside a
@@ -171,11 +178,12 @@ pub(in crate::render) fn overlay_selected_secondary_srgb() -> Option<theme::Srgb
     if !selected_secondary_on_band() {
         return None;
     }
-    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+    let chrome = crate::render::overlay_chrome_theme();
+    match chrome.highlight_treatment(crate::render::effective_overlay_selrow_band()) {
         theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink),
         theme::HighlightTreatment::ValueBand(b) => {
-            let flipped = theme::selected_row_secondary_ink(b);
-            (flipped != theme::muted()).then_some(flipped)
+            let flipped = theme::selected_row_secondary_ink_for(chrome, b);
+            (flipped != chrome.muted).then_some(flipped)
         }
     }
 }

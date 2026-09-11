@@ -93,7 +93,7 @@ impl TextPipeline {
         };
         self.overlay_lens_underline.set_color(rgba);
         self.overlay_lens_underline
-            .set_corner(self.metrics.px(super::overlay_rows::FACET_CHIP_RADIUS));
+            .set_corner(self.metrics.ui().px(super::overlay_rows::FACET_CHIP_RADIUS));
         self.overlay_lens_underline.set_stroke(0.0);
         let marks: Vec<[f32; 4]> = self.workspace_rail_mark().into_iter().collect();
         self.overlay_lens_underline
@@ -150,8 +150,8 @@ impl TextPipeline {
                         measure: (x, w - 2.0 * hpad),
                         band: (x, w),
                         mark: (
-                            self.metrics.px(super::overlay_rules::RULE_MARK_LEN),
-                            self.metrics.px(super::overlay_rules::RULE_MARK_GAP),
+                            self.metrics.ui().px(super::overlay_rules::RULE_MARK_LEN),
+                            self.metrics.ui().px(super::overlay_rules::RULE_MARK_GAP),
                         ),
                     },
                 )
@@ -177,7 +177,7 @@ impl TextPipeline {
         self.overlay_lens_underline.set_corner(0.0);
         self.overlay_lens_underline.set_stroke(0.0);
         self.overlay_facet_ghost
-            .set_color(theme::faint().rgba_bytes());
+            .set_color(crate::render::overlay_chrome_theme().faint.rgba_bytes());
         self.overlay_facet_ghost.set_corner(0.0);
         self.overlay_facet_ghost.set_stroke(0.0);
         self.overlay_lens_underline
@@ -217,7 +217,7 @@ impl TextPipeline {
     ) -> Option<[f32; 4]> {
         let [x, w] = geom.rail?;
         let top = plan.first_top();
-        let bottom = geom.card_y + geom.card_h - self.metrics.px(WORKSPACE_PAD);
+        let bottom = geom.card_y + geom.card_h - self.metrics.ui().px(WORKSPACE_PAD);
         (bottom > top).then_some([x, top, w, bottom - top])
     }
 
@@ -286,9 +286,10 @@ impl TextPipeline {
         // and on a world whose band IS `base_content` (an inverse-video
         // treatment) it is the fill's own colour, i.e. no label at all.
         let active = super::overlay_selected_label_ink();
-        let muted = theme::muted().to_glyphon();
-        let base = panel_attrs();
-        let faint = theme::faint().to_glyphon();
+        let chrome = crate::render::overlay_chrome_theme();
+        let muted = chrome.muted.to_glyphon();
+        let base = overlay_panel_attrs();
+        let faint = chrome.faint.to_glyphon();
         let mut spans: Vec<(String, glyphon::Color)> = Vec::new();
         let rows: Vec<([f32; 4], bool)> = (0..self.overlay_lens.len())
             .filter_map(|i| {

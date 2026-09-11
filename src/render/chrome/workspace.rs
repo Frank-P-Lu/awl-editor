@@ -184,8 +184,8 @@ impl TextPipeline {
     pub(in crate::render) fn workspace_margin(&self) -> f32 {
         let smaller = self.window_w.min(self.window_h).max(0.0);
         (smaller * WORKSPACE_MARGIN_FRAC).clamp(
-            self.metrics.px(WORKSPACE_MARGIN_MIN),
-            self.metrics.px(WORKSPACE_MARGIN_MAX),
+            self.metrics.ui().px(WORKSPACE_MARGIN_MIN),
+            self.metrics.ui().px(WORKSPACE_MARGIN_MAX),
         )
     }
 
@@ -279,7 +279,7 @@ impl TextPipeline {
     /// other region therefore survives before candidate rows are considered.
     pub(in crate::render) fn workspace_frame(&self, width: u32) -> WorkspaceFrame {
         let lh = self.overlay_lh();
-        let authored_pad = self.metrics.px(WORKSPACE_PAD);
+        let authored_pad = self.metrics.ui().px(WORKSPACE_PAD);
         let n_items = self.overlay_items.len();
         let regions = self.workspace_regions(width);
         let show_rows = if self.overlay_rows_primary {
@@ -394,7 +394,7 @@ impl TextPipeline {
                 card_x,
                 text_left,
                 text_w,
-                self.metrics.px(TIMELINE_ROW_MIN_INSET),
+                self.metrics.ui().px(TIMELINE_ROW_MIN_INSET),
             ),
             false => [text_left, text_w],
         };

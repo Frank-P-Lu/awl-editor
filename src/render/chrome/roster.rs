@@ -30,8 +30,8 @@ impl TextPipeline {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
         (std::sync::Arc::as_ptr(roster) as usize).hash(&mut h);
-        self.metrics.font_size.to_bits().hash(&mut h);
-        self.metrics.line_height.to_bits().hash(&mut h);
+        self.metrics.ui().font_size.to_bits().hash(&mut h);
+        self.metrics.ui().line_height.to_bits().hash(&mut h);
         (theme::active().font.as_ptr() as usize).hash(&mut h);
         crate::render::code_ligatures_on().hash(&mut h);
         h.finish()
@@ -70,7 +70,7 @@ impl TextPipeline {
             text.hash(&mut h);
             metrics.font_size.to_bits().hash(&mut h);
             metrics.line_height.to_bits().hash(&mut h);
-            (theme::active().font.as_ptr() as usize).hash(&mut h);
+            (crate::render::overlay_chrome_theme().font.as_ptr() as usize).hash(&mut h);
             crate::render::code_ligatures_on().hash(&mut h);
             h.finish()
         };
@@ -83,11 +83,13 @@ impl TextPipeline {
             .set_metrics(&mut self.font_system, metrics);
         self.panel_buffer
             .set_size(&mut self.font_system, None, None);
-        let ink = theme::base_content().to_glyphon();
+        let ink = crate::render::overlay_chrome_theme()
+            .base_content
+            .to_glyphon();
         self.panel_buffer.set_text(
             &mut self.font_system,
             text,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -112,7 +114,7 @@ impl TextPipeline {
         if text.is_empty() {
             return 0.0;
         }
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let metrics = GlyphMetrics::new(
             m.font_size
                 * crate::render::effective_overlay_scale()
@@ -124,7 +126,7 @@ impl TextPipeline {
             let mut h = std::collections::hash_map::DefaultHasher::new();
             text.hash(&mut h);
             metrics.font_size.to_bits().hash(&mut h);
-            (theme::active().font.as_ptr() as usize).hash(&mut h);
+            (crate::render::overlay_chrome_theme().font.as_ptr() as usize).hash(&mut h);
             h.finish()
         };
         if let Some((cached, w)) = self.roster_memo[RosterSlot::Secondary as usize]
@@ -132,7 +134,7 @@ impl TextPipeline {
         {
             return w;
         }
-        let ink = theme::muted().to_glyphon();
+        let ink = crate::render::overlay_chrome_theme().muted.to_glyphon();
         let mono = |c| Attrs::new().family(Family::Monospace).color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
@@ -149,7 +151,7 @@ impl TextPipeline {
         self.panel_bind_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -213,8 +215,9 @@ impl TextPipeline {
     /// not content, so they cannot translate the card's pinned-left chrome.
     /// Both paths use the memoized joined-shaper pass below.
     pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
-        let ink = theme::base_content().to_glyphon();
-        let muted = theme::muted().to_glyphon();
+        let chrome = crate::render::overlay_chrome_theme();
+        let ink = chrome.base_content.to_glyphon();
+        let muted = chrome.muted.to_glyphon();
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
         let hug_roster = self.overlay_hug_roster.clone();

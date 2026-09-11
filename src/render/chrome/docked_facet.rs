@@ -108,7 +108,8 @@ impl TextPipeline {
             .set_size(&mut self.font_system, None, None);
         self.docked_facet_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
-        let fs = self.metrics.font_size * crate::render::effective_overlay_scale() * scale;
+        let fs = self.metrics.ui().font_size * crate::render::effective_overlay_scale() * scale;
+        let chrome = crate::render::overlay_chrome_theme();
         let mut spans = Vec::new();
         if relocated {
             for (idx, (label, active)) in geom.strip.iter().enumerate() {
@@ -116,7 +117,7 @@ impl TextPipeline {
                     spans.push((
                         super::strip_gap(),
                         chrome_attrs()
-                            .color(theme::faint().to_glyphon())
+                            .color(chrome.faint.to_glyphon())
                             .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
                     ));
                 }
@@ -124,7 +125,7 @@ impl TextPipeline {
                     label.as_str(),
                     chrome_attrs()
                         .color(if *active {
-                            theme::base_content().to_glyphon()
+                            chrome.base_content.to_glyphon()
                         } else if matches!(
                             crate::render::effective_facet_style(),
                             theme::FacetStyle::DockedTab
@@ -133,9 +134,9 @@ impl TextPipeline {
                             // categories stay available but recede to the
                             // console's orientation rung instead of reading as
                             // a second row of equally loud poster headlines.
-                            theme::faint().to_glyphon()
+                            chrome.faint.to_glyphon()
                         } else {
-                            theme::muted().to_glyphon()
+                            chrome.muted.to_glyphon()
                         })
                         .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
                 ));
@@ -144,7 +145,7 @@ impl TextPipeline {
         self.docked_facet_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs(),
+            &overlay_panel_attrs(),
             Shaping::Advanced,
             None,
         );

@@ -30,6 +30,7 @@ fn insert_link_opts(query: &str) -> CaptureOpts {
             mode: kind.as_str(),
             title: kind.title().to_string(),
             align: crate::render::effective_card_anchor(),
+            chrome_theme: None,
             query: query.to_string(),
             query_caret: query.chars().count(),
             query_selection: None,

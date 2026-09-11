@@ -18,8 +18,27 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         self.overlay_remetric();
-        let ink = theme::base_content().to_glyphon();
-        let muted = theme::muted().to_glyphon();
+        let chrome = crate::render::overlay_chrome_theme();
+        self.panel_border
+            .set_color(theme::surface_selected_for(chrome).rgba_bytes());
+        self.overlay_rows
+            .set_color(theme::selection_ui_for(chrome).rgba_bytes());
+        self.overlay_bars
+            .set_color(theme::surface_selected_for(chrome).rgba_bytes());
+        self.overlay_spine.set_color(chrome.muted.rgba_bytes());
+        self.overlay_cross
+            .set_color(theme::overlay_band_overlap_for(chrome).rgba_bytes());
+        self.overlay_range_track
+            .set_color(chrome.faint.rgba_bytes());
+        self.overlay_range_thumb
+            .set_color(chrome.muted.rgba_bytes());
+        self.overlay_lens_underline
+            .set_color(chrome.base_content.rgba_bytes());
+        self.panel_caret.set_color(chrome.primary.rgb_bytes());
+        self.panel_query_selection
+            .set_color(chrome.selection_document.rgba_bytes());
+        let ink = chrome.base_content.to_glyphon();
+        let muted = chrome.muted.to_glyphon();
         let geom = self.overlay_geometry(width);
         let mut plan = self.overlay_row_plan(&geom);
         let placard_geometry = self.overlay_shape_placard(&geom);
@@ -175,14 +194,16 @@ impl TextPipeline {
         self.panel_caret.prepare_empty();
         self.panel_query_selection
             .prepare(device, queue, width, height, &[]);
-        let m = self.metrics;
-        let ink = theme::base_content().to_glyphon();
+        let m = self.metrics.ui();
+        let ink = crate::render::overlay_chrome_theme()
+            .base_content
+            .to_glyphon();
         self.panel_buffer
             .set_size(&mut self.font_system, Some(1.0), Some(m.line_height));
         self.panel_buffer.set_text(
             &mut self.font_system,
             "",
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -232,7 +253,7 @@ impl TextPipeline {
     /// rung (ink × size), so the secondary key-chord reads quieter than the name it
     /// annotates, not the same grey/size.
     pub(in crate::render) fn overlay_remetric(&mut self) {
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let name_metrics = self.overlay_metrics();
         let lh = self.overlay_lh();
         self.panel_buffer
@@ -508,7 +529,7 @@ impl TextPipeline {
                 center_y: y + h * 0.5,
                 rect_w: w,
                 rect_h: h,
-                corner: self.metrics.px(CORNER_RADIUS),
+                corner: self.metrics.ui().px(CORNER_RADIUS),
             },
         );
         // THE RENAME MINIBUFFER's seeded-stem selection — see

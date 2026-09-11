@@ -9,16 +9,16 @@
 
 use super::*;
 
-/// The WIDEST a `RailOverRows` content pane may grow, in the same overlay
-/// character currency as `workspace.rs`'s `MIN_PANE_CHARS` floor — its
-/// MAXIMUM companion. Without it the pane fills every pixel a wide window
+/// The WIDEST a `RailOverRows` content pane may grow, as an authored logical
+/// UI width independent of the active world's font — the maximum companion
+/// to `workspace.rs`'s measured safety floor. Without it the pane fills every pixel a wide window
 /// spares it, so a row's name and value drift to opposite edges of an
 /// ever-wider card the further the window stretches. `workspace_max_pane`
 /// resolves it to px; `workspace_geometry` hugs the pane to that width from
 /// its left edge once the window has more to spare, so extra width joins the
 /// card's own ground on the pane's trailing side. (A TASTE TUNABLE, like
 /// `rowlayout::OUTLINE_PREFERRED_CHARS`.)
-const MAX_PANE_CHARS: Chars = Chars(72.0);
+const MAX_PANE_W: Logical = Logical(520.0);
 
 /// THE TIMELINE COLUMN'S WIDTH POLICY, and why it is not the rail's.
 ///
@@ -53,7 +53,7 @@ impl TextPipeline {
     /// where the pane's own rows are the content; a `TimelineOverComparison`
     /// pane hugs itself already, by its own owner.
     pub(in crate::render) fn workspace_max_pane(&self) -> f32 {
-        MAX_PANE_CHARS.0 * self.overlay_char_width()
+        self.metrics.ui().px(MAX_PANE_W)
     }
 
     #[cfg(test)]
@@ -160,11 +160,13 @@ impl TextPipeline {
             .set_size(&mut self.font_system, None, None);
         self.workspace_rail_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
-        let ink = theme::base_content().to_glyphon();
+        let ink = crate::render::overlay_chrome_theme()
+            .base_content
+            .to_glyphon();
         self.workspace_rail_buffer.set_text(
             &mut self.font_system,
             text,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -219,7 +221,7 @@ impl TextPipeline {
         push_symbol_split(
             &mut spans,
             hint,
-            || panel_attrs().color(ink).metrics(metrics),
+            || overlay_panel_attrs().color(ink).metrics(metrics),
             || {
                 Attrs::new()
                     .family(Family::Name(SYMBOL_FAMILY))
@@ -230,7 +232,7 @@ impl TextPipeline {
         self.workspace_hint_measure_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );

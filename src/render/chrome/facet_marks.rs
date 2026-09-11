@@ -33,11 +33,13 @@ impl TextPipeline {
             return;
         }
         let facet_style = crate::render::effective_facet_style();
-        let chip_radius = self.metrics.px(FACET_CHIP_RADIUS);
-        let bar_stroke = self.metrics.px(crate::render::BAR_OUTLINE_STROKE);
-        let underline_corner = self.metrics.px(CHIP_UNDERLINE_CORNER);
+        let ui = self.metrics.ui();
+        let chip_radius = ui.px(FACET_CHIP_RADIUS);
+        let bar_stroke = ui.px(crate::render::BAR_OUTLINE_STROKE);
+        let underline_corner = ui.px(CHIP_UNDERLINE_CORNER);
         let mut ghosts = Vec::new();
         let band = super::overlay_selected_band_srgb();
+        let chrome = crate::render::overlay_chrome_theme();
         match facet_style {
             theme::FacetStyle::Text => {}
             theme::FacetStyle::Band => {
@@ -47,20 +49,21 @@ impl TextPipeline {
             }
             theme::FacetStyle::DockedTab => {
                 self.overlay_lens_underline.set_color(
-                    theme::pane_surface(crate::render::effective_card_elevation()).rgba_bytes(),
+                    theme::pane_surface_for(chrome, crate::render::effective_card_elevation())
+                        .rgba_bytes(),
                 );
                 self.overlay_lens_underline.set_corner(0.0);
                 self.overlay_lens_underline.set_stroke(0.0);
                 self.overlay_facet_ghost
-                    .set_color(theme::surface_selected().rgba_bytes());
+                    .set_color(theme::surface_selected_for(chrome).rgba_bytes());
                 self.overlay_facet_ghost.set_corner(0.0);
                 self.overlay_facet_ghost.set_stroke(bar_stroke);
                 ghosts = self.overlay_theme_facet_ghosts.clone();
             }
             theme::FacetStyle::Chips(v) => {
                 use theme::ChipVariant as V;
-                let content = theme::base_content();
-                let muted = theme::muted();
+                let content = chrome.base_content;
+                let muted = chrome.muted;
                 let (a_fill, a_corner, a_stroke) = match v {
                     V::Hairline => (band.rgba_bytes(), chip_radius, 0.0),
                     V::FilledActive => (content.rgba_bytes(), chip_radius, 0.0),

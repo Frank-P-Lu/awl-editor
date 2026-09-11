@@ -233,7 +233,16 @@ impl OverlayState {
             .collect();
         let mut s = Self {
             kind,
-            align: crate::render::effective_card_anchor(),
+            // Themes is the one chooser whose rows replace the world behind
+            // the card. Its reviewed composition is a stable top-right form
+            // at ordinary widths (the shared card placer supplies the centered
+            // narrow fallback), independent of whichever world opened it.
+            // Other pickers retain their authored world anchor.
+            align: if kind == OverlayKind::Theme {
+                crate::theme::CardAnchor::TopRight
+            } else {
+                crate::render::effective_card_anchor()
+            },
             query: TextBox::new(),
             rows,
             open,

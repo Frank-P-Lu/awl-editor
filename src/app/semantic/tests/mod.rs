@@ -753,6 +753,7 @@ fn every_advertised_action_drives_a_real_transition() {
         Editor,
         Popover,
         Search,
+        SearchReplace,
         MenuBar,
         Overlay(OverlayKind),
     }
@@ -760,6 +761,7 @@ fn every_advertised_action_drives_a_real_transition() {
         Fixture::Editor,
         Fixture::Popover,
         Fixture::Search,
+        Fixture::SearchReplace,
         Fixture::MenuBar,
     ];
     fixtures.extend(OverlayKind::ALL.into_iter().map(Fixture::Overlay));
@@ -782,6 +784,17 @@ fn every_advertised_action_drives_a_real_transition() {
                     Fixture::Search => app.workspace_state.install_search_for_test(
                         crate::search::SearchState::start(0, crate::search::Direction::Forward),
                     ),
+                    Fixture::SearchReplace => {
+                        let mut search = crate::search::SearchState::start_with_query(
+                            0,
+                            crate::search::Direction::Forward,
+                            "some",
+                            &app.document.buffer().text(),
+                        );
+                        search.reveal_replace();
+                        search.push_replace_char('x');
+                        app.workspace_state.install_search_for_test(search);
+                    }
                     Fixture::MenuBar => crate::menubar::set_menu_bar_on(true),
                     Fixture::Overlay(kind) => app
                         .workspace_state
@@ -832,4 +845,110 @@ fn every_advertised_action_drives_a_real_transition() {
         }
     }
     calm_globals();
+}
+
+#[test]
+fn search_semantics_publish_and_drive_the_exact_shared_control_roster() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+
+    let install = |app: &mut App, replace: bool| {
+        app.set_semantic_text_for_test("one two one three one");
+        let haystack = app.document.buffer().text();
+        let mut search = crate::search::SearchState::start_with_query(
+            0,
+            crate::search::Direction::Forward,
+            "one",
+            &haystack,
+        );
+        if replace {
+            search.reveal_replace();
+            search.push_replace_char('X');
+        }
+        app.workspace_state.install_search_for_test(search);
+    };
+
+    let mut plain = hermetic();
+    install(&mut plain, false);
+    let plain_snapshot = plain.semantic_snapshot();
+    for id in [SEARCH_PREVIOUS_ID, SEARCH_NEXT_ID] {
+        let node = plain_snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("plain Find omitted {id}"));
+        assert_eq!(node.role, SemanticRole::Button, "{id} has the button role");
+        assert_eq!(
+            node.actions,
+            [SemanticAction::Click],
+            "{id} has one real action"
+        );
+        assert!(
+            !node.focusable,
+            "{id} must not advertise an unrouted Focus action"
+        );
+    }
+    for id in [SEARCH_REPLACE_BUTTON_ID, SEARCH_REPLACE_ALL_ID] {
+        assert!(
+            plain_snapshot.nodes.iter().all(|node| node.id != id),
+            "plain Find must not publish replace-only control {id}"
+        );
+    }
+
+    let mut replace = hermetic();
+    install(&mut replace, true);
+    let replace_snapshot = replace.semantic_snapshot();
+    for id in [
+        SEARCH_PREVIOUS_ID,
+        SEARCH_NEXT_ID,
+        SEARCH_REPLACE_BUTTON_ID,
+        SEARCH_REPLACE_ALL_ID,
+    ] {
+        let node = replace_snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("Find and replace omitted {id}"));
+        assert_eq!(node.role, SemanticRole::Button, "{id} has the button role");
+        assert_eq!(
+            node.actions,
+            [SemanticAction::Click],
+            "{id} has one real action"
+        );
+    }
+
+    let before = replace
+        .workspace_state
+        .search()
+        .and_then(crate::search::SearchState::current_index);
+    assert!(replace.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_NEXT_ID.to_string(),
+    }));
+    assert_ne!(
+        replace
+            .workspace_state
+            .search()
+            .and_then(crate::search::SearchState::current_index),
+        before,
+        "Next match must move the real search selection"
+    );
+    assert!(replace.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_REPLACE_BUTTON_ID.to_string(),
+    }));
+    assert_eq!(
+        replace.document.buffer().text(),
+        "one two X three one",
+        "Replace must take the same SearchPanel action path as pointer and keyboard"
+    );
+
+    let mut replace_all = hermetic();
+    install(&mut replace_all, true);
+    assert!(replace_all.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_REPLACE_ALL_ID.to_string(),
+    }));
+    assert_eq!(
+        replace_all.document.buffer().text(),
+        "X two X three X",
+        "Replace all must change every real match"
+    );
 }

@@ -33,7 +33,7 @@ impl TextPipeline {
         let density = self.dpi.max(1.0);
         let pitch = pitch_px * density;
         let line = line_px * density;
-        let ink = theme::base_100().rgba_bytes();
+        let ink = crate::render::overlay_chrome_theme().base_100.rgba_bytes();
         let card = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         let (chamfer, _) = self.card_shape_texture(&[card]);
 

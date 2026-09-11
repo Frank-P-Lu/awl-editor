@@ -216,15 +216,19 @@ pub(super) fn current() -> RenderOverrides {
 }
 
 pub(in crate::render) fn effective_placard_placement() -> theme::PlacardPlacement {
-    current()
-        .placard_placement
-        .unwrap_or(theme::active().render_caps.placard_placement)
+    current().placard_placement.unwrap_or(
+        crate::render::overlay_chrome_theme()
+            .render_caps
+            .placard_placement,
+    )
 }
 
 pub(in crate::render) fn effective_summoned_material() -> theme::SummonedMaterial {
-    current()
-        .summoned_material
-        .unwrap_or(theme::active().render_caps.summoned_material)
+    current().summoned_material.unwrap_or(
+        crate::render::overlay_chrome_theme()
+            .render_caps
+            .summoned_material,
+    )
 }
 
 /// Install a whole [`RenderOverrides`] as the test override in one call,

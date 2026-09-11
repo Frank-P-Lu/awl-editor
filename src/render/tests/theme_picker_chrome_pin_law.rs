@@ -36,11 +36,16 @@ struct ChromeSnapshot {
 fn snapshot(p: &mut TextPipeline, ov: &OverlayState) -> ChromeSnapshot {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
+    v.overlay_theme_picker = true;
     v.overlay_items = ov.item_strings();
     v.overlay_selected = ov.selected;
     v.overlay_lens = ov.lens_strip();
     v.overlay_sections = ov.item_sections();
     v.overlay_align = Some(ov.align);
+    assert!(
+        v.overlay_theme_picker,
+        "the sweep must exercise the typed Themes path"
+    );
     p.sync_theme();
     p.set_view(&v);
     let card_rect = p.overlay_card_rect().expect("theme picker card");
@@ -55,6 +60,73 @@ fn snapshot(p: &mut TextPipeline, ov: &OverlayState) -> ChromeSnapshot {
         row_pitch: p.overlay_lh(),
         capacity: lines,
     }
+}
+
+fn snapshot_at_zoom(p: &mut TextPipeline, ov: &OverlayState, zoom: f32) -> ChromeSnapshot {
+    let mut v = view("hello world\n", 0, 0);
+    v.zoom = zoom;
+    v.overlay_active = true;
+    v.overlay_theme_picker = true;
+    v.overlay_items = ov.item_strings();
+    v.overlay_selected = ov.selected;
+    v.overlay_lens = ov.lens_strip();
+    v.overlay_sections = ov.item_sections();
+    v.overlay_align = Some(ov.align);
+    p.sync_theme();
+    p.set_view(&v);
+    let card_rect = p.overlay_card_rect().expect("theme picker card");
+    let (_, lines, _, _, _) = p.overlay_window_report().expect("theme picker report");
+    ChromeSnapshot {
+        card_rect,
+        list_style: crate::render::effective_list_style(),
+        facet_style: crate::render::effective_facet_style(),
+        pane_split: crate::render::effective_pane_split(),
+        row_pitch: p.overlay_lh(),
+        capacity: lines,
+    }
+}
+
+#[test]
+fn every_opener_and_document_zoom_share_one_theme_picker_geometry() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _pin = crate::render::PickerChromePinRestore::capture();
+    let Some((_device, _queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(concat!(
+            "skipping every_opener_and_document_zoom_share_one_theme_picker_geometry: ",
+            "no wgpu adapter"
+        ));
+        return;
+    };
+    let names: Vec<String> = crate::theme::world_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    let mut expected = None;
+    let mut cells = 0usize;
+    for opener in crate::theme::THEMES {
+        crate::theme::set_active_by_name(opener.name).unwrap();
+        let overlay = OverlayState::new_theme(names.clone(), crate::theme::active_index());
+        for zoom in [0.5, 1.0, 2.0] {
+            let got = snapshot_at_zoom(&mut p, &overlay, zoom);
+            assert_eq!(
+                got.card_rect[2], 545.0,
+                "{}/{zoom}: the ordinary Themes card has one 545-logical width",
+                opener.name
+            );
+            if let Some(expected) = expected {
+                assert_eq!(
+                    got, expected,
+                    "{}/{zoom}: opener or document zoom moved the Themes card",
+                    opener.name
+                );
+            } else {
+                expected = Some(got);
+            }
+            cells += 1;
+        }
+    }
+    assert_eq!(cells, crate::theme::THEMES.len() * 3);
 }
 
 /// Move the picker's selection to `name` via the DELIBERATE-move door
@@ -72,6 +144,59 @@ fn step_to(ov: &mut OverlayState, name: &str) {
         .expect("world visible on the flat lens");
     ov.selected = pos;
     crate::actions::preview_move(ov);
+}
+
+#[test]
+fn preview_updates_persistent_chrome_face_while_the_picker_face_stays_pinned() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _pin = crate::render::PickerChromePinRestore::capture();
+    let (opener, destination) = theme::THEMES
+        .iter()
+        .enumerate()
+        .flat_map(|(opener_index, opener)| {
+            theme::THEMES
+                .iter()
+                .skip(opener_index + 1)
+                .map(move |destination| (opener, destination))
+        })
+        .find(|(opener, destination)| {
+            opener.font != destination.font && opener.base_100 != destination.base_100
+        })
+        .expect("the roster must vary both its body face and page palette");
+
+    theme::set_active_by_name(opener.name).unwrap();
+    let names: Vec<String> = theme::THEMES
+        .iter()
+        .map(|theme| theme.name.to_string())
+        .collect();
+    let mut overlay = OverlayState::new_theme(names, theme::active_index());
+    let persistent_at_open = format!("{:?}", panel_attrs());
+    let picker_at_open = format!("{:?}", overlay_panel_attrs());
+
+    step_to(&mut overlay, destination.name);
+
+    let persistent_at_preview = format!("{:?}", panel_attrs());
+    let picker_at_preview = format!("{:?}", overlay_panel_attrs());
+    assert_ne!(
+        persistent_at_preview, persistent_at_open,
+        "{} -> {}: persistent chrome behind Themes kept the opener face",
+        opener.name, destination.name
+    );
+    assert!(
+        persistent_at_preview.contains(destination.font),
+        "persistent chrome must adopt destination face {} (got {persistent_at_preview})",
+        destination.font
+    );
+    assert_eq!(
+        picker_at_preview, picker_at_open,
+        "the Themes card must retain its opener face"
+    );
+    let picker_theme = crate::render::overlay_chrome_theme();
+    assert_eq!(picker_theme.font, opener.font);
+    assert_eq!(picker_theme.base_100, opener.base_100);
+    assert_eq!(theme::active().font, destination.font);
+    assert_eq!(theme::active().base_100, destination.base_100);
 }
 
 #[test]
@@ -276,5 +401,28 @@ fn a_panic_after_a_direct_pin_does_not_leak_it_to_the_next_reader_on_this_thread
         None,
         "PickerChromePinRestore must put the pin back on the unwinding path, or the \
          NEXT reader on this worker thread inherits a concrete world index nobody chose"
+    );
+}
+
+#[test]
+fn dismissing_themes_releases_its_font_and_palette_pin() {
+    let _g = crate::testlock::serial();
+    let _pin = crate::render::PickerChromePinRestore::capture();
+    let Some((_device, _queue, mut pipeline)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping dismissing_themes_releases_its_font_and_palette_pin: no wgpu adapter");
+        return;
+    };
+    let names = crate::theme::world_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    let _overlay = OverlayState::new_theme(names, crate::theme::active_index());
+    assert!(crate::render::picker_chrome_pin_probe().is_some());
+
+    pipeline.set_view(&view("document only\n", 0, 0));
+    assert_eq!(
+        crate::render::picker_chrome_pin_probe(),
+        None,
+        "a no-overlay frame must restore ordinary chrome to the active world's font and palette"
     );
 }
