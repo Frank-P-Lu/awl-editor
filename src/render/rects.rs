@@ -1170,17 +1170,13 @@ impl TextPipeline {
             .collect()
     }
 
-    /// Visible smart-punctuation substitute marks: `(row top, absolute left,
-    /// which glyph, reserved slot width)`. The span's source is collapsed by
-    /// `add_wysiwyg_conceal_spans` (via `add_smart_punct_conceal_spans`); this
-    /// reads its char boundary in the SAME shaped row and re-derives WHICH
-    /// glyph from the same raw bytes ([`smart_punct_kind_for`]), so the
-    /// painted glyph, the reserved zero-width slot, and the concealed source
-    /// can never diverge — the `bare_url_marks`/`footnote_marks` precedent,
-    /// with a per-mark KIND payload instead of a per-mark NUMBER.
+    /// Visible smart-punctuation marks: `(row top, left, glyph, slot, heading level)`.
+    /// The source collapses through `add_wysiwyg_conceal_spans`; this reads the SAME shaped
+    /// row and raw bytes ([`smart_punct_kind_for`]), so painted glyph, slot, and source cannot
+    /// diverge — the `bare_url_marks`/`footnote_marks` precedent, with a KIND payload.
     pub(super) fn smart_punct_marks(
         &self,
-    ) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32)> {
+    ) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32, u8)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || self.md_spans.is_empty() {
             return Vec::new();
         }
@@ -1226,11 +1222,14 @@ impl TextPipeline {
                     .find(|row| row.start_col <= col && col <= row.end_col)?;
                 let local = col.saturating_sub(row.start_col);
                 let x = *row.xs.get(local)?;
+                let heading_level = spans::md_line_heading_level(line_text, self.md_enabled);
                 Some((
                     doc_top + row.line_top,
                     text_left + x,
                     kind,
-                    self.substitute_advances.advance(kind),
+                    self.substitute_advances
+                        .smart_punct_advance(kind, heading_level),
+                    heading_level,
                 ))
             })
             .collect()

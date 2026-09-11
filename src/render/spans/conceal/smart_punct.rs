@@ -14,12 +14,20 @@ pub(super) fn kind_index(kind: crate::markdown::SmartPunctKind) -> usize {
     }
 }
 
-fn smart_punct_attrs(family: &'static str, color: glyphon::Color) -> Attrs<'static> {
-    Attrs::new()
+fn smart_punct_attrs(
+    family: &'static str,
+    color: glyphon::Color,
+    heading_level: u8,
+) -> Attrs<'static> {
+    let mut attrs = Attrs::new()
         .family(Family::Name(family))
         .weight(mono_safe_weight(family))
         .font_features(text::font_features(false, family, code_ligatures_on()))
-        .color(color)
+        .color(color);
+    if crate::markdown::heading_weight_bold(theme::active().heading_bold, heading_level) {
+        attrs = attrs.weight(glyphon::Weight::BOLD);
+    }
+    attrs
 }
 
 /// Measure the conceal path at two letter-spacing values and solve its affine
@@ -51,7 +59,7 @@ fn concealed_literal_width(
     kind: crate::markdown::SmartPunctKind,
     letter_spacing: f32,
 ) -> f32 {
-    let hidden = smart_punct_attrs(family, RULE_CONCEAL_COLOR).metrics(GlyphMetrics::new(
+    let hidden = smart_punct_attrs(family, RULE_CONCEAL_COLOR, 0).metrics(GlyphMetrics::new(
         CONCEAL_ZERO_WIDTH_FONT_SIZE,
         metrics.line_height,
     ));
@@ -84,10 +92,11 @@ pub(in crate::render) fn shape_smart_punct_glyph(
     metrics: Metrics,
     family: &'static str,
     kind: crate::markdown::SmartPunctKind,
+    heading_level: u8,
     color: glyphon::Color,
 ) -> (GlyphBuffer, f32) {
     let glyph_metrics = GlyphMetrics::new(metrics.font_size, metrics.line_height);
-    let attrs = smart_punct_attrs(family, color);
+    let attrs = smart_punct_attrs(family, color, heading_level);
     let mut buffer = GlyphBuffer::new(font_system, glyph_metrics);
     buffer.set_size(
         font_system,
@@ -142,11 +151,12 @@ pub(super) fn add_smart_punct_conceal_spans(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
     line_doc_start: usize,
-    lo: usize,
-    hi: usize,
+    range: std::ops::Range<usize>,
     hidden: &Attrs<'static>,
     advances: SubstituteAdvances,
+    heading_level: u8,
 ) {
+    let (lo, hi) = (range.start, range.end);
     let local_range = (lo - line_doc_start)..(hi - line_doc_start);
     let Some(kind) = smart_punct_kind_for(line_text, local_range) else {
         return;
@@ -159,7 +169,7 @@ pub(super) fn add_smart_punct_conceal_spans(
     if first_end > lo {
         let forcing = hidden
             .clone()
-            .letter_spacing(advances.forcing_spacing(kind));
+            .letter_spacing(advances.smart_punct_forcing_spacing(kind, heading_level));
         al.add_span(
             (lo - line_doc_start)..(first_end - line_doc_start),
             &forcing,

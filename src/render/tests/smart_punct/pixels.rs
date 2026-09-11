@@ -15,6 +15,7 @@ const WIDTH_RATIO_BAND: std::ops::RangeInclusive<f64> = 0.75..=1.35;
 struct InkGeometry {
     count: usize,
     left: i64,
+    top: i64,
     width: i64,
     height: i64,
 }
@@ -56,6 +57,7 @@ fn core_ink_geometry(
     Some(InkGeometry {
         count,
         left: min_x,
+        top: min_y,
         width: max_x - min_x + 1,
         height: max_y - min_y + 1,
     })
@@ -105,6 +107,8 @@ fn strongest_ink_color(
 
 struct RenderedPair {
     pixels: Vec<[u8; 4]>,
+    canvas_w: u32,
+    canvas_h: u32,
     source_cell: pixeldiff::Region,
     control_cell: pixeldiff::Region,
     source_suffix_cell: pixeldiff::Region,
@@ -125,12 +129,29 @@ fn cell_ink(
     kind: crate::markdown::SmartPunctKind,
     subject: &str,
 ) -> CellInk {
-    let ground = modal_color(&pair.pixels, W as i64, H as i64, region)
-        .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} cell is empty"));
-    let strongest = strongest_ink_color(&pair.pixels, W as i64, H as i64, region, ground)
-        .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} is absent in {region:?}"));
-    let geometry = core_ink_geometry(&pair.pixels, W as i64, H as i64, region, strongest)
-        .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} has no core ink"));
+    let ground = modal_color(
+        &pair.pixels,
+        pair.canvas_w as i64,
+        pair.canvas_h as i64,
+        region,
+    )
+    .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} cell is empty"));
+    let strongest = strongest_ink_color(
+        &pair.pixels,
+        pair.canvas_w as i64,
+        pair.canvas_h as i64,
+        region,
+        ground,
+    )
+    .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} is absent in {region:?}"));
+    let geometry = core_ink_geometry(
+        &pair.pixels,
+        pair.canvas_w as i64,
+        pair.canvas_h as i64,
+        region,
+        strongest,
+    )
+    .unwrap_or_else(|| panic!("{world} {kind:?}: {subject} has no core ink"));
     CellInk {
         ground,
         strongest,
@@ -216,6 +237,8 @@ fn render_pair(
     );
     RenderedPair {
         pixels,
+        canvas_w: W,
+        canvas_h: H,
         source_cell,
         control_cell,
         source_suffix_cell,
@@ -308,4 +331,138 @@ fn smart_punct_ornament_matches_body_advance_horizontal_extent_and_ink_every_wor
         theme::THEMES.len() * crate::markdown::SmartPunctKind::ALL.len(),
         "full world × punctuation roster enrolled: {enrolled:?}"
     );
+}
+
+/// Heading punctuation is not a body-sized ornament: its preview ink must use
+/// the same scaled ink extent, baseline and following-prose position as a raw
+/// Unicode control on the same H3 row. This is deliberately backend-relative
+/// (paired pixels from one frame), and sweeps the world roster at both authored
+/// DPI meanings. Ellipsis core height is deliberately not compared: raster
+/// phase can make its dots one or several rows tall. The slot-only mutation
+/// cannot satisfy the ink-width or baseline comparisons below because the
+/// painted buffer is enrolled independently.
+fn render_heading_ellipsis_pair(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    dpi: f32,
+) -> (RenderedPair, f32, f32) {
+    let w = (W as f32 * dpi) as u32;
+    let h = (H as f32 * dpi) as u32;
+    let doc = "### A ... tail\n\n### A … tail\n\npark\n";
+    let mut v = view(doc, 4, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    let mark = p
+        .smart_punct_marks()
+        .pop()
+        .expect("preview ellipsis enrolls");
+    assert_eq!(mark.2, crate::markdown::SmartPunctKind::Ellipsis);
+    let source = p.visual_rows(0)[0].clone();
+    let control = p.visual_rows(2)[0].clone();
+    p.prepare(device, queue, w, h).unwrap();
+    let pixels = pixeldiff::render_frame(p, device, queue, w, h);
+    let control_col = "### A …".chars().count() - 1;
+    let source_suffix_col = "### A ... ".chars().count();
+    let control_suffix_col = "### A … ".chars().count();
+    let source_cell = pixeldiff::Region::new(
+        mark.1,
+        mark.0 - 3.0,
+        mark.3.max(1.0),
+        source.line_height + 6.0,
+    );
+    let control_top = p.line_ornament_top(2);
+    let control_left = p.text_left() + control.xs[control_col];
+    let control_cell = pixeldiff::Region::new(
+        control_left,
+        control_top - 3.0,
+        mark.3.max(1.0),
+        control.line_height + 6.0,
+    );
+    let source_suffix = p.text_left() + source.xs[source_suffix_col];
+    let control_suffix = p.text_left() + control.xs[control_suffix_col];
+    let pair = RenderedPair {
+        pixels,
+        canvas_w: w,
+        canvas_h: h,
+        source_cell,
+        control_cell,
+        source_suffix_cell: pixeldiff::Region::new(
+            source_suffix - 3.0,
+            mark.0 - 3.0,
+            12.0 * dpi,
+            source.line_height + 6.0,
+        ),
+        control_suffix_cell: pixeldiff::Region::new(
+            control_suffix - 3.0,
+            control_top - 3.0,
+            12.0 * dpi,
+            control.line_height + 6.0,
+        ),
+    };
+    (pair, source_suffix, control_suffix)
+}
+
+fn grade_heading_ellipsis_pair(
+    pair: &RenderedPair,
+    source_suffix: f32,
+    control_suffix: f32,
+    world: &str,
+    dpi: f32,
+) {
+    let kind = crate::markdown::SmartPunctKind::Ellipsis;
+    let preview = cell_ink(pair, pair.source_cell, world, kind, "heading ornament");
+    let raw = cell_ink(pair, pair.control_cell, world, kind, "raw heading control");
+    let width_ratio = preview.geometry.width as f64 / raw.geometry.width.max(1) as f64;
+    let ink_ratio = preview.geometry.count as f64 / raw.geometry.count.max(1) as f64;
+    let preview_y = preview.geometry.top as f64 - pair.source_cell.y as f64;
+    let raw_y = raw.geometry.top as f64 - pair.control_cell.y as f64;
+    assert!(
+        (0.78..=1.30).contains(&width_ratio),
+        "{world} dpi {dpi}: heading ink width ratio {width_ratio:.2}; preview={:?} raw={:?}",
+        preview.geometry,
+        raw.geometry,
+    );
+    assert!(
+        ink_ratio >= 0.30,
+        "{world} dpi {dpi}: heading weight core-ink ratio {ink_ratio:.2}; preview={:?} raw={:?}",
+        preview.geometry,
+        raw.geometry,
+    );
+    assert!(
+        (preview_y - raw_y).abs() <= 2.5 * dpi as f64,
+        "{world} dpi {dpi}: heading baseline mismatch ({preview_y:.1} vs {raw_y:.1})"
+    );
+    assert!(
+        (source_suffix - control_suffix).abs() <= 2.5 * dpi,
+        "{world} dpi {dpi}: heading suffix spacing mismatch ({source_suffix} vs {control_suffix})"
+    );
+}
+
+#[test]
+fn smart_punct_heading_ellipsis_matches_raw_heading_ink_at_every_world_and_dpi() {
+    let _t = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let _page = crate::page::PagePin::snapshot();
+    crate::markdown::set_wysiwyg_on(true);
+    crate::page::set_page_on(true);
+    crate::page::set_measure(80);
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping heading ellipsis pixel law: no wgpu adapter");
+        return;
+    };
+    let mut graded = 0usize;
+    for dpi in [1.0, 2.0] {
+        p.set_dpi(dpi);
+        for world in theme::THEMES {
+            theme::set_active_by_name(world.name).unwrap();
+            p.sync_theme();
+            let (pair, source_suffix, control_suffix) =
+                render_heading_ellipsis_pair(&mut p, &device, &queue, dpi);
+            grade_heading_ellipsis_pair(&pair, source_suffix, control_suffix, world.name, dpi);
+            graded += 1;
+        }
+    }
+    assert_eq!(graded, theme::THEMES.len() * 2);
+    p.set_dpi(1.0);
 }

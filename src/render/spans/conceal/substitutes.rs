@@ -42,8 +42,12 @@ const FOOTNOTE_NUMBER_GAP: f32 = 0.10;
 /// change and threaded into the line-attrs recipe. See the module docs.
 #[derive(Clone, Copy, Debug)]
 pub(in crate::render) struct SubstituteAdvances {
-    smart_punct: [f32; 3],
-    smart_punct_forcing: [f32; 3],
+    // Indexed by the heading ladder's BODY/H1/H2/H3+ rungs, then by the
+    // smart-punctuation roster. A concealed run has to reserve the metrics its
+    // literal would take on this line: a body-sized ellipsis in `### title...`
+    // reads small, raised and loose beside the heading's real text.
+    smart_punct: [[f32; 3]; 4],
+    smart_punct_forcing: [[f32; 3]; 4],
     /// Per DIGIT `0..=9`, that digit's advance at the footnote superscript
     /// size. A number's slot is the sum over its own digits, which is an upper
     /// bound on the shaped run (digits do not kern apart in any bundled face —
@@ -64,20 +68,29 @@ impl SubstituteAdvances {
         metrics: Metrics,
         family: &'static str,
     ) -> Self {
-        let mut smart_punct = [0.0; 3];
-        let mut smart_punct_forcing = [0.0; 3];
-        for kind in crate::markdown::SmartPunctKind::ALL {
-            let (_, width) = shape_smart_punct_glyph(
-                font_system,
-                metrics,
-                family,
-                kind,
-                theme::base_content().to_glyphon(),
-            );
-            let index = smart_punct::kind_index(kind);
-            smart_punct[index] = width;
-            smart_punct_forcing[index] =
-                smart_punct::calibrate_forcing_spacing(font_system, metrics, family, kind, width);
+        let mut smart_punct = [[0.0; 3]; 4];
+        let mut smart_punct_forcing = [[0.0; 3]; 4];
+        for level in 0..=3 {
+            let line_metrics = smart_punct_metrics(metrics, level);
+            for kind in crate::markdown::SmartPunctKind::ALL {
+                let (_, width) = shape_smart_punct_glyph(
+                    font_system,
+                    line_metrics,
+                    family,
+                    kind,
+                    level,
+                    theme::base_content().to_glyphon(),
+                );
+                let index = smart_punct::kind_index(kind);
+                smart_punct[level as usize][index] = width;
+                smart_punct_forcing[level as usize][index] = smart_punct::calibrate_forcing_spacing(
+                    font_system,
+                    line_metrics,
+                    family,
+                    kind,
+                    width,
+                );
+            }
         }
         let mut digits = [0.0; 10];
         for (d, slot) in digits.iter_mut().enumerate() {
@@ -121,11 +134,24 @@ impl SubstituteAdvances {
     }
 
     pub(in crate::render) fn advance(self, kind: crate::markdown::SmartPunctKind) -> f32 {
-        self.smart_punct[smart_punct::kind_index(kind)]
+        self.smart_punct[0][smart_punct::kind_index(kind)]
     }
 
-    pub(in crate::render) fn forcing_spacing(self, kind: crate::markdown::SmartPunctKind) -> f32 {
-        self.smart_punct_forcing[smart_punct::kind_index(kind)]
+    pub(in crate::render) fn smart_punct_advance(
+        self,
+        kind: crate::markdown::SmartPunctKind,
+        heading_level: u8,
+    ) -> f32 {
+        self.smart_punct[smart_punct_level_index(heading_level)][smart_punct::kind_index(kind)]
+    }
+
+    pub(in crate::render) fn smart_punct_forcing_spacing(
+        self,
+        kind: crate::markdown::SmartPunctKind,
+        heading_level: u8,
+    ) -> f32 {
+        self.smart_punct_forcing[smart_punct_level_index(heading_level)]
+            [smart_punct::kind_index(kind)]
     }
 
     /// Width reserved for the single painted "…" that substitutes a concealed
@@ -160,6 +186,23 @@ impl SubstituteAdvances {
         };
         sum + self.footnote_gap
     }
+}
+
+/// The heading ladder has three non-body rungs; every `####` through `######`
+/// shares the H3+ metrics. Keep this index beside the cache so the forced slot
+/// and the separately painted glyph cannot choose different rungs.
+fn smart_punct_level_index(heading_level: u8) -> usize {
+    heading_level.min(3) as usize
+}
+
+/// The exact line metrics an on-caret smart-punctuation literal inherits from
+/// `build_line_attrs`: heading font scale plus its decoupled row lead.
+pub(in crate::render) fn smart_punct_metrics(metrics: Metrics, heading_level: u8) -> Metrics {
+    let scale = crate::markdown::heading_scale(heading_level);
+    let mut heading_metrics = metrics;
+    heading_metrics.font_size *= scale;
+    heading_metrics.line_height *= scale * crate::markdown::heading_row_lead(heading_level);
+    heading_metrics
 }
 
 /// Shape one footnote `number`'s display text exactly as it will be painted,
@@ -252,6 +295,7 @@ pub(super) fn add_substitute_conceal_spans(
     hidden: &Attrs<'static>,
     ck: crate::markdown::ConcealKind,
     substitute_advances: Option<SubstituteAdvances>,
+    heading_level: u8,
 ) -> bool {
     use crate::markdown::ConcealKind;
     if !matches!(
@@ -289,10 +333,10 @@ pub(super) fn add_substitute_conceal_spans(
                 al,
                 line_text,
                 line_doc_start,
-                lo,
-                hi,
+                lo..hi,
                 hidden,
                 advances,
+                heading_level,
             );
             true
         }

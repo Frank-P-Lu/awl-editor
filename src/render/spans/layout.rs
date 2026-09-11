@@ -252,6 +252,7 @@ pub(in crate::render) fn build_line_attrs(
         image_force,
         ctx.selection_touch,
         Some(ctx.substitute_advances),
+        heading_level,
     );
     add_list_indent_span(&mut al, line_text, &lb, ctx.base_font_size, row_lh);
     al

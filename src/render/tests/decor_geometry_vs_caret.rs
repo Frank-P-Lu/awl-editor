@@ -1130,6 +1130,7 @@ fn the_bare_url_ellipsis_reserves_exactly_the_glyph_it_paints() {
             metrics,
             family,
             crate::markdown::SmartPunctKind::Ellipsis,
+            0,
             theme::muted().to_glyphon(),
         );
         assert!(
@@ -1173,23 +1174,23 @@ fn the_bare_url_ellipsis_reserves_exactly_the_glyph_it_paints() {
     p.sync_theme();
 }
 
-/// **A SUBSTITUTE'S SLOT NEVER SCALES WITH THE ROW IT LANDS ON.** Every painted
-/// substitute is shaped at BODY metrics whatever row it sits in, so a
+/// **A FOOTNOTE OR BARE-URL SLOT NEVER SCALES WITH THE ROW IT LANDS ON.** Those
+/// substitute families are shaped at BODY metrics whatever row they sit in, so a
 /// reservation keyed on the row's own height was wrong twice over on a heading
-/// line: it reserved a `#` row's 1.84x of room for a body-size mark. All three
+/// line: it reserved a `#` row's 1.84x of room for a body-size mark. Both
 /// families are read from the mark rosters the ornament layer paints from
 /// (`footnote_marks` / `bare_url_marks` / `smart_punct_marks`), which carry the
 /// reserved slot itself, so this is the number the document actually forced.
-/// Smart punctuation was already correct here and is swept alongside the two
-/// that were not — an unlawed correct member is one refactor from being a
-/// defect.
+/// Smart punctuation intentionally differs: it is sentence punctuation and
+/// follows the heading's own type metrics; its dedicated heading law lives in
+/// `render/tests/smart_punct.rs`.
 #[test]
-fn a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on() {
+fn a_body_metric_substitutes_slot_never_scales_with_the_row_it_lands_on() {
     let _t = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on: none"
+            "skipping a_body_metric_substitutes_slot_never_scales_with_the_row_it_lands_on: none"
         );
         return;
     };
@@ -1200,7 +1201,6 @@ fn a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on() {
         for (label, tail) in [
             ("footnote", "aa[^1] bb"),
             ("bare url", "aa https://example.com/deep bb"),
-            ("smart punct", "aa -- bb"),
         ] {
             let mut slots = [0.0f32; 2];
             let mut heights = [0.0f32; 2];
@@ -1214,7 +1214,7 @@ fn a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on() {
                 slots[slot] = match label {
                     "footnote" => p.footnote_marks().first().map(|m| m.3).unwrap_or(0.0),
                     "bare url" => p.bare_url_marks().first().map(|m| m.2).unwrap_or(0.0),
-                    _ => p.smart_punct_marks().first().map(|m| m.3).unwrap_or(0.0),
+                    _ => unreachable!("the body-metric substitute roster is closed"),
                 };
             }
             assert!(
@@ -1248,8 +1248,8 @@ fn a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on() {
     }
     assert_eq!(
         graded,
-        theme::THEMES.len() * 3,
-        "three families x the roster"
+        theme::THEMES.len() * 2,
+        "two body-metric substitute families x the roster"
     );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();

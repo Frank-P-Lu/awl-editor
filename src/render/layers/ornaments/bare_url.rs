@@ -29,6 +29,7 @@ impl BareUrlEllipses {
             metrics,
             family,
             crate::markdown::SmartPunctKind::Ellipsis,
+            0,
             color,
         );
         Self {

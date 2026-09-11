@@ -93,6 +93,8 @@ pub use kind::{AcceptDisposition, OverlayKind};
 pub use link::LinkEditMode;
 #[cfg(test)]
 pub(crate) use location::browse_parent;
+#[allow(unused_imports)]
+// consumed by the live menu path; its native-panel method is absent in test builds
 #[cfg(any(target_os = "macos", test))]
 pub(crate) use location::native_consumer_for_action;
 pub(crate) use location::{
