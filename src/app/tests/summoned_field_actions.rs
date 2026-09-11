@@ -176,6 +176,65 @@ fn fire(app: &mut App, action: &Action) {
     app.apply(action.clone(), false, &exit, crate::stats::Door::Menu);
 }
 
+/// A direct menu/palette Action cannot jump through an already-open Commands
+/// card. Accepting the actual command row first disposes that card, then the
+/// nested `RunAction` re-dispatch opens Insert-link. The ordering is what makes
+/// the action-level gate and palette launch compose instead of cancelling each
+/// other.
+#[test]
+fn commands_to_insert_link_disposes_before_the_nested_action_and_direct_bypass_is_blocked() {
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    let _g = crate::testlock::serial();
+    let mut app = app();
+    let before = doc_state(&app);
+
+    fire(&mut app, &Action::OpenCommandPalette);
+    assert_eq!(
+        app.workspace_state.overlay().map(|overlay| overlay.kind),
+        Some(OverlayKind::Command),
+    );
+
+    fire(&mut app, &Action::InsertLink);
+    assert_eq!(
+        app.workspace_state.overlay().map(|overlay| overlay.kind),
+        Some(OverlayKind::Command),
+        "a direct Action must not bypass the card that owns input",
+    );
+    assert_eq!(
+        doc_state(&app),
+        before,
+        "the blocked bypass touched the document"
+    );
+
+    app.workspace_state
+        .overlay_mut()
+        .unwrap()
+        .set_query_text("insert link");
+    assert_eq!(
+        app.workspace_state
+            .overlay()
+            .and_then(OverlayState::selected_command_slug)
+            .as_deref(),
+        Some("insert_link"),
+        "the fixture must select the real Insert link command row",
+    );
+    fire(&mut app, &Action::Newline);
+    let opened = app
+        .workspace_state
+        .overlay()
+        .expect("Insert-link must open");
+    assert_eq!(opened.kind, OverlayKind::InsertLink);
+    assert!(
+        opened.link_edit.is_some(),
+        "the nested action must open the real committed-field model",
+    );
+    assert_eq!(
+        doc_state(&app),
+        before,
+        "summoning the field is not an edit"
+    );
+}
+
 /// **THE LAW.** For every summoned field × every Edit-menu verb: the document
 /// behind the surface is byte-for-byte, version-for-version, caret- and
 /// selection-for-selection what it was.

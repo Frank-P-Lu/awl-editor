@@ -74,6 +74,11 @@ pub struct ViewState {
     pub overlay_active: bool,
     pub overlay_align: Option<theme::CardAnchor>,
     pub overlay_crisp: bool,
+    /// The open contextual card keeps the surrounding document readable instead
+    /// of taking over the whole room. Projection of
+    /// [`crate::overlay::OverlayKind::retains_readable_room`]; distinct from
+    /// `overlay_crisp`, whose rows preview live document state.
+    pub overlay_retains_room: bool,
     /// The open card is the Themes chooser. Unlike the broader `overlay_crisp`
     /// class (which also includes Caret), this projection lets the renderer
     /// apply the chooser's reviewed fixed-composition and no-frost contract
@@ -392,6 +397,7 @@ impl ViewState {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_retains_room: false,
             overlay_theme_picker: false,
             overlay_theme_chrome: None,
             overlay_query: String::new(),

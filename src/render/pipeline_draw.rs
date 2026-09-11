@@ -127,10 +127,9 @@ impl TextPipeline {
         let preview_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let preview_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // The overlay's selected-row highlight: same rounded quad as document
-        // selection, its OWN token (`selection_ui`, a value step off the surface
-        // ramp; amber stays the caret's alone), re-set from that same owner
-        // every `overlay_prepare_selection`.
+        // The overlay's selected-row highlight: the document's rounded quad with
+        // its OWN `selection_ui` token; amber stays the caret's alone. Re-set from
+        // that same owner every `overlay_prepare_selection`.
         let overlay_rows = overlay_quad(PLACEHOLDER_RGBA);
         let overlay_bars = overlay_quad(PLACEHOLDER_RGBA);
         // Seeded with `muted`; `overlay_prepare_selection` re-resolves the ink
@@ -511,6 +510,7 @@ impl TextPipeline {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_retains_room: false,
             overlay_theme_picker: false,
             overlay_theme_chrome: None,
             overlay_query: String::new(),

@@ -390,6 +390,29 @@ fn table_dims_is_the_only_local_insertion_card_and_is_not_crisp() {
     assert!(!OverlayKind::TableDims.previews_live_document());
 }
 
+/// Retaining the readable Room is a contextual-task decision, not a preview
+/// exemption. The exhaustive production roster supplies the enrolment so a new
+/// kind must consciously join or remain a takeover.
+#[test]
+fn commands_and_insert_link_are_exactly_the_contextual_cards_that_retain_the_room() {
+    let retained: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| kind.retains_readable_room())
+        .collect();
+    assert_eq!(
+        retained,
+        vec![OverlayKind::Command, OverlayKind::InsertLink],
+    );
+    assert_eq!(retained.len(), 2, "the contextual roster must not be empty");
+    for kind in retained {
+        assert!(
+            !kind.keeps_backdrop_crisp() && !kind.previews_live_document(),
+            "{kind:?}: retaining writing context must not impersonate a live preview",
+        );
+    }
+}
+
 /// **THE AUDITION PREDICATE IS GRADED AGAINST THE AUDITION ITSELF**, not against
 /// the crisp-backdrop list next to it. Two hand-written membership lists asserted
 /// equal is a real drift guard and still not a law about the product: both could

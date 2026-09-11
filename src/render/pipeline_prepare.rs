@@ -76,7 +76,7 @@ impl TextPipeline {
     /// DOES THIS CARD DECLINE THE FULL TAKEOVER — leaving the room's own colours live
     /// outside whatever it covers?
     ///
-    /// Three independent reasons, one predicate, so the full arm and the footprint arm of
+    /// Four independent reasons, one predicate, so the full arm and the footprint arm of
     /// [`Self::frost_mode`] cannot both fire or both miss:
     ///
     /// * **A CRISP PICKER** declines because its ROWS PREVIEW the live page — frosting it
@@ -94,6 +94,9 @@ impl TextPipeline {
     ///   the caret is not a room-sized decision. The existing typed
     ///   `overlay_table_dims` state is the reason itself, so the renderer cannot
     ///   disagree about whether the grid exists and whether it is local.
+    /// * **A CONTEXT-RETAINING CHOICE** declines because Commands and Insert-link
+    ///   answer a brief question about the writing in view. Their typed projection
+    ///   keeps this distinct from a live preview and from a pointer anchor.
     ///
     /// DECLINING THE TAKEOVER IS NOT DECLINING THE FROST. Both then reach the footprint
     /// arm, whose own roster predicate ([`blur::footprint_frost_applies`]) decides
@@ -101,7 +104,10 @@ impl TextPipeline {
     /// under its rows already covers what it sits on, and a composition that draws
     /// neither would otherwise interleave its rows with the document glyph-for-glyph.
     fn overlay_declines_takeover(&self) -> bool {
-        self.overlay_crisp || self.overlay_contextual() || self.overlay_table_dims.is_some()
+        self.overlay_crisp
+            || self.overlay_retains_room
+            || self.overlay_contextual()
+            || self.overlay_table_dims.is_some()
     }
 
     /// True when the SUMMONED-WHILE-HELD stats HUD should actually DRAW this frame.

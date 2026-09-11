@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**4 open numbered tasks.** Ready: none. Dependencies/coordination:
-639–640. Native candidate review: 589. User decision: 579.
+**3 open numbered tasks.** Ready: none. Dependencies/coordination:
+639–640. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
@@ -141,40 +141,6 @@ Vulkan driver lands here, so it is a product-shape question and not an engineeri
 
 Leftover: Docker volumes `awl579-cargo-registry` and `awl579-target` hold the built arm64 rig
 for a clean re-measurement without repaying the build.
-
-### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
-
-Coordination update (2026-09-08): **628 owns the shared visual specification and
-prototype review; follow its sequencing before overlapping visual implementation.**
-
-🟡 IN PROGRESS — `chrome_589` (Codex), based on `0109db01`. Shared design
-foundation for 590–592; integrate overlapping renderer work serially.
-
-**Decision.** Improve Commands' query/result hierarchy and spacing while keeping
-the document readable outside the summoned surface. Integrate its title with
-its controls rather than letting a remote oversized label dominate the task.
-Preserve categories, bindings, keyboard selection and each world's authored
-placement; the generated upper-right mockup is not a universal anchor.
-
-**Shared scope.** Consistency is WITHIN each world, not one skin across worlds.
-Find, Link and Commands share that world's surface colours, border weight,
-corner rules, field grammar and spacing. Nested controls derive compatible
-corners; do not invent feature-specific radii. Preserve Pane, Bars, Diagonal
-and Ruled compositions: no compulsory rounded enclosing panel for plate/rule
-worlds. Carry relevant improvements through sibling pickers/prompts via shared
-owners. The user's preferred Find/Replace chrome is preserved in
-`references/find-replace-chrome.png` beside this board; it guides bordered
-surfaces, not every world's visual identity.
-
-**Separation / verify.** Brief choices should retain readable surrounding prose.
-Use the world's backing, retaining local frost where needed; this is NOT a
-global blur-off instruction. Unbacked text must not overlap document ink.
-Read DESIGN.md, docs/render.md and docs/harness-reach.md. Audit the actual
-surface × composition × placement roster, narrow/wide and DPI 1/2; assert
-geometry/state and pixel legibility, add mutation-proven laws and the standing
-five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
-
----
 
 ## Outstanding review of landed work
 

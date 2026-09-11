@@ -23,6 +23,21 @@ impl OverlayState {
         self.refilter();
     }
 
+    /// Accessibility writes the visible query field through the same model the
+    /// field commits. Insert-link's `query` is a render mirror of
+    /// `link_edit.input`; replacing only the mirror would display one URL and
+    /// insert the old one when its action row is clicked.
+    pub(crate) fn set_semantic_query_text(&mut self, value: &str) {
+        if let Some(link) = self.link_edit.as_mut() {
+            link.input = crate::textbox::TextBox::seeded(value);
+            self.query = link.input.clone();
+            self.selected = 0;
+            self.scroll = 0;
+        } else {
+            self.set_query_text(value);
+        }
+    }
+
     /// Stable corpus identities for the currently visible rows, parallel to
     /// [`Self::item_strings`]. A semantic consumer must never key a row by its
     /// filtered display position: typing one character would rename every row

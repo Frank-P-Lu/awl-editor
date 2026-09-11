@@ -171,19 +171,16 @@ fn push_beat_spacer<'a>(
 /// two announcements of the same name can never both show) reduce to, so
 /// neither can drift from the other's idea of when a placard is showing.
 ///
-/// A SUMMONED WORKSPACE never draws one. The wordmark anchors to the full
-/// canvas and bleeds outward from it on purpose (a floating card's ornament,
-/// authored to overrun the card it sits behind); a workspace's own box already
-/// fills that canvas down to a thin margin, so the giant mark has nowhere
-/// authored left to bleed into except past the workspace's own edge — the
-/// defect this excludes. The modest inline title (`overlay_title_prefix`)
-/// carries the same name inside the composition it announces instead.
-fn placard_style_applies(geom: &OverlayGeom) -> bool {
+/// A workspace or brief Room-retaining choice never draws one: its title belongs
+/// beside the query/action it names, rather than as a remote canvas wordmark. The
+/// modest inline title carries the same name inside either composition.
+fn placard_style_applies(geom: &OverlayGeom, retains_room: bool) -> bool {
     matches!(
         crate::render::effective_title_style(),
         theme::TitleStyle::Placard { .. }
     ) && !geom.card_narrow
         && !geom.workspace
+        && !retains_room
 }
 
 impl TextPipeline {
@@ -206,8 +203,8 @@ impl TextPipeline {
     /// (probe-forced or the active world's own, see
     /// `render::effective_title_style`) is `InlinePrefix` (every world
     /// today), the picker is the header-less spell popup (no title line at
-    /// all — `header_rows == 0`), or the kind draws no title (Rename/
-    /// InsertLink — `overlay_title` is already empty for those).
+    /// all — `header_rows == 0`), the card retains its writing context, or the
+    /// kind draws no title.
     ///
     /// THE SCREEN-CORNER ANCHOR (settled — supersedes the card-clipped
     /// original): the wordmark anchors to the FULL CANVAS corners and draws
@@ -243,7 +240,10 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
     ) -> Option<(f32, f32, f32, f32)> {
-        if geom.header_rows == 0 || self.overlay_title.is_empty() || !placard_style_applies(geom) {
+        if geom.header_rows == 0
+            || self.overlay_title.is_empty()
+            || !placard_style_applies(geom, self.overlay_retains_room)
+        {
             return None;
         }
         let (corner, scale, ink) = match crate::render::effective_title_style() {
@@ -616,7 +616,7 @@ impl TextPipeline {
     }
 
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
-        let placard_drawn = placard_style_applies(geom);
+        let placard_drawn = placard_style_applies(geom, self.overlay_retains_room);
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
         } else {

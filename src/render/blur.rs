@@ -1,8 +1,8 @@
 //! FROSTED-BACKDROP BLUR — the cached, cheap defocus behind a full-takeover overlay.
 //!
-//! Today a full overlay (command palette, go-to, outline, keybindings, spell) dimmed
-//! the document behind it with a neutral grey scrim, which muted the theme's hues.
-//! This replaces that with a real wgpu post-process: when such an overlay opens we
+//! A full-takeover overlay once dimmed the document behind it with a neutral grey
+//! scrim, which muted the theme's hues. This replaces that with a real wgpu
+//! post-process: when such an overlay opens we
 //! render the document ONCE to an offscreen texture, DOWNSAMPLE it to quarter
 //! resolution, run a couple of separable-Gaussian ping-pong passes, and composite
 //! the frosted result as the backdrop. The blur PRESERVES hue (a defocus, not a
@@ -16,10 +16,11 @@
 //! idle overlay stays 0% CPU (DESIGN §6). It is DETERMINISTIC (no clock) — a pure
 //! pixel function of the captured doc — so an overlay capture is byte-stable.
 //!
-//! TWO EXTENTS, ONE EFFECT. A full-takeover overlay frosts the WHOLE canvas; a CRISP
-//! picker frosts only ITS OWN FOOTPRINT — a feathered shape that LEANS with the
-//! composition drawn inside it. Which, why, the shape's arithmetic and the uniform that
-//! carries it all live in [`extent`]; this file is the GPU plumbing both arms share.
+//! TWO EXTENTS, ONE EFFECT. A full-takeover overlay frosts the WHOLE canvas; a card
+//! that retains the room frosts only ITS OWN FOOTPRINT when its composition needs
+//! backing — a feathered shape that LEANS with the composition drawn inside it.
+//! Which, why, the shape's arithmetic and the uniform that carries it all live in
+//! [`extent`]; this file is the GPU plumbing both arms share.
 
 mod extent;
 /// THE FROST'S BOX NARROWED TO THE SURFACES THE CARD ACTUALLY DREW — the un-sheared

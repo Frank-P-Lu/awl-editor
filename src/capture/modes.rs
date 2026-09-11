@@ -302,17 +302,17 @@ pub(super) fn settled_viewstate(
         vstate.popover =
             crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
-    // Resolve serialized modes through the same owner as the live path.
-    vstate.overlay_crisp = opts
+    // Resolve the serialized mode once through the same owner as the live path.
+    // Preview, room retention, and the theme pin all read this one typed value,
+    // so an absent/malformed mode is inert and no two render decisions can parse
+    // the same sidecar differently.
+    let overlay_kind = opts
         .overlay
         .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .is_some_and(|kind| kind.keeps_backdrop_crisp());
-    vstate.overlay_theme_picker = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        == Some(crate::overlay::OverlayKind::Theme);
+        .and_then(|o| OverlayKind::from_mode(o.mode));
+    vstate.overlay_crisp = overlay_kind.is_some_and(OverlayKind::keeps_backdrop_crisp);
+    vstate.overlay_retains_room = overlay_kind.is_some_and(OverlayKind::retains_readable_room);
+    vstate.overlay_theme_picker = overlay_kind == Some(OverlayKind::Theme);
     vstate.overlay_query = opts
         .overlay
         .as_ref()

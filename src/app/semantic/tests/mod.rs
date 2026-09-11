@@ -386,6 +386,93 @@ fn row_ids_survive_filtering() {
     );
 }
 
+/// Commands and Insert-link keep a selected row for keyboard/pointer accept,
+/// but typing is owned by their query/URL field. The semantic tree must name
+/// that actual recipient as focus instead of conflating selection with focus.
+#[test]
+fn contextual_command_and_link_cards_focus_their_editable_field_not_the_selected_row() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+
+    for kind in [OverlayKind::Command, OverlayKind::InsertLink] {
+        let mut app = hermetic();
+        let overlay = match kind {
+            OverlayKind::Command => seeded_overlay(kind),
+            OverlayKind::InsertLink => OverlayState::new_link_edit(
+                "https://example.org".to_string(),
+                crate::overlay::LinkEditMode::Empty { at: 0 },
+            ),
+            _ => unreachable!(),
+        };
+        app.workspace_state.install_overlay_for_test(overlay);
+
+        let snapshot = app.semantic_snapshot();
+        let dialog_id = format!("overlay.{}", kind.as_str());
+        let query_id = format!("{dialog_id}.query");
+        assert_eq!(snapshot.focus_id, query_id, "{kind:?}");
+        let query = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == query_id)
+            .unwrap_or_else(|| panic!("{kind:?}: missing query node"));
+        assert!(query.focused && query.editable, "{kind:?}: {query:?}");
+        assert_eq!(
+            query.actions,
+            vec![SemanticAction::Focus, SemanticAction::SetValue],
+            "{kind:?}: the focused field must advertise both supported doors",
+        );
+
+        let selected = snapshot
+            .nodes
+            .iter()
+            .find(|node| {
+                node.id.starts_with(&format!("{dialog_id}.row.")) && node.selected == Some(true)
+            })
+            .unwrap_or_else(|| panic!("{kind:?}: missing selected action row"));
+        assert!(!selected.focused, "{kind:?}: selection is not text focus");
+        assert_eq!(selected.role, SemanticRole::Option, "{kind:?}");
+        assert!(
+            selected.actions.contains(&SemanticAction::Click),
+            "{kind:?}"
+        );
+
+        let mut app = app;
+        assert!(app.apply_semantic_request(SemanticRequest::Focus {
+            id: query_id.clone(),
+        }));
+        assert!(app.apply_semantic_request(SemanticRequest::SetValue {
+            id: query_id,
+            value: "typed".to_string(),
+        }));
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().query.text(),
+            "typed",
+            "{kind:?}: the advertised field request must reach the real textbox",
+        );
+        if kind == OverlayKind::InsertLink {
+            assert_eq!(
+                app.workspace_state
+                    .overlay()
+                    .unwrap()
+                    .link_edit
+                    .as_ref()
+                    .unwrap()
+                    .input
+                    .text(),
+                "typed",
+                "InsertLink must replace the committed model, not only its render mirror",
+            );
+            let row_id = selected.id.clone();
+            assert!(app.apply_semantic_request(SemanticRequest::Click { id: row_id }));
+            assert_eq!(
+                app.document.buffer().text(),
+                "[](typed)",
+                "the accessibility-authored destination must be the URL the action inserts",
+            );
+        }
+    }
+}
+
 /// The card fold is the one passive surface whose content only the render
 /// pipeline holds, so it is folded from a value rather than fetched — which is
 /// what makes this law possible at all without a GPU. Every card kind must

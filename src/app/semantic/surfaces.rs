@@ -109,7 +109,7 @@ impl SemanticView<'_> {
         });
         query.focusable = true;
         query.editable = true;
-        query.actions = vec![SemanticAction::SetValue];
+        query.actions = vec![SemanticAction::Focus, SemanticAction::SetValue];
         query.focused = files_overlay::query_focused(overlay);
 
         let mut list = SemanticNode::new(&list_id, SemanticRole::ListBox, overlay.title());
