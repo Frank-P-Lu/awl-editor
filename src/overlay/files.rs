@@ -201,7 +201,7 @@ impl OverlayState {
 
     pub fn focus_headings(&mut self) {
         self.goto_outline_only = true;
-        self.facet_lens = 0;
+        self.focus_facet_id("headings");
         self.query = crate::textbox::TextBox::new();
         self.selected = 0;
         self.scroll = 0;
