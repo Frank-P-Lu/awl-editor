@@ -356,6 +356,48 @@ fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
     set_motion_test_override(None);
 }
 
+#[test]
+fn closing_an_entrance_mid_flight_settles_before_a_fresh_reopen() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping entrance close/reopen law: no wgpu adapter");
+        return;
+    };
+    let saved_reduced = crate::motion::reduced();
+    crate::motion::set_reduced(false);
+    set_motion_test_override(Some(theme::MotionJuice {
+        entrance: theme::OverlayEntrance::SpringIn,
+        band: theme::BandResponse::Snap,
+    }));
+    p.arm_live_juice();
+
+    let closed = view("hello\n", 0, 0);
+    let mut open = view("hello\n", 0, 0);
+    open.overlay_active = true;
+    open.overlay_title = "commands".to_string();
+    p.set_view(&open);
+    p.advance(0.05);
+    assert!(
+        p.overlay_entrance_offset() < 0.0,
+        "fixture needs a live entrance"
+    );
+
+    p.set_view(&closed);
+    assert_eq!(
+        p.overlay_entrance_offset(),
+        0.0,
+        "close settles the old entrance"
+    );
+    p.set_view(&open);
+    assert!(
+        (p.overlay_entrance_offset() + p.metrics.px(OVERLAY_ENTRANCE_DROP_PX)).abs() < 0.01,
+        "reopen starts a new entrance rather than inheriting the old phase"
+    );
+
+    crate::motion::set_reduced(saved_reduced);
+    set_motion_test_override(None);
+}
+
 /// The selection BAND seam: Snap (every world today) + unarmed + Reduce
 /// Motion all return the target verbatim; an armed Slide pipeline eases from
 /// the previous row and settles ON the target (never elsewhere).

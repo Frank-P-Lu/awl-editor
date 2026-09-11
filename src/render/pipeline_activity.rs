@@ -39,9 +39,11 @@ impl crate::frame_clock::Activity {
             Self::CaretMotion => !crate::motion::reduced() && pipeline.caret.is_active(),
             Self::CaretPreview => !crate::motion::reduced() && pipeline.caret_preview.is_some(),
             Self::CopyPulse => !crate::motion::reduced() && pipeline.copy_pulse_t < 1.0,
-            Self::OverlayEntrance => !crate::motion::reduced() && pipeline.overlay_enter_t < 1.0,
+            Self::OverlayEntrance => {
+                !crate::motion::reduced() && pipeline.overlay_entrance.active()
+            }
             Self::OverlayBand => {
-                !crate::motion::reduced() && pipeline.juice_live && pipeline.overlay_band_t < 1.0
+                !crate::motion::reduced() && pipeline.juice_live && pipeline.overlay_band.active()
             }
             Self::FoldChevrons => pipeline.fold_chevrons_active(),
             Self::TravellingGround => travelling_ground,
@@ -116,12 +118,11 @@ impl TextPipeline {
             Activity::CopyPulse => self.copy_pulse(),
             Activity::OverlayEntrance => {
                 self.arm_live_juice();
-                self.overlay_enter_t = 0.0;
+                self.overlay_entrance.start();
             }
             Activity::OverlayBand => {
                 self.arm_live_juice();
-                self.overlay_band_started_at = None;
-                self.overlay_band_t = 0.0;
+                self.overlay_band.arm_for_activity_law();
             }
             Activity::FoldChevrons => {
                 let line = self
@@ -161,8 +162,8 @@ impl TextPipeline {
             Activity::CaretMotion => self.caret.pos.x + self.caret.pos.y,
             Activity::CaretPreview => self.caret_demo.beat_index() as f32,
             Activity::CopyPulse => self.copy_pulse_t,
-            Activity::OverlayEntrance => self.overlay_enter_t,
-            Activity::OverlayBand => self.overlay_band_t,
+            Activity::OverlayEntrance => self.overlay_entrance.progress(),
+            Activity::OverlayBand => self.overlay_band.progress(),
             Activity::FoldChevrons => self
                 .outline_headings
                 .first()

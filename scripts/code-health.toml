@@ -301,7 +301,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3156
+lines = 3141
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
 # `TextPipeline`; the row treatment reads this state beside selection geometry.
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
@@ -411,7 +411,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 601
+lines = 594
 # +1: the exhaustive `TextPipeline::new` literal seeds `overlay_rows_focused`
 # inertly beside the other overlay focus state.
 # The exhaustive pipeline constructor initializes typing profiling and work counters.
@@ -424,7 +424,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 596
+lines = 592
 # +1: the one ViewState-to-pipeline mirror copies `overlay_rows_focused` beside
 # the other overlay fields, preventing partial renderer state.
 # The pipeline geometry owner exposes changed-line assembly through the shared helper.
@@ -438,7 +438,7 @@ reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures works
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 488
+lines = 432
 reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse. +12: the band reads the stamped input epoch and exposes its prepared phase through this same per-frame owner. +12: the warp roam pose's own per-frame advance, folded into the one shared `advance` stepper beside the caret spring and copy pulse."
 
 [[file_size_mark]]
@@ -887,7 +887,7 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (538/100)"
+message = "this function has too many lines (531/100)"
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default. +1: `squiggle_projection`'s construction beside its sibling `squiggle_cache` initializer (item 633)."
 
 [[clippy_exception]]
@@ -1423,7 +1423,7 @@ reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_geometry.rs"
 function = "TextPipeline::sync_view_fields"
-message = "this function has too many lines (110/100)"
+message = "this function has too many lines (106/100)"
 reason = "The one ViewState-to-pipeline mirror (see the file_size_mark reason above for the full roster it already carries): item 540's table-dims picker adds a single measurement, overlay_table_dims_hint_w, via measure_workspace_hint_text_px -- the same shaper the spell popup's own overlay_spell_w measurement already uses at this seam -- so the card-width geometry function can size itself without a FontSystem in hand. First diagnostic to cross the 100-line clippy floor at this seam (103/100); the mirror stays one function so a new theme/view field is never wired to only some pipelines. +1: mirrors `overlay_asset_preview` from the view beside the pipeline's other per-frame syncs. +1: mirrors overlay_match_highlights from the view. +1: mirrors `search_field_selection` from the view. +1: mirrors `overlay_query_placeholder` from the view, beside the other per-frame overlay-field mirrors. start_folder` from the view beside the pipeline's other per-frame syncs."
 
 [[clippy_exception]]

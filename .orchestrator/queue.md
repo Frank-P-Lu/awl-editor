@@ -6,54 +6,10 @@
 
 ## Open build and design tasks
 
-**6 open numbered tasks.** Ready: 628. Dependencies/coordination:
+**5 open numbered tasks.** Ready: 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 642 — animation state owns complete transitions (user request, 2026-09-10)
-
-🟡 IN PROGRESS — `animation_642` (Codex), based on `df6a4cd2`.
-`animation_642_map` (Codex) mapped the exact private
-overlay entrance/band boundary, live input-epoch bridge, scheduler boundary,
-transition matrix, target laws and compiling close/reopen mutation. No code was
-changed. Implementation remains serialized with shared UI work.
-
-Build: census related animation fields and their writers, starting with the
-TextPipeline overlay entrance/selection-band fields in render.rs and their input,
-prepare, advance and dismissal paths. Group fields by the animation whose invariant
-they share, with private state and named shared transitions for start, retarget,
-advance, settle and reset as applicable. Migrate every live, replay and test caller
-so callers cannot reset the phase while leaving an old origin, target, pending
-input epoch or active flag behind. Existing cohesive animation owners stay intact;
-do not combine unrelated animations into one global state machine or generic engine.
-
-Preserve authored curves, durations, retarget behavior, first-open/close behavior,
-preview commit/revert and Reduce Motion endpoints. Preserve FrameSample's shared
-presentation time, input-epoch accounting, pause/occlusion/failed-present semantics,
-post-prepare activity reporting and clock-free capture deltas. This changes state
-ownership, not animation feel or redraw policy. Reduce bookkeeping/comments only
-where the type and transitions now express the invariant; retain meaningful units
-and temporal contracts. Runtime performance claims require release before/after
-measurements, not fewer fields or lines.
-
-Coordination: separate from 615; serialize edits to shared callers with that branch
-and the UI/picker work in 628/637–639. Reconcile against the current frame-clock and
-theme-preview owners before implementation. No dependence on 641 unless the actual
-call graph exposes one; do not require both refactors to land in one large change.
-
-Verify: map animation state × transition × input sequence, including interrupted
-retargets, repeated resets, close/reopen, buffer/world changes and Reduce Motion
-mid-animation. Use injected time to compare poses and activity against base at
-start, intermediate and settled samples; test stale pending-state removal and
-prove a headline partial-reset regression law fails under a compiling mutation.
-Run targeted motion/frame-clock/scheduling laws and an independent outcome audit;
-read docs/render.md, docs/verification.md and docs/harness-reach.md before selecting
-render probes. Apply the required render vision-smoke when rendering is touched,
-then one integrated native/wasm gate. Deterministic state/pose checks do not verify
-wall-clock feel; identify any remaining live timing checks honestly.
-
----
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
 
