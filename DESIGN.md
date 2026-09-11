@@ -178,8 +178,8 @@ state when you leave.
 
 A workspace is still summoned. Relocating attention buys the viewport and a
 second coordinated region; it does not buy permanence. The roster is deliberately
-short — Settings and Version History — and a picker does not graduate onto it
-because it grew.
+short — Settings, Version History, conflict review, and Credits — and a picker
+does not graduate onto it because it grew.
 
 ### Contextual overlays
 
@@ -198,19 +198,20 @@ Overlays:
 
 ### Sustained workspaces
 
-A workspace relocates attention for a sustained task. Settings and Version
-History may occupy the viewport rather than competing with a readable document
-behind a small card.
+A workspace relocates attention for a sustained task. Settings, Version History,
+conflict review, and Credits may occupy the viewport rather than competing with
+a readable document behind a small card.
 
 A workspace uses two coordinated regions: a primary navigation list and the
 content it governs—categories beside controls, or a timeline beside a
 comparison. They are one task, so they share one search, one selection grammar,
 and one back path:
 
-- the primary list is where a workspace opens, and where a single `Esc` leaves
-  for the editor;
-- moving into the content is a focus transfer, and `Esc` there is a *back* to
-  the primary list, never a close;
+- the primary list is where a workspace opens, and a single `Esc` leaves for
+  the editor from either region;
+- moving into the content is a focus transfer. `Backspace` on an empty query
+  returns to the primary list; while query text exists it edits that text, so
+  `Tab` or `Shift-Tab` is the unambiguous return path;
 - exactly one region is live at a time, and the difference is expressed by
   value—the same marker at less presence—rather than by a second decoration.
 

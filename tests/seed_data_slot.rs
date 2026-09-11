@@ -77,6 +77,40 @@ fn sidecar(png: &Path) -> serde_json::Value {
     serde_json::from_str(&json).expect("sidecar parses")
 }
 
+fn fnv1a(s: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in s.bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+/// A loose document plus the exact nested store layout History reads.
+fn arrange_history(dir: &Path) -> (PathBuf, PathBuf, String) {
+    let doc = dir.join("history-draft.md");
+    let current = (0..96)
+        .map(|line| format!("Current draft line {line:02}\n"))
+        .collect::<String>();
+    std::fs::write(&doc, &current).unwrap();
+    let old = "# Earlier draft\n\nBefore.\n";
+    let seed = dir.join("history-seed");
+    let history = seed.join("history");
+    std::fs::create_dir_all(&history).unwrap();
+    // The App keeps the CLI spelling on open while some later identity routes
+    // canonicalize it. Seed both when macOS's /var -> /private/var alias makes
+    // them differ, matching `tree_seeds`' additive alias contract.
+    let normalized = std::fs::canonicalize(&doc).unwrap_or_else(|_| doc.clone());
+    for key in [&doc, &normalized] {
+        std::fs::write(
+            history.join(format!("{:016x}.log", fnv1a(&key.to_string_lossy()))),
+            format!("awlhist2\n1000 {} 0\n{old}\n", old.len()),
+        )
+        .unwrap();
+    }
+    (doc, seed, current)
+}
+
 /// **THE SLOT OPENS THE STATE — and the same run without it still cannot.**
 ///
 /// Both arms are one test on purpose. An arm that only showed the seeded run
@@ -159,6 +193,107 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
         bare_json["gutter"]["changed"].as_bool(),
         Some(false),
         "…and no conflict, matching the unseeded-store baseline"
+    );
+}
+
+/// THE NESTED CONSUMER: History's store lives below `data_root/history`, so a
+/// flat remap can never enroll this row. This real-process law opens the row,
+/// compares it, then proves Esc returns to the untouched current document.
+#[test]
+fn a_nested_seeded_history_log_supports_compare_and_cancel() {
+    let root = tmp_dir("history");
+    let home = root.join("home");
+    std::fs::create_dir_all(&home).unwrap();
+    let (doc, seed, current) = arrange_history(&root);
+
+    // Establish the exact editor view that History must return. Document End
+    // makes both facts nonzero, so deleting either restoration cannot satisfy
+    // this law with the default 0:0 / top-of-document state.
+    let baseline = root.join("history-baseline.png");
+    run_ok(
+        &home,
+        &[
+            "--screenshot-app",
+            baseline.to_str().unwrap(),
+            doc.to_str().unwrap(),
+            "--seed-data",
+            seed.to_str().unwrap(),
+            "--keys",
+            "s-Down",
+        ],
+    );
+    let baseline = sidecar(&baseline);
+    assert_ne!(baseline["cursor"]["line"].as_u64(), Some(0));
+    assert_ne!(baseline["scroll_lines"].as_u64(), Some(0));
+
+    let compare = root.join("history-compare.png");
+    run_ok(
+        &home,
+        &[
+            "--screenshot-app",
+            compare.to_str().unwrap(),
+            doc.to_str().unwrap(),
+            "--seed-data",
+            seed.to_str().unwrap(),
+            "--keys",
+            "s-Down s-S-h Enter",
+        ],
+    );
+    let json = sidecar(&compare);
+    assert_eq!(json["driver"].as_str(), Some("live-app"));
+    assert_eq!(json["overlay"]["mode"].as_str(), Some("history"));
+    assert_eq!(
+        json["overlay"]["title"].as_str(),
+        Some("history of history-draft.md")
+    );
+    assert_eq!(json["overlay"]["workspace"].as_bool(), Some(true));
+    assert_eq!(json["overlay"]["detail_focus"].as_bool(), Some(true));
+    assert_eq!(json["overlay"]["preview_id"].as_str(), Some("1000"));
+    assert!(
+        json["text"]
+            .as_str()
+            .is_some_and(|text| text.starts_with("# Comparing with ")),
+        "Enter shows the read-only comparison transcript: {:?}",
+        json["text"].as_str()
+    );
+
+    let cancel = root.join("history-cancel.png");
+    run_ok(
+        &home,
+        &[
+            "--screenshot-app",
+            cancel.to_str().unwrap(),
+            doc.to_str().unwrap(),
+            "--seed-data",
+            seed.to_str().unwrap(),
+            "--keys",
+            "s-Down s-S-h Enter Escape",
+        ],
+    );
+    let json = sidecar(&cancel);
+    assert_eq!(json["overlay"]["active"].as_bool(), Some(false));
+    assert_eq!(
+        json["overlay"]["preview_id"],
+        serde_json::Value::Null,
+        "leaving History clears the preview identity"
+    );
+    assert_eq!(
+        json["cursor"], baseline["cursor"],
+        "History cancel restores the exact nonzero caret"
+    );
+    assert_eq!(
+        json["scroll_lines"], baseline["scroll_lines"],
+        "History cancel restores the exact nonzero document scroll"
+    );
+    assert_eq!(
+        json["text"].as_str(),
+        Some(current.as_str()),
+        "Esc leaves History and restores the live document view"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&doc).unwrap(),
+        current,
+        "comparison and cancel never write the source"
     );
 }
 

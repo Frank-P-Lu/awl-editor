@@ -70,7 +70,7 @@ pub fn cli_seeds(
     file: Option<&Path>,
     config: Option<&Path>,
     data_seed: Option<&Path>,
-) -> Vec<Seed> {
+) -> anyhow::Result<Vec<Seed>> {
     let mut seeds = Vec::new();
     for path in [file, config].into_iter().flatten() {
         if let Ok(bytes) = std::fs::read(path) {
@@ -80,12 +80,12 @@ pub fn cli_seeds(
             });
         }
     }
-    seeds.extend(data_root_seeds(data_seed));
-    seeds
+    seeds.extend(data_root_seeds(data_seed)?);
+    Ok(seeds)
 }
 
 /// THE DATA-ROOT SEED SLOT: carry the files in `dir` into the sandbox at awl's
-/// own machine-state paths — `data_root()/<name>` for each entry.
+/// own machine-state paths — `data_root()/relative/path` for each entry.
 ///
 /// # Why this slot exists
 ///
@@ -107,34 +107,19 @@ pub fn cli_seeds(
 /// the store, so a capture's starting state is written down in its own command
 /// line.
 ///
-/// FLAT by design: entries are taken one directory deep and directories inside
-/// are skipped. Every consumer of the data root — `recovery::record_path`,
-/// `fs::scratch_stash_path`, `session.rs`, `updates.rs` — puts a plain file
-/// directly under it, and a slot that quietly walked deeper would be inventing a
-/// layout awl does not have.
-pub fn data_root_seeds(dir: Option<&Path>) -> Vec<Seed> {
+/// RECURSIVE because awl's own data layout is recursive: recovery, session and
+/// scratch live at the root, while History stores logs under `history/`.
+/// Symlinks are not followed, and the same bounded-file/byte ceiling as
+/// [`tree_seeds`] fails loudly rather than pulling an accidentally named home
+/// directory into memory or photographing a silently truncated premise.
+pub fn data_root_seeds(dir: Option<&Path>) -> anyhow::Result<Vec<Seed>> {
     let Some(dir) = dir else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
     let root = crate::fs::data_root();
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut seeds: Vec<Seed> = entries
-        .flatten()
-        .filter_map(|e| {
-            let from = e.path();
-            let bytes = std::fs::read(&from).ok()?;
-            Some(Seed {
-                path: root.join(from.file_name()?),
-                bytes,
-            })
-        })
-        .collect();
-    // Deterministic order, so two runs of one command seed identically and a
-    // failure is reproducible from the command line alone.
-    seeds.sort_by(|a, b| a.path.cmp(&b.path));
-    seeds
+    bounded_recursive_seeds(dir, "--seed-data", "store", |from| {
+        Some(root.join(from.strip_prefix(dir).ok()?))
+    })
 }
 
 /// How many files a `--seed-tree` directory may carry in, and how many bytes in
@@ -153,8 +138,8 @@ pub const MAX_TREE_SEED_BYTES: u64 = 4 * 1024 * 1024;
 ///
 /// # Why this slot exists
 ///
-/// The other three slots each carry ONE file's worth of premise: a document, a
-/// config, a flat data root. Nothing carries a *project* — and a hermetic door
+/// The other slots carry a document, config, or awl-owned machine state.
+/// Nothing carries a *project* — and a hermetic door
 /// therefore could not photograph any state whose premise is several files
 /// under one root. `--root` alone seeds a directory MARKER (see
 /// [`build_sandbox`]), so a live-`App` capture pointed at a real project sees an
@@ -172,7 +157,7 @@ pub const MAX_TREE_SEED_BYTES: u64 = 4 * 1024 * 1024;
 /// paths the command line spelled. So this slot is the verbatim shape the
 /// document and config slots already have, extended to a subtree.
 ///
-/// RECURSIVE by design (unlike the flat data root): the working set's whole
+/// RECURSIVE by design: the working set's whole
 /// point is that a file below the root reads by its root-relative path, which
 /// needs a real nested tree to be true of. Symlinks are not followed — a link
 /// out of the named directory would seed a path the command line never named.
@@ -180,56 +165,8 @@ pub fn tree_seeds(dir: Option<&Path>) -> anyhow::Result<Vec<Seed>> {
     let Some(dir) = dir else {
         return Ok(Vec::new());
     };
-    let mut seeds = Vec::new();
-    let mut bytes: u64 = 0;
-    let mut pending = vec![dir.to_path_buf()];
-    while let Some(cur) = pending.pop() {
-        let Ok(entries) = std::fs::read_dir(&cur) else {
-            continue;
-        };
-        for e in entries.flatten() {
-            let from = e.path();
-            // `symlink_metadata` rather than `metadata`: a followed link is a
-            // path outside the named tree wearing a path inside it.
-            let Ok(meta) = std::fs::symlink_metadata(&from) else {
-                continue;
-            };
-            if meta.is_symlink() {
-                continue;
-            }
-            if meta.is_dir() {
-                pending.push(from);
-                continue;
-            }
-            let Ok(content) = std::fs::read(&from) else {
-                continue;
-            };
-            bytes += content.len() as u64;
-            seeds.push(Seed {
-                path: from,
-                bytes: content,
-            });
-            if seeds.len() > MAX_TREE_SEED_FILES {
-                anyhow::bail!(
-                    "--seed-tree {}: more than {} files — name a smaller fixture tree",
-                    dir.display(),
-                    MAX_TREE_SEED_FILES
-                );
-            }
-            if bytes > MAX_TREE_SEED_BYTES {
-                anyhow::bail!(
-                    "--seed-tree {}: more than {} bytes — name a smaller fixture tree",
-                    dir.display(),
-                    MAX_TREE_SEED_BYTES
-                );
-            }
-        }
-    }
-    // Deterministic order, so two runs of one command seed identically and a
-    // failure is reproducible from the command line alone (`read_dir` order is
-    // not specified, and the directory stack above visits siblings in whatever
-    // order it hands back).
-    seeds.sort_by(|a, b| a.path.cmp(&b.path));
+    let mut seeds =
+        bounded_recursive_seeds(dir, "--seed-tree", "tree", |from| Some(from.to_path_buf()))?;
     // ALIAS DUAL-SEED: a real filesystem alias of `dir` itself (macOS's
     // `/tmp` -> `/private/tmp`, `/var` -> `/private/var`) is invisible to this
     // verbatim walk, but `App::set_root`/`ProjectLocation::new` canonicalize
@@ -259,6 +196,76 @@ pub fn tree_seeds(dir: Option<&Path>) -> anyhow::Result<Vec<Seed>> {
             .collect();
         seeds.extend(aliased);
     }
+    Ok(seeds)
+}
+
+/// One owner for the two directory seed doors: bounded recursive traversal,
+/// no followed symlinks, unreadable entries skipped, and deterministic output.
+/// `map` owns only the destination spelling (verbatim project path versus
+/// data-root-relative machine state).
+fn bounded_recursive_seeds(
+    dir: &Path,
+    door: &str,
+    fixture_kind: &str,
+    map: impl Fn(&Path) -> Option<PathBuf>,
+) -> anyhow::Result<Vec<Seed>> {
+    let mut seeds = Vec::new();
+    let mut bytes: u64 = 0;
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(cur) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&cur) else {
+            continue;
+        };
+        for e in entries.flatten() {
+            let from = e.path();
+            // `symlink_metadata` rather than `metadata`: a followed link is a
+            // path outside the named tree wearing a path inside it.
+            let Ok(meta) = std::fs::symlink_metadata(&from) else {
+                continue;
+            };
+            if meta.is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                pending.push(from);
+                continue;
+            }
+            let Ok(content) = std::fs::read(&from) else {
+                continue;
+            };
+            bytes += content.len() as u64;
+            let Some(path) = map(&from) else {
+                continue;
+            };
+            seeds.push(Seed {
+                path,
+                bytes: content,
+            });
+            if seeds.len() > MAX_TREE_SEED_FILES {
+                anyhow::bail!(
+                    "{} {}: more than {} files — name a smaller fixture {}",
+                    door,
+                    dir.display(),
+                    MAX_TREE_SEED_FILES,
+                    fixture_kind
+                );
+            }
+            if bytes > MAX_TREE_SEED_BYTES {
+                anyhow::bail!(
+                    "{} {}: more than {} bytes — name a smaller fixture {}",
+                    door,
+                    dir.display(),
+                    MAX_TREE_SEED_BYTES,
+                    fixture_kind
+                );
+            }
+        }
+    }
+    // Deterministic order, so two runs of one command seed identically and a
+    // failure is reproducible from the command line alone (`read_dir` order is
+    // not specified, and the directory stack above visits siblings in whatever
+    // order it hands back).
+    seeds.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(seeds)
 }
 
@@ -300,7 +307,7 @@ pub fn install_hermetic_fs(
     let explicit_config: Option<PathBuf> = config_arg
         .map(Path::to_path_buf)
         .or_else(|| std::env::var_os("AWL_CONFIG").map(PathBuf::from));
-    let mut seeds = cli_seeds(file, explicit_config.as_deref(), data_seed);
+    let mut seeds = cli_seeds(file, explicit_config.as_deref(), data_seed)?;
     // The tree goes in FIRST so a document/config named on the same command line
     // wins on a collision: the CLI file is the one the run is about, and a
     // fixture tree that also contains it must not overwrite the bytes the other

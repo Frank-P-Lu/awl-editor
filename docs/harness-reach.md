@@ -674,13 +674,10 @@ session) is covered end to end, both keymap conventions, by
 which also reads the navigator's own mid-journey state out of the sidecar
 (`mode: "project_browse"`, `return_to: "switch"`, its `browse_dir` per level).
 
-**History's COMPARISON inverts the usual tier ordering: the ORDINARY capture
-reaches it and `--screenshot-app` cannot.** Everywhere else the live-`App` door
-is the wider one, so this reads backwards and has already been briefed
-backwards once (item 116d, 2026-08-03). `overlay_accept:History` is Applied, and
-the timeline is reachable by `--keys` alone; but the COMPARISON only renders
-when `selected_history_id()` resolves, which needs a real history STORE. The two
-doors get one from opposite directions:
+**History's COMPARISON is reachable through both capture doors, with different
+fixture seams.** `overlay_accept:History` is Applied and the timeline is
+reachable by `--keys`; the comparison renders when `selected_history_id()`
+resolves against a history store.
 
 - **Ordinary `--keys` / `--screenshot` reads the ambient data root**, so
   pointing `XDG_DATA_HOME` at a prepared store gives a capture the full
@@ -689,22 +686,18 @@ doors get one from opposite directions:
   computes `hermetic = strict_replay || storyboard || live_app || semantic_json`,
   so adding `--strict-replay` swaps in the sandbox and loses the store along
   with the other three modes.
-- **`--screenshot-app` cannot get one at all.** The mode is hermetic by
-  construction, and its only data-root seed slot, `--seed-data DIR`
-  (`scenario::data_root_seeds`), is **flat** — it `read`s each direntry and
-  writes it at `data_root().join(file_name)`, so a directory silently yields
-  nothing. The history store is one level DOWN — `history::store::history_root()`
-  is `data_root().join("history")` and a file's log is
-  `<history_root>/<fnv1a>.log` — so no `--seed-data` layout can place a log
-  where `history::list` looks.
+- **`--screenshot-app` reads an explicit hermetic store.** `--seed-data DIR`
+  recursively carries that directory into `data_root()` while preserving
+  relative paths, so a fixture at `DIR/history/<fnv1a>.log` lands where
+  `history::list` reads it. The walk is deterministic, bounded to the same
+  256-file / 4 MiB ceiling as `--seed-tree`, and does not follow symlinks.
+  `tests/seed_data_slot.rs::a_nested_seeded_history_log_supports_compare_and_cancel`
+  proves the real parse → sandbox → App → keymap → sidecar chain, including
+  Enter comparison and Esc cancellation without a source write.
 
-So follow-up #3's "every consumer of the data root puts a plain file directly
-under it" is not true, and `history` is the counter-example. Teaching
-`data_root_seeds` to recurse would close the gap; nothing has needed it yet,
-and it is named here rather than absorbed. Until then, a Verify clause wanting
-a *live-`App`* sidecar over a History comparison is asking for something that
-does not exist — use the seeded ordinary capture, or assert at tier 2 in Rust
-(`app::tests::history`).
+Use the live-App door for a hermetic acceptance capture. The ordinary ambient
+route remains useful when the test is deliberately exercising a real prepared
+store; do not combine it with strict replay.
 
 ## What went wrong here once, so it does not again
 
@@ -855,19 +848,14 @@ Named here rather than quietly absorbed:
    **What opened it** is a THIRD seed slot of the same shape as the two that
    were already there — `--seed-data DIR` (`scenario::data_root_seeds`), whose
    files are carried into the sandbox at awl's own `fs::data_root()` paths, so
-   `recovery::read()`, `fs::scratch_stash_path()` and `session.toml` find them
-   where they look. It is a narrowing, not a stub: the harness NAMES the store
-   on the command line rather than reading the machine's real one, so a
-   capture's starting state is written down in its own invocation and a
-   developer's remembered session can never leak into it. Flat — entries one
-   directory deep, directories skipped — which covers every consumer this item
-   needed (`recovery`, the scratch stash, `session.toml`) but **not every
-   consumer there is**: `history::store::history_root()` is
-   `data_root().join("history")`, a SUBDIRECTORY, so the history store is
-   structurally unseedable through this slot. See
-   "Three asymmetries" above; that is why a History comparison is the one
-   surface an ordinary capture photographs and `--screenshot-app` does not.
-   Refused outside a hermetic
+   `recovery::read()`, `fs::scratch_stash_path()`, `session.toml`, and nested
+   `history/<hash>.log` files find them where they look. It is a narrowing, not
+   a stub: the harness NAMES the store on the command line rather than reading
+   the machine's real one, so a capture's starting state is written down in its
+   own invocation and a developer's remembered session can never leak into it.
+   The recursive walk preserves root-relative depth, skips symlinks, sorts its
+   result, and refuses more than 256 files or 4 MiB rather than silently
+   photographing a truncated premise. Refused outside a hermetic
    door rather than silently ignored, since a run that named a store and did not
    get one would photograph the wrong starting state.
 

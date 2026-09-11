@@ -19,6 +19,28 @@ use std::path::{Path, PathBuf};
 mod common;
 use common::ScratchDir;
 
+#[derive(Clone, Copy)]
+struct Convention {
+    label: &'static str,
+    force: &'static str,
+}
+
+const MAC: Convention = Convention {
+    label: "mac",
+    force: "mac",
+};
+const LINUX: Convention = Convention {
+    label: "linux",
+    force: "linux",
+};
+
+fn keys_for(convention: Convention, keys: &str) -> String {
+    match convention.force {
+        "linux" => keys.replace("Cmd-", "C-"),
+        _ => keys.to_string(),
+    }
+}
+
 /// The fixture project: two files directly under the root and one NESTED, so a
 /// row that reported its leaf instead of its root-relative path is
 /// distinguishable — and opened in an order that is not alphabetical, so is a
@@ -42,6 +64,10 @@ fn arrange(dir: &Path) -> PathBuf {
 /// one, never the ambient pair — the margin photographs filenames, so a shot
 /// pointed at a real directory would put a real path in a PNG.
 fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
+    buffers_for(dir, tag, keys, MAC)
+}
+
+fn buffers_for(dir: &Path, tag: &str, keys: &str, convention: Convention) -> serde_json::Value {
     let notes = dir.join("notes");
     let out = dir.join(format!("{tag}.png"));
     // Through the shared spawn owner, which pins the config ladder inside the
@@ -49,7 +75,7 @@ fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
     // config. The explicit `--config` below is the seeded fixture's, so both
     // rungs land inside this test's directory.
     let mut cmd = common::awl(dir);
-    cmd.env("AWL_CONVENTION_FORCE", "mac")
+    cmd.env("AWL_CONVENTION_FORCE", convention.force)
         .arg("--screenshot-app")
         .arg(&out)
         .arg("--seed-tree")
@@ -60,7 +86,7 @@ fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
         .arg(&notes)
         .arg(notes.join("opening.md"));
     if !keys.is_empty() {
-        cmd.arg("--keys").arg(keys);
+        cmd.arg("--keys").arg(keys_for(convention, keys));
     }
     let run = cmd.output().expect("failed to spawn CARGO_BIN_EXE_awl");
     assert!(
@@ -143,66 +169,146 @@ fn switching_files_moves_the_active_row_and_never_reorders_the_stack() {
     );
     arrange(&dir);
 
-    // ONE FILE: no stack at all. The anti-vacuity half — without it every
-    // assertion below is satisfiable by a block that always lists the registry.
-    let lone = buffers(&dir, "one-file", "");
-    assert_eq!(
-        lone["files"],
-        serde_json::json!([]),
-        "a single open file draws no stack, so no rows are reported"
-    );
-    assert_eq!(
-        lone["active_index"],
-        serde_json::Value::Null,
-        "no stack means no active row to name"
-    );
+    // The same real-process journey enters through both advertised key
+    // conventions. A Mac-only replay can prove the stack while leaving the
+    // Linux fallback unwired, so the convention is the explicit swept axis.
+    for convention in [MAC, LINUX] {
+        let tag = convention.label;
+        // ONE FILE: no stack at all. The anti-vacuity half — without it every
+        // assertion below is satisfiable by a block that always lists the registry.
+        let lone = buffers_for(&dir, &format!("{tag}-one-file"), "", convention);
+        assert_eq!(lone["files"], serde_json::json!([]), "{tag}: one open file");
+        assert_eq!(lone["active_index"], serde_json::Value::Null, "{tag}");
 
-    // THREE FILES, in the order they were opened, the nested one reading by its
-    // root-relative path.
-    let opened = buffers(&dir, "three-files", &format!("{TO_LEDGER} {TO_FIELD}"));
-    let order = serde_json::json!(["opening.md", "ledger.md", "journal/field-notes.md"]);
-    assert_eq!(
-        opened["files"], order,
-        "the stack draws the project's open files in stable open order"
-    );
-    assert_eq!(
-        opened["active_index"],
-        serde_json::json!(2),
-        "the last-opened file is the active row"
-    );
+        // THREE FILES, in the order they were opened, the nested one reading by
+        // its root-relative path.
+        let opened = buffers_for(
+            &dir,
+            &format!("{tag}-three-files"),
+            &format!("{TO_LEDGER} {TO_FIELD}"),
+            convention,
+        );
+        let order = serde_json::json!(["opening.md", "ledger.md", "journal/field-notes.md"]);
+        assert_eq!(opened["files"], order, "{tag}: stable open order");
+        assert_eq!(opened["active_index"], serde_json::json!(2), "{tag}");
 
-    // SWITCH BACK TO THE FIRST — the switch an MRU list answers by moving the
-    // row. The drawn order must be byte-for-byte what it was.
-    let switched = buffers(
-        &dir,
-        "switched",
-        &format!("{TO_LEDGER} {TO_FIELD} {TO_OPENING}"),
-    );
-    assert_eq!(
-        switched["files"], order,
-        "switching reordered the stack: {} -> {}",
-        opened["files"], switched["files"]
-    );
-    assert_eq!(
-        switched["active_index"],
-        serde_json::json!(0),
-        "the active row followed the switch to the first file"
-    );
-    assert_ne!(
-        switched["active_index"], opened["active_index"],
-        "the switch was non-vacuous — the active row genuinely moved"
-    );
+        // SWITCH BACK TO THE FIRST — the switch an MRU list answers by moving
+        // the row. The drawn order must be byte-for-byte what it was.
+        let switched = buffers_for(
+            &dir,
+            &format!("{tag}-switched"),
+            &format!("{TO_LEDGER} {TO_FIELD} {TO_OPENING}"),
+            convention,
+        );
+        assert_eq!(
+            switched["files"], order,
+            "{tag}: switching reordered the stack: {} -> {}",
+            opened["files"], switched["files"]
+        );
+        assert_eq!(switched["active_index"], serde_json::json!(0), "{tag}");
+        assert_ne!(
+            switched["active_index"], opened["active_index"],
+            "{tag}: the switch must genuinely move"
+        );
 
-    // NO ROW LEAKS A PATH. The margin photographs filenames; a row label is
-    // root-relative by construction, and this is the assertion that keeps it so.
-    for arm in [&opened, &switched] {
-        for label in arm["files"].as_array().expect("files is an array") {
-            let label = label.as_str().expect("a row label is a string");
+        // NO ROW LEAKS A PATH. The margin photographs filenames; a row label is
+        // root-relative by construction, and this is the assertion that keeps it so.
+        for arm in [&opened, &switched] {
+            for label in arm["files"].as_array().expect("files is an array") {
+                let label = label.as_str().expect("a row label is a string");
+                assert!(
+                    !label.starts_with('/') && !label.contains(&*dir.to_string_lossy()),
+                    "{tag}: row label {label:?} carries an absolute path"
+                );
+            }
+        }
+    }
+}
+
+fn duplicate_fixture_capture(
+    scratch: &Path,
+    fixture: &Path,
+    tag: &str,
+    keys: &str,
+    convention: Convention,
+) -> serde_json::Value {
+    let out = scratch.join(format!("{tag}.png"));
+    let config = scratch.join("duplicate-fixture.toml");
+    std::fs::write(&config, "theme = \"Alabaster\"\n").unwrap();
+    let mut cmd = common::awl(scratch);
+    cmd.env("AWL_CONVENTION_FORCE", convention.force)
+        .arg("--screenshot-app")
+        .arg(&out)
+        .arg("--seed-tree")
+        .arg(fixture)
+        .arg("--config")
+        .arg(&config)
+        .arg("--root")
+        .arg(fixture)
+        .arg(fixture.join("alpha.md"))
+        .arg("--keys")
+        .arg(keys_for(convention, keys));
+    let run = cmd.output().expect("failed to spawn CARGO_BIN_EXE_awl");
+    assert!(
+        run.status.success(),
+        "{tag}: awl exited {}\n{}",
+        run.status,
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let json = std::fs::read_to_string(out.with_extension("json")).expect("sidecar exists");
+    serde_json::from_str(&json).expect("sidecar parses")
+}
+
+/// Enroll the checked-in duplicate-name acceptance fixture at the real App
+/// door. Filtering must retain the two root-relative identities, do no preview
+/// switch, and only Enter may open the selected target.
+#[test]
+fn tracked_duplicate_names_stay_disambiguated_until_accept() {
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scenarios/item637-root");
+    let scratch = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-working-set-duplicates-{}", std::process::id())),
+    );
+    for convention in [MAC, LINUX] {
+        let filtered = duplicate_fixture_capture(
+            &scratch,
+            &fixture,
+            &format!("{}-filtered", convention.label),
+            "Cmd-o d r a f t",
+            convention,
+        );
+        assert_eq!(filtered["driver"], serde_json::json!("live-app"));
+        assert_eq!(filtered["overlay"]["mode"], serde_json::json!("goto"));
+        let items = filtered["overlay"]["items"]
+            .as_array()
+            .expect("Files items");
+        for relative in ["archive/draft.md", "notes/draft.md"] {
             assert!(
-                !label.starts_with('/') && !label.contains(&*dir.to_string_lossy()),
-                "row label {label:?} carries an absolute path"
+                items.iter().any(|item| item == relative),
+                "{}: duplicate target {relative:?} remained distinguishable: {items:?}",
+                convention.label
             );
         }
+        assert_eq!(
+            filtered["text"],
+            serde_json::json!("# Alpha\n\nRoot file for the Files journey.\n"),
+            "{}: filtering selects but never previews a file",
+            convention.label
+        );
+
+        let accepted = duplicate_fixture_capture(
+            &scratch,
+            &fixture,
+            &format!("{}-accepted", convention.label),
+            "Cmd-o d r a f t Enter",
+            convention,
+        );
+        assert_eq!(accepted["overlay"]["active"], serde_json::json!(false));
+        assert_eq!(
+            accepted["text"],
+            serde_json::json!("# Draft in notes\n\nFirst duplicate-name target.\n"),
+            "{}: Enter opens the deterministic selected identity",
+            convention.label
+        );
     }
 }
 

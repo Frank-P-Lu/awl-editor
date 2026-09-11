@@ -8,9 +8,10 @@ fn tmp_dir(tag: &str) -> ScratchDir {
     ScratchDir::new(dir)
 }
 
-/// **THE DATA-ROOT SEED SLOT**: files named in a real directory
+/// **THE DATA-ROOT SEED SLOT**: files named in a real directory tree
 /// arrive at awl's OWN data-root paths, so `recovery::read()` /
-/// `fs::scratch_stash_path()` / `session.toml` find them where they look.
+/// `fs::scratch_stash_path()` / `session.toml` / History find them where they
+/// look.
 ///
 /// The mapping is the whole claim. A slot that seeded the source paths
 /// verbatim — the shape the two existing slots have — would put the record
@@ -21,34 +22,55 @@ fn a_data_root_seed_lands_at_awls_own_paths() {
     let dir = tmp_dir("data-root");
     std::fs::write(dir.join("unresolved-change.md"), "a record\n").unwrap();
     std::fs::write(dir.join("scratch.md"), "a stash\n").unwrap();
-    // A DIRECTORY inside is skipped: every consumer of the data root puts a
-    // plain file directly under it, and walking deeper would invent a layout
-    // awl does not have.
-    std::fs::create_dir_all(dir.join("nested")).unwrap();
-    std::fs::write(dir.join("nested").join("deep.md"), "unreachable\n").unwrap();
+    // History is the load-bearing nested consumer: its logs live one level
+    // below the data root, so depth must survive the remap.
+    std::fs::create_dir_all(dir.join("history")).unwrap();
+    std::fs::write(dir.join("history").join("draft.log"), "a history log\n").unwrap();
 
     let root = crate::fs::data_root();
-    let seeds = data_root_seeds(Some(&dir));
+    let seeds = data_root_seeds(Some(&dir)).unwrap();
     let paths: Vec<&Path> = seeds.iter().map(|s| s.path.as_path()).collect();
     assert_eq!(
         paths,
         vec![
+            root.join("history").join("draft.log").as_path(),
             root.join("scratch.md").as_path(),
             root.join("unresolved-change.md").as_path()
         ],
-        "flat, at the data root, and in a deterministic order"
+        "root-relative depth is retained in deterministic order"
     );
-    assert_eq!(seeds[1].bytes, b"a record\n", "bytes carried verbatim");
+    assert_eq!(seeds[2].bytes, b"a record\n", "bytes carried verbatim");
     // …and the record really is where `recovery` looks for it.
-    assert_eq!(seeds[1].path, crate::recovery::record_path());
-    assert_eq!(seeds[0].path, crate::fs::scratch_stash_path());
+    assert_eq!(seeds[2].path, crate::recovery::record_path());
+    assert_eq!(seeds[1].path, crate::fs::scratch_stash_path());
+    assert_eq!(seeds[0].path, root.join("history").join("draft.log"));
 
     // ANTI-VACUITY: no directory named, nothing seeded — so an ordinary run
     // is untouched by the slot's existence.
-    assert!(data_root_seeds(None).is_empty());
+    assert!(data_root_seeds(None).unwrap().is_empty());
     assert!(
-        data_root_seeds(Some(&dir.join("nope"))).is_empty(),
+        data_root_seeds(Some(&dir.join("nope"))).unwrap().is_empty(),
         "a missing directory degrades to no seeds, never an error"
+    );
+}
+
+#[test]
+fn a_data_root_seed_refuses_an_unbounded_store_instead_of_truncating_it() {
+    let dir = tmp_dir("data-root-bound");
+    for i in 0..=MAX_TREE_SEED_FILES {
+        std::fs::write(dir.join(format!("{i:03}.state")), []).unwrap();
+    }
+    let error = match data_root_seeds(Some(&dir)) {
+        Ok(_) => panic!("an over-limit data store must be refused"),
+        Err(error) => error.to_string(),
+    };
+    assert!(
+        error.contains("--seed-data"),
+        "the error names its door: {error}"
+    );
+    assert!(
+        error.contains(&MAX_TREE_SEED_FILES.to_string()),
+        "the error names the enforced file bound: {error}"
     );
 }
 
@@ -58,11 +80,10 @@ fn a_data_root_seed_lands_at_awls_own_paths() {
 /// that can only see the root's top level cannot photograph a working set
 /// whose members read by their root-relative path.
 ///
-/// The axis swept here is the one the flat data-root slot does NOT have:
-/// DEPTH. A slot that stopped one directory down (the shape `data_root_seeds`
-/// deliberately has) would seed `notes/a.md` and silently drop
-/// `notes/journal/field-notes.md`, and the capture would show a shorter
-/// working set than the command line asked for with nothing reporting why.
+/// The axis swept here is DEPTH. A slot that stopped one directory down would
+/// seed `notes/a.md` and silently drop `notes/journal/field-notes.md`, and the
+/// capture would show a shorter working set than the command line asked for
+/// with nothing reporting why.
 #[test]
 fn a_tree_seed_carries_a_nested_project_in_at_its_own_paths() {
     let dir = tmp_dir("tree-root");
@@ -212,7 +233,7 @@ fn the_three_seed_slots_compose() {
     std::fs::create_dir_all(&store).unwrap();
     std::fs::write(store.join("unresolved-change.md"), "held\n").unwrap();
 
-    let seeds = cli_seeds(Some(&doc), Some(&cfg), Some(&store));
+    let seeds = cli_seeds(Some(&doc), Some(&cfg), Some(&store)).unwrap();
     assert_eq!(seeds.len(), 3, "document, config, and store");
     let fs = build_sandbox(&seeds, &[]);
     assert_eq!(fs.read_to_string(&doc).unwrap(), "# body\n");
@@ -232,7 +253,7 @@ fn cli_seeds_reads_the_named_inputs_and_skips_missing_ones() {
     std::fs::write(&cfg, "theme = \"Bombora\"\n").unwrap();
 
     // Both present: two seeds, verbatim bytes, in (file, config) order.
-    let seeds = cli_seeds(Some(&doc), Some(&cfg), None);
+    let seeds = cli_seeds(Some(&doc), Some(&cfg), None).unwrap();
     assert_eq!(seeds.len(), 2);
     assert_eq!(seeds[0].path, doc);
     assert_eq!(seeds[0].bytes, b"# body\n");
@@ -242,9 +263,9 @@ fn cli_seeds_reads_the_named_inputs_and_skips_missing_ones() {
     // A missing input yields NO seed (the scenario sees an absent file —
     // the same degrade the legacy path gives), never an error.
     let missing = dir.join("nope.md");
-    assert!(cli_seeds(Some(&missing), None, None).is_empty());
-    assert_eq!(cli_seeds(None, Some(&cfg), None).len(), 1);
-    assert!(cli_seeds(None, None, None).is_empty());
+    assert!(cli_seeds(Some(&missing), None, None).unwrap().is_empty());
+    assert_eq!(cli_seeds(None, Some(&cfg), None).unwrap().len(), 1);
+    assert!(cli_seeds(None, None, None).unwrap().is_empty());
 }
 
 #[test]

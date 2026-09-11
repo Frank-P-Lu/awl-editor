@@ -230,8 +230,10 @@ an override would misrepresent the editor being photographed. `--root`/
 sandbox is seeded from exactly the paths the command line names, and awl's own
 data root was not one of them, so a mode whose whole premise is remembered state
 — an unresolved-change record, a scratch stash, a session, a history log — had no
-way in. `--seed-data DIR` carries `DIR`'s files into the sandbox at
-`fs::data_root()/<name>`, where awl's own readers look for them. Hermetic-door
+way in. `--seed-data DIR` recursively carries `DIR`'s files into the sandbox at
+`fs::data_root()/<relative-path>`, where awl's own readers look for them —
+including `history/<hash>.log`. The deterministic walk skips symlinks and
+refuses more than 256 files or 4 MiB. Hermetic-door
 only (`--screenshot-app`, `--semantic-json`, `--storyboard`, or `--screenshot
 --keys --strict-replay`); naming it anywhere else is an error rather than a
 silent no-op, because a run that named a store and did not get one would
