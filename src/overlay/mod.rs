@@ -52,6 +52,7 @@ mod journey;
 mod kind;
 mod kind_composition;
 mod link;
+mod location;
 mod nav;
 mod rename_edit;
 mod roster;
@@ -90,6 +91,9 @@ pub use journey::{
 };
 pub use kind::{AcceptDisposition, OverlayKind};
 pub use link::LinkEditMode;
+#[cfg(any(target_os = "macos", test))]
+pub(crate) use location::native_consumer_for_action;
+pub(crate) use location::{LocationConsumer, LocationScope, consumer_for_card, navigator_for};
 pub use rename_edit::RenameEdit;
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws

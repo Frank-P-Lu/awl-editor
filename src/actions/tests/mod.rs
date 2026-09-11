@@ -22,6 +22,7 @@ mod format_editing;
 mod insert_table;
 mod lifecycle;
 mod link_flow;
+mod location_navigation;
 mod move_lines;
 mod overlay_drive;
 mod overlay_query_motion;

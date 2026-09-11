@@ -280,10 +280,8 @@ impl OverlayKind {
     /// is its own `New folder…` row instead, and `ProjectBrowse` has neither,
     /// because there is nothing to switch to in a folder that isn't there.
     pub fn is_folder_destination(self) -> bool {
-        matches!(
-            self,
-            OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse
-        )
+        super::navigator_for(self)
+            .is_some_and(|consumer| !matches!(consumer, super::LocationConsumer::Browse))
     }
 
     /// THIS KIND IS BUILT FROM A DIRECTORY LEVEL, so [`super::build`] cannot
@@ -297,12 +295,17 @@ impl OverlayKind {
     /// Exhaustive rather than `matches!`: a new explorer answers here, or it is
     /// unresumable in a way nothing reports.
     pub fn needs_dir_level(self) -> bool {
+        if super::navigator_for(self).is_some() {
+            return true;
+        }
         match self {
+            // Returned above through `navigator_for`; listed here as an
+            // exhaustive tripwire should its roster mapping ever be removed.
             OverlayKind::Browse
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
-            | OverlayKind::Project
-            | OverlayKind::ProjectBrowse => true,
+            | OverlayKind::ProjectBrowse => unreachable!("location navigator lost its route"),
+            OverlayKind::Project => true,
             OverlayKind::Goto
             | OverlayKind::Theme
             | OverlayKind::Caret

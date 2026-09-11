@@ -336,7 +336,7 @@ pub fn browse_level(
     // The DESTINATION navigators (ExportDest) and Browse all walk the
     // active root; a destination lists folders only (something lands IN a
     // folder), Browse lists files + folders.
-    let folders_only = kind == OverlayKind::ExportDest;
+    let folders_only = super::navigator_for(kind).is_some_and(|route| route.folders_only());
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
     // Browse alone classifies each FILE entry's openability up front
     // (bounded to ONE directory level — see `crate::openable::classify`'s doc

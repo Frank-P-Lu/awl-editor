@@ -181,7 +181,9 @@ impl OverlayState {
     /// fragment, and folding that into this title would need the workspace
     /// baseline to relativize against, which this card does not carry.
     fn browse_dir_display(&self) -> Option<String> {
-        if !matches!(self.kind, OverlayKind::MoveDest | OverlayKind::ExportDest) {
+        if !super::consumer_for_card(self)
+            .is_some_and(super::LocationConsumer::shows_relative_breadcrumb)
+        {
             return None;
         }
         let dir = self.browse_dir.as_deref()?;
@@ -811,7 +813,12 @@ impl OverlayState {
             return self.kind.project_flat_hint();
         }
         if self.save_copy && self.kind == OverlayKind::ExportDest {
-            return "type to filter   ↵ save a copy here   → open   ← up".to_string();
+            let route =
+                super::consumer_for_card(self).expect("save-copy destination has a location route");
+            return format!(
+                "type to filter   ↵ {}   → open   ← up",
+                route.commit_label()
+            );
         }
         if let Some(hint) = self.files_hint() {
             return hint;

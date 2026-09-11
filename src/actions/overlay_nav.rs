@@ -291,8 +291,8 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             // (`Bind::Path`), which walks the whole tree on purpose.
             let is_project_path_pick = ov.kind == crate::overlay::OverlayKind::Project
                 && matches!(ctx.journey.bind(), Some(crate::overlay::Bind::Path { .. }));
-            let navigable = ov.kind.is_folder_destination()
-                || ov.kind == crate::overlay::OverlayKind::Browse
+            let navigable = crate::overlay::navigator_for(ov.kind)
+                .is_some_and(crate::overlay::LocationConsumer::supports_back)
                 || is_project_path_pick;
             if navigable && ov.query.is_empty() {
                 if let Some(parent) = ascend_target(ov)
@@ -1007,10 +1007,12 @@ pub(super) fn browse_parent(dir: Option<&str>) -> Option<Option<String>> {
 /// directory in `browse_dir`, so a level change is a path join, not a
 /// root-relative string append.
 fn walks_absolute(kind: crate::overlay::OverlayKind) -> bool {
-    matches!(
-        kind,
-        crate::overlay::OverlayKind::Project | crate::overlay::OverlayKind::ProjectBrowse
-    )
+    match crate::overlay::navigator_for(kind) {
+        Some(route) => route.scope() == crate::overlay::LocationScope::Workspace,
+        // Settings' folder-value picker uses `Project` directly; it is the one
+        // non-location-consumer level builder that retains absolute paths.
+        None => kind == crate::overlay::OverlayKind::Project,
+    }
 }
 
 /// THE PATH A HIGHLIGHTED ROW NAMES. `name` is usually a child NAME joined onto
@@ -1055,7 +1057,9 @@ pub(super) fn dest_value(ov: &OverlayState, allow_new: bool) -> Option<String> {
         return Some(join_browse(ov.browse_dir.as_deref(), name));
     }
     let q = ov.query.text().trim();
-    if allow_new && !q.is_empty() {
+    let route_allows_new = crate::overlay::consumer_for_card(ov)
+        .is_some_and(crate::overlay::LocationConsumer::allows_typed_new_folder);
+    if allow_new && route_allows_new && !q.is_empty() {
         return Some(join_browse(ov.browse_dir.as_deref(), q));
     }
     Some(ov.browse_dir.clone().unwrap_or_default())

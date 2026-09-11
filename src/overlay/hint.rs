@@ -54,30 +54,30 @@ impl OverlayKind {
             label,
         };
         let key = |glyph, label| HintAction { glyph, label };
+        if let Some(route) = super::navigator_for(self) {
+            return match route {
+                super::LocationConsumer::Browse => vec![
+                    enter(route.commit_label()),
+                    key(ARROWS_LR, "lens"),
+                    key("\u{232B}", "up"),
+                ],
+                _ => vec![
+                    enter(route.commit_label()),
+                    key("\u{2192}", "open"),
+                    key("\u{2190}", "up"),
+                ],
+            };
+        }
         match self {
             OverlayKind::Project => vec![
                 enter("select"),
                 key(ARROWS_LR, "lens"),
                 key("\u{232B}", "up"),
             ],
-            OverlayKind::MoveDest => vec![
-                enter("move here"),
-                key("\u{2192}", "open"),
-                key("\u{2190}", "up"),
-            ],
-            OverlayKind::ExportDest => vec![
-                enter("export here"),
-                key("\u{2192}", "open"),
-                key("\u{2190}", "up"),
-            ],
-            OverlayKind::ProjectBrowse => vec![
-                enter("switch here"),
-                key("\u{2192}", "open"),
-                key("\u{2190}", "up"),
-            ],
-            OverlayKind::Browse => {
-                vec![enter("open"), key(ARROWS_LR, "lens"), key("\u{232B}", "up")]
-            }
+            OverlayKind::MoveDest
+            | OverlayKind::ExportDest
+            | OverlayKind::ProjectBrowse
+            | OverlayKind::Browse => unreachable!("location routes return above"),
             OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens"), key("esc", "close")],
             OverlayKind::Theme => vec![enter("keep"), key("esc", "revert")],
             OverlayKind::Caret
