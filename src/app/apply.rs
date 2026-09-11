@@ -11,8 +11,6 @@ mod surface_effects;
 use super::apply_context::{CoreBefore, CoreRun};
 use super::*;
 
-use overlay_inputs::{GotoInputs, OverlayInputs};
-
 impl App {
     /// Recompute the text-keyed spell cache without synchronizing the view.
     pub(super) fn recompute_spell_cache(&mut self) {
@@ -452,67 +450,32 @@ impl App {
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
         let config_keymap_flavor = self.config.keymap_flavor();
-        // Gather live picker inputs before the mutable buffer borrow below. File
-        // and asset pickers rescan only when summoned, so their transient corpus
-        // reflects disk changes without a watcher or per-keystroke I/O.
-        let GotoInputs {
-            goto_corpus,
-            goto_times,
-            goto_open,
-            goto_recent,
-            goto_headings,
-            goto_line_count,
-        } = self.gather_goto_inputs(action);
-        let OverlayInputs {
-            spell_target,
-            history_entries,
-            assets,
-            user_words,
-            row_gates,
-            search_root,
-            search_corpus,
-        } = self.gather_overlay_inputs(action);
-        let (goto_folders, goto_recent_folders) = self.gather_goto_folders(action);
-        let location = &self.project_location;
-        let build_ctx = crate::overlay::BuildCtx {
-            goto_corpus,
-            goto_open,
-            goto_recent,
-            goto_times,
-            config_keys: &config_keys,
-            config_linux_keep: &config_linux_keep,
+        // Gather only the selected picker's inputs before the mutable buffer
+        // borrow below. Filesystem-backed inputs still rescan only at summon.
+        let project_root = self.project_location.root.clone();
+        let picker_input = self.gather_picker_input(
+            action,
+            &project_root,
+            &config_keys,
+            &config_linux_keep,
             config_keymap_flavor,
-            goto_headings,
-            goto_line_count,
-            goto_folders,
-            goto_recent_folders,
-            spell_target,
-            history_entries,
-            history_now: Some(crate::history::now_millis()),
-            history_session_start: crate::history::session_epoch_ms(),
-            settings_values: crate::settings::SettingsValues::gather(
-                &self.config,
-                &location.root,
-                self.frame.zoom(),
-                crate::dateformat::today_from_system_clock(),
-            ),
-            assets,
-            user_words,
-            row_gates,
-            search_root,
-            search_corpus,
-        };
+        );
         let files_builder =
-            files_overlay::FilesOverlayBuilder::new(location.root.clone(), &build_ctx);
-        let mut make_overlay = |kind| files_builder.build(kind, &build_ctx);
+            files_overlay::FilesOverlayBuilder::new(project_root.clone(), picker_input.as_ref());
+        let mut make_overlay = |kind| {
+            picker_input
+                .as_ref()
+                .and_then(|input| files_builder.build(kind, input))
+        };
         // Browse rebuild hook: list ONE level via the shared `overlay::browse_level`
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
         // `MoveDest` (C-x m) walks the SAME active root and shows FOLDERS only (you
         // move a document into a folder within it); `Project` (C-x p) walks the
         // workspace by absolute path. Cloned roots dodge the &mut self.document.buffer()
         // borrow.
-        let workspace = location.workspace_root.clone();
-        let recent_projects: Vec<String> = location
+        let workspace = self.project_location.workspace_root.clone();
+        let recent_projects: Vec<String> = self
+            .project_location
             .recent_projects
             .iter()
             .map(|p| p.display().to_string())

@@ -195,7 +195,7 @@ pub struct ViewState {
     /// because the filename is the thing that changed underneath.
     pub gutter_changed: bool,
     /// The user's config `[keys]` overrides — the SAME slice
-    /// [`crate::overlay::BuildCtx::config_keys`] hands the palette
+    /// [`crate::overlay::BindingInputs::keys`] hands the palette
     /// (`commands::visible_effective_bindings`). Read by the awl-drawn menu
     /// bar's chord column (`render::chrome::menubar::dropdown`) so a rebind
     /// updates that label through the ONE owner both surfaces share, never a

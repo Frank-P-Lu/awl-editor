@@ -6,50 +6,10 @@
 
 ## Open build and design tasks
 
-**8 open numbered tasks.** Ready: 641, 642, 638, and 628. Dependencies/coordination:
+**7 open numbered tasks.** Ready: 642, 638, and 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 641 — picker-specific construction inputs (user request, 2026-09-10)
-
-🟡 IN PROGRESS — `buildctx_641` (Codex), based on current `main` after the
-Files journey and projected-tunnel integrations. Behavior-preserving ownership
-refactor; overlapping picker/UI work remains serialized behind it.
-
-Build: replace the catch-all `overlay::BuildCtx` with focused input types so each
-picker receives only the data it consumes. Start by mapping the current
-`overlay/build/ctx.rs` fields to `overlay/build.rs` consumers and the live App,
-replay, tests and benchmark construction sites. Choose typed constructors or a
-request enum carrying per-picker inputs; avoid a picker kind plus an unrelated
-payload, or another all-purpose bag hidden behind defaults. Share genuinely common
-binding/config inputs through one small owner. Preserve the single construction
-path shared by live and replay, including deliberate differences in recency,
-history clocks, dictionary and filesystem data. Keep absent spell-target behavior,
-row gates, ranking, labels, search budgets and navigable-explorer routing unchanged.
-
-Done: production callers cannot supply irrelevant picker inputs or need to fill
-unrelated fields with empty values. Remove redundant gathering and explanatory
-bookkeeping where the new types make it unnecessary; retain comments about units,
-lifetimes and real invariants. Do not introduce eager I/O, extra copying, new
-picker behavior or a generic construction framework. No speedup is claimed without
-release measurements at the affected work owner.
-
-Coordination: separate from 615's mouse extraction. Integrate overlapping changes
-serially with 637–639 and 628/589; rebase on their actual current state rather than
-freezing the old Go-to shape or changing the approved UI contract. This refactor is
-not an additional product-design approval gate.
-
-Verify: read docs/render.md and docs/verification.md; enumerate every picker variant
-with exhaustive handling, update all construction sites and source-law enrollment,
-and compare observable construction results against base (rows/order, selection,
-labels, gates, missing inputs and live/replay differences). Run targeted picker,
-action and replay laws plus compiler checks for native and wasm consumers. Follow
-any identity comparison with an outcome audit; repair missing laws for findings.
-Use the verification policy's single integrated native/wasm gate, not duplicate
-full worker gates. Read docs/harness-reach.md before choosing any render captures.
-
----
 
 ### 642 — animation state owns complete transitions (user request, 2026-09-10)
 

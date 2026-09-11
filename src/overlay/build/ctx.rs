@@ -1,60 +1,93 @@
-//! [`BuildCtx`] — the caller-gathered inputs [`super::build`] needs.
+//! Focused caller-gathered inputs for [`super::build`].
 
 /// A summoned spell-suggest picker's target: the suggestion list, the
 /// misspelling's `(line, start_col, end_col)`, and the misspelled word.
-/// Shared with the replay chord layer, which gathers this same value for
-/// [`BuildCtx::spell_target`] before a summon.
 pub type SpellSuggestTarget = (Vec<String>, (usize, usize, usize), String);
 
-/// Caller-gathered inputs for [`super::build`], shared by the live App and replay.
-/// Ordinary replay omits live recency data to keep captures deterministic.
-pub struct BuildCtx<'a> {
-    /// Root-relative Go-to paths; live default-folder listings are recency-ordered.
-    pub goto_corpus: Vec<String>,
-    /// Open `goto_corpus` indices for ranking; empty in ordinary replay.
-    pub goto_open: Vec<usize>,
-    /// Recently opened `goto_corpus` indices for ranking; empty in ordinary replay.
-    pub goto_recent: Vec<usize>,
-    /// Time labels parallel to `goto_corpus`; blank outside the live default folder,
-    /// empty in ordinary replay.
-    pub goto_times: Vec<String>,
-    /// Config `[keys]` overrides for effective binding labels.
-    pub config_keys: &'a [(String, Vec<String>)],
-    /// Effective Linux keep chords, including built-in defaults; inert on Mac.
-    pub config_linux_keep: &'a [String],
-    /// Configured keymap flavor for effective binding resolution.
-    pub config_keymap_flavor: crate::keymap::KeymapFlavor,
-    /// Current Markdown headings as `(indented label, zero-based line)` for Go-to.
-    pub goto_headings: Vec<(String, usize)>,
-    /// Current buffer line count for Go to Line; zero disables the row.
-    pub goto_line_count: usize,
-    /// Absolute Go-to folder destinations and their Git markers.
-    #[allow(dead_code)] // retained while older capture fixtures build this context
-    pub goto_folders: Vec<(String, bool)>,
-    /// Newest-first folder MRU for Go-to's Recent lens.
-    #[allow(dead_code)] // retained while older capture fixtures build this context
-    pub goto_recent_folders: Vec<String>,
-    /// Spell-picker input; `None` leaves a spell summon unopened.
-    pub spell_target: Option<SpellSuggestTarget>,
-    /// Current file history rows, newest-first; gathered for History or Compare.
-    pub history_entries: Vec<crate::history::TimelineRow>,
-    /// Reference time in milliseconds for History's clock-relative lenses;
-    /// `None` in ordinary replay keeps those lenses inert.
-    pub history_now: Option<u64>,
-    /// Session start in milliseconds; `None` before session tracking starts
-    /// or in ordinary replay.
-    pub history_session_start: Option<u64>,
-    /// Config and project inputs for Settings cells; the readout reads
-    /// process-global settings directly.
+/// The effective key bindings shared by the Command and Keybindings pickers.
+///
+/// The slice borrows the caller's config because resolving the labels is part of
+/// construction, not an owned picker payload.
+pub struct BindingInputs<'a> {
+    pub keys: &'a [(String, Vec<String>)],
+    pub linux_keep: &'a [String],
+    pub keymap_flavor: crate::keymap::KeymapFlavor,
+}
+
+/// The active-file data that forms Go-to's file, heading, and line-jump lenses.
+pub struct GotoInputs {
+    pub corpus: Vec<String>,
+    pub open: Vec<usize>,
+    pub recent: Vec<usize>,
+    pub times: Vec<String>,
+    pub headings: Vec<(String, usize)>,
+    pub line_count: usize,
+}
+
+/// Command palette-only inputs: shared binding labels, its settings union, and
+/// runtime row gates.
+pub struct CommandInputs<'a> {
+    pub bindings: BindingInputs<'a>,
     pub settings_values: crate::settings::SettingsValues,
-    /// Orphans scanned when opening Asset Cleaner; empty for other actions.
-    pub assets: Vec<crate::assets::Orphan>,
-    /// Alphabetical personal-dictionary words. Ordinary replay supplies an empty
-    /// list; `--screenshot-app` reaches the App's dictionary loading path.
-    pub user_words: Vec<String>,
-    /// Runtime facts controlling conditional command rows; defaulted in ordinary replay.
     pub row_gates: crate::commands::RowGates,
-    /// Root and budget-bounded corpus for Search in folder, loaded once at summon.
-    pub search_root: std::path::PathBuf,
-    pub search_corpus: Vec<(String, String)>,
+}
+
+/// History's rows and the caller-owned reference clocks. Ordinary replay keeps
+/// both clocks absent so capture-relative lenses remain inert.
+pub struct HistoryInputs {
+    pub entries: Vec<crate::history::TimelineRow>,
+    pub now: Option<u64>,
+    pub session_start: Option<u64>,
+}
+
+/// Search in folder's root and budget-bounded, summon-time corpus.
+pub struct SearchFolderInputs {
+    pub root: std::path::PathBuf,
+    pub corpus: Vec<(String, String)>,
+}
+
+/// One focused construction request. The variant is the picker identity, so a
+/// production caller cannot attach another picker's data or fill unrelated
+/// fields with inert placeholders.
+pub enum PickerInput<'a> {
+    Goto(GotoInputs),
+    Theme,
+    Caret,
+    Dictionary,
+    CjkLang,
+    Date { today_ymd: (i32, u32, u32) },
+    Keymap { configured: String },
+    Command(CommandInputs<'a>),
+    Keybindings(BindingInputs<'a>),
+    Spell(Option<SpellSuggestTarget>),
+    History(HistoryInputs),
+    Settings(crate::settings::SettingsValues),
+    Assets(Vec<crate::assets::Orphan>),
+    UserWords(Vec<String>),
+    SearchFolder(SearchFolderInputs),
+    Credits,
+}
+
+impl PickerInput<'_> {
+    /// The only summoned picker this request can construct.
+    pub fn kind(&self) -> crate::overlay::OverlayKind {
+        match self {
+            Self::Goto(_) => crate::overlay::OverlayKind::Goto,
+            Self::Theme => crate::overlay::OverlayKind::Theme,
+            Self::Caret => crate::overlay::OverlayKind::Caret,
+            Self::Dictionary => crate::overlay::OverlayKind::Dictionary,
+            Self::CjkLang => crate::overlay::OverlayKind::CjkLang,
+            Self::Date { .. } => crate::overlay::OverlayKind::Date,
+            Self::Keymap { .. } => crate::overlay::OverlayKind::Keymap,
+            Self::Command(_) => crate::overlay::OverlayKind::Command,
+            Self::Keybindings(_) => crate::overlay::OverlayKind::Keybindings,
+            Self::Spell(_) => crate::overlay::OverlayKind::Spell,
+            Self::History(_) => crate::overlay::OverlayKind::History,
+            Self::Settings(_) => crate::overlay::OverlayKind::Settings,
+            Self::Assets(_) => crate::overlay::OverlayKind::Assets,
+            Self::UserWords(_) => crate::overlay::OverlayKind::UserWords,
+            Self::SearchFolder(_) => crate::overlay::OverlayKind::SearchFolder,
+            Self::Credits => crate::overlay::OverlayKind::Credits,
+        }
+    }
 }

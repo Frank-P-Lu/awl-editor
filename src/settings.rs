@@ -367,7 +367,7 @@ pub struct SettingsValues {
     pub keymap: String,
     /// TODAY as a UTC civil `(year, month, day)`, for the "Date format" row's
     /// live preview ("what you see is what inserts") — gathered like
-    /// `history_now`/`history_session_start` (`overlay::BuildCtx`), because
+    /// `HistoryInputs::now`/`session_start`, because
     /// [`value_for`] can't tell live from headless capture itself: the live
     /// caller passes [`crate::dateformat::today_from_system_clock`]'s real
     /// result, the headless capture/replay path the FIXED

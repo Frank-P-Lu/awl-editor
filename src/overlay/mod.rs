@@ -55,6 +55,7 @@ mod link;
 mod nav;
 mod rename_edit;
 mod roster;
+mod route;
 mod row;
 mod search;
 mod semantic;
@@ -65,9 +66,11 @@ pub(crate) mod workspace;
 
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
 pub use build::{
-    BuildCtx, HERE_ACCEPT, HERE_LABEL, SpellSuggestTarget, browse_level, build,
-    elide_directory_path, elide_path, goto_folder_roster, here_folder_label, row_split,
+    BindingInputs, CommandInputs, GotoInputs, HERE_ACCEPT, HERE_LABEL, HistoryInputs, PickerInput,
+    SearchFolderInputs, SpellSuggestTarget, browse_level, build, build_for, elide_directory_path,
+    elide_path, here_folder_label, row_split,
 };
+pub(crate) use route::picker_kind_for;
 // THE one question separating the switch-project roster's two routes, hoisted to
 // the module surface because the law guarding the split lives outside it, and a
 // law that re-derives "is this a remembered path" is a second owner of it.

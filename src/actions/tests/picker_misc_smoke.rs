@@ -777,7 +777,76 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
     }
 }
 
-fn smoke_catalog_command(c: &crate::commands::Command, bctx: &crate::overlay::BuildCtx<'_>) {
+fn smoke_picker_input(kind: OverlayKind) -> Option<crate::overlay::PickerInput<'static>> {
+    use crate::overlay::{
+        BindingInputs, CommandInputs, GotoInputs, HistoryInputs, PickerInput, SearchFolderInputs,
+    };
+    match kind {
+        OverlayKind::Goto => Some(PickerInput::Goto(GotoInputs {
+            corpus: vec!["README.md".to_string(), "src/main.rs".to_string()],
+            open: vec![],
+            recent: vec![],
+            times: vec![],
+            headings: vec![("Heading One".to_string(), 0)],
+            line_count: 0,
+        })),
+        OverlayKind::Theme => Some(PickerInput::Theme),
+        OverlayKind::Caret => Some(PickerInput::Caret),
+        OverlayKind::Dictionary => Some(PickerInput::Dictionary),
+        OverlayKind::CjkLang => Some(PickerInput::CjkLang),
+        OverlayKind::Date => Some(PickerInput::Date {
+            today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+        }),
+        OverlayKind::Keymap => Some(PickerInput::Keymap {
+            configured: "native".to_string(),
+        }),
+        OverlayKind::Command => Some(PickerInput::Command(CommandInputs {
+            bindings: BindingInputs {
+                keys: &[],
+                linux_keep: &[],
+                keymap_flavor: crate::keymap::KeymapFlavor::Native,
+            },
+            settings_values: Default::default(),
+            row_gates: Default::default(),
+        })),
+        OverlayKind::Keybindings => Some(PickerInput::Keybindings(BindingInputs {
+            keys: &[],
+            linux_keep: &[],
+            keymap_flavor: crate::keymap::KeymapFlavor::Native,
+        })),
+        OverlayKind::Spell => Some(PickerInput::Spell(Some((
+            vec!["speling".to_string(), "spieling".to_string()],
+            (0, 0, 3),
+            "speling".to_string(),
+        )))),
+        OverlayKind::History => Some(PickerInput::History(HistoryInputs {
+            entries: vec![],
+            now: None,
+            session_start: None,
+        })),
+        OverlayKind::Settings => Some(PickerInput::Settings(Default::default())),
+        OverlayKind::Assets => Some(PickerInput::Assets(vec![])),
+        OverlayKind::UserWords => Some(PickerInput::UserWords(vec![])),
+        OverlayKind::SearchFolder => Some(PickerInput::SearchFolder(SearchFolderInputs {
+            root: std::path::PathBuf::from("/workspace"),
+            corpus: vec![("README.md".to_string(), "hello world".to_string())],
+        })),
+        OverlayKind::Credits => Some(PickerInput::Credits),
+        OverlayKind::Browse
+        | OverlayKind::MoveDest
+        | OverlayKind::ExportDest
+        | OverlayKind::Project
+        | OverlayKind::ProjectBrowse
+        | OverlayKind::Rename
+        | OverlayKind::InsertLink
+        | OverlayKind::KeepName
+        | OverlayKind::Context
+        | OverlayKind::TableDims
+        | OverlayKind::Conflict => None,
+    }
+}
+
+fn smoke_catalog_command(c: &crate::commands::Command) {
     // These cards own the next key, so each catalog action starts with them closed.
     crate::about::set_open(false);
     crate::lifetime::set_open(false);
@@ -789,7 +858,11 @@ fn smoke_catalog_command(c: &crate::commands::Command, bctx: &crate::overlay::Bu
     let mut search = None;
     let mut overlay = crate::overlay::Journey::default();
     let eff = {
-        let mut make_overlay = |kind: OverlayKind| crate::overlay::build(kind, bctx);
+        let mut make_overlay = |kind: OverlayKind| {
+            smoke_picker_input(kind)
+                .as_ref()
+                .and_then(|input| crate::overlay::build_for(kind, input))
+        };
         let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -881,42 +954,8 @@ fn every_catalog_command_dispatches_without_panicking() {
     let typewriter0 = crate::typewriter::typewriter_on();
     let nits0 = crate::nits::nits_on();
 
-    // The overlay-build context: fed enough for EVERY summoning command to open
-    // (a go-to corpus with a folded-in heading, a spell target) —
-    // History/Theme/Caret/Dictionary/Settings/Keybindings always open. The
-    // navigable explorers (Project / Browse / MoveDest, incl. "Recent projects…"
-    // pre-lensed) open via `browse_to` below (the shared `browse_level` fixture),
-    // not this ctx.
-    let bctx = crate::overlay::BuildCtx {
-        goto_corpus: vec!["README.md".to_string(), "src/main.rs".to_string()],
-        goto_open: vec![],
-        goto_recent: vec![],
-        goto_times: vec![],
-        config_keys: &[],
-        config_linux_keep: &[],
-        config_keymap_flavor: crate::keymap::KeymapFlavor::Native,
-        goto_headings: vec![("Heading One".to_string(), 0)],
-        goto_line_count: 0,
-        goto_folders: vec![("/workspace/notes".to_string(), false)],
-        goto_recent_folders: vec![],
-        spell_target: Some((
-            vec!["speling".to_string(), "spieling".to_string()],
-            (0, 0, 3),
-            "speling".to_string(),
-        )),
-        history_entries: vec![],
-        history_now: None,
-        history_session_start: None,
-        settings_values: crate::settings::SettingsValues::default(),
-        assets: vec![],
-        user_words: vec![],
-        row_gates: Default::default(),
-        search_root: std::path::PathBuf::from("/workspace"),
-        search_corpus: vec![("README.md".to_string(), "hello world".to_string())],
-    };
-
     for c in crate::commands::COMMANDS.iter() {
-        smoke_catalog_command(c, &bctx);
+        smoke_catalog_command(c);
     }
 
     // Leave every process-global exactly as found.

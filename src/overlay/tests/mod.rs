@@ -54,6 +54,7 @@ fn history_rows() -> Vec<crate::history::TimelineRow> {
 }
 
 mod assets;
+mod build_inputs;
 mod caret_date_link;
 mod command_palette;
 mod elision_and_browse;

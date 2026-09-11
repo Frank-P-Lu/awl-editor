@@ -124,6 +124,185 @@ impl App {
         }
     }
 
+    pub(super) fn gather_picker_input<'a>(
+        &mut self,
+        action: &Action,
+        project_root: &std::path::Path,
+        config_keys: &'a [(String, Vec<String>)],
+        config_linux_keep: &'a [String],
+        config_keymap_flavor: crate::keymap::KeymapFlavor,
+    ) -> Option<crate::overlay::PickerInput<'a>> {
+        let kind = crate::overlay::picker_kind_for(
+            action,
+            self.workspace_state.journey().parked_kind(),
+            self.workspace_state
+                .overlay()
+                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings),
+        )?;
+        if matches!(
+            kind,
+            crate::overlay::OverlayKind::Goto
+                | crate::overlay::OverlayKind::Spell
+                | crate::overlay::OverlayKind::History
+                | crate::overlay::OverlayKind::Assets
+                | crate::overlay::OverlayKind::UserWords
+                | crate::overlay::OverlayKind::SearchFolder
+        ) {
+            self.gather_content_picker_input(kind, action)
+        } else {
+            self.gather_config_picker_input(
+                kind,
+                action,
+                project_root,
+                config_keys,
+                config_linux_keep,
+                config_keymap_flavor,
+            )
+        }
+    }
+
+    fn gather_content_picker_input<'a>(
+        &mut self,
+        kind: crate::overlay::OverlayKind,
+        action: &Action,
+    ) -> Option<crate::overlay::PickerInput<'a>> {
+        match kind {
+            crate::overlay::OverlayKind::Goto => {
+                let GotoInputs {
+                    goto_corpus,
+                    goto_times,
+                    goto_open,
+                    goto_recent,
+                    goto_headings,
+                    goto_line_count,
+                } = self.gather_goto_inputs(action);
+                Some(crate::overlay::PickerInput::Goto(
+                    crate::overlay::GotoInputs {
+                        corpus: goto_corpus,
+                        open: goto_open,
+                        recent: goto_recent,
+                        times: goto_times,
+                        headings: goto_headings,
+                        line_count: goto_line_count,
+                    },
+                ))
+            }
+            crate::overlay::OverlayKind::Spell => {
+                let OverlayInputs { spell_target, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Spell(spell_target))
+            }
+            crate::overlay::OverlayKind::History => {
+                let OverlayInputs {
+                    history_entries, ..
+                } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::History(
+                    crate::overlay::HistoryInputs {
+                        entries: history_entries,
+                        now: Some(crate::history::now_millis()),
+                        session_start: crate::history::session_epoch_ms(),
+                    },
+                ))
+            }
+            crate::overlay::OverlayKind::Assets => {
+                let OverlayInputs { assets, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Assets(assets))
+            }
+            crate::overlay::OverlayKind::UserWords => {
+                let OverlayInputs { user_words, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::UserWords(user_words))
+            }
+            crate::overlay::OverlayKind::SearchFolder => {
+                let OverlayInputs {
+                    search_root,
+                    search_corpus,
+                    ..
+                } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::SearchFolder(
+                    crate::overlay::SearchFolderInputs {
+                        root: search_root,
+                        corpus: search_corpus,
+                    },
+                ))
+            }
+            _ => unreachable!("content picker routing admitted {kind:?}"),
+        }
+    }
+
+    fn gather_config_picker_input<'a>(
+        &mut self,
+        kind: crate::overlay::OverlayKind,
+        action: &Action,
+        project_root: &std::path::Path,
+        config_keys: &'a [(String, Vec<String>)],
+        config_linux_keep: &'a [String],
+        config_keymap_flavor: crate::keymap::KeymapFlavor,
+    ) -> Option<crate::overlay::PickerInput<'a>> {
+        let settings_values = |app: &Self| {
+            crate::settings::SettingsValues::gather(
+                &app.config,
+                project_root,
+                app.frame.zoom(),
+                crate::dateformat::today_from_system_clock(),
+            )
+        };
+        match kind {
+            crate::overlay::OverlayKind::Theme => Some(crate::overlay::PickerInput::Theme),
+            crate::overlay::OverlayKind::Caret => Some(crate::overlay::PickerInput::Caret),
+            crate::overlay::OverlayKind::Dictionary => {
+                Some(crate::overlay::PickerInput::Dictionary)
+            }
+            crate::overlay::OverlayKind::Keymap => Some(crate::overlay::PickerInput::Keymap {
+                configured: self.config.keymap.clone().unwrap_or_default(),
+            }),
+            crate::overlay::OverlayKind::Command => {
+                let OverlayInputs { row_gates, .. } = self.gather_overlay_inputs(action);
+                Some(crate::overlay::PickerInput::Command(
+                    crate::overlay::CommandInputs {
+                        bindings: crate::overlay::BindingInputs {
+                            keys: config_keys,
+                            linux_keep: config_linux_keep,
+                            keymap_flavor: config_keymap_flavor,
+                        },
+                        settings_values: settings_values(self),
+                        row_gates,
+                    },
+                ))
+            }
+            crate::overlay::OverlayKind::Keybindings => Some(
+                crate::overlay::PickerInput::Keybindings(crate::overlay::BindingInputs {
+                    keys: config_keys,
+                    linux_keep: config_linux_keep,
+                    keymap_flavor: config_keymap_flavor,
+                }),
+            ),
+            crate::overlay::OverlayKind::Settings => {
+                Some(crate::overlay::PickerInput::Settings(settings_values(self)))
+            }
+            crate::overlay::OverlayKind::Credits => Some(crate::overlay::PickerInput::Credits),
+            crate::overlay::OverlayKind::Goto
+            | crate::overlay::OverlayKind::Spell
+            | crate::overlay::OverlayKind::History
+            | crate::overlay::OverlayKind::Assets
+            | crate::overlay::OverlayKind::UserWords
+            | crate::overlay::OverlayKind::SearchFolder => {
+                unreachable!("content picker routing bypassed its owner")
+            }
+            crate::overlay::OverlayKind::CjkLang
+            | crate::overlay::OverlayKind::Date
+            | crate::overlay::OverlayKind::Browse
+            | crate::overlay::OverlayKind::MoveDest
+            | crate::overlay::OverlayKind::ExportDest
+            | crate::overlay::OverlayKind::Project
+            | crate::overlay::OverlayKind::ProjectBrowse
+            | crate::overlay::OverlayKind::Rename
+            | crate::overlay::OverlayKind::InsertLink
+            | crate::overlay::OverlayKind::KeepName
+            | crate::overlay::OverlayKind::Context
+            | crate::overlay::OverlayKind::TableDims
+            | crate::overlay::OverlayKind::Conflict => None,
+        }
+    }
+
     pub(super) fn gather_overlay_inputs(&mut self, action: &Action) -> OverlayInputs {
         let spell_target =
             if matches!(action, Action::OpenSpellSuggest) && self.document.has_active() {
@@ -231,28 +410,6 @@ impl App {
             search_root,
             search_corpus,
         }
-    }
-
-    pub(super) fn gather_goto_folders(
-        &self,
-        action: &Action,
-    ) -> (Vec<(String, bool)>, Vec<String>) {
-        if !matches!(
-            action,
-            Action::OpenGoto
-                | Action::OpenProject
-                | Action::OpenRecentProjects
-                | Action::OpenOutline
-        ) {
-            return (Vec::new(), Vec::new());
-        }
-        let recent: Vec<String> = self
-            .project_location
-            .recent_projects
-            .iter()
-            .map(|path| path.to_string_lossy().to_string())
-            .collect();
-        crate::overlay::goto_folder_roster(self.project_location.workspace_root.as_deref(), &recent)
     }
 }
 

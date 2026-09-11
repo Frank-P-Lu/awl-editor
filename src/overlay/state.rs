@@ -300,7 +300,7 @@ impl OverlayState {
 
     /// Build "Search in folder…" from the caller-loaded, budget-bounded
     /// corpus (`crate::search_folder::load_corpus`, called once by the
-    /// gatherer — [`crate::overlay::BuildCtx::search_corpus`]). Opens with an
+    /// gatherer — [`crate::overlay::SearchFolderInputs::corpus`]). Opens with an
     /// empty query and therefore zero rows (the calm "no matches" row) —
     /// `refilter`'s `SearchFolder` branch fills the list in as soon as
     /// something is typed, matching every other query-driven picker's shape.

@@ -69,7 +69,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 936
+lines = 899
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter. +12: the expanded working-set panel's own Esc-collapse arm, alongside the shared core's ordinary Cancel rather than instead of it — the panel is not part of `workspace_state`'s summoned-overlay precedence ladder (it draws in the margin, not as an overlay), so it needs its own arm here. +8: a held row drag aborts BEFORE that same Esc-collapse runs, so a stray Escape mid-drag can never replay a click or reorder against a row index the collapse just invalidated. +1: the exhaustive `apply_buffer_effect` match gains one arm, `BufferEffect::OpenScratch => self.open_scratch()`. Insert Table's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands. Item 527/528's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands, threading the new keymap flavor field. +13: threads search_root/search_corpus into the picker construction and resolves SearchFolder's combined accept path, beside the other per-kind construction/accept arms. +10: `retint_theme_now` picks a fresh warp-grid roam seed on every world activation, the one live commit path a headless replay never reaches, so a capture stays pinned to `warpgrid::DEFAULT_SEED`."
 
 [[file_size_mark]]
@@ -324,7 +324,7 @@ lines = 598
 
 [[file_size_mark]]
 file = "src/render/benchsuite/scenarios.rs"
-lines = 592
+lines = 577
 # The scenario roster dispatches live typing to its dedicated measurement module.
 reason = "Go to Line's `goto_line_count` field on the bench fixture's `OverlayState` construction, defaulted to 0 (no buffer known) like every other bare-constructed bench overlay. Item 527/528's config_keymap_flavor joins the other ViewState fields this bench fixture already threads. +2: seeds search_root/search_corpus inertly, beside the other per-kind construction fields this fixture already owns."
 
@@ -865,16 +865,9 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run/chord.rs"
-function = "ReplaySession::gather_action_inputs"
-message = "this function has too many lines (103/100)"
-reason = "The headless replay's ONE summon-time gather: every picker whose rows come from outside the buffer (headings, history, the asset scan, the settings values, the search corpus, the personal dictionary's word list) is gathered here, in the same shape and the same order as the live App's own gather next door. Splitting it would create a second place a new picker's inputs could be forgotten, which is the failure the single site exists to prevent; the personal dictionary's arm is five lines of that roster."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/overlay/build.rs"
-function = "build"
-message = "this function has too many lines (102/100)"
-reason = "The one exhaustive per-kind overlay-state constructor; SearchFolder's new_search_folder call joins the other per-kind arms this function already dispatches to. +1: the CjkLang arm also passes the live Auto flag into new_cjk_lang."
+function = "ReplaySession::apply_action_transition"
+message = "this function has too many lines (120/100)"
+reason = "The replay transition keeps one focused request, its borrowed config labels, and the make-overlay/browse closures alive through the shared apply_transition call, then records and expands that exact transition. The environment-specific gatherers remain separate and focused; extracting the remaining lifetime-bound setup would either copy config input on every action or split the ordering seam that keeps replay aligned with the live App."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
