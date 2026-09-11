@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** Ready: 628. Dependencies/coordination:
+**5 open numbered tasks.** Ready: none. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -91,7 +91,8 @@ Do not dispatch or claim implementation merely because this acceptance work is q
 
 ### 628 — one shared chrome language for Find, Settings and the theme picker (user approval, 2026-09-08)
 
-🟢 READY — `chrome_628_map` (Codex) mapped the
+🟡 IN PROGRESS — `chrome_628` (Codex), based on `27955b85`.
+`chrome_628_map` (Codex) mapped the
 surface-specific owners, shared-control boundary, accessibility/action routes,
 responsive geometry, roster probes and mutations. It found the prototype's intent
 salvageable but its new `Physical` spacing unsuitable for the required 1x/2x
