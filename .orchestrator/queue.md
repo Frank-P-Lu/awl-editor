@@ -6,57 +6,8 @@
 
 ## Open build and design tasks
 
-**3 open numbered tasks.** Ready: none. Dependencies/coordination:
-640. Native candidate review: 639. User decision: 579.
+**2 open numbered tasks.** Ready: 640. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
-
-🟡 IN PROGRESS — `coherence_639` (Codex), based on `71acf32f`. The 636
-interaction contract is in DESIGN.md and docs/render.md; use 637 as the native
-navigation reference rather than launching another shared-chrome rewrite.
-
-Build: apply context → query/views → choices → actions across the actual surface
-roster, preserving task-specific composition. Commands remains actions, the outline
-remains document navigation, Settings remains behavior, History remains changes
-to the named document. Make scope visible when an action depends on it: Search in
-Writing, Move September.md to…, Export September.md, History of September.md.
-Use readable names and disambiguating paths without repeating the same location
-throughout a panel. Document search and folder-content search retain distinct scope;
-filename/path search does not silently become content search.
-
-The landed Files audit deliberately keeps byte classification bounded to the
-displayed directory: summoning a 288-file deep corpus reads only the two visible
-root leaves, and a deep binary surfaced by raw-index name search is safely refused
-without changing document, root or disk bytes. This item owns the remaining
-presentation refinement: classify deeper name/path results through an observable
-budgeted/loading path rather than an eager full-tree read or extension allow-list.
-
-Use 636's common focus/action grammar, not identical key meanings in hidden focus
-states. Row selection, keyboard focus and pointer hover remain visibly different.
-Footers/buttons announce the actual action and real rebound/platform keys. Unify
-labels and routing across keyboard, menu, context menu and palette through existing
-Action owners. Preserve focus/editor restoration and accessible roles/states.
-
-Explicitly distinguish selection from preview and commitment: Files opens only on
-accept; world/caret movement can preview, accept keeps and cancel restores; History
-selection can compare without restoring document bytes. Preserve existing immediate
-Settings semantics unless a separately approved decision changes them. Esc is not
-a blanket rollback of already committed settings or a successful root selection.
-
-Visual ownership stays with 628/589: shared hierarchy, controls, nearby label/value
-relationships, meaningful states and legibility within each world's face, palette,
-placement, material and motion. Keep Settings/History's sustained-workspace structure;
-do not shrink them to the Files picker or copy the HTML mock's warm skin everywhere.
-
-Verify: enumerate surface × focus region × action × scope/preview state from the
-production roster. Test keys and direct Actions, canceled versus committed changes,
-search scoping, narrow-layout focus and restoration. Reuse shared native render
-probes with selected/focused/hovered states and the standing world/DPI/pixel checks;
-five-shot vision smoke asks concrete affordance questions. Findings get missing law
-tests. Do not duplicate 628's prototype work or relabel its pending review as passed.
-
----
 
 ### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
 
