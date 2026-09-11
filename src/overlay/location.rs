@@ -125,7 +125,7 @@ impl LocationConsumer {
     }
 
     pub(crate) fn allows_typed_new_folder(self) -> bool {
-        matches!(self, Self::ExportDestination)
+        matches!(self, Self::SaveCopyDestination | Self::ExportDestination)
     }
 
     pub(crate) fn commit_label(self) -> &'static str {
@@ -237,10 +237,38 @@ mod tests {
                 );
             }
         }
-        assert!(LocationConsumer::ExportDestination.allows_typed_new_folder());
-        assert!(!LocationConsumer::ProjectBrowse.allows_typed_new_folder());
         assert!(LocationConsumer::MoveDestination.shows_relative_breadcrumb());
         assert!(!LocationConsumer::ProjectBrowse.shows_relative_breadcrumb());
+    }
+
+    /// Save Copy and Export deliberately share the typed-folder path: both
+    /// callers pass `allow_new = true` to the same destination resolver.  The
+    /// other navigators use their query as a filter or their own named-folder
+    /// row, never as permission to invent a destination.
+    #[test]
+    fn only_save_copy_and_export_admit_a_typed_new_destination_folder() {
+        let admitting: Vec<LocationConsumer> = LocationConsumer::ALL
+            .into_iter()
+            .filter(|consumer| consumer.allows_typed_new_folder())
+            .collect();
+        assert_eq!(
+            admitting,
+            vec![
+                LocationConsumer::SaveCopyDestination,
+                LocationConsumer::ExportDestination,
+            ],
+            "the typed-folder admission roster changed; update the operation and byte-safety laws"
+        );
+        for consumer in [
+            LocationConsumer::Browse,
+            LocationConsumer::MoveDestination,
+            LocationConsumer::ProjectBrowse,
+        ] {
+            assert!(
+                !consumer.allows_typed_new_folder(),
+                "{consumer:?}: search/navigation must not become a create-and-commit path"
+            );
+        }
     }
 
     #[test]
