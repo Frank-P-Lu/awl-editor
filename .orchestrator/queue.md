@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**7 open numbered tasks.** Ready: 642, 638, and 628. Dependencies/coordination:
+**7 open numbered tasks.** Ready: 642 and 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -56,8 +56,9 @@ wall-clock feel; identify any remaining live timing checks honestly.
 
 ### 638 — one location-navigation owner for Open, Move, Save As and Export (user approval, 2026-09-10)
 
-🟢 READY — 636 and 637 have landed; queue only, not dispatched. Integrate overlapping
-navigation/render ownership sequentially, not as independent browser rewrites.
+🟡 IN PROGRESS — `location_638` (Codex), based on current `main` after 641.
+Integrate overlapping navigation/render ownership sequentially, not as independent
+browser rewrites.
 
 Build: reuse the agreed folder-row, location/breadcrumb, scope, focus, search and
 back-navigation rules wherever awl chooses a location. Inspect existing MoveDest,
