@@ -7,13 +7,13 @@
 ## Open build and design tasks
 
 **3 open numbered tasks.** Ready: none. Dependencies/coordination:
-639–640. User decision: 579.
+640. Native candidate review: 639. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
 
-🟡 COORDINATE WITH 637 and 628/589 — queue only, not dispatched. The 636
-interaction contract is now in DESIGN.md and docs/render.md; use 637 as the native
+🟡 IN PROGRESS — `coherence_639` (Codex), based on `71acf32f`. The 636
+interaction contract is in DESIGN.md and docs/render.md; use 637 as the native
 navigation reference rather than launching another shared-chrome rewrite.
 
 Build: apply context → query/views → choices → actions across the actual surface
