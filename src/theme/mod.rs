@@ -89,6 +89,10 @@ pub use derive::{
     placard_stipple_density, primary, selected_row_ink, selected_row_secondary_ink,
     selection_document, selection_ui, set_active, set_active_by_name, surface_selected,
 };
+pub(crate) use derive::{
+    overlay_band_overlap_for, pane_surface_for, selected_row_ink_for,
+    selected_row_secondary_ink_for, selection_ui_for, surface_selected_for,
+};
 // `DiagonalMark` is authored in `worlds.rs` and reached by the renderer through
 // its `DiagonalSpine`, so the NAME is read only by the laws that assert the two
 // diagonal worlds author different marks — the whole point of the split.

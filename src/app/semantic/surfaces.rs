@@ -37,6 +37,16 @@ impl SemanticView<'_> {
         dialog.children.push(SEARCH_CASE_ID.to_string());
         nodes.push(case);
 
+        for (id, name) in [
+            (SEARCH_PREVIOUS_ID, "Previous match"),
+            (SEARCH_NEXT_ID, "Next match"),
+        ] {
+            let mut button = SemanticNode::new(id, SemanticRole::Button, name);
+            button.actions = vec![SemanticAction::Click];
+            dialog.children.push(id.to_string());
+            nodes.push(button);
+        }
+
         if search.is_replace_active() {
             let mut replacement =
                 SemanticNode::new(SEARCH_REPLACE_ID, SemanticRole::TextInput, "Replace with");
@@ -54,6 +64,15 @@ impl SemanticView<'_> {
             replacement.actions = vec![SemanticAction::Focus, SemanticAction::SetValue];
             dialog.children.push(SEARCH_REPLACE_ID.to_string());
             nodes.push(replacement);
+            for (id, name) in [
+                (SEARCH_REPLACE_BUTTON_ID, "Replace"),
+                (SEARCH_REPLACE_ALL_ID, "Replace all"),
+            ] {
+                let mut button = SemanticNode::new(id, SemanticRole::Button, name);
+                button.actions = vec![SemanticAction::Click];
+                dialog.children.push(id.to_string());
+                nodes.push(button);
+            }
         }
 
         dialog.description = Some(match search.current_index() {

@@ -1972,9 +1972,9 @@ impl TextPipeline {
         fallback_chars: usize,
         caret_row: f32,
     ) -> ([f32; 4], f32, f32, f32) {
-        let m = &self.metrics;
-        let pad = m.px_physical(crate::render::chrome::PANEL_PAD);
-        let margin = m.px_physical(crate::render::chrome::PANEL_MARGIN);
+        let m = self.metrics.panel_ui();
+        let pad = m.px(crate::render::chrome::PANEL_PAD);
+        let margin = m.px(crate::render::chrome::PANEL_MARGIN);
         let mut text_w = 0.0_f32;
         let mut rows = 0usize;
         for run in self.panel_buffer.layout_runs() {
@@ -1986,7 +1986,9 @@ impl TextPipeline {
         // it to the room between the two outer margins. `panel_shape_text`
         // independently fits every shaped row to the corresponding inner width,
         // so this clamp cannot trade a negative left edge for clipped right ink.
-        let card_w = (text_w + 2.0 * pad).min((width as f32 - 2.0 * margin).max(0.0));
+        let card_w = (text_w + 2.0 * pad)
+            .max(m.px(crate::render::chrome::PANEL_MIN_W))
+            .min((width as f32 - 2.0 * margin).max(0.0));
         let card_h = rows * m.line_height + 2.0 * pad;
         let card_x = (width as f32 - card_w - margin).max(0.0);
         let card_y = margin + self.menubar_reserve();
@@ -2026,7 +2028,7 @@ impl TextPipeline {
                 }
             }
         }
-        text_left + self.metrics.char_width * fallback_chars as f32
+        text_left + self.metrics.panel_ui().char_width * fallback_chars as f32
     }
 
     /// Underline rectangle(s) for an active IME preedit, in the SAME `[x,y,w,h]`

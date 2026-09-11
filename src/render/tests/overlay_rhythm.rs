@@ -11,18 +11,18 @@ use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
 
 #[test]
-fn explanatory_hint_yields_before_action_cells_at_narrow_width_on_both_dpis() {
+fn explanatory_hint_yields_when_its_composition_is_bounded_on_both_dpis() {
     let hint = "type to filter   ↵ open   ←/→ lens   esc close";
     for dpi in [1.0, 2.0] {
         for (geometry, physical_w, expected) in [
-            ("narrow", 720.0 * dpi, "↵ open   ←/→ lens   esc close"),
-            ("ordinary", 1200.0 * dpi, hint),
-            ("wide", 1600.0 * dpi, hint),
+            ("bounded", 520.0 * dpi, "↵ open   ←/→ lens   esc close"),
+            ("roomy", 800.0 * dpi, hint),
+            ("wide", 1000.0 * dpi, hint),
         ] {
             assert_eq!(
                 crate::render::chrome::hint_yielding_explanation(hint, physical_w / dpi),
                 expected,
-                "{geometry} at {dpi}x makes the authored yield decision"
+                "{geometry} composition at {dpi}x makes the authored yield decision"
             );
         }
     }

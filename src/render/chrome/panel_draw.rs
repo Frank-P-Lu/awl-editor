@@ -90,7 +90,7 @@ impl TextPipeline {
     /// edges so it never touches the rim `claim_float_panel` draws.
     fn panel_rule_rects(&self, card_rect: [f32; 4], text_top: f32) -> Vec<[f32; 4]> {
         let [card_x, _y, card_w, _h] = card_rect;
-        let inset = self.metrics.px_physical(RULE_INSET_X);
+        let inset = self.metrics.panel_ui().px(RULE_INSET_X);
         let x0 = card_x + inset;
         let w = (card_w - 2.0 * inset).max(0.0);
         let stroke = self.metrics.px_physical(RULE_STROKE);
@@ -145,10 +145,25 @@ impl TextPipeline {
             return Some(PanelHit::ReplaceAllButton);
         }
         let row = self.panel_rows(text_top).row_at(py);
-        Some(match row {
-            0 => PanelHit::Find,
-            1 if self.search_replace_active => PanelHit::Replace,
-            _ => PanelHit::Elsewhere,
+        let find_row = self
+            .panel_control_spans
+            .find_field
+            .map(|span| span.row as i64);
+        let replace_row = self
+            .panel_control_spans
+            .replace_field
+            .map(|span| span.row as i64);
+        let belongs_to = |field_row: Option<i64>| {
+            field_row.is_some_and(|field_row| {
+                row == field_row || (field_row > 0 && row == field_row - 1)
+            })
+        };
+        Some(if belongs_to(find_row) {
+            PanelHit::Find
+        } else if belongs_to(replace_row) {
+            PanelHit::Replace
+        } else {
+            PanelHit::Elsewhere
         })
     }
 
@@ -168,7 +183,7 @@ impl TextPipeline {
         text_top: f32,
         caret_row: f32,
     ) {
-        let m = self.metrics;
+        let m = self.metrics.panel_ui();
         let caret_h = m.caret_h * 0.8;
         let caret_cx = caret_x + m.caret_w * 0.5;
         let caret_cy = self.panel_caret_cy(text_top, caret_row);
@@ -187,11 +202,10 @@ impl TextPipeline {
     }
 }
 
-/// The separators' inset from the card's own left/right edges, and their own
-/// stroke weight — both device px, unscaled by DPI (a crisp hairline at any
-/// zoom/density), mirroring `PANEL_PAD`/`FLOAT_BORDER_RING_PX`'s own contract.
-/// Matches `PANEL_PAD`: the rule starts exactly at the text pad boundary, well
+/// The separator inset follows the panel's authored logical text padding; its
+/// stroke remains one physical device pixel for a crisp hairline at any density.
+/// The rule starts exactly at the text pad boundary, well
 /// clear of the few px right of the card's own edge a rim-measuring oracle
 /// samples to find the CARD's rim without crossing this hairline instead.
-pub(in crate::render) const RULE_INSET_X: Physical = PANEL_PAD;
+pub(in crate::render) const RULE_INSET_X: Logical = PANEL_PAD;
 pub(in crate::render) const RULE_STROKE: Physical = Physical(1.0);

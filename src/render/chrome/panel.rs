@@ -5,27 +5,22 @@
 //! advance. Inherent methods on [`super::TextPipeline`] (they shape into its
 //! shared panel buffers). See [`super`].
 //!
-//! **The reference chrome** (`references/find-replace-chrome.png`, cited on
-//! the queue) calls for clear bordered fields, a separate match/navigation
-//! region, and distinct Replace/Replace all controls — while the earlier
-//! terse `/`-pill and the later borderless text-strip both went too far the
-//! other way. This module keeps the keyboard-first character (every button
-//! carries the chord that also fires it, sourced from ONE place —
-//! `keyspec::Panel*` — never a hardcoded glyph) while restoring the bordered,
-//! labeled-region composition. The card is still ONE text buffer
+//! Clear bordered fields, a separate match/navigation region, and distinct
+//! Replace/Replace all controls form one compact logical UI unit. Every button
+//! carries its chord from ONE place (`keyspec::Panel*`, never a hardcoded
+//! glyph), preserving the keyboard-first character. The card is ONE text buffer
 //! (`panel_buffer`) shaped as a handful of rows; what is new is that some of
 //! those rows' CONTROLS also get a drawn box, computed from their own shaped
 //! byte range (`chrome::panel_controls`), never a hardcoded pitch.
 
 use super::*;
 
-/// The search card's inner breathing room and outer canvas inset, preserving
-/// their existing DEVICE-pixel behavior. Promoting either to `Logical` would
-/// change the Retina composition and remains a visual decision; naming them is
-/// what lets the pending 1x/2x comparison find both consumers without another
-/// inline-literal census.
-pub(in crate::render) const PANEL_PAD: Physical = Physical(12.0);
-pub(in crate::render) const PANEL_MARGIN: Physical = Physical(12.0);
+/// The search card's authored logical inner breathing room and outer canvas
+/// inset. Both resolve through the UI metric owner, independent of document
+/// zoom and proportional to display density.
+pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
+pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
+pub(in crate::render) const PANEL_MIN_W: Logical = Logical(420.0);
 
 /// Field labels, padded to ONE shared width (13 ASCII bytes) so the find and
 /// replace boxes start in the same column — ASCII, so byte len == char count,
@@ -40,9 +35,9 @@ const _: () = assert!(
 /// The ordinary-width VISIBLE cap (character cells) of the query/replacement
 /// VALUE field: typing/pasting past this count SCROLLS the field
 /// (`field_view_window`, the one clipping-rule owner shared by both fields)
-/// instead of widening the card. Twenty-eight cells is wide enough for a
+/// instead of widening the card. Nineteen cells are wide enough for a
 /// realistic search term without feeling cramped on an ordinary canvas.
-const PANEL_FIELD_CHARS: usize = 28;
+const PANEL_FIELD_CHARS: usize = 19;
 /// The label plus its one reserved caret cell — the fixed-cell floor every
 /// responsive `field_chars` computation subtracts before granting the rest to
 /// the value field.
@@ -53,6 +48,9 @@ const PANEL_FIELD_CHARS: usize = 28;
 // comfortably inside the narrow-canvas clamp instead of riding its exact edge.
 const PANEL_FIXED_CELLS: usize = FIND_LABEL.len() + 2;
 const PANEL_MIN_FIELD_CHARS: usize = 8;
+/// At the narrow logical floor, place the label above its editable field so the
+/// value retains useful width.
+const PANEL_STACKED_FIELD_CELLS: usize = 30;
 /// Below this shaped-cell width the nav/actions rows drop their trailing
 /// chord ANNOTATIONS — never their labels or buttons, which stay legible at
 /// any width the card is ever clamped to. A narrow canvas still reads every
@@ -72,6 +70,10 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        // Search is not an `OverlayState`, so it does not pass through that
+        // constructor's non-Theme unpin arm. Clear a dismissed Themes card's
+        // inert pin before this independent surface shapes its own chrome.
+        crate::render::unpin_picker_chrome();
         self.panel_remetric();
         let shape = self.panel_shape_text(width);
         let (card_rect, text_left, text_top, caret_x) = self.panel_layout(
@@ -91,7 +93,7 @@ impl TextPipeline {
     /// Re-metric the shared panel buffer to the current zoom so its glyph
     /// line-height matches the caret/layout rects (which use m.line_height).
     fn panel_remetric(&mut self) {
-        let m = self.metrics;
+        let m = self.metrics.panel_ui();
         self.panel_buffer
             .set_metrics(&mut self.font_system, m.glyph_metrics());
     }
@@ -123,7 +125,7 @@ impl TextPipeline {
     ///     revealed; also wraps under narrow pressure): the `Replace` /
     ///     `Replace all` buttons and the `Esc close` hint.
     pub(in crate::render) fn panel_shape_text(&mut self, width: u32) -> PanelShape {
-        let m = self.metrics;
+        let m = self.metrics.panel_ui();
         let no_match = self.search_no_matches();
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
@@ -135,8 +137,7 @@ impl TextPipeline {
         // The query never shapes as its raw, unbounded self: it is a fixed
         // visible field, scrolled/padded by `field_view_window`.
         let panel_text_w =
-            (width as f32 - 2.0 * m.px_physical(PANEL_MARGIN) - 2.0 * m.px_physical(PANEL_PAD))
-                .max(m.char_width);
+            (width as f32 - 2.0 * m.px(PANEL_MARGIN) - 2.0 * m.px(PANEL_PAD)).max(m.char_width);
         let panel_cells = (panel_text_w / m.char_width).floor() as usize;
         let field_chars = PANEL_FIELD_CHARS.min(
             panel_cells
@@ -175,18 +176,25 @@ impl TextPipeline {
             (ink, muted, muted)
         };
         let wide = panel_cells >= PANEL_WIDE_CELLS;
+        let stacked_fields = panel_cells < PANEL_STACKED_FIELD_CELLS;
         let case_hint_on = self.search_case_sensitive && !no_match;
 
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         let mut controls = PanelControlSpans::default();
 
-        // ROW 0 — FIND.
-        spans.push((FIND_LABEL, mk(muted)));
-        let find_start = FIND_LABEL.len();
+        // FIND — inline at ordinary widths, label-above at the narrow floor.
+        spans.push((if stacked_fields { "Find" } else { FIND_LABEL }, mk(muted)));
+        let find_row = if stacked_fields {
+            spans.push(("\n", mk(muted)));
+            1.0
+        } else {
+            0.0
+        };
+        let find_start = if stacked_fields { 0 } else { FIND_LABEL.len() };
         spans.push((query_view.as_str(), field(c_query)));
         let find_end = find_start + query_view.len();
         controls.find_field = Some(ControlSpan {
-            row: 0.0,
+            row: find_row,
             byte_start: find_start,
             byte_end: find_end,
         });
@@ -199,20 +207,39 @@ impl TextPipeline {
         // push the row past the narrow-canvas clamp `panel_layout` derives
         // from the very same width. The `Tab switch field` hint lives on the
         // nav row instead, which already carries its own wide/narrow wrap.
-        let mut nav_row = 1.0_f32;
+        let mut replace_row = None;
+        let mut nav_row = find_row + 1.0;
         if replace_active {
             spans.push(("\n", mk(muted)));
-            spans.push((REPLACE_LABEL, mk(muted)));
-            let rep_start = REPLACE_LABEL.len();
+            spans.push((
+                if stacked_fields {
+                    "Replace with"
+                } else {
+                    REPLACE_LABEL
+                },
+                mk(muted),
+            ));
+            let row = if stacked_fields {
+                spans.push(("\n", mk(muted)));
+                find_row + 2.0
+            } else {
+                find_row + 1.0
+            };
+            let rep_start = if stacked_fields {
+                0
+            } else {
+                REPLACE_LABEL.len()
+            };
             spans.push((replacement_view.as_str(), field(ink)));
             let rep_end = rep_start + replacement_view.len();
             controls.replace_field = Some(ControlSpan {
-                row: 1.0,
+                row,
                 byte_start: rep_start,
                 byte_end: rep_end,
             });
             spans.push((" ", mk(ink))); // the reserved caret cell
-            nav_row = 2.0;
+            replace_row = Some(row);
+            nav_row = row + 1.0;
         }
 
         // THE NAV ROW — counter, step buttons, match-case checkbox. At
@@ -280,16 +307,6 @@ impl TextPipeline {
                 move || sym(case_hint_color),
             );
         }
-        let switch_hint_owned;
-        if wide {
-            switch_hint_owned = format!("   {} switch", crate::keyspec::PANEL_SWITCH_FIELD.label());
-            push_symbol_split(&mut spans, &switch_hint_owned, || mk(muted), || sym(muted));
-        }
-        let nav_close_owned;
-        if !replace_active {
-            nav_close_owned = format!("   {} close", crate::keyspec::PANEL_CLOSE.label());
-            push_symbol_split(&mut spans, &nav_close_owned, || mk(muted), || sym(muted));
-        }
         let nav_lines = if wide { 1.0 } else { 2.0 };
 
         // THE ACTIONS ROW (only once replace is revealed): Replace / Replace
@@ -300,7 +317,6 @@ impl TextPipeline {
         let actions_row = nav_row + nav_lines;
         let replace_hint_owned;
         let replace_all_hint_owned;
-        let actions_close_owned;
         if replace_active {
             spans.push(("\n", mk(muted)));
             let mut off2 = 0usize;
@@ -321,8 +337,8 @@ impl TextPipeline {
                 off2 += replace_hint_owned.len();
             }
             let replace_all_row = if wide {
-                spans.push(("   ", mk(muted)));
-                off2 += 3;
+                spans.push(("  ", mk(muted)));
+                off2 += 2;
                 actions_row
             } else {
                 spans.push(("\n", mk(muted)));
@@ -348,13 +364,6 @@ impl TextPipeline {
                     || sym(muted),
                 );
             }
-            actions_close_owned = format!("   {} close", crate::keyspec::PANEL_CLOSE.label());
-            push_symbol_split(
-                &mut spans,
-                &actions_close_owned,
-                || mk(muted),
-                || sym(muted),
-            );
         }
         let actions_lines = if replace_active {
             if wide { 1.0 } else { 2.0 }
@@ -362,7 +371,32 @@ impl TextPipeline {
             0.0
         };
 
-        let rows = actions_row + actions_lines;
+        // One quiet footer owns the two navigation chords that apply to the
+        // panel as a whole. Keeping them out of the control rows makes those
+        // rows scan as controls instead of a sentence of annotations.
+        let footer_field_owned;
+        let footer_close_owned;
+        let footer_owned;
+        let footer_rows = if stacked_fields {
+            footer_field_owned = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
+            footer_close_owned = format!("{} close", crate::keyspec::PANEL_CLOSE.label());
+            spans.push(("\n", mk(muted)));
+            push_symbol_split(&mut spans, &footer_field_owned, || mk(muted), || sym(muted));
+            spans.push(("\n", mk(muted)));
+            push_symbol_split(&mut spans, &footer_close_owned, || mk(muted), || sym(muted));
+            2.0
+        } else {
+            footer_owned = format!(
+                "{} field   {} close",
+                crate::keyspec::PANEL_SWITCH_FIELD.label(),
+                crate::keyspec::PANEL_CLOSE.label()
+            );
+            spans.push(("\n", mk(muted)));
+            push_symbol_split(&mut spans, &footer_owned, || mk(muted), || sym(muted));
+            1.0
+        };
+
+        let rows = actions_row + actions_lines + footer_rows;
         // Give the buffer generous width + one line height per row so it never wraps.
         self.panel_buffer.set_size(
             &mut self.font_system,
@@ -386,16 +420,32 @@ impl TextPipeline {
         // against the WINDOWED `query_view`/`replacement_view`, never the raw
         // field text, so the caret always lands on a real shaped glyph.
         let (caret_byte, caret_fallback_chars, caret_row) = if editing_replacement {
+            let label_bytes = if stacked_fields {
+                0
+            } else {
+                REPLACE_LABEL.len()
+            };
+            let label_chars = if stacked_fields {
+                0
+            } else {
+                REPLACE_LABEL.chars().count()
+            };
             (
-                REPLACE_LABEL.len() + field_caret_byte(&replacement_view, replacement_view_caret),
-                REPLACE_LABEL.chars().count() + replacement_view_caret,
-                1.0_f32,
+                label_bytes + field_caret_byte(&replacement_view, replacement_view_caret),
+                label_chars + replacement_view_caret,
+                replace_row.expect("replace focus requires the replace row"),
             )
         } else {
+            let label_bytes = if stacked_fields { 0 } else { FIND_LABEL.len() };
+            let label_chars = if stacked_fields {
+                0
+            } else {
+                FIND_LABEL.chars().count()
+            };
             (
-                FIND_LABEL.len() + field_caret_byte(&query_view, query_view_caret),
-                FIND_LABEL.chars().count() + query_view_caret,
-                0.0_f32,
+                label_bytes + field_caret_byte(&query_view, query_view_caret),
+                label_chars + query_view_caret,
+                find_row,
             )
         };
         // THE SELECTION BAND's own crossing, through the one owner beside
@@ -404,14 +454,19 @@ impl TextPipeline {
         let (label, view, field_caret, field_len) = if editing_replacement {
             let caret = self.search_replacement_caret;
             (
-                REPLACE_LABEL,
+                if stacked_fields { "" } else { REPLACE_LABEL },
                 &replacement_view,
                 caret,
                 replacement.chars().count(),
             )
         } else {
             let caret = self.search_query_caret;
-            (FIND_LABEL, &query_view, caret, query.chars().count())
+            (
+                if stacked_fields { "" } else { FIND_LABEL },
+                &query_view,
+                caret,
+                query.chars().count(),
+            )
         };
         let selection_span = panel_selection_span(
             self.search_field_selection,
@@ -433,5 +488,13 @@ impl TextPipeline {
             caret_row,
             selection_span,
         }
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn panel_field_rows_probe(&self) -> (Option<f32>, Option<f32>) {
+        (
+            self.panel_control_spans.find_field.map(|span| span.row),
+            self.panel_control_spans.replace_field.map(|span| span.row),
+        )
     }
 }

@@ -289,6 +289,7 @@ pub(super) fn settled_viewstate(
     vstate.overlay_active = opts.overlay.as_ref().map(|o| o.active).unwrap_or(false);
     // Preserve the alignment frozen when the overlay was summoned.
     vstate.overlay_align = opts.overlay.as_ref().map(|o| o.align);
+    vstate.overlay_theme_chrome = opts.overlay.as_ref().and_then(|o| o.chrome_theme);
     // Capture-only force summon for a live mouse gesture; keep the live gates.
     if crate::popover::popover_on()
         && !search_active
@@ -307,6 +308,11 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
         .is_some_and(|kind| kind.keeps_backdrop_crisp());
+    vstate.overlay_theme_picker = opts
+        .overlay
+        .as_ref()
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        == Some(crate::overlay::OverlayKind::Theme);
     vstate.overlay_query = opts
         .overlay
         .as_ref()

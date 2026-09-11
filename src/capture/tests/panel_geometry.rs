@@ -17,15 +17,11 @@
 //! had been divided by the scale factor fails against the ink rather than against
 //! a hand-written expectation.
 //!
-//! ⚠️ **WHAT DOUBLES IS MEASURED, NOT ASSUMED.** The row pitch and the `Aa` span
-//! come off `metrics.line_height` and the shaped advances, and they double
-//! exactly. The card's `y` does NOT: its outer margin and inner pad are unscaled
-//! constants, so they are counted once at either scale and the residual is theirs.
-//! The law therefore asserts the exact doubling only where the quantity is
-//! metric-derived, and elsewhere asserts the direction — a figure that does not
-//! grow at all is the logical-units bug this block exists to expose. It is written
-//! to stay green if the pad is ever scaled, because that is a layout question, not
-//! a reporting one.
+//! ⚠️ **THE UI FIGURES DOUBLE TOGETHER.** Row pitch, shaped advances, card margin,
+//! inner pad, and control padding all come from the UI metric owner, so matched
+//! logical windows at dpi 1 and dpi 2 produce exactly doubled device geometry.
+//! The report remains in device coordinates because that is what the PNG and
+//! pointer consume.
 
 use super::super::*;
 use super::adapter_available;
@@ -143,8 +139,8 @@ fn rim_enrollment_excludes_unrelated_edges_and_rejects_absent_rims() {
 fn measured_edges(png: &std::path::Path, p: &Panel) -> ([usize; 2], [usize; 2]) {
     let img = image::open(png).expect("decode PNG").to_rgba8();
     let (w, h) = (img.width() as usize, img.height() as usize);
-    // 4px below the published card top: inside the card's unscaled 12px pad at
-    // every capture scale, and above the first row of glyphs.
+    // 4 device px below the published card top: inside the card's logical pad
+    // at both capture scales, and above the first row of glyphs.
     let y = (p.card[1] as usize + 4).min(h - 1);
     let row: Vec<f64> = (0..w)
         .map(|x| rel_lum(*img.get_pixel(x as u32, y as u32)))
@@ -176,7 +172,7 @@ fn measured_edges(png: &std::path::Path, p: &Panel) -> ([usize; 2], [usize; 2]) 
 /// The rim is drawn just OUTSIDE the fill and is about two pixels wide, so the
 /// step this scan reports sits up to 2px outside the rect's own edge (measured:
 /// 2.09px at the leading edges, 0.0 at the trailing ones, identically at both
-/// capture scales — the rim width is unscaled too). `EDGE_TOL` is 4px: nearly
+/// capture scales — the rim is an intentional physical hairline). `EDGE_TOL` is 4px: nearly
 /// twice the observed worst case, so a rasterizer that anti-aliases the rim
 /// differently cannot redden this, while the smallest error it must catch — a
 /// uniformly rescaled rect — moves an edge by hundreds of pixels.
@@ -293,8 +289,8 @@ fn published_panel_geometry_matches_the_drawn_card_at_both_capture_scales() {
     let buf = Buffer::from_str("hello world\nhello again\n");
 
     // ONE logical window at two scales: 1200x800 at dpi 1 and 2400x1600 at dpi 2
-    // are the same (W/N)x(H/N) logical window, so every difference is the scale
-    // factor and the unscaled chrome constants, and nothing else.
+    // are the same (W/N)x(H/N) logical window, so every authored UI figure has
+    // exactly the scale factor and nothing else.
     let one = dir.join("dpi1.png");
     capture_with(&one, &buf, &opts((1200, 800), 1.0)).expect("dpi 1 capture");
     let two = dir.join("dpi2.png");
@@ -308,8 +304,7 @@ fn published_panel_geometry_matches_the_drawn_card_at_both_capture_scales() {
     assert_card_matches_the_ink("1x", &one, &a);
     assert_card_matches_the_ink("2x", &two, &b);
 
-    // ---- what a PHYSICAL-pixel figure does across the two scales -------------
-    // Metric- and ink-derived, so these double exactly.
+    // ---- what a logical UI figure does across the two scales -----------------
     let doubles = |lo: f64, hi: f64, what: &str| {
         assert!(
             (hi - lo * 2.0).abs() <= 1.0,
@@ -326,13 +321,8 @@ fn published_panel_geometry_matches_the_drawn_card_at_both_capture_scales() {
     for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
         doubles(lo.2, hi.2, &format!("panel.rows[{i}].h (the row pitch)"));
     }
-    // The card's own rect carries the unscaled 12px margin and pad, so it grows
-    // by twice-plus-a-residual rather than exactly twice. What must hold — and
-    // what a logical-unit report breaks — is that it grows at all. The
-    // `case_toggle` control box joins this bucket too: its tight glyph span is
-    // outset by the SAME kind of unscaled device-px pad the card's own pad
-    // already is, so its total width grows with the scale factor but not
-    // exactly 2x.
+    // Every authored UI dimension is logical and therefore doubles in device
+    // coordinates at dpi 2, including the card margin/pad and control padding.
     for (lo, hi, what) in [
         (a.card[0], b.card[0], "panel.card.x"),
         (a.card[2], b.card[2], "panel.card.w"),
@@ -345,12 +335,7 @@ fn published_panel_geometry_matches_the_drawn_card_at_both_capture_scales() {
         (a.text_left, b.text_left, "panel.text.left"),
         (a.toggle.0, b.toggle.0, "the Aa span's x0"),
     ] {
-        assert!(
-            hi > lo * 1.5,
-            "{what} is {lo} at --capture-dpi 1 and {hi} at 2: a physical-pixel \
-             figure grows with the scale factor (this one carries the card's own \
-             unscaled 12px margin/pad, so it is not exactly 2x)"
-        );
+        doubles(lo, hi, what);
     }
 }
 

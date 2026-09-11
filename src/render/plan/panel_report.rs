@@ -22,12 +22,10 @@
 //!
 //! **THE COORDINATE SPACE IS PHYSICAL (DEVICE) PIXELS** — the space the pointer
 //! arrives in, the space the PNG's pixels are in, and the space the rest of the
-//! chrome geometry family already speaks. ⚠️ It does NOT follow that every figure
-//! here doubles with `--capture-dpi`: this card's pad and outer margin are
-//! unscaled constants, so its `y` is the same physical value at every scale while
-//! its row pitch (`metrics.line_height`) doubles. Publishing the pair is what
-//! makes that measurable instead of arguable, and the projection must not
-//! "correct" either one on the way out.
+//! chrome geometry family already speaks. The panel's authored logical pad,
+//! margin, row pitch, and controls all scale with UI DPI before they enter this
+//! report. Publishing those final device coordinates makes draw, hit-test, and
+//! sidecar agreement measurable without rescaling them again.
 //!
 //! **WHICH ROW IS FOCUSED IS DELIBERATELY ABSENT.** `search.editing_replacement`
 //! already reports it, from the state the shaper itself reads; a second answer
@@ -118,7 +116,7 @@ impl TextPipeline {
     /// The panel's row band for an inner text origin — the seam the caret placer,
     /// the hit-test and the projection share.
     pub(in crate::render) fn panel_rows(&self, text_top: f32) -> PanelRowBands {
-        PanelRowBands::new(text_top, self.metrics.line_height)
+        PanelRowBands::new(text_top, self.metrics.panel_ui().line_height)
     }
 
     /// **THE PANEL CARET'S CENTRE-Y**, the single figure `panel_place_caret` hands

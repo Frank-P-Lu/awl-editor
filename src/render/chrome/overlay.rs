@@ -2,7 +2,7 @@ use super::*;
 
 impl TextPipeline {
     pub(in crate::render) fn overlay_metrics(&self) -> GlyphMetrics {
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let scale = crate::render::effective_overlay_scale();
         GlyphMetrics::new(m.font_size * scale, self.overlay_lh())
     }
@@ -26,7 +26,7 @@ impl TextPipeline {
             theme::ListStyle::Ruled(_) => RULE_ROW_AIR,
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => Logical(0.0),
         };
-        self.metrics.px(gap)
+        self.metrics.ui().px(gap)
     }
 
     /// The overlay's EXTRA leading, resolved. A theme-authored length like any
@@ -35,6 +35,7 @@ impl TextPipeline {
     /// treats as logical drift out of proportion across displays.
     pub(in crate::render) fn overlay_leading(&self) -> f32 {
         self.metrics
+            .ui()
             .px(Logical(crate::render::effective_overlay_leading()))
     }
 
@@ -50,7 +51,8 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
         let l = match crate::render::effective_list_style() {
             theme::ListStyle::Bars => {
-                return self.metrics.px(BAR_SIDE_INSET) + self.metrics.px(BAR_TEXT_PAD);
+                let ui = self.metrics.ui();
+                return ui.px(BAR_SIDE_INSET) + ui.px(BAR_TEXT_PAD);
             }
             // The inset a `Ruled` list holds is its GUTTER — the column its
             // selection mark hangs in and the margin its heavy rule runs out
@@ -58,20 +60,20 @@ impl TextPipeline {
             theme::ListStyle::Ruled(_) => RULES_TEXT_HPAD,
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => PANE_TEXT_HPAD,
         };
-        self.metrics.px(l)
+        self.metrics.ui().px(l)
     }
 
     /// The overlay row LINE HEIGHT — the single-owner metric the card height, the
     /// row-Y, the hit-test, and the
     /// selected-row band all read, so a click always lands on the row it highlights.
     pub(in crate::render) fn overlay_lh(&self) -> f32 {
-        self.metrics.line_height * crate::render::effective_overlay_scale()
+        self.metrics.ui().line_height * crate::render::effective_overlay_scale()
             + self.overlay_leading()
             + self.overlay_row_gap()
     }
 
     pub(in crate::render) fn overlay_char_width(&self) -> f32 {
-        self.metrics.char_width * crate::render::effective_overlay_scale()
+        self.metrics.ui().char_width * crate::render::effective_overlay_scale()
     }
 
     pub(in crate::render) fn overlay_card_box(&self, width: u32, desired_w: f32) -> (f32, f32) {
@@ -79,7 +81,7 @@ impl TextPipeline {
             crate::render::resolve_overlay_anchor(self.overlay_align),
             width as f32,
             desired_w,
-            self.metrics.scale,
+            self.metrics.dpi,
             self.metrics.dpi,
         )
     }
@@ -116,7 +118,7 @@ impl TextPipeline {
     /// same logical window. The elision budget, and therefore how much of a
     /// command name a row can show, was a property of the reader's display.
     pub(in crate::render) fn overlay_card_desired_w(&self, base: LogicalGrowOnly) -> f32 {
-        self.metrics.px_grow_only(base)
+        self.metrics.ui().px_grow_only(base)
     }
 
     pub(in crate::render) fn overlay_right_anchored(&self) -> bool {
@@ -125,8 +127,14 @@ impl TextPipeline {
 
     pub(in crate::render) fn overlay_desired_w(&self, base_cap: LogicalGrowOnly) -> f32 {
         let scaled = self.overlay_card_desired_w(base_cap);
-        if self.overlay_right_anchored() && self.overlay_content_w > 0.0 {
-            let floor = self.metrics.px_grow_only(CARD_CONTENT_MIN_W).min(scaled);
+        if self.overlay_theme_picker {
+            scaled
+        } else if self.overlay_right_anchored() && self.overlay_content_w > 0.0 {
+            let floor = self
+                .metrics
+                .ui()
+                .px_grow_only(CARD_CONTENT_MIN_W)
+                .min(scaled);
             self.overlay_content_w.clamp(floor, scaled)
         } else {
             scaled
@@ -225,7 +233,7 @@ impl TextPipeline {
         if hint_rows == 0 && gap_rows == 0 {
             return 0.0;
         }
-        let pad = self.metrics.px(OVERLAY_FOOTER_PAD);
+        let pad = self.metrics.ui().px(OVERLAY_FOOTER_PAD);
         let hint_slack = hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h()).max(0.0);
         let gap_slack = gap_rows as f32 * (self.overlay_lh() - self.overlay_hint_gap_h()).max(0.0);
         (hint_slack + gap_slack - pad).max(0.0)
@@ -357,8 +365,8 @@ impl TextPipeline {
         };
         let card_y = self
             .overlay_context_anchor
-            .map(|(_, y)| y + self.metrics.px(CONTEXT_ANCHOR_DROP))
-            .unwrap_or(margin + self.metrics.px(CARD_TOP_DROP) + self.menubar_reserve());
+            .map(|(_, y)| y + self.metrics.ui().px(CONTEXT_ANCHOR_DROP))
+            .unwrap_or(margin + self.metrics.ui().px(CARD_TOP_DROP) + self.menubar_reserve());
         // Cap the item window to what the canvas fits, same owner the
         // grouped family reads (`theme_overlay_geometry`).
         let avail_px = if contextual {
@@ -385,8 +393,9 @@ impl TextPipeline {
         if !self.overlay_lens.is_empty() {
             return self.theme_overlay_geometry(width);
         }
-        let pad = self.metrics.px(CARD_PAD);
-        let margin = self.metrics.px(CARD_MARGIN);
+        let ui = self.metrics.ui();
+        let pad = ui.px(CARD_PAD);
+        let margin = ui.px(CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
             self.overlay_chrome_inventory(n_items);
@@ -406,13 +415,13 @@ impl TextPipeline {
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {
-            let floor = self.metrics.px(CARD_EDGE_INSET_FLOOR);
+            let floor = ui.px(CARD_EDGE_INSET_FLOOR);
             card_x = x.clamp(floor, (width as f32 - card_w - floor).max(floor));
         }
-        let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
+        let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.dpi);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        hint = hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
+        hint = hint_yielding_explanation(&hint, text_w / self.metrics.dpi.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         if !contextual && card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
             (hint_gap_rows, card_h) = self.flat_card_h_without_header_gap(
@@ -488,10 +497,10 @@ impl TextPipeline {
         start_col: usize,
         end_col: usize,
     ) -> OverlayGeom {
-        let m = self.metrics;
-        let pad = self.metrics.px(SPELL_PAD);
-        let margin = self.metrics.px(SPELL_MARGIN);
-        let gap = self.metrics.px(SPELL_WORD_GAP);
+        let m = self.metrics.ui();
+        let pad = m.px(SPELL_PAD);
+        let margin = m.px(SPELL_MARGIN);
+        let gap = m.px(SPELL_WORD_GAP);
         let n_items = self.overlay_items.len();
         let header_rows = 0;
         let hint = String::new();
@@ -564,8 +573,8 @@ impl TextPipeline {
         let framed_w = self.spell_framed_width(rows, measured_w, char_grid_w, pad);
         let card_w = framed_w
             .clamp(
-                self.metrics.px_grow_only(SPELL_MIN_W),
-                self.metrics.px_grow_only(SPELL_MAX_W),
+                self.metrics.ui().px_grow_only(SPELL_MIN_W),
+                self.metrics.ui().px_grow_only(SPELL_MAX_W),
             )
             .min(width as f32 - 2.0 * margin);
         let text_w = card_w - 2.0 * pad;
@@ -609,7 +618,7 @@ impl TextPipeline {
         start_col: usize,
         end_col: usize,
     ) -> (f32, f32, f32, f32) {
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let doc_top = self.doc_top();
         let rows = self.visual_rows(line);
         let row = pick_row(&rows, start_col);

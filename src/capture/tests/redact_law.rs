@@ -202,6 +202,7 @@ fn blank_overlay() -> OverlayInfo {
         active: false,
         mode: "switch",
         align: crate::theme::CardAnchor::TopCenter,
+        chrome_theme: None,
         query: String::new(),
         query_caret: 0,
         query_selection: None,

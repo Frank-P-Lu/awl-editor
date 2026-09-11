@@ -125,6 +125,7 @@ fn capture_date_picker(
         mode: crate::overlay::OverlayKind::Date.as_str(),
         title: crate::overlay::OverlayKind::Date.title().to_string(),
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         query: String::new(),
         query_caret: 0,
         query_selection: None,

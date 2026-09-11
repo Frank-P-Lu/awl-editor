@@ -732,7 +732,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     assert_eq!(p.panel_hit(mid, card_y - 5.0), None);
     assert_eq!(p.panel_hit(mid, card_y + card_h + 5.0), None);
 
-    // Replace NOT revealed: find + nav rows only (no replace field/row).
+    // Replace NOT revealed: find + nav + quiet footer (no replace field/actions).
     let mut v1 = view("hello\nhello\n", 0, 0);
     v1.search_active = true;
     v1.search_query = "hello".into();
@@ -749,12 +749,10 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     );
     let mid1 = cx1 + cw1 * 0.5;
     assert_eq!(p.panel_hit(mid1, top1 + 0.5 * lh), Some(PanelHit::Find));
-    // Below the two-row (find + nav) card is off the card -> None.
-    assert!(
-        top1 + 2.5 * lh > _cy1 + ch1,
-        "the would-be third row sits below the 2-row plain-find card"
-    );
-    assert_eq!(p.panel_hit(mid1, top1 + 2.5 * lh), None);
+    // Immediately below the card is off the card -> None. Ask the published
+    // card bound rather than restating how many shaped rows its current quiet
+    // footer occupies.
+    assert_eq!(p.panel_hit(mid1, _cy1 + ch1 + 1.0), None);
     // `replace_field`/`Replace` never resolve while replace is not revealed —
     // a plain find panel publishes no such control at all.
     let g1 = p
@@ -880,8 +878,8 @@ fn panel_card_yields_to_shown_menu_bar() {
         shape_off.caret_row,
     );
     assert_eq!(
-        cy_off, 12.0,
-        "bar off: the card keeps its plain 12px margin top"
+        cy_off, 16.0,
+        "bar off: the card keeps its authored 16-logical-pixel margin top"
     );
 
     crate::menubar::set_menu_bar_on(true);
@@ -939,6 +937,7 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
         let ([_, _, natural_w, _], ..) = p.panel_layout(1200, 0, 0, 0.0);
         let threshold = (natural_w + 12.0).ceil() as u32;
         let widths = [
+            360,
             464,
             560,
             threshold.saturating_sub(1),
@@ -949,6 +948,14 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
 
         for width in widths {
             let shape = p.panel_shape_text(width);
+            if width == 360 {
+                assert_eq!(
+                    p.panel_field_rows_probe(),
+                    (Some(1.0), Some(3.0)),
+                    "{}: at the narrow floor each field label occupies the line above its control",
+                    world.name
+                );
+            }
             let ([x, _y, w, _h], text_left, _text_top, _caret_x) = p.panel_layout(
                 width,
                 shape.caret_byte,

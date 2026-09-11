@@ -179,7 +179,7 @@ impl TextPipeline {
             track_rects.push(rail.track);
             let ink = match selected_flip {
                 Some(flip) if on_band.contains(item) => flip,
-                _ => theme::muted(),
+                _ => crate::render::overlay_chrome_theme().muted,
             }
             .rgba_bytes();
             if rail.fill[2] > 0.0 {
@@ -188,7 +188,7 @@ impl TextPipeline {
             thumb_quads.push((rail.thumb, ink));
         }
         self.overlay_range_track
-            .set_color(theme::faint().rgba_bytes());
+            .set_color(crate::render::overlay_chrome_theme().faint.rgba_bytes());
         self.overlay_range_track
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb

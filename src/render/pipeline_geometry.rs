@@ -410,6 +410,13 @@ impl TextPipeline {
             self.overlay_band.reset();
         }
         self.overlay_crisp = view.overlay_crisp;
+        self.overlay_theme_picker = view.overlay_theme_picker;
+        self.overlay_theme_chrome = view.overlay_theme_chrome;
+        if let Some(index) = view.overlay_theme_chrome {
+            crate::render::pin_picker_chrome_to(index);
+        } else if !view.overlay_active || view.search_active {
+            crate::render::unpin_picker_chrome();
+        }
         self.overlay_query = view.overlay_query.clone();
         self.overlay_query_caret = view.overlay_query_caret;
         self.overlay_query_field = view.overlay_query_field;

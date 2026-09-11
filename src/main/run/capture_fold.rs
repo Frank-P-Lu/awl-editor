@@ -220,6 +220,7 @@ fn overlay_capture_info_optional(
         active: true,
         mode: ov.kind.as_str(),
         align: ov.align,
+        chrome_theme: ov.audition.theme_original(),
         query: ov.query.text().to_string(),
         query_caret: ov.query.caret(),
         query_selection: ov.query.selection_range(),

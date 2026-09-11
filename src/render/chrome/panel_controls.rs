@@ -1,7 +1,6 @@
 //! THE FIND/REPLACE PANEL'S BORDERED CONTROLS — the field boxes, the nav
 //! prev/next buttons, the `Match case` checkbox, and the `Replace`/`Replace
-//! all` buttons the reference chrome (`references/find-replace-chrome.png`)
-//! calls for. `panel_shape_text` (`panel.rs`) already builds one string per
+//! all` buttons. `panel_shape_text` (`panel.rs`) already builds one string per
 //! row and knows exactly which BYTE RANGE of that row's own line is each
 //! control's text — [`ControlSpan`] is that fact, named, and
 //! [`TextPipeline::panel_controls_layout`] is the ONE place a span becomes a
@@ -74,16 +73,13 @@ impl ResolvedPanelControls {
     }
 }
 
-/// Horizontal outset beyond the tight glyph span every control box carries —
-/// device px, unscaled by DPI (a crisp, consistently-sized breathing room at
-/// any zoom/density, matching [`super::panel::PANEL_PAD`]'s own unscaled
-/// contract rather than doubling on Retina).
-pub(in crate::render) const CONTROL_BOX_PAD_X: crate::render::Physical =
-    crate::render::Physical(6.0);
+/// Authored logical horizontal outset beyond the tight glyph span every control
+/// box carries. It follows UI DPI but remains independent of document zoom.
+pub(in crate::render) const CONTROL_BOX_PAD_X: crate::render::Logical = crate::render::Logical(6.0);
 /// Vertical inset FROM the row band's own top/bottom — leaves the box short
 /// of the next row so adjacent controls never visually touch.
-pub(in crate::render) const CONTROL_BOX_PAD_Y: crate::render::Physical =
-    crate::render::Physical(3.0);
+pub(in crate::render) const CONTROL_BOX_PAD_Y: crate::render::Logical = crate::render::Logical(2.0);
+pub(in crate::render) const CONTROL_MIN_W: crate::render::Logical = crate::render::Logical(32.0);
 
 impl TextPipeline {
     /// The one BYTE-SPAN -> X owner for the panel's shaped text: the tight
@@ -137,15 +133,14 @@ impl TextPipeline {
     /// span's row shaped no matching glyph this frame.
     fn resolve_one(&self, span: ControlSpan, text_left: f32, text_top: f32) -> Option<[f32; 4]> {
         let (x0, x1) = self.panel_span_x(span.row, span.byte_start, span.byte_end)?;
-        let pad_x = self.metrics.px_physical(CONTROL_BOX_PAD_X);
-        let pad_y = self.metrics.px_physical(CONTROL_BOX_PAD_Y);
+        let ui = self.metrics.panel_ui();
+        let pad_x = ui.px(CONTROL_BOX_PAD_X);
+        let pad_y = ui.px(CONTROL_BOX_PAD_Y);
         let (top, h) = self.panel_rows(text_top).band(span.row);
-        Some([
-            text_left + x0 - pad_x,
-            top + pad_y,
-            (x1 - x0) + 2.0 * pad_x,
-            (h - 2.0 * pad_y).max(0.0),
-        ])
+        let natural_w = (x1 - x0) + 2.0 * pad_x;
+        let w = natural_w.max(ui.px(CONTROL_MIN_W));
+        let center = text_left + (x0 + x1) * 0.5;
+        Some([center - w * 0.5, top + pad_y, w, (h - 2.0 * pad_y).max(0.0)])
     }
 
     /// **THE ONE OWNER** every control's physical rect comes through: the

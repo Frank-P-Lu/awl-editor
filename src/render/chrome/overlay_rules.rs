@@ -192,8 +192,9 @@ impl TextPipeline {
     /// one device pixel so it survives every scale, and the heavy rule can never
     /// be lighter than the hairline it replaces.
     pub(in crate::render) fn rule_weights(&self) -> (f32, f32) {
-        let hair = self.metrics.px(RULE_HAIRLINE).max(1.0);
-        (hair, self.metrics.px(RULE_SELECTED_WEIGHT).max(hair))
+        let ui = self.metrics.ui();
+        let hair = ui.px(RULE_HAIRLINE).max(1.0);
+        (hair, ui.px(RULE_SELECTED_WEIGHT).max(hair))
     }
 
     /// The MARK's ink for this frame: the page's own content ink at full
@@ -234,8 +235,8 @@ impl TextPipeline {
             measure: (geom.text_left, geom.text_w),
             band: (geom.band_x(), geom.band_w()),
             mark: (
-                self.metrics.px(RULE_MARK_LEN),
-                self.metrics.px(RULE_MARK_GAP),
+                self.metrics.ui().px(RULE_MARK_LEN),
+                self.metrics.ui().px(RULE_MARK_GAP),
             ),
         }
     }

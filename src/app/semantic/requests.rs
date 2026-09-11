@@ -154,20 +154,19 @@ impl App {
             self.apply_semantic_action(Action::OpenGoto);
             return true;
         }
-        if id == super::SEARCH_CASE_ID {
-            let Some(text) = self
-                .document
-                .buffer_opt()
-                .map(|buffer| buffer.text().to_string())
-            else {
+        let search_control = match id {
+            super::SEARCH_CASE_ID => Some(crate::search::PanelControl::CaseToggle),
+            super::SEARCH_PREVIOUS_ID => Some(crate::search::PanelControl::NavPrev),
+            super::SEARCH_NEXT_ID => Some(crate::search::PanelControl::NavNext),
+            super::SEARCH_REPLACE_BUTTON_ID => Some(crate::search::PanelControl::ReplaceButton),
+            super::SEARCH_REPLACE_ALL_ID => Some(crate::search::PanelControl::ReplaceAllButton),
+            _ => None,
+        };
+        if let Some(control) = search_control {
+            if self.workspace_state.search().is_none() || !self.document.has_active() {
                 return false;
-            };
-            let Some(search) = self.workspace_state.search_mut() else {
-                return false;
-            };
-            search.toggle_case(&text);
-            self.sync_view(true);
-            self.request_frame();
+            }
+            self.apply_semantic_action(Action::SearchPanel(control));
             return true;
         }
         if let Some(name) = id.strip_prefix("format-popover.") {

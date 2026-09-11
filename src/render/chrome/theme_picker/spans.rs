@@ -16,12 +16,13 @@ impl TextPipeline {
         active_ink: glyphon::Color,
         muted: glyphon::Color,
     ) {
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let ui = crate::render::effective_overlay_scale();
         let lh = self.overlay_lh();
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        let faint = theme::faint().to_glyphon();
+        let chrome = crate::render::overlay_chrome_theme();
+        let faint = chrome.faint.to_glyphon();
         let mut cursor = 0usize;
         let mut pushes: Vec<(std::ops::Range<usize>, glyphon::Color)> = strip
             .labels
@@ -37,7 +38,8 @@ impl TextPipeline {
                     // dock's line-height buffer then draws the label exactly
                     // once. A transparent mid-line span made glyphon drop the
                     // remainder of the strip on some active categories.
-                    theme::pane_surface(crate::render::effective_card_elevation()).to_glyphon()
+                    theme::pane_surface_for(chrome, crate::render::effective_card_elevation())
+                        .to_glyphon()
                 } else if *active {
                     active_ink
                 } else {
@@ -90,10 +92,11 @@ impl TextPipeline {
         let lh = self.overlay_lh();
         let ui = crate::render::effective_overlay_scale();
         let header_metrics = GlyphMetrics::new(
-            self.metrics.font_size * ui * crate::markdown::type_scale::LABEL,
+            self.metrics.ui().font_size * ui * crate::markdown::type_scale::LABEL,
             lh,
         );
-        let location_metrics = GlyphMetrics::new(self.metrics.font_size * ui * LOCATION_SCALE, lh);
+        let location_metrics =
+            GlyphMetrics::new(self.metrics.ui().font_size * ui * LOCATION_SCALE, lh);
         let slant_italic = crate::render::overlay_slant().is_some_and(|s| s.italic);
         let row_attrs = |c| {
             if slant_italic {
@@ -116,7 +119,8 @@ impl TextPipeline {
                 PlanLine::Header(label) => {
                     spans.push((
                         label.as_str(),
-                        mk(theme::faint().to_glyphon()).metrics(header_metrics),
+                        mk(crate::render::overlay_chrome_theme().faint.to_glyphon())
+                            .metrics(header_metrics),
                     ));
                 }
                 PlanLine::Item(_) => {

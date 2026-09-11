@@ -79,7 +79,7 @@ impl OverlayKind {
             | OverlayKind::ProjectBrowse
             | OverlayKind::Browse => unreachable!("location routes return above"),
             OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens"), key("esc", "close")],
-            OverlayKind::Theme => vec![enter("keep"), key("esc", "revert")],
+            OverlayKind::Theme => vec![enter("switch"), key("esc", "cancel")],
             OverlayKind::Caret
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang

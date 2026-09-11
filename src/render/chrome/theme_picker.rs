@@ -135,7 +135,7 @@ impl TextPipeline {
         // not this world's name, so any future `DockedTab` world reclaims
         // the same row.
         let billed_header_rows = header_rows - facet_strip_is_docked() as usize;
-        let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
+        let card_y = margin + self.metrics.ui().px(super::CARD_TOP_DROP) + self.menubar_reserve();
         (billed_header_rows, card_y)
     }
 
@@ -147,7 +147,7 @@ impl TextPipeline {
         let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
         let card_narrow =
-            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
+            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.dpi);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         (card_x, card_w, card_narrow, hpad, text_w)
@@ -159,8 +159,9 @@ impl TextPipeline {
         // a second copy of the same literals here, which is how the grouped
         // card kept a physical 24px of vertical pad on a retina panel while
         // every other quantity in its own height doubled.
-        let pad = self.metrics.px(super::CARD_PAD);
-        let margin = self.metrics.px(super::CARD_MARGIN);
+        let ui = self.metrics.ui();
+        let pad = ui.px(super::CARD_PAD);
+        let margin = ui.px(super::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
         // See `overlay_hint_gap_rows`'s own doc (`chrome/mod.rs`) — the ONE owner
@@ -216,7 +217,7 @@ impl TextPipeline {
         // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
         let (card_x, card_w, card_narrow, hpad, text_w) = self.theme_card_box(width);
-        hint = super::hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
+        hint = super::hint_yielding_explanation(&hint, text_w / self.metrics.dpi.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
             (hint_gap_rows, card_h) = self.theme_card_h_without_header_gap(
@@ -439,7 +440,7 @@ impl TextPipeline {
         // the buffer `push_docked_facet_areas` actually uploads it at.
         let mark_origin = dock_seat.map_or(geom.text_top, |s| s.top);
         let facet_style = crate::render::effective_facet_style();
-        let scale = self.metrics.scale;
+        let scale = self.metrics.dpi;
         // NO SEAT YET. Every mark rect below is computed in the strip's own
         // BUFFER-LOCAL x (as if seated at 0) and shifted to its real seat —
         // the same `overlay_head_left(geom, plan)` the emitter uses for the
@@ -454,10 +455,11 @@ impl TextPipeline {
         // happened yet.
         const CHIP_HPAD: Logical = Logical(6.0);
         const CHIP_VPAD: Logical = Logical(2.0);
-        let chip_hpad = self.metrics.px(CHIP_HPAD);
-        let underline_drop = self.metrics.px(UNDERLINE_BASELINE_DROP);
-        let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
-        let chip_h = (strip_text_lh - 2.0 * self.metrics.px(CHIP_VPAD)).max(1.0);
+        let ui = self.metrics.ui();
+        let chip_hpad = ui.px(CHIP_HPAD);
+        let underline_drop = ui.px(UNDERLINE_BASELINE_DROP);
+        let strip_text_lh = ui.line_height * crate::render::effective_overlay_scale();
+        let chip_h = (strip_text_lh - 2.0 * ui.px(CHIP_VPAD)).max(1.0);
         // RELOCATED SEAT (`dock_seat`, computed above): `strip_band()` is the
         // strip's PLAIN folded header-line box, centred by cosmic-text's own
         // half-leading — free room only when nothing else claims part of it.
@@ -520,12 +522,7 @@ impl TextPipeline {
             match facet_style {
                 theme::FacetStyle::Text => {
                     let y = mark_origin + baseline + underline_drop;
-                    Some([
-                        min_x,
-                        y,
-                        max_x - min_x,
-                        self.metrics.px(TEXT_MARK_THICKNESS),
-                    ])
+                    Some([min_x, y, max_x - min_x, ui.px(TEXT_MARK_THICKNESS)])
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::DockedTab => {
@@ -542,7 +539,7 @@ impl TextPipeline {
                     // the card's own ground color, so the active facet reads
                     // continuous with the card instead of a chip floating above it.
                     ghosts.push(tab);
-                    let seam_overlap = self.metrics.px(DOCKED_TAB_SEAM_OVERLAP);
+                    let seam_overlap = ui.px(DOCKED_TAB_SEAM_OVERLAP);
                     Some([tab[0], tab[1], tab[2], tab[3] + seam_overlap])
                 }
                 theme::FacetStyle::Chips(v) => match v {
@@ -554,12 +551,7 @@ impl TextPipeline {
                     }
                     theme::ChipVariant::Underline => {
                         let y = mark_origin + baseline + underline_drop;
-                        Some([
-                            min_x,
-                            y,
-                            max_x - min_x,
-                            self.metrics.px(UNDERLINE_CHIP_THICKNESS),
-                        ])
+                        Some([min_x, y, max_x - min_x, ui.px(UNDERLINE_CHIP_THICKNESS)])
                     }
                     theme::ChipVariant::Bracket => {
                         ghosts = corner_ticks(min_x - chip_hpad, max_x + chip_hpad);
@@ -624,7 +616,7 @@ impl TextPipeline {
     /// rather than a re-derived guess.
     #[cfg(test)]
     pub(in crate::render) fn docked_tab_seam_overlap_probe(&self) -> f32 {
-        self.metrics.px(DOCKED_TAB_SEAM_OVERLAP)
+        self.metrics.ui().px(DOCKED_TAB_SEAM_OVERLAP)
     }
 
     #[allow(clippy::too_many_arguments)]

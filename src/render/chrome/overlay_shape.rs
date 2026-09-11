@@ -783,7 +783,7 @@ impl TextPipeline {
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
         if geom.footer_rows > 0 {
-            let faint = theme::faint().to_glyphon();
+            let faint = crate::render::overlay_chrome_theme().faint.to_glyphon();
             let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
             spans.push(("\n", mk(faint))); // the blank separator line
             for line in &footer_lines {

@@ -592,10 +592,10 @@ fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
 /// — not a coincidence of one world's own measurements).
 ///
 /// Two non-vacuity arms keep this from being trivially true: the sweep must
-/// contain a cell where the ceiling is the thing actually binding (`pane_w`
-/// lands ON it), and a cell where it plainly is not (`pane_w` sits below it,
-/// which is only interesting alongside the first — a law that never saw an
-/// unbound pane could not tell a real ceiling from one that always fires).
+/// contain a wide cell where the ceiling actually binds and a narrow cell that
+/// deliberately stages one region. That pair proves both sides of the
+/// responsive decision; sampling only roomy windows would hide a cap that made
+/// the staged composition unreachable.
 #[test]
 fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
     let _g = crate::testlock::serial();
@@ -607,18 +607,33 @@ fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
     };
     let ov = workspace_card(0, true);
     let mut bound_hit: Vec<&str> = Vec::new();
-    let mut below_cap_seen: Vec<&str> = Vec::new();
+    let mut staged_seen: Vec<&str> = Vec::new();
     let mut graded = 0usize;
     for world in crate::theme::THEMES {
         crate::theme::set_active_by_name(world.name).expect("a roster world");
         p.sync_theme();
-        for &(w, h) in &[(1200u32, 800u32), (1800, 900), (2600, 1200), (3600, 1400)] {
+        for &(w, h) in &[
+            (520u32, 620u32),
+            (680, 700),
+            (900, 760),
+            (1200, 800),
+            (1800, 900),
+            (2600, 1200),
+            (3600, 1400),
+        ] {
             prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
             if !p.workspace_is_wide(w) {
+                staged_seen.push(world.name);
                 continue;
             }
             let drawn = p.workspace_rail_probe(w);
             let max_px = p.workspace_max_pane_probe();
+            assert!(
+                (360.0..=520.0).contains(&max_px),
+                "{}: the authored Settings detail ceiling is {max_px:.1} logical px, \
+                 outside the approved 360..=520 band",
+                world.name
+            );
             assert!(
                 drawn.pane_w <= max_px + 0.5,
                 "{}/{w}x{h}: the content pane is {:.1}px wide against an authored \
@@ -629,8 +644,6 @@ fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
             );
             if (drawn.pane_w - max_px).abs() <= 1.0 {
                 bound_hit.push(world.name);
-            } else if drawn.pane_w < max_px - 1.0 {
-                below_cap_seen.push(world.name);
             }
             graded += 1;
         }
@@ -647,8 +660,9 @@ fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
          is needed to prove this law is not vacuously true"
     );
     assert!(
-        !below_cap_seen.is_empty(),
-        "the sweep never saw an unbound pane either (enrolled: {bound_hit:?}) — the \
-         comparison needs both a narrow and a wide cell to mean anything"
+        !staged_seen.is_empty(),
+        "the sweep never saw the staged side of the responsive threshold \
+         (cap-bound cells: {bound_hit:?}) — a cap law must prove the narrow \
+         composition remains reachable rather than grading only roomy windows"
     );
 }

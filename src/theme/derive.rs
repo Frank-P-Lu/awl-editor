@@ -117,14 +117,18 @@ pub fn selection_document() -> Srgb {
 /// The band under a SELECTED ROW in a summoned surface. One derived value step
 /// for every world, so a selected row cannot introduce an unchecked hue.
 pub fn selection_ui() -> Srgb {
-    derived_selection_ui()
+    selection_ui_for(active())
+}
+
+pub(crate) fn selection_ui_for(theme: Theme) -> Srgb {
+    surface_step_band_for(theme, OVERLAY_SELROW_EXTRA_STEPS)
 }
 
 /// `selection_ui`'s default, alone. Product code reads [`selection_ui`] — this
 /// is the derivation the laws compare AGAINST, kept module-visible so the test
 /// and the accessor cannot drift into two copies of one expression.
 pub(super) fn derived_selection_ui() -> Srgb {
-    surface_step_band(OVERLAY_SELROW_EXTRA_STEPS)
+    selection_ui_for(active())
 }
 
 pub fn fold_afford_chevron_ink() -> Srgb {
@@ -222,8 +226,7 @@ pub(super) const SELECTED_BAND_STEPS: i32 = 2;
 
 pub(super) const OVERLAY_SELROW_EXTRA_STEPS: i32 = 1;
 
-fn surface_step_band(extra_steps: i32) -> Srgb {
-    let a = active();
+fn surface_step_band_for(a: Theme, extra_steps: i32) -> Srgb {
     if a.base_200 == a.base_300 {
         return a.base_content;
     }
@@ -240,7 +243,11 @@ fn surface_step_band(extra_steps: i32) -> Srgb {
 }
 
 pub fn overlay_band_overlap() -> Srgb {
-    surface_step_band(OVERLAY_SELROW_EXTRA_STEPS + 1)
+    overlay_band_overlap_for(active())
+}
+
+pub(crate) fn overlay_band_overlap_for(theme: Theme) -> Srgb {
+    surface_step_band_for(theme, OVERLAY_SELROW_EXTRA_STEPS + 1)
 }
 
 // The selected-row band has ONE owner, `selection_ui` — it is the token, and
@@ -254,9 +261,13 @@ fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
 }
 
 pub fn pane_surface(elevation: Elevation) -> Srgb {
+    pane_surface_for(active(), elevation)
+}
+
+pub(crate) fn pane_surface_for(theme: Theme, elevation: Elevation) -> Srgb {
     match elevation {
-        Elevation::Flat | Elevation::Bordered => base_300(),
-        Elevation::Recessed => base_200(),
+        Elevation::Flat | Elevation::Bordered => theme.base_300,
+        Elevation::Recessed => theme.base_200,
     }
 }
 
@@ -278,13 +289,13 @@ pub(super) const SELECTED_ROW_INK_CONTRAST_FLOOR: f32 = 3.0;
 /// both `primary` and `muted`, so [`accent_ink`] and
 /// [`selected_row_secondary_ink`] used to agree there by construction, not by
 /// chance. `avoid` closes that hole at the one place it can be closed for good.
-fn substitute_ink(band: Srgb, preferred: Srgb, avoid: Option<Srgb>) -> Srgb {
+fn substitute_ink(theme: Theme, band: Srgb, preferred: Srgb, avoid: Option<Srgb>) -> Srgb {
     let differs = |c: Srgb| avoid != Some(c);
     if differs(preferred) && contrast_ratio(band, preferred) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
         return preferred;
     }
-    let ground = base_100();
-    let content = base_content();
+    let ground = theme.base_100;
+    let content = theme.base_content;
     let (better, worse) = if contrast_ratio(band, ground) > contrast_ratio(band, content) {
         (ground, content)
     } else {
@@ -309,11 +320,19 @@ fn substitute_ink(band: Srgb, preferred: Srgb, avoid: Option<Srgb>) -> Srgb {
 }
 
 pub fn selected_row_ink(band: Srgb) -> Srgb {
-    substitute_ink(band, base_content(), None)
+    selected_row_ink_for(active(), band)
+}
+
+pub(crate) fn selected_row_ink_for(theme: Theme, band: Srgb) -> Srgb {
+    substitute_ink(theme, band, theme.base_content, None)
 }
 
 pub fn selected_row_secondary_ink(band: Srgb) -> Srgb {
-    substitute_ink(band, muted(), None)
+    selected_row_secondary_ink_for(active(), band)
+}
+
+pub(crate) fn selected_row_secondary_ink_for(theme: Theme, band: Srgb) -> Srgb {
+    substitute_ink(theme, band, theme.muted, None)
 }
 
 /// **617:** [`primary`] (the caret's own accent) against `band`, substituted
@@ -327,7 +346,8 @@ pub fn selected_row_secondary_ink(band: Srgb) -> Srgb {
 /// [`substitute_ink`]'s own doc for the collision it closes — measured on
 /// Potoroo). Every other caller passes `None`.
 pub fn accent_ink(band: Srgb, avoid: Option<Srgb>) -> Srgb {
-    substitute_ink(band, primary(), avoid)
+    let theme = active();
+    substitute_ink(theme, band, theme.primary, avoid)
 }
 
 pub fn overlay_bar_unselected() -> Srgb {
@@ -353,7 +373,11 @@ pub fn overlay_bars_scrim() -> Srgb {
 }
 
 pub fn surface_selected() -> Srgb {
-    surface_step_band(0)
+    surface_selected_for(active())
+}
+
+pub(crate) fn surface_selected_for(theme: Theme) -> Srgb {
+    surface_step_band_for(theme, 0)
 }
 
 const OVERLAY_SCRIM_ALPHA: u8 = 0x80;

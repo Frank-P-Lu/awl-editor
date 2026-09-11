@@ -204,6 +204,8 @@ impl App {
             // `OverlayKind::keeps_backdrop_crisp`'s question — shared with the
             // capture door so a headless frame cannot disagree with this one.
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
+            overlay_theme_picker: ov.is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
+            overlay_theme_chrome: ov.and_then(|o| o.audition.theme_original()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
             // Asked of the KIND's own owner, the same door every other per-kind

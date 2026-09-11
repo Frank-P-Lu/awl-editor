@@ -979,6 +979,7 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     opts.overlay = Some(OverlayInfo {
         // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "caret",
         title: "caret style".to_string(),
@@ -1054,6 +1055,7 @@ fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
     };
     opts.overlay = Some(OverlayInfo {
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "context",
         title: "context menu".to_string(),
@@ -1156,6 +1158,7 @@ const HEADING_MENU_FOOTPRINT_DOC: &str = concat!(
 fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo {
     OverlayInfo {
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "context",
         title: "context menu".to_string(),
@@ -1460,6 +1463,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     opts.overlay = Some(OverlayInfo {
         // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "caret",
         title: "caret style".to_string(),
@@ -1557,11 +1561,8 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     );
     assert_eq!(off["dictionary"], serde_json::json!("en_US"));
 
-    // OPEN via the REAL OverlayState builder, highlighting "English (Australia)"
-    // (row 2) — a NAVIGATION-only state, exactly like a `--keys` replay that
-    // moved the selection but never pressed Enter.
-    let ov = crate::overlay::OverlayState::new_dictionary(crate::spell::DictVariant::EnUs);
-    let mut ov = ov;
+    // OPEN via the real builder at row 2: navigation without Enter.
+    let mut ov = crate::overlay::OverlayState::new_dictionary(crate::spell::DictVariant::EnUs);
     ov.move_sel(2);
     let mut opts = CaptureOpts {
         ..CaptureOpts::default()
@@ -1570,6 +1571,7 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     opts.overlay = Some(OverlayInfo {
         // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: ov.kind.as_str(),
         title: ov.kind.title().to_string(),
@@ -2188,6 +2190,7 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
     let history_overlay = |detail_focus: bool| OverlayInfo {
         // Reproduce the live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
         active: true,
         mode: "history",
         title: "version history".to_string(),
@@ -2396,6 +2399,7 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
         overlay: Some(OverlayInfo {
             // Reproduce the live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
+            chrome_theme: None,
             active: true,
             mode: "caret",
             title: "caret style".to_string(),

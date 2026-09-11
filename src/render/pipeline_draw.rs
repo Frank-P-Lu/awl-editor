@@ -511,6 +511,8 @@ impl TextPipeline {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_theme_picker: false,
+            overlay_theme_chrome: None,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,

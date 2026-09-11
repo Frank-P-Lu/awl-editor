@@ -414,7 +414,7 @@ mod panel_draw;
 /// The panel's FIELD SELECTION BAND, split out to keep `panel.rs` under its
 /// production ceiling.
 mod panel_selection;
-pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
+pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_MIN_W, PANEL_PAD};
 pub(in crate::render) use panel_controls::{ControlSpan, PanelControlSpans};
 use panel_selection::panel_selection_span;
 // The SUMMONED WORKSPACE family: geometry, navigation rail, hit-test, its two
@@ -609,8 +609,10 @@ impl TextPipeline {
         rects: &[[f32; 4]],
     ) {
         let card_elevation = crate::render::effective_card_elevation();
-        self.panel_card
-            .set_color(theme::pane_surface(card_elevation).rgba_bytes());
+        self.panel_card.set_color(
+            theme::pane_surface_for(crate::render::overlay_chrome_theme(), card_elevation)
+                .rgba_bytes(),
+        );
         let elevation = if !rects.is_empty() && card_elevation == theme::Elevation::Bordered {
             FloatElevation::Rimmed
         } else {
@@ -645,7 +647,7 @@ impl TextPipeline {
         &self,
         rects: &[[f32; 4]],
     ) -> (CardChamfer, Option<CardHalftone>) {
-        let mut caps = theme::active().render_caps;
+        let mut caps = crate::render::overlay_chrome_theme().render_caps;
         // DEV-ONLY GALLERY PROBE (mirrors `AWL_CJK_FORCE`'s "total no-op unless
         // set" contract — no config key, no CLI flag): `AWL_CARD_CAPS_FORCE`
         // stages Quokka's own printed-card caps down for the round's
