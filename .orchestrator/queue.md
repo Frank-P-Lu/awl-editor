@@ -6,12 +6,13 @@
 
 ## Open build and design tasks
 
-**2 open numbered tasks.** Ready: 640. User decision: 579.
+**2 open numbered tasks.** Ready: none. Native candidate review: 640.
+User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
 
-🟡 DEPENDS ON 637–639 and their relevant 628/589 integration — queue only, not dispatched.
+🟡 IN PROGRESS — `acceptance_640` (Codex), based on `38bc2139`.
 
 Build: review the combined native experience as one journey, remove obsolete parallel
 entry points/contradictory teaching, and update the existing contracts, GUIDE,
