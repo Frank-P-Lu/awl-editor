@@ -84,12 +84,15 @@ impl App {
     fn run_native_panel(&mut self, id: &str, exit: &dyn schedule::Exit) {
         use crate::keymap::Action;
         let action = crate::menu::resolve(id);
-        match action {
+        let location = action
+            .as_ref()
+            .and_then(crate::overlay::native_consumer_for_action);
+        match (action, location) {
             // File ▸ "Browse files…" → `NSOpenPanel`. On OK it loads the chosen
             // path through the SAME `load_path` every open uses (which itself
             // syncs); then paint, per the post-`apply` pattern above. Cancel /
             // off-main-thread is a calm no-op.
-            Some(Action::OpenBrowse) => {
+            (Some(Action::OpenBrowse), Some(crate::overlay::LocationConsumer::NativeOpen)) => {
                 if let Some(path) =
                     crate::mac_chrome::pick_file_to_open(Some(&self.project_location.root))
                 {
@@ -97,28 +100,35 @@ impl App {
                     self.request_frame();
                 }
             }
-            Some(Action::SaveCopy) => {
+            (Some(Action::SaveCopy), Some(crate::overlay::LocationConsumer::NativeSaveCopy)) => {
                 if self.save_copy_via_platform_panel() {
                     self.request_frame();
                 }
             }
-            Some(Action::ExportWord) => {
+            (
+                Some(Action::ExportWord),
+                Some(crate::overlay::LocationConsumer::NativeExportDocx),
+            ) => {
                 if self.export_via_platform_panel(crate::export::Format::Docx) {
                     self.request_frame();
                 }
             }
-            Some(Action::ExportHtml) => {
+            (
+                Some(Action::ExportHtml),
+                Some(crate::overlay::LocationConsumer::NativeExportHtml),
+            ) => {
                 if self.export_via_platform_panel(crate::export::Format::Html) {
                     self.request_frame();
                 }
             }
-            Some(Action::ExportPdf) => {
+            (Some(Action::ExportPdf), Some(crate::overlay::LocationConsumer::NativeExportPdf)) => {
                 if self.export_via_platform_panel(crate::export::Format::Pdf) {
                     self.request_frame();
                 }
             }
-            None => {}
-            Some(action) => {
+            (None, None) => {}
+            (None, Some(_)) => unreachable!("a native location route needs a catalog action"),
+            (Some(action), _) => {
                 self.apply(action, false, exit, crate::stats::Door::Menu);
             }
         }

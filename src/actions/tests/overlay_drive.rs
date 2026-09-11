@@ -5,7 +5,7 @@
 
 use super::super::*;
 use super::{drive, drive_act, drive_eff, settings_drive, settings_drive_zoom, settings_overlay};
-use crate::overlay::OverlayKind;
+use crate::overlay::{OverlayKind, browse_parent, join_browse};
 
 #[test]
 fn browse_path_helpers() {

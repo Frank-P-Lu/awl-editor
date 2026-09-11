@@ -62,7 +62,7 @@ pub(super) fn intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
 
 fn ascend(ctx: &mut ActionCtx) {
     let card = ctx.journey.card().expect("Files card remains open");
-    if let Some(parent) = ascend_target(card)
+    if let Some(parent) = crate::overlay::ascend_target(card)
         && let Some(next) = (ctx.browse_to)(card.kind, parent)
     {
         ctx.journey.relevel(next);

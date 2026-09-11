@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**7 open numbered tasks.** Ready: 642 and 628. Dependencies/coordination:
+**6 open numbered tasks.** Ready: 642 and 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
@@ -51,36 +51,6 @@ read docs/render.md, docs/verification.md and docs/harness-reach.md before selec
 render probes. Apply the required render vision-smoke when rendering is touched,
 then one integrated native/wasm gate. Deterministic state/pose checks do not verify
 wall-clock feel; identify any remaining live timing checks honestly.
-
----
-
-### 638 — one location-navigation owner for Open, Move, Save As and Export (user approval, 2026-09-10)
-
-🟡 IN PROGRESS — `location_638` (Codex), based on current `main` after 641.
-Integrate overlapping navigation/render ownership sequentially, not as independent
-browser rewrites.
-
-Build: reuse the agreed folder-row, location/breadcrumb, scope, focus, search and
-back-navigation rules wherever awl chooses a location. Inspect existing MoveDest,
-ExportDest, Browse, ProjectBrowse and save/copy platform routes first; converge
-their common location behavior at one owner. Keep platform-native dialogs where
-they already own the interaction. The operation's typed purpose owns the final
-action and side effects: Open file, Move here, Save here, Export here. Do not make
-a navigation-row activation move/save/export before explicit commitment.
-
-Make source document and destination unambiguous. Preserve rename/overwrite
-confirmation, read-only handling, extension/format policy, recovery and original
-file identity for copy/export. Retain operation-specific constraints rather than
-forcing every chooser into file-opening semantics. No new filesystem manager,
-general-purpose dialog framework, or public filesystem writes for demo purposes.
-
-Verify: a roster-derived test enumerates every location consumer and its commit
-verb. Exercise browse/back/search/cancel and valid/invalid destination per operation
-in hermetic fixtures. Cancellation must perform no file operation; commit changes
-only the promised files. Mutation proof must catch a bypass or premature commit.
-Check Mac native boundaries and Linux fallback separately, and report live-only
-coverage honestly. Use shared chrome checks and targeted operation tests; 640 owns
-the integrated gate.
 
 ---
 

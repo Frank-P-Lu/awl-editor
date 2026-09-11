@@ -112,19 +112,8 @@ pub struct OverlayState {
 }
 
 impl OverlayState {
-    /// The visible errand for this card. Save a Copy reuses the folder and
-    /// filename mechanisms, but its payload changes what the user is doing;
-    /// Move names the file it is finding a destination for the same way.
-    ///
-    /// Once standing anywhere but the level it opened at, the current
-    /// ROOT-RELATIVE destination folds into the title too (`"move welcome.md
-    /// to notes/drafts/"`) — the one place a descended destination navigator
-    /// says where it is standing, since [`Self::browse_dir`] is otherwise a
-    /// fact only the sidecar could see. Unchanged at the level it opened at:
-    /// `browse_dir` is `None` there for [`OverlayKind::MoveDest`] and
-    /// [`OverlayKind::ExportDest`] (both walk the active root by a
-    /// root-relative `rel`, [`crate::overlay::browse_level`]'s doc), so the
-    /// suffix has nothing to append until a real descend happens.
+    /// The visible errand, including a root-relative destination once the
+    /// navigator descends. Save Copy and Move keep their typed purpose here.
     pub fn title(&self) -> String {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
             self.with_browse_dir_suffix("save a copy to".to_string())
@@ -169,19 +158,12 @@ impl OverlayState {
         }
     }
 
-    /// The destination folder `title` shows, root-relative with a trailing
-    /// `/` (`"notes/drafts/"`), or `None` at the level the card opened at.
-    ///
-    /// [`OverlayKind::MoveDest`]/[`OverlayKind::ExportDest`] walk the active
-    /// root by a root-relative `rel`, so [`Self::browse_dir`] IS that string
-    /// already (`crate::actions::overlay_nav::join_browse`'s callers) —
-    /// `None` at the root, never `Some("")`. Every other kind (including the
-    /// two ABSOLUTE-path walkers, `Project`/`ProjectBrowse`) shows nothing:
-    /// their `browse_dir` is a whole directory rather than a root-relative
-    /// fragment, and folding that into this title would need the workspace
-    /// baseline to relativize against, which this card does not carry.
+    /// A root-relative destination with a trailing slash, or `None` at its
+    /// opening level and for absolute workspace walkers.
     fn browse_dir_display(&self) -> Option<String> {
-        if !matches!(self.kind, OverlayKind::MoveDest | OverlayKind::ExportDest) {
+        if !super::consumer_for_card(self)
+            .is_some_and(super::LocationConsumer::shows_relative_breadcrumb)
+        {
             return None;
         }
         let dir = self.browse_dir.as_deref()?;
@@ -811,7 +793,12 @@ impl OverlayState {
             return self.kind.project_flat_hint();
         }
         if self.save_copy && self.kind == OverlayKind::ExportDest {
-            return "type to filter   ↵ save a copy here   → open   ← up".to_string();
+            let route =
+                super::consumer_for_card(self).expect("save-copy destination has a location route");
+            return format!(
+                "type to filter   ↵ {}   → open   ← up",
+                route.commit_label()
+            );
         }
         if let Some(hint) = self.files_hint() {
             return hint;

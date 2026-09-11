@@ -257,52 +257,20 @@ impl OverlayKind {
         }
     }
 
-    /// A DESTINATION NAVIGATOR: a folders-only walk. Every member shares the
-    /// `→` descends / `←` ascends grammar, and they differ only in WHAT lands
-    /// in the folder you stop on and WHICH tree they walk, which is why every
-    /// navigation site asks this instead of naming one kind and growing a
-    /// second branch later.
-    ///
-    /// `↵` no longer reads identically across the family: `ExportDest` and
-    /// `ProjectBrowse` still take the highlighted folder directly
-    /// (`actions::overlay_nav::dest_value`). `MoveDest` does not — its
-    /// contextual `Move here`/`New folder…` rows (`RowMeta::MoveHere`/
-    /// `NewFolder`) make `↵` on a FOLDER row descend instead, mirroring `→`,
-    /// so the primary "commit here" verb needs its own reachable row rather
-    /// than living in the ambiguity of "nothing else is highlighted"
-    /// (`actions::overlay_nav::accept_move_dest`).
-    ///
-    /// The two `Dest` members walk the ACTIVE ROOT and put something in the
-    /// folder; [`Self::ProjectBrowse`] walks the WORKSPACE by absolute path and
-    /// makes the folder the project. `ExportDest` alone still takes a typed
-    /// name that does not exist yet through `dest_value`'s `allow_new` — an
-    /// export creates the folder it names; `MoveDest`'s create-a-folder door
-    /// is its own `New folder…` row instead, and `ProjectBrowse` has neither,
-    /// because there is nothing to switch to in a folder that isn't there.
-    pub fn is_folder_destination(self) -> bool {
-        matches!(
-            self,
-            OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse
-        )
-    }
-
-    /// THIS KIND IS BUILT FROM A DIRECTORY LEVEL, so [`super::build`] cannot
-    /// make one — [`super::browse_level`] does, from a path the caller supplies.
-    /// The ONE owner of that split: a resume rebuilds a parked parent through
-    /// whichever builder can answer for its kind
-    /// (`actions::overlay_nav::resume_rebuild`), and a parked explorer handed
-    /// only `build` resolves to `None` and drops the whole journey to the editor
-    /// instead of coming back.
-    ///
-    /// Exhaustive rather than `matches!`: a new explorer answers here, or it is
-    /// unresumable in a way nothing reports.
+    /// Built from a directory level rather than the ordinary overlay builder.
+    /// Exhaustive so every new explorer declares whether it can be resumed.
     pub fn needs_dir_level(self) -> bool {
+        if super::navigator_for(self).is_some() {
+            return true;
+        }
         match self {
+            // Returned above through `navigator_for`; listed here as an
+            // exhaustive tripwire should its roster mapping ever be removed.
             OverlayKind::Browse
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
-            | OverlayKind::Project
-            | OverlayKind::ProjectBrowse => true,
+            | OverlayKind::ProjectBrowse => unreachable!("location navigator lost its route"),
+            OverlayKind::Project => true,
             OverlayKind::Goto
             | OverlayKind::Theme
             | OverlayKind::Caret
