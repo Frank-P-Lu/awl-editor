@@ -19,7 +19,7 @@ impl TextPipeline {
         let m = self.metrics.ui();
         let ui = crate::render::effective_overlay_scale();
         let lh = self.overlay_lh();
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let chrome = crate::render::overlay_chrome_theme();
         let faint = chrome.faint.to_glyphon();
@@ -86,7 +86,7 @@ impl TextPipeline {
             muted,
             selected: selected_ink,
         } = inks;
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let lh = self.overlay_lh();

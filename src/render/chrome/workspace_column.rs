@@ -166,7 +166,7 @@ impl TextPipeline {
         self.workspace_rail_buffer.set_text(
             &mut self.font_system,
             text,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -221,7 +221,7 @@ impl TextPipeline {
         push_symbol_split(
             &mut spans,
             hint,
-            || panel_attrs().color(ink).metrics(metrics),
+            || overlay_panel_attrs().color(ink).metrics(metrics),
             || {
                 Attrs::new()
                     .family(Family::Name(SYMBOL_FAMILY))
@@ -232,7 +232,7 @@ impl TextPipeline {
         self.workspace_hint_measure_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );

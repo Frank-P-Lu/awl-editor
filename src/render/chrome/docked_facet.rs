@@ -145,7 +145,7 @@ impl TextPipeline {
         self.docked_facet_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs(),
+            &overlay_panel_attrs(),
             Shaping::Advanced,
             None,
         );

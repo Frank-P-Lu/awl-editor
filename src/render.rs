@@ -1077,7 +1077,10 @@ fn panel_attrs() -> Attrs<'static> {
     // matching the document body, which now renders standard fi/fl too. On a mono
     // world the display face is IBM Plex Mono (no ligatures), so panels stay
     // fixed-pitch there exactly as before.
-    let chrome = overlay_chrome_theme();
+    panel_attrs_for(theme::active())
+}
+
+fn panel_attrs_for(chrome: theme::Theme) -> Attrs<'static> {
     let ff = text::font_features(false, chrome.font, code_ligatures_on());
     Attrs::new()
         .family(Family::Name(chrome.font))
@@ -1085,9 +1088,16 @@ fn panel_attrs() -> Attrs<'static> {
         .font_features(ff)
 }
 
+/// Text attributes for the summoned overlay itself. During a Themes audition
+/// this keeps the card's opening face while [`panel_attrs`] lets persistent
+/// chrome behind it follow the previewed world.
+fn overlay_panel_attrs() -> Attrs<'static> {
+    panel_attrs_for(overlay_chrome_theme())
+}
+
 fn chrome_attrs() -> Attrs<'static> {
     match effective_chrome_face() {
-        theme::ChromeFace::Body => panel_attrs(),
+        theme::ChromeFace::Body => overlay_panel_attrs(),
         theme::ChromeFace::Named(family) => {
             let ff = text::font_features(false, family, code_ligatures_on());
             Attrs::new()

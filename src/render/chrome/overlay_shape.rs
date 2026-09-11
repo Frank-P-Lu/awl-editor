@@ -635,7 +635,7 @@ impl TextPipeline {
         let name_fs = self.overlay_metrics().font_size;
         let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
         let hint_h = self.overlay_hint_h();
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let hk_hint = |c| {
             base.clone()
                 .color(c)
@@ -683,7 +683,7 @@ impl TextPipeline {
         let OverlaySpanInks { ink, muted, .. } = inks;
         let fitted_hint = self.overlay_fitted_hint(geom);
         let has_query = geom.header_rows > 0;
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         let title_prefix = self.overlay_title_prefix(geom);
@@ -825,7 +825,7 @@ impl TextPipeline {
         vis: &VisualSelection,
         bind_strs: &[String],
     ) {
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mono = |c| Attrs::new().family(Family::Monospace).color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let sel_muted = super::overlay_selected_secondary_ink();

@@ -288,7 +288,7 @@ impl TextPipeline {
         let active = super::overlay_selected_label_ink();
         let chrome = crate::render::overlay_chrome_theme();
         let muted = chrome.muted.to_glyphon();
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let faint = chrome.faint.to_glyphon();
         let mut spans: Vec<(String, glyphon::Color)> = Vec::new();
         let rows: Vec<([f32; 4], bool)> = (0..self.overlay_lens.len())

@@ -89,7 +89,7 @@ impl TextPipeline {
         self.panel_buffer.set_text(
             &mut self.font_system,
             text,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
@@ -151,7 +151,7 @@ impl TextPipeline {
         self.panel_bind_buffer.set_rich_text(
             &mut self.font_system,
             spans,
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );

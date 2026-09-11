@@ -203,7 +203,7 @@ impl TextPipeline {
         self.panel_buffer.set_text(
             &mut self.font_system,
             "",
-            &panel_attrs().color(ink),
+            &overlay_panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );

@@ -147,6 +147,59 @@ fn step_to(ov: &mut OverlayState, name: &str) {
 }
 
 #[test]
+fn preview_updates_persistent_chrome_face_while_the_picker_face_stays_pinned() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _pin = crate::render::PickerChromePinRestore::capture();
+    let (opener, destination) = theme::THEMES
+        .iter()
+        .enumerate()
+        .flat_map(|(opener_index, opener)| {
+            theme::THEMES
+                .iter()
+                .skip(opener_index + 1)
+                .map(move |destination| (opener, destination))
+        })
+        .find(|(opener, destination)| {
+            opener.font != destination.font && opener.base_100 != destination.base_100
+        })
+        .expect("the roster must vary both its body face and page palette");
+
+    theme::set_active_by_name(opener.name).unwrap();
+    let names: Vec<String> = theme::THEMES
+        .iter()
+        .map(|theme| theme.name.to_string())
+        .collect();
+    let mut overlay = OverlayState::new_theme(names, theme::active_index());
+    let persistent_at_open = format!("{:?}", panel_attrs());
+    let picker_at_open = format!("{:?}", overlay_panel_attrs());
+
+    step_to(&mut overlay, destination.name);
+
+    let persistent_at_preview = format!("{:?}", panel_attrs());
+    let picker_at_preview = format!("{:?}", overlay_panel_attrs());
+    assert_ne!(
+        persistent_at_preview, persistent_at_open,
+        "{} -> {}: persistent chrome behind Themes kept the opener face",
+        opener.name, destination.name
+    );
+    assert!(
+        persistent_at_preview.contains(destination.font),
+        "persistent chrome must adopt destination face {} (got {persistent_at_preview})",
+        destination.font
+    );
+    assert_eq!(
+        picker_at_preview, picker_at_open,
+        "the Themes card must retain its opener face"
+    );
+    let picker_theme = crate::render::overlay_chrome_theme();
+    assert_eq!(picker_theme.font, opener.font);
+    assert_eq!(picker_theme.base_100, opener.base_100);
+    assert_eq!(theme::active().font, destination.font);
+    assert_eq!(theme::active().base_100, destination.base_100);
+}
+
+#[test]
 fn full_roster_arrow_sweep_holds_the_card_fixed() {
     let _g = crate::testlock::serial();
     let Some((_device, _queue, mut p)) = headless_dqp(1200.0, 800.0) else {

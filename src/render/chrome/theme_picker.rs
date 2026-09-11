@@ -637,7 +637,7 @@ impl TextPipeline {
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
         // offsets, the selected band, and the underline `y` never drift from a per-span
         // metric taller than the row.
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let sigil = "› ";
         let slant = crate::render::overlay_slant();

@@ -16,7 +16,7 @@ impl TextPipeline {
             muted,
             selected: selected_ink,
         } = inks;
-        let base = panel_attrs();
+        let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let italic = crate::render::overlay_slant().is_some_and(|slant| slant.italic);
