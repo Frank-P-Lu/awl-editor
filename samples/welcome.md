@@ -47,7 +47,7 @@ toolbar — awl does not grow one of those.
 
 ## Change the room
 
-{{key:switch_theme}} opens the worlds. There are nineteen, and each is a whole
+{{key:switch_theme}} opens the worlds. There are {{count:worlds}}, and each is a whole
 environment: its own display face, its own ink, its own ground and caret. This
 document crosses over with you as you move down the list, so you are
 auditioning the room you would actually write in rather than picking a swatch.

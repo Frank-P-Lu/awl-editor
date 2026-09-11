@@ -30,14 +30,18 @@ The chords the document teaches are substituted into it as it is
 written, from the same command catalog the palette reads, so it names
 your platform's own bindings rather than a hand-typed guess.
 
-**A scratch buffer, always open.** After that first launch, launch awl
-with no file and you land on a writing surface — no save dialog, no
+**A scratch buffer when writing is active.** After that first launch, launch awl
+with no file and no remembered zero-document session and you land on a writing surface — no save dialog, no
 "untitled-1.md". It stashes itself to disk on the same rhythm as
 everything else: idle, window blur, buffer switch, quit
 (`$XDG_DATA_HOME/awl/scratch.md`, or `~/.local/share/awl/scratch.md` if
 `XDG_DATA_HOME` isn't set — on the web build, `localStorage`). Relaunch
 bare and the scratch buffer is where you left it, including parts you
 never explicitly saved.
+
+Finish the last open file and awl shows its start surface: **New document** and
+**Files**, with no invented scratch document behind them. A bare relaunch
+preserves that zero-document state and the active folder.
 
 **A fresh document ({{key:new_document}}) works the same way, in the folder
 you're already in.** {{key:new_document}} opens a new, unnamed document
@@ -95,7 +99,9 @@ file not under git records a snapshot, pruned by an aged retention
 ladder: everything from the last ~15 minutes, then one per writing
 session, then one per day, then one per week — never a flat FIFO
 cutoff. {{key:version_history}} opens the timeline for the current
-file; Enter on any entry restores it as one ordinary undoable edit.
+file. Enter on an entry opens its read-only comparison; Shift-Enter restores
+that version as one ordinary undoable edit. Esc leaves the comparison and the
+timeline without changing the document.
 "{{cmd:keep_version}}" ({{key:command_palette}}) pins a snapshot the retention
 ladder will never prune, and prompts for an optional name — Enter with
 text keeps a named point (the timeline shows the name), a blank Enter
@@ -127,6 +133,22 @@ Three generic file verbs live in the palette for any document:
 - **{{cmd:move}}** — file it elsewhere under (or out of) the active folder.
 
 None carry a default chord — {{key:command_palette}}, type "rename", Enter.
+
+**Files ({{key:go_to}}) names the folder it is searching.** Files and Recent are
+two views of that same root. A query matches filenames and root-relative paths;
+"{{cmd:search_in_folder}}" is the separate command that searches file contents.
+Folders open in place, Up returns one level, and duplicate filenames retain
+their relative paths. A selected deep result says whether it is text, not
+editable, or large enough to be checked only when opened. Selection and hover
+never switch the document behind the card; Enter is the commitment.
+
+**Move, Save a Copy, and Export name both subject and destination.** Move changes
+the current file's identity. Save a Copy writes the live manuscript but keeps
+the current file, dirty state, caret, and undo history. Export writes the chosen
+format and also keeps the current file. The in-app destination navigators start
+from whichever root Files has made active; Change folder first when the target
+belongs to another root. On macOS, the File-menu Save a Copy and Export commands
+use the system-wide save panel instead.
 
 ## Keys
 

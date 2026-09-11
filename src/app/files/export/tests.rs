@@ -228,6 +228,93 @@ fn a_headless_app_never_reveals_the_export_in_the_platform_file_viewer() {
     });
 }
 
+/// ONE LIVE APP JOURNEY across the three destination verbs. The same dirty
+/// manuscript moves identity once, then Save a Copy and Export each write a
+/// snapshot without adopting their destination. Isolated verb laws cannot
+/// catch state leaked from one navigator into the next.
+#[test]
+fn move_then_save_copy_then_export_is_one_coherent_destination_journey() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let moved = std::path::PathBuf::from("/w/proj/archive/draft.md");
+    let copied = std::path::PathBuf::from("/w/proj/copies/draft.md");
+    let exported = std::path::PathBuf::from("/w/proj/exports/draft.html");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/archive")
+        .with_dir("/w/proj/copies")
+        .with_dir("/w/proj/exports")
+        .with_file(&source, BODY);
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut app = App::new_hermetic(
+            Some(source.clone()),
+            std::path::PathBuf::from("/w/proj"),
+            Config::empty(),
+        );
+        let exit = crate::app::schedule::RecordingExit::new();
+        let drive = |app: &mut App, action| {
+            app.apply(action, false, &exit, crate::stats::Door::Chord);
+        };
+        app.document
+            .action_buffer_mut()
+            .expect("active source")
+            .insert_text("Unsaved preface.\n");
+
+        drive(&mut app, Action::MoveFile);
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().title(),
+            "move draft.md"
+        );
+        for ch in "archive".chars() {
+            drive(&mut app, Action::InsertChar(ch));
+        }
+        drive(&mut app, Action::Newline); // descend into archive
+        drive(&mut app, Action::Newline); // Move here
+        assert_eq!(app.document.buffer().path(), Some(moved.as_path()));
+        assert!(mem.read(&source).is_err(), "move removes the old identity");
+        assert_eq!(mem.read(&moved).unwrap(), BODY.as_bytes());
+        let identity_after_move = app.document.active_key();
+        let live_bytes = app.document.buffer().disk_bytes();
+        assert_ne!(live_bytes, BODY.as_bytes(), "the manuscript is still dirty");
+
+        drive(&mut app, Action::SaveCopy);
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().title(),
+            "save a copy of draft.md to"
+        );
+        for ch in "copies".chars() {
+            drive(&mut app, Action::InsertChar(ch));
+        }
+        drive(&mut app, Action::Newline); // choose folder, open filename prompt
+        drive(&mut app, Action::Newline); // accept the seeded draft.md name
+        assert_eq!(mem.read(&copied).unwrap(), live_bytes);
+        assert_eq!(app.document.active_key(), identity_after_move);
+        assert_eq!(app.document.buffer().path(), Some(moved.as_path()));
+
+        drive(&mut app, Action::ExportHtml);
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().title(),
+            "export draft.md to"
+        );
+        for ch in "exports".chars() {
+            drive(&mut app, Action::InsertChar(ch));
+        }
+        drive(&mut app, Action::Newline);
+        let want_export = crate::export::to_bytes(
+            &app.document.buffer().text(),
+            crate::export::Format::Html,
+            &crate::export::FsImages {
+                doc_dir: Some(std::path::PathBuf::from("/w/proj/archive")),
+            },
+        )
+        .unwrap();
+        assert_eq!(mem.read(&exported).unwrap(), want_export);
+        assert_eq!(app.document.active_key(), identity_after_move);
+        assert_eq!(app.document.buffer().path(), Some(moved.as_path()));
+        assert_eq!(app.document.buffer().disk_bytes(), live_bytes);
+        assert!(app.document.buffer().is_dirty());
+    });
+}
+
 /// TIER 2 (`docs/harness-reach.md`): a copy is a disk-byte snapshot, never a
 /// document transition. The source is deliberately dirty CRLF text with a
 /// selection, scroll position, undo group and working-set key, so a new buffer,

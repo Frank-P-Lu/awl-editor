@@ -205,6 +205,23 @@ fn the_starting_docs_state_no_literal_world_count() {
     );
 }
 
+/// Sentence boundaries do not grant a literal count an exemption. The welcome
+/// once said "opens the worlds. There are nineteen"; `world_counts` correctly
+/// refuses to associate a prior sentence's number with a later noun, so this
+/// paragraph-level enrolment pins the actual teaching at its source.
+#[test]
+fn the_welcome_worlds_paragraph_asks_the_roster_for_its_count() {
+    let _g = crate::testlock::serial();
+    let paragraph = crate::embedded_docs::WELCOME_MD
+        .split("\n\n")
+        .find(|paragraph| paragraph.contains("opens the worlds"))
+        .expect("the welcome still teaches the theme picker");
+    assert!(
+        paragraph.contains("{{count:worlds}}"),
+        "the welcome's theme-picker paragraph must source its count from the roster: {paragraph}"
+    );
+}
+
 /// THE PRESENCE AND VALUE FLOOR — the ban's companion, and the reason the ban
 /// is not satisfiable by deleting its own subject. Renders the starting docs
 /// through the real substitution seam on every surface and asserts (a) the

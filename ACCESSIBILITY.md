@@ -7,8 +7,9 @@ this one sits alongside.
 
 ## What works today
 
-- **Fully keyboard-drivable.** Every command is reachable from the Cmd-P
-  command palette by name — there is no mouse-only affordance anywhere in
+- **Fully keyboard-drivable.** Every command the Cmd-P palette offers is
+  reachable there by name, and controls outside that catalog retain their own
+  key route — there is no mouse-only affordance anywhere in
   awl (`DESIGN.md` §6: keyboard-native with a bounded contextual pointer bridge,
   never a floating toolbar). The two-binding keymap (native ⌘ as the
   advertised layer, a quiet Emacs second slot) means the whole editor — open,
@@ -78,7 +79,9 @@ that drift is invisible until it hurts someone.
 | surface | what it exposes |
 |---|---|
 | The document | One multiline editable text node whose children are STABLE LINE RUNS — one text run per line, carrying that line's text including its newline. Those runs are how a screen reader gets the text, but they are not ACCESSIBLE children: AccessKit's `common_filter` excludes `Role::TextRun`, and both platform backends use it, so the document correctly reports zero children on macOS and on Linux and exposes its lines through the text interface at line granularity instead — and the caret/selection as GRAPHEME offsets over the whole document: a combining sequence, a ZWJ family emoji or a flag is one position, never half of one. A selection that crosses a line break names two different runs, which is the ordinary case and round-trips both ways. Supports focus, set-selection, replace-selected-text and set-value. |
-| Summoned pickers (all 19 kinds) | A dialog with its title and footer hint, its query field, and one option per visible row with its binding value and selected state. Row identity is keyed to the corpus, so filtering never renames a row under an assistive cursor. |
+| The complete summoned-surface roster | A dialog with its title and footer hint, its query field when present, and one option per visible row with its binding value and selected state. Row identity is keyed to the corpus, so filtering never renames a row under an assistive cursor. |
+| Files / Recent | The query, active view, Up control, file/folder choices, Change folder and New document are separate nodes. Focus and selection stay separate; nested and duplicate results retain root-relative identity, and deep selected files expose their readiness status before commitment. |
+| Summoned workspaces | Settings exposes its category rail beside its controls. History and conflict review expose their timeline/view rows beside the read-only comparison document. Credits exposes its reading rows. Exactly one region owns focus. |
 | Settings rows | The control each row actually is — check box, slider, text field or button — not a generic list option, with the actions that control really supports. |
 | Find and replace | Both fields with their carets, the match-count description, and the case-sensitivity check box. |
 | The format popover | One button per formatting command, with its on/off state. |
