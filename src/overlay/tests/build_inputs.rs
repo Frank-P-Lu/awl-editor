@@ -178,3 +178,87 @@ fn picker_request_identity_roster_is_exact() {
         );
     }
 }
+
+/// The action boundary names one focused picker kind before live App or replay
+/// gathers its distinct payload. Both callers must delegate that decision;
+/// local action matches would let their summon rosters drift again.
+#[test]
+fn picker_action_roster_has_one_shared_owner() {
+    let direct = [
+        (crate::keymap::Action::OpenGoto, OverlayKind::Goto),
+        (crate::keymap::Action::OpenProject, OverlayKind::Goto),
+        (crate::keymap::Action::OpenRecentProjects, OverlayKind::Goto),
+        (crate::keymap::Action::OpenOutline, OverlayKind::Goto),
+        (crate::keymap::Action::OpenThemeMenu, OverlayKind::Theme),
+        (crate::keymap::Action::OpenCaretMenu, OverlayKind::Caret),
+        (
+            crate::keymap::Action::OpenDictionaryMenu,
+            OverlayKind::Dictionary,
+        ),
+        (crate::keymap::Action::OpenKeymapMenu, OverlayKind::Keymap),
+        (
+            crate::keymap::Action::OpenCommandPalette,
+            OverlayKind::Command,
+        ),
+        (
+            crate::keymap::Action::OpenKeybindings,
+            OverlayKind::Keybindings,
+        ),
+        (crate::keymap::Action::OpenSpellSuggest, OverlayKind::Spell),
+        (crate::keymap::Action::OpenHistory, OverlayKind::History),
+        (crate::keymap::Action::CompareVersion, OverlayKind::History),
+        (
+            crate::keymap::Action::OpenSettingsMenu,
+            OverlayKind::Settings,
+        ),
+        (crate::keymap::Action::OpenAssetClean, OverlayKind::Assets),
+        (crate::keymap::Action::OpenUserWords, OverlayKind::UserWords),
+        (
+            crate::keymap::Action::OpenSearchFolder,
+            OverlayKind::SearchFolder,
+        ),
+        (crate::keymap::Action::OpenCredits, OverlayKind::Credits),
+    ];
+    for (action, expected) in direct {
+        assert_eq!(
+            crate::actions::picker_kind_for(&action, None, false),
+            Some(expected),
+            "{action:?} must choose its one focused picker kind"
+        );
+    }
+    for action in [
+        crate::keymap::Action::Cancel,
+        crate::keymap::Action::Newline,
+        crate::keymap::Action::AcceptAlternate,
+    ] {
+        assert_eq!(
+            crate::actions::picker_kind_for(&action, Some(OverlayKind::Command), false),
+            Some(OverlayKind::Command),
+            "{action:?} must rebuild the parked parent",
+        );
+    }
+    assert_eq!(
+        crate::actions::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, true),
+        Some(OverlayKind::Settings),
+        "a Settings-owned child action must retain its parent input",
+    );
+    assert_eq!(
+        crate::actions::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, false),
+        None,
+        "an ordinary action must not acquire a picker input",
+    );
+
+    for source in [
+        include_str!("../../app/apply.rs"),
+        include_str!("../../main/run/chord.rs"),
+    ] {
+        assert!(
+            source.contains("actions::picker_kind_for("),
+            "every live/replay construction site must delegate picker identity",
+        );
+        assert!(
+            !source.contains("let picker_kind = match action"),
+            "a caller-local action match would bypass the shared picker roster",
+        );
+    }
+}

@@ -463,35 +463,13 @@ impl App {
                 crate::dateformat::today_from_system_clock(),
             )
         };
-        let picker_kind = match action {
-            Action::OpenGoto
-            | Action::OpenProject
-            | Action::OpenRecentProjects
-            | Action::OpenOutline => Some(crate::overlay::OverlayKind::Goto),
-            Action::OpenThemeMenu => Some(crate::overlay::OverlayKind::Theme),
-            Action::OpenCaretMenu => Some(crate::overlay::OverlayKind::Caret),
-            Action::OpenDictionaryMenu => Some(crate::overlay::OverlayKind::Dictionary),
-            Action::OpenKeymapMenu => Some(crate::overlay::OverlayKind::Keymap),
-            Action::OpenCommandPalette => Some(crate::overlay::OverlayKind::Command),
-            Action::OpenKeybindings => Some(crate::overlay::OverlayKind::Keybindings),
-            Action::OpenSpellSuggest => Some(crate::overlay::OverlayKind::Spell),
-            Action::OpenHistory | Action::CompareVersion => {
-                Some(crate::overlay::OverlayKind::History)
-            }
-            Action::OpenSettingsMenu => Some(crate::overlay::OverlayKind::Settings),
-            Action::OpenAssetClean => Some(crate::overlay::OverlayKind::Assets),
-            Action::OpenUserWords => Some(crate::overlay::OverlayKind::UserWords),
-            Action::OpenSearchFolder => Some(crate::overlay::OverlayKind::SearchFolder),
-            Action::OpenCredits => Some(crate::overlay::OverlayKind::Credits),
-            Action::Cancel | Action::Newline | Action::AcceptAlternate => {
-                self.workspace_state.journey().parked_kind()
-            }
-            _ => self
-                .workspace_state
+        let picker_kind = actions::picker_kind_for(
+            action,
+            self.workspace_state.journey().parked_kind(),
+            self.workspace_state
                 .overlay()
-                .filter(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-                .map(|_| crate::overlay::OverlayKind::Settings),
-        };
+                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings),
+        );
         let picker_input = match picker_kind {
             Some(crate::overlay::OverlayKind::Goto) => {
                 let GotoInputs {
