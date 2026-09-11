@@ -7,6 +7,58 @@ fn deep(n: usize) -> OverlayState {
     OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![])
 }
 
+/// Passive row hover is a typed preview, not a second selection grammar.
+/// Enrolment comes from the complete kind roster and the production predicate:
+/// only the two live-document auditions may change the highlighted choice.
+#[test]
+fn passive_hover_changes_selection_only_for_live_preview_kinds() {
+    fn card(kind: OverlayKind) -> OverlayState {
+        if kind == OverlayKind::SearchFolder {
+            let mut overlay = OverlayState::new_search_folder(
+                std::path::PathBuf::from("/writing"),
+                vec![("note.md".into(), "needle one\nneedle two".into())],
+            );
+            for ch in "needle".chars() {
+                overlay.push(ch);
+            }
+            overlay
+        } else {
+            OverlayState::new(
+                kind,
+                vec!["alpha".into(), "beta".into(), "gamma".into()],
+                vec![],
+                vec![],
+            )
+        }
+    }
+
+    let enrolled: Vec<_> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| kind.previews_live_document())
+        .collect();
+    assert_eq!(enrolled, vec![OverlayKind::Theme, OverlayKind::Caret]);
+
+    for kind in OverlayKind::ALL {
+        let mut overlay = card(kind);
+        assert!(overlay.items.len() >= 2, "{kind:?}: fixture has two rows");
+        overlay.selected = 0;
+        let changed = overlay.preview_hover_at(20.0, 20.0, Some(1));
+        assert_eq!(changed, kind.previews_live_document(), "{kind:?}");
+        assert_eq!(
+            overlay.selected,
+            usize::from(kind.previews_live_document()),
+            "{kind:?}: ordinary pointing preserves the keyboard selection"
+        );
+    }
+
+    // MUTATION WITNESS: the untyped primitive still demonstrates the exact
+    // regression the production preview gate prevents.
+    let mut ungated = card(OverlayKind::Command);
+    assert!(ungated.hover_at(20.0, 20.0, Some(1)));
+    assert_eq!(ungated.selected, 1);
+}
+
 #[test]
 fn hover_only_highlights_visible_rows_and_never_scrolls() {
     // 40 rows, window 12. Keyboard down to row 30 → the window scrolls so 30 is the

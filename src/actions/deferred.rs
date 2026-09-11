@@ -33,6 +33,7 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
         Action::SaveCopy => {
             let card = (ctx.browse_to)(OverlayKind::ExportDest, None).map(|mut card| {
                 card.save_copy = true;
+                card.subject_name = Some(ctx.buffer.display_name());
                 card
             });
             ctx.journey.enter(card);

@@ -328,12 +328,14 @@ impl SemanticProjection {
     /// way the buffer's own selection does.
     fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool, transcript_mode: bool) {
         let buffer = view.buffer().expect("document projection has a buffer");
-        let name = buffer
+        let buffer_name = buffer
             .path()
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled document".to_string());
-        let focused = matches!(view.layer(), workspace::Layer::Editor);
+        let name = view.comparison_document_name().unwrap_or(buffer_name);
+        let focused =
+            matches!(view.layer(), workspace::Layer::Editor) || view.comparison_detail_focused();
         let selection = if transcript_mode {
             self.transcript_selection
         } else {

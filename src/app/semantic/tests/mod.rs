@@ -473,6 +473,105 @@ fn contextual_command_and_link_cards_focus_their_editable_field_not_the_selected
     }
 }
 
+#[test]
+fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+
+    let one_focus = |snapshot: &SemanticSnapshot| {
+        let focused: Vec<_> = snapshot.nodes.iter().filter(|node| node.focused).collect();
+        assert_eq!(focused.len(), 1, "focused nodes: {focused:?}");
+        assert_eq!(focused[0].id, snapshot.focus_id);
+    };
+
+    let mut settings = hermetic();
+    settings
+        .workspace_state
+        .install_overlay_for_test(seeded_overlay(OverlayKind::Settings));
+    let rail0 = "overlay.settings.rail.0".to_string();
+    let primary = settings.semantic_snapshot();
+    one_focus(&primary);
+    assert_eq!(primary.focus_id, rail0);
+    let rail = primary.nodes.iter().find(|node| node.id == rail0).unwrap();
+    assert_eq!(rail.role, SemanticRole::Option);
+    assert_eq!(rail.selected, Some(true));
+    let selected_row = primary
+        .nodes
+        .iter()
+        .find(|node| node.id.starts_with("overlay.settings.row.") && node.selected == Some(true))
+        .unwrap();
+    assert!(!selected_row.focused, "selection is not rail focus");
+
+    assert!(settings.apply_semantic_request(SemanticRequest::Click { id: rail0 }));
+    let detail = settings.semantic_snapshot();
+    one_focus(&detail);
+    let detail_row = detail
+        .nodes
+        .iter()
+        .find(|node| node.id.starts_with("overlay.settings.row.") && node.selected == Some(true))
+        .unwrap();
+    assert_eq!(detail.focus_id, detail_row.id);
+    assert_eq!(detail_row.role, SemanticRole::Button);
+    assert!(settings.workspace_state.overlay().unwrap().detail_focus);
+
+    let rail1 = "overlay.settings.rail.1".to_string();
+    assert!(settings.apply_semantic_request(SemanticRequest::Focus { id: rail1.clone() }));
+    let returned = settings.semantic_snapshot();
+    one_focus(&returned);
+    assert_eq!(returned.focus_id, rail1);
+    assert!(!settings.workspace_state.overlay().unwrap().detail_focus);
+
+    let mut history = hermetic();
+    let mut card = OverlayState::new_history(
+        vec![crate::history::TimelineRow {
+            when: "just now".to_string(),
+            which: "edited opening".to_string(),
+            counts: "+1 −1".to_string(),
+            id: "snapshot-1".to_string(),
+            timestamp: 1,
+            pinned: false,
+            name: None,
+        }],
+        None,
+        None,
+    );
+    card.subject_name = Some("September.md".to_string());
+    history.workspace_state.install_overlay_for_test(card);
+    let timeline = history.semantic_snapshot();
+    one_focus(&timeline);
+    let timeline_row = timeline
+        .nodes
+        .iter()
+        .find(|node| node.id.starts_with("overlay.history.row.") && node.selected == Some(true))
+        .unwrap();
+    assert_eq!(timeline.focus_id, timeline_row.id);
+    assert_eq!(timeline_row.role, SemanticRole::Option);
+    let document = timeline
+        .nodes
+        .iter()
+        .find(|node| node.id == DOCUMENT_ID)
+        .unwrap();
+    assert_eq!(document.role, SemanticRole::Document);
+    assert_eq!(document.name, "Comparison — history of September.md");
+    assert!(!document.focused);
+
+    assert!(history.apply_semantic_request(SemanticRequest::Focus {
+        id: DOCUMENT_ID.to_string(),
+    }));
+    let comparison = history.semantic_snapshot();
+    one_focus(&comparison);
+    assert_eq!(comparison.focus_id, DOCUMENT_ID);
+    assert!(history.workspace_state.overlay().unwrap().detail_focus);
+
+    assert!(history.apply_semantic_request(SemanticRequest::Focus {
+        id: timeline_row.id.clone(),
+    }));
+    let returned = history.semantic_snapshot();
+    one_focus(&returned);
+    assert_eq!(returned.focus_id, timeline_row.id);
+    assert!(!history.workspace_state.overlay().unwrap().detail_focus);
+}
+
 /// The card fold is the one passive surface whose content only the render
 /// pipeline holds, so it is folded from a value rather than fetched — which is
 /// what makes this law possible at all without a GPU. Every card kind must
@@ -825,7 +924,7 @@ fn a_settings_range_row_increments_the_real_setting() {
 /// every surface must be HANDLED by `apply_semantic_request`.
 #[test]
 fn every_advertised_action_drives_a_real_transition() {
-    let _guard = crate::testlock::serial();
+    let (_guard, _page) = (crate::testlock::serial(), crate::page::PagePin::snapshot());
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     // Every arm below really RUNS: a picker row's Click accepts the row, and
     // an accept can open, rename or trash a file. `new_hermetic` swaps the

@@ -141,11 +141,12 @@ pub fn build(input: &PickerInput<'_>) -> Option<OverlayState> {
         // History: the caller-gathered timeline rows. ALWAYS summons: an empty list
         // becomes the calm "no history yet" row, so the picker never silently no-ops
         // on a file that simply hasn't been snapshotted yet.
-        PickerInput::History(ctx) => Some(OverlayState::new_history(
-            ctx.entries.clone(),
-            ctx.now,
-            ctx.session_start,
-        )),
+        PickerInput::History(ctx) => {
+            let mut overlay =
+                OverlayState::new_history(ctx.entries.clone(), ctx.now, ctx.session_start);
+            overlay.subject_name = Some(ctx.subject_name.clone());
+            Some(overlay)
+        }
         // Settings menu: the flat settings corpus (display names) + each setting's
         // current VALUE in the secondary (binding) column, read via the settings
         // readout against the caller-gathered config/project values. It FACETS by

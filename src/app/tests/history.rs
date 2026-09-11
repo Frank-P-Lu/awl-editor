@@ -19,6 +19,44 @@ fn open_history_overlay(app: &mut App, p: &std::path::Path) {
 }
 
 #[test]
+fn history_search_and_export_action_doors_name_their_live_scope() {
+    use crate::fs::InMemoryFs;
+
+    let p = PathBuf::from("/notes/September.md");
+    let mem = InMemoryFs::new()
+        .with_file(&p, "draft\n")
+        .with_file("/notes/archive/kept.md", "kept\n");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem));
+    let mut app = app_on(Some(p), "/notes", Config::empty());
+    let exit = crate::app::schedule::RecordingExit::new();
+
+    app.apply(Action::OpenHistory, false, &exit, crate::stats::Door::Menu);
+    assert_eq!(
+        app.workspace_state.overlay().unwrap().title(),
+        "history of September.md"
+    );
+    app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+
+    app.apply(
+        Action::OpenSearchFolder,
+        false,
+        &exit,
+        crate::stats::Door::Menu,
+    );
+    assert_eq!(
+        app.workspace_state.overlay().unwrap().title(),
+        "search in notes"
+    );
+    app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+
+    app.apply(Action::ExportHtml, false, &exit, crate::stats::Door::Menu);
+    assert_eq!(
+        app.workspace_state.overlay().unwrap().title(),
+        "export September.md to"
+    );
+}
+
+#[test]
 fn history_preview_resolves_without_touching_buffer() {
     use crate::fs::{FileSystem, InMemoryFs};
     let p = PathBuf::from("/notes/draft.md");

@@ -300,6 +300,15 @@ impl WorkspaceState {
         }
     }
 
+    /// Focus the workspace's primary region without changing its selection.
+    /// This is the semantic/pointer counterpart to the shared Back transition.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn focus_workspace_primary(&mut self) {
+        if self.journey.card().is_some_and(|card| card.detail_focus) {
+            self.journey.toggle_detail();
+        }
+    }
+
     /// Close the find/replace panel. Called on every buffer swap (opening a
     /// file, starting a fresh document) — a panel's matches are indices into
     /// the buffer it was opened against, so it can never survive the swap.

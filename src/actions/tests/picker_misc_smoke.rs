@@ -823,6 +823,7 @@ fn smoke_picker_input(kind: OverlayKind) -> Option<crate::overlay::PickerInput<'
             entries: vec![],
             now: None,
             session_start: None,
+            subject_name: "draft.md".to_string(),
         })),
         OverlayKind::Settings => Some(PickerInput::Settings(Default::default())),
         OverlayKind::Assets => Some(PickerInput::Assets(vec![])),

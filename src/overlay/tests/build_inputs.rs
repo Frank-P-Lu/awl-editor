@@ -47,6 +47,7 @@ fn focused_picker_inputs_cover_every_shared_builder_door() {
             entries: history_rows(),
             now: Some(300),
             session_start: Some(0),
+            subject_name: "September.md".to_string(),
         }),
         PickerInput::Settings(Default::default()),
         PickerInput::Assets(vec![orphan("unused.png", 12)]),

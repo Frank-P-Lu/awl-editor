@@ -14,6 +14,7 @@ impl App {
             let (px, py) = pointer.px();
             overlay.arm_hover_baseline(px, py);
         }
+        self.refresh_deep_file_status();
         let overlay_open = self.workspace_state.overlay_open();
         if overlay_was_open && !overlay_open {
             // The open->closed edge, not the button release, owns the query
@@ -23,6 +24,16 @@ impl App {
         }
         if overlay_open != overlay_was_open {
             self.resync_pointer_derived_state();
+        }
+    }
+
+    /// Reconcile the selected filename/path result through one App owner.
+    /// Keyboard, wheel, pointer lens, and semantic query doors all call here;
+    /// the overlay caches the verdict, so view-only syncs never reread bytes.
+    pub(in crate::app) fn refresh_deep_file_status(&mut self) {
+        let root = self.project_location.root.clone();
+        if let Some(overlay) = self.workspace_state.overlay_mut() {
+            overlay.refresh_selected_deep_file_status(&root);
         }
     }
 }

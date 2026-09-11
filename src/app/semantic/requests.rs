@@ -105,11 +105,32 @@ impl App {
             .position(|corpus| id == format!("overlay.{kind}.row.{corpus}"))
     }
 
+    fn workspace_rail_target_position(&self, id: &str) -> Option<usize> {
+        let overlay = self.workspace_state.journey().card()?;
+        let shape = overlay.workspace_shape()?;
+        if shape.rows_are_primary() {
+            return None;
+        }
+        let prefix = format!("overlay.{}.rail.", overlay.kind.as_str());
+        let index = id.strip_prefix(&prefix)?.parse::<usize>().ok()?;
+        (index < overlay.lens_strip().len()).then_some(index)
+    }
+
     fn focus_semantic_node(&mut self, id: &str) -> bool {
         if id == START_NEW_ID || id == START_GOTO_ID {
             return !self.document.has_active();
         }
         if id == DOCUMENT_ID {
+            if self.workspace_state.overlay().is_some_and(|overlay| {
+                overlay
+                    .workspace_shape()
+                    .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
+                    && overlay.comparison_request().is_some()
+            }) {
+                self.workspace_state.focus_workspace_detail();
+                self.sync_view(true);
+                self.request_frame();
+            }
             return true;
         }
         if id == super::SEARCH_QUERY_ID || id == super::SEARCH_REPLACE_ID {
@@ -126,16 +147,34 @@ impl App {
             return true;
         }
         if id.ends_with(".query") {
-            let Some(overlay) = self.workspace_state.overlay_mut() else {
-                return false;
+            let focus_workspace_detail = {
+                let Some(overlay) = self.workspace_state.overlay_mut() else {
+                    return false;
+                };
+                let expected = format!("overlay.{}.query", overlay.kind.as_str());
+                if id != expected {
+                    return false;
+                }
+                if overlay.files_mode {
+                    overlay.files_focus = crate::overlay::FilesFocus::Query;
+                }
+                overlay
+                    .workspace_shape()
+                    .is_some_and(|shape| !shape.rows_are_primary())
             };
-            let expected = format!("overlay.{}.query", overlay.kind.as_str());
-            if id != expected {
-                return false;
+            if focus_workspace_detail {
+                self.workspace_state.focus_workspace_detail();
             }
-            if overlay.files_mode {
-                overlay.files_focus = crate::overlay::FilesFocus::Query;
+            self.sync_view(true);
+            self.request_frame();
+            return true;
+        }
+        if let Some(target) = self.workspace_rail_target_position(id) {
+            if let Some(overlay) = self.workspace_state.overlay_mut() {
+                overlay.set_facet_lens(target);
             }
+            self.workspace_state.focus_workspace_primary();
+            self.refresh_deep_file_status();
             self.sync_view(true);
             self.request_frame();
             return true;
@@ -143,6 +182,17 @@ impl App {
         let Some(target) = self.overlay_target_position(id) else {
             return false;
         };
+        if let Some(shape) = self
+            .workspace_state
+            .overlay()
+            .and_then(|overlay| overlay.workspace_shape())
+        {
+            if shape.rows_are_primary() {
+                self.workspace_state.focus_workspace_primary();
+            } else {
+                self.workspace_state.focus_workspace_detail();
+            }
+        }
         let current = self
             .workspace_state
             .journey()
@@ -167,6 +217,16 @@ impl App {
         }
         if id == START_GOTO_ID {
             self.apply_semantic_action(Action::OpenGoto);
+            return true;
+        }
+        if let Some(target) = self.workspace_rail_target_position(id) {
+            if let Some(overlay) = self.workspace_state.overlay_mut() {
+                overlay.set_facet_lens(target);
+            }
+            self.workspace_state.focus_workspace_detail();
+            self.refresh_deep_file_status();
+            self.sync_view(true);
+            self.request_frame();
             return true;
         }
         let search_control = match id {
@@ -277,6 +337,7 @@ impl App {
         } else {
             return false;
         }
+        self.refresh_deep_file_status();
         self.sync_view(true);
         self.request_frame();
         true

@@ -3,6 +3,46 @@ use super::keyspec;
 use crate::testscratch::ScratchDir;
 
 #[test]
+fn replay_files_query_publishes_the_same_preaccept_deep_status_as_live_app() {
+    use crate::fs::{FileSystem, InMemoryFs};
+
+    let _serial = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_file("/proj/current.md", "current\n");
+    mem.write(
+        std::path::Path::new("/proj/deep/needle.png"),
+        b"\x89PNG\r\n\x1a\n\0asset",
+    )
+    .unwrap();
+    let _fs = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let root = std::path::Path::new("/proj");
+    let corpus = vec!["current.md".to_string(), "deep/needle.png".to_string()];
+    let mut buffer = Buffer::from_file(std::path::Path::new("/proj/current.md"));
+    let config = Config::empty();
+    let mut keymap =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = ReplaySession::new(
+        ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        root,
+        None,
+        &config,
+        None,
+        &mut keymap,
+    );
+    for chord in keyspec::parse_keys("s-o n e e d l e").unwrap() {
+        session.apply_chord(&chord).unwrap();
+    }
+    let overlay = session.overlay().expect("Files stays open before Enter");
+    assert_eq!(overlay.selected_value(), Some("deep/needle.png"));
+    assert_eq!(
+        overlay.item_bindings()[overlay.selected],
+        "PNG \u{b7} not editable",
+        "the replay/capture door exposes the live App's same selected-result verdict"
+    );
+}
+
+#[test]
 fn both_capture_doors_report_provisional_fresh_identity_as_untitled() {
     let _serial = crate::testlock::serial();
     let mut fresh = Buffer::scratch();

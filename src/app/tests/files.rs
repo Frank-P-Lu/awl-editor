@@ -78,6 +78,32 @@ impl crate::fs::FileSystem for CountingFs {
     }
 }
 
+fn deep_status_fs(cap: usize) -> CountingFs {
+    use crate::fs::FileSystem;
+
+    let mem = crate::fs::InMemoryFs::new().with_file("/proj/keep.md", "current\n");
+    for (path, bytes) in [
+        (
+            "/proj/deep/needle-a.png",
+            b"\x89PNG\r\n\x1a\n\0asset".to_vec(),
+        ),
+        ("/proj/deep/needle-b.txt", vec![b'x'; cap]),
+        ("/proj/deep/deferred.txt", vec![b'x'; cap + 1]),
+    ] {
+        mem.write(std::path::Path::new(path), &bytes).unwrap();
+    }
+    for dir in 0..24 {
+        for file in 0..12 {
+            mem.write(
+                &PathBuf::from(format!("/proj/archive-{dir}/unrelated-{file}.blob")),
+                b"\0binary",
+            )
+            .unwrap();
+        }
+    }
+    CountingFs::new(mem)
+}
+
 // ── GOTO FILE-INDEX FRESHNESS (queue: "file picker freshness") ──────────
 //
 // The go-to overlay (`C-x f`) corpus comes from `App.file_index`, a CACHED
@@ -209,6 +235,108 @@ fn files_summon_reads_only_the_displayed_directory_not_every_deep_candidate() {
             .any(|row| row == "visible.bin"),
         "the visible binary is classified and excluded rather than offered"
     );
+}
+
+/// Deep filename/path results disclose their capability before commitment,
+/// while classification remains one selected candidate at a time. The exact
+/// byte ceiling is enrolled on both sides, and every unrelated deep candidate
+/// is a mutation tripwire against an eager whole-index pass.
+#[test]
+fn deep_result_status_is_selected_bounded_and_reconciled_across_input_doors() {
+    let cap = crate::overlay::DEEP_FILE_CHECK_MAX_BYTES as usize;
+    let fs = deep_status_fs(cap);
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/keep.md")),
+        "/proj",
+        Config::empty(),
+    );
+    let raw_corpus = app.project_location.file_index.clone();
+
+    // MUTATION WITNESS: a raw query without the reconciliation seam has no
+    // status at all, which is the pre-change behavior this law rejects.
+    let mut raw = crate::overlay::OverlayState::new_files(raw_corpus, vec![], vec![], None);
+    for ch in "needle".chars() {
+        raw.push(ch);
+    }
+    assert_eq!(raw.selected_value(), Some("deep/needle-a.png"));
+    assert_eq!(raw.item_bindings()[raw.selected], "");
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
+    fs.clear_reads();
+    for ch in "needle".chars() {
+        app.apply(
+            Action::InsertChar(ch),
+            false,
+            &exit,
+            crate::stats::Door::Chord,
+        );
+    }
+    let overlay = app.workspace_state.overlay().unwrap();
+    assert_eq!(overlay.selected_value(), Some("deep/needle-a.png"));
+    assert_eq!(
+        overlay.item_bindings()[overlay.selected],
+        "PNG \u{b7} not editable",
+        "the selected binary is classified before Enter"
+    );
+    assert_eq!(
+        fs.reads(),
+        vec![PathBuf::from("/proj/deep/needle-a.png")],
+        "querying {} deep bystanders reads only the selected result",
+        24 * 12,
+    );
+
+    // Wheel is a separate live input door. It must restore the old row's
+    // authored secondary and classify the newly selected exact-boundary file.
+    app.overlay_wheel(-1.0);
+    let overlay = app.workspace_state.overlay().unwrap();
+    assert_eq!(overlay.selected_value(), Some("deep/needle-b.txt"));
+    assert_eq!(
+        overlay.item_bindings()[overlay.selected],
+        "text \u{b7} ready"
+    );
+    assert_eq!(
+        overlay
+            .rows
+            .iter()
+            .find(|row| row.accept == "deep/needle-a.png")
+            .unwrap()
+            .secondary,
+        "",
+        "leaving a result restores its original secondary"
+    );
+    assert_eq!(
+        fs.reads(),
+        vec![
+            PathBuf::from("/proj/deep/needle-a.png"),
+            PathBuf::from("/proj/deep/needle-b.txt"),
+        ],
+        "a file exactly at the declared ceiling is classified"
+    );
+
+    // The semantic text-input door refilters without App::apply. Its shared
+    // reconciliation still runs, while cap+1 remains explicitly deferred.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assert!(
+            app.apply_semantic_request(crate::semantic::SemanticRequest::SetValue {
+                id: "overlay.goto.query".to_string(),
+                value: "deferred".to_string(),
+            })
+        );
+        let overlay = app.workspace_state.overlay().unwrap();
+        assert_eq!(overlay.selected_value(), Some("deep/deferred.txt"));
+        assert_eq!(
+            overlay.item_bindings()[overlay.selected],
+            "large file \u{b7} checked when opened"
+        );
+        assert_eq!(
+            fs.reads().len(),
+            2,
+            "cap+1 is not read before explicit acceptance"
+        );
+    }
 }
 
 /// A deep binary can remain a raw-index search candidate until later loading

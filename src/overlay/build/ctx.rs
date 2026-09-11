@@ -38,6 +38,7 @@ pub struct HistoryInputs {
     pub entries: Vec<crate::history::TimelineRow>,
     pub now: Option<u64>,
     pub session_start: Option<u64>,
+    pub subject_name: String,
 }
 
 /// Search in folder's root and budget-bounded, summon-time corpus.
