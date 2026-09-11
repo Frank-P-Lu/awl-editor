@@ -7,7 +7,7 @@
 ## Open build and design tasks
 
 **4 open numbered tasks.** Ready: none. Dependencies/coordination:
-639–640 and 589. User decision: 579.
+639–640. Native candidate review: 589. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 639 — UI coherence across Commands, search, Settings, previews and History (user approval, 2026-09-10)
@@ -147,8 +147,8 @@ for a clean re-measurement without repaying the build.
 Coordination update (2026-09-08): **628 owns the shared visual specification and
 prototype review; follow its sequencing before overlapping visual implementation.**
 
-⬜ READY — queue only; not dispatched. Shared design foundation for 590–592;
-integrate overlapping renderer work serially.
+🟡 IN PROGRESS — `chrome_589` (Codex), based on `0109db01`. Shared design
+foundation for 590–592; integrate overlapping renderer work serially.
 
 **Decision.** Improve Commands' query/result hierarchy and spacing while keeping
 the document readable outside the summoned surface. Integrate its title with
