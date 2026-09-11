@@ -201,12 +201,12 @@ fn export_dest_title_folds_in_the_browse_relative_destination_once_descended() {
 
 #[test]
 fn command_palette_enter_dispatches_selected_action() {
-    // Open, filter to "Go to file", Enter -> run_action == OpenGoto and the
+    // Open, filter to "Files…", Enter -> run_action == OpenGoto and the
     // palette closed (so the caller can re-dispatch into the goto overlay).
     let mut overlay = crate::overlay::Journey::default();
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::OpenCommandPalette);
-    for c in "goto".chars() {
+    for c in "files".chars() {
         drive(&mut overlay, &mut accept, &Action::InsertChar(c));
     }
     let run = drive_run(&mut overlay, &mut accept, &Action::Newline);

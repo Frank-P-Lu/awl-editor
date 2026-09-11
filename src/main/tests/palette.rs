@@ -5,13 +5,13 @@ use super::{keyspec, replay_keys};
 fn replay_keys_runs_palette_chain_into_overlay() {
     let _guard = crate::testlock::serial();
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p g o t o RET").unwrap();
+    let keys = keyspec::parse_keys("s-p f i l e s RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(
         res.journey.card().map(|o| o.kind),
         Some(crate::overlay::OverlayKind::Goto),
-        "palette Enter on 'Go to file' chains into the Goto overlay",
+        "palette Enter on 'Files…' chains into the Goto overlay",
     );
 }
 
