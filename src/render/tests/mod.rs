@@ -63,6 +63,9 @@ mod comparison_composite;
 /// document-geometry owners read, the private page-column bypass, the total
 /// relocation, and the margin-orientation surfaces that yield to it.
 mod comparison_viewport;
+/// Commands and Insert-link retain readable writing outside their authored
+/// chrome while preserving every composition, anchor, and shared hit-test.
+mod contextual_chrome;
 mod date_picker_ink;
 mod deckle_ground;
 mod decor_geometry_vs_caret;

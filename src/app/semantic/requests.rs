@@ -125,6 +125,21 @@ impl App {
             self.request_frame();
             return true;
         }
+        if id.ends_with(".query") {
+            let Some(overlay) = self.workspace_state.overlay_mut() else {
+                return false;
+            };
+            let expected = format!("overlay.{}.query", overlay.kind.as_str());
+            if id != expected {
+                return false;
+            }
+            if overlay.files_mode {
+                overlay.files_focus = crate::overlay::FilesFocus::Query;
+            }
+            self.sync_view(true);
+            self.request_frame();
+            return true;
+        }
         let Some(target) = self.overlay_target_position(id) else {
             return false;
         };
@@ -258,7 +273,7 @@ impl App {
             let Some(overlay) = self.workspace_state.overlay_mut() else {
                 return false;
             };
-            overlay.set_query_text(value);
+            overlay.set_semantic_query_text(value);
         } else {
             return false;
         }

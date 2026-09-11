@@ -4,11 +4,17 @@ use super::*;
 use crate::overlay::{FilesFocus, OverlayState, RowMeta};
 
 pub(super) fn query_focused(overlay: &OverlayState) -> bool {
+    if contextual_text_field_owns_focus(overlay) {
+        return true;
+    }
     overlay.files_mode && overlay.files_focus == FilesFocus::Query
 }
 
 pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize) -> bool {
     if visible != overlay.selected {
+        return false;
+    }
+    if contextual_text_field_owns_focus(overlay) {
         return false;
     }
     if !overlay.files_mode {
@@ -59,6 +65,9 @@ pub(super) fn append_controls(
 }
 
 pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String) -> String {
+    if contextual_text_field_owns_focus(overlay) {
+        return query_id;
+    }
     if overlay.files_mode {
         match overlay.files_focus {
             FilesFocus::Query => query_id,
@@ -70,6 +79,13 @@ pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String
     } else {
         selected_row_id(overlay, dialog_id).unwrap_or(query_id)
     }
+}
+
+/// Contextual fields whose text entry remains the keyboard recipient while
+/// their action row stays selected. This is an input fact, deliberately
+/// independent of the renderer's backdrop-composition roster.
+fn contextual_text_field_owns_focus(overlay: &OverlayState) -> bool {
+    overlay.kind == crate::overlay::OverlayKind::Command || overlay.link_edit.is_some()
 }
 
 fn selected_row_id(overlay: &OverlayState, dialog_id: &str) -> Option<String> {

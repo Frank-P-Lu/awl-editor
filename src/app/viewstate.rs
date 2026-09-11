@@ -198,12 +198,12 @@ impl App {
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
             overlay_align: ov.map(|o| o.align),
-            // THE CRISP-BACKDROP exception, asked of the ONE owner rather than
-            // re-decided here: which kinds preview live DOCUMENT state behind
-            // their card, and so cannot afford to frost it, is
-            // `OverlayKind::keeps_backdrop_crisp`'s question — shared with the
-            // capture door so a headless frame cannot disagree with this one.
+            // THE CRISP-BACKDROP exception is asked of the ONE kind owner rather
+            // than re-decided here: rows that preview live document state cannot
+            // afford frost over the thing they are showing.
+            // Shared with capture, so the two doors cannot disagree.
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
+            overlay_retains_room: ov.is_some_and(|o| o.kind.retains_readable_room()),
             overlay_theme_picker: ov.is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
             overlay_theme_chrome: ov.and_then(|o| o.audition.theme_original()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),

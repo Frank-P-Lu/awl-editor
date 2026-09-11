@@ -2777,13 +2777,9 @@ pub struct TextPipeline {
     /// notice (one the writer must act on) can be treated differently from a
     /// self-clearing acknowledgement without either one growing its own path.
     notice_kind: crate::actions::NoticeKind,
-    /// MOTION-JUICE ARMING (the FIRETAIL-MAXIMALIST-SHOWCASE round's
-    /// determinism gate): `false` by default and in EVERY headless capture /
-    /// bench / test pipeline — only the live App's GPU init calls
-    /// [`Self::arm_live_juice`]. Every motion-juice kick checks this first,
-    /// so the capture path is STRUCTURALLY animation-free (the settled state
-    /// is the only state it can ever render), regardless of the dev-only
-    /// motion override.
+    /// MOTION-JUICE ARMING: `false` in every headless capture/bench/test; only
+    /// live GPU init calls [`Self::arm_live_juice`]. Every kick checks it, so
+    /// capture is structurally settled regardless of the dev-only override.
     juice_live: bool,
     overlay_entrance: pipeline_overlay_state::OverlayEntranceState,
     overlay_band: pipeline_overlay_state::OverlayBandState,
@@ -2797,6 +2793,8 @@ pub struct TextPipeline {
     overlay_active: bool,
     overlay_align: Option<theme::CardAnchor>,
     overlay_crisp: bool,
+    /// Context retention, distinct from the preview-driven `overlay_crisp`.
+    overlay_retains_room: bool,
     /// The Themes chooser's stronger stable-chrome contract. Kept distinct
     /// from `overlay_crisp`, whose roster also includes the Caret audition.
     overlay_theme_picker: bool,

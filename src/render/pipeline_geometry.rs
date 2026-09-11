@@ -382,9 +382,8 @@ impl TextPipeline {
         self.search_replacement_caret = view.search_replacement_caret;
         self.search_field_selection = view.search_field_selection;
         self.popover_model = view.popover.clone();
-        // A summoned overlay appears + disappears INSTANTLY (no rise-in / sink-out
-        // motion) on every CALM world: the overlay content syncs verbatim from the
-        // view every frame, so a close snaps the card off the frame the App clears
+        // A summoned overlay appears + disappears INSTANTLY on every CALM world:
+        // content syncs verbatim each frame, so a close snaps it off when App clears
         // its logical `self.overlay`. THE ONE exception is the MOTION-JUICE
         // entrance (FIRETAIL-MAXIMALIST-SHOWCASE round): on an OPEN flip
         // (false→true), a live-armed pipeline whose effective `MotionJuice`
@@ -410,6 +409,7 @@ impl TextPipeline {
             self.overlay_band.reset();
         }
         self.overlay_crisp = view.overlay_crisp;
+        self.overlay_retains_room = view.overlay_retains_room;
         self.overlay_theme_picker = view.overlay_theme_picker;
         self.overlay_theme_chrome = view.overlay_theme_chrome;
         if let Some(index) = view.overlay_theme_chrome {
