@@ -70,12 +70,13 @@ impl OverlayBandState {
     }
 
     pub(super) fn settle_to(&mut self, target: f32) {
-        self.from = target;
-        self.t = 1.0;
-        self.last = Some(target);
-        self.started_at = None;
-        self.pending_at = None;
-        self.pending_snap = false;
+        // A settled endpoint has no claim on an old input or presentation epoch.
+        // Replace the whole state rather than clearing a hand-picked subset.
+        *self = Self {
+            from: target,
+            last: Some(target),
+            ..Self::settled()
+        };
     }
 
     pub(super) fn settle(&mut self) {
@@ -307,35 +308,33 @@ impl TextPipeline {
     /// eased position (`cur`); this is that fix, promoted to the ONE shared
     /// owner so the two seams can never diverge again.
     ///
-    /// A fresh overlay (`overlay_band_last == None`) SETTLES rather than
-    /// easing — there is no meaningful previous row to glide from.
     /// THE HYBRID glide+snap ARBITER (the user's decision), the ONE
     /// door both band seams ([`Self::overlay_band_drawn`] +
     /// [`Self::living_band_phase`]) route their re-target through. It picks
-    /// between the [`Self::retarget_band`] GLIDE (untouched — the correct,
+    /// between the transition owner's GLIDE (the correct,
     /// headless-verified chase) and an immediate SNAP, by INPUT RATE:
     ///
-    /// * A SINGLE deliberate move (the band is SETTLED, `overlay_band_t >= 1.0`)
-    ///   → GLIDE: hand off to `retarget_band`, which starts the living-band
+    /// * A SINGLE deliberate move (the band is settled)
+    ///   → GLIDE: the transition owner starts the living-band
     ///   choreography from the settled row and eases home. The whole morph plays.
     ///
     /// * A move that arrives while the band is STILL MID-GLIDE from a previous
-    ///   UNFINISHED glide (`overlay_band_t < 1.0` — input outran the ~110ms
+    ///   unfinished glide (input outran the ~110ms
     ///   slide, i.e. arrow-key auto-repeat) → SNAP: jump `from`/`last` straight
     ///   to the freshest `target` so the drawn band == the selection THIS frame,
     ///   never a lagging intermediate. This is why held-down Down no longer
     ///   "catches up every 2nd row": the OLD path chained another glide from the
     ///   in-flight position and trailed; this teleports to the live selection.
     ///
-    /// THE CLOCK TRICK for SUSTAINED repeat: a snap RESETS `overlay_band_t` to
+    /// THE CLOCK TRICK for sustained repeat: a snap resets the shared phase to
     /// `0.0` (not `1.0`) with `from == last == target`, so [`livingband::morph_
     /// band`] draws the exact target rect at every phase (a no-move is a constant
-    /// rect) WHILE the in-flight timer keeps running. `overlay_band_t` therefore
+    /// rect) while the in-flight timer keeps running. The shared phase therefore
     /// measures "time since the last MOVE" (each move — glide-start OR snap —
     /// re-zeros it), so as long as auto-repeat keeps firing within one
     /// [`OVERLAY_BAND_SLIDE_MS`] the band stays in the snap regime and never
     /// settles into another lagging glide; the moment input goes quiet for a full
-    /// glide duration, `overlay_band_t` reaches `1.0` and the NEXT move glides
+    /// glide duration, the phase reaches `1.0` and the next move glides
     /// again. Never sets `1.0` on the snap, which would let the very next
     /// in-flight move read "settled" and glide (the "catches up every 2nd Down"
     /// alternation this closes).
@@ -376,14 +375,14 @@ impl TextPipeline {
     ///   travel from [`livingband::PIN_JUMP_ROWS`] rows BELOW the selected row,
     ///   sliding up to it, held at the fixed phase. Deterministic (no clock), so
     ///   `--screenshot` dumps a byte-stable mid-flight frame.
-    /// * LIVE (`force.phase` absent): reuses the SAME `overlay_band_from/last/t`
-    ///   tracking the ordinary slide uses, through the ONE hybrid arbiter
+    /// * LIVE (`force.phase` absent): reuses the same complete transition state
+    ///   the ordinary slide uses, through the one hybrid arbiter
     ///   [`Self::chase_or_snap`]. A fresh overlay settles; a single
-    ///   deliberate move GLIDES via [`Self::retarget_band`] from where the band
+    ///   deliberate move glides from where the band
     ///   is actually drawn (never the stale previous target); a move that outruns
     ///   the in-flight glide SNAPS straight to the freshest target so the band
     ///   can never trail the selection under auto-repeat — see `chase_or_snap`'s
-    ///   doc. [`Self::step_overlay_juice`] advances `overlay_band_t`, and
+    ///   doc. [`Self::step_overlay_juice`] advances the shared phase, and
     ///   Reduce Motion folds it to `1.0` (settled) — so the whole choreography
     ///   inherits the accessibility contract for free.
     ///
@@ -463,7 +462,7 @@ impl TextPipeline {
     /// The selected-bar GROW-POP progress this frame (motion choreography 4): the
     /// fraction of the `grow_px` ledge currently extended. `1.0` (full ledge) in
     /// every capture / unarmed / CALM pipeline (byte-identical); pinned by the
-    /// frame-dump probe; on a live Slide world it rides `overlay_band_t` so the
+    /// frame-dump probe; on a live Slide world it rides the shared phase so the
     /// ledge COLLAPSES then juts back out on each selection move (the grow and the
     /// band slide share one timer, one spring). Reduce Motion → `1.0`.
     pub(in crate::render) fn overlay_grow_progress(&self) -> f32 {

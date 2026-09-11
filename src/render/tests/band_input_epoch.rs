@@ -336,3 +336,33 @@ fn close_reopen_resets_the_complete_band_epoch_after_repeated_input() {
     set_motion_test_override(None);
     crate::motion::set_reduced(saved_reduced);
 }
+
+#[test]
+fn reduce_motion_settlement_discards_the_complete_pending_epoch() {
+    let _g = crate::testlock::serial();
+    let saved_reduced = crate::motion::reduced();
+    crate::motion::set_reduced(false);
+    let mut p = headless_pipeline().expect("shared test adapter");
+    arm_seam(&mut p, Seam::Sliding);
+    let clock = crate::clock::VirtualClock::new();
+    p.begin_overlay_frame(clock.now());
+    let _ = phase_and_top(&mut p, Seam::Sliding, target(0));
+    p.stamp_overlay_movement(clock.now());
+    clock.advance_ms(20);
+    p.stamp_overlay_movement(clock.now());
+    assert_ne!(p.overlay_band.epoch(), (0.0, None, None, None, 0.0, false));
+
+    crate::motion::set_reduced(true);
+    let (phase, top) = phase_and_top(&mut p, Seam::Sliding, target(2));
+    assert_eq!(phase, 1.0);
+    assert!((top - target(2)).abs() < EPS);
+    assert_eq!(p.overlay_band.last(), Some(target(2)));
+    assert_eq!(
+        p.overlay_band.epoch(),
+        (target(2), None, None, None, 0.0, false),
+        "Reduce Motion settles to the target without retaining an old input or frame epoch"
+    );
+
+    set_motion_test_override(None);
+    crate::motion::set_reduced(saved_reduced);
+}
