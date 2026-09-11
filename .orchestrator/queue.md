@@ -6,14 +6,15 @@
 
 ## Open build and design tasks
 
-**6 open numbered tasks.** Ready: 642 and 628. Dependencies/coordination:
+**6 open numbered tasks.** Ready: 628. Dependencies/coordination:
 639–640 and 589. Native candidate review:
 628. User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 642 — animation state owns complete transitions (user request, 2026-09-10)
 
-🟢 READY — `animation_642_map` (Codex) mapped the exact private
+🟡 IN PROGRESS — `animation_642` (Codex), based on `df6a4cd2`.
+`animation_642_map` (Codex) mapped the exact private
 overlay entrance/band boundary, live input-epoch bridge, scheduler boundary,
 transition matrix, target laws and compiling close/reopen mutation. No code was
 changed. Implementation remains serialized with shared UI work.
