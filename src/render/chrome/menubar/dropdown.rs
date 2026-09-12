@@ -36,7 +36,7 @@ impl TextPipeline {
                 text_right: 0.0,
                 band_right: 0.0,
             });
-        let scale = self.metrics.scale;
+        let scale = self.metrics.ui().scale;
         let rect =
             crate::menubar::drop_rect(&anchor, bar_h, plan.content_w, plan.rows_total, scale);
         self.menu_drop_rect = Some(rect);

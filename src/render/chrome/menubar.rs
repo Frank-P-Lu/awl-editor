@@ -76,7 +76,7 @@ impl TextPipeline {
             return Ok(());
         }
 
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let label = crate::markdown::type_scale::LABEL;
         let label_lh = m.line_height * label;
         let bar_h = self.menubar_reserve(); // ONE owner: the reserve IS the drawn strip
@@ -245,7 +245,7 @@ impl TextPipeline {
         muted: glyphon::Color,
         content: glyphon::Color,
     ) -> anyhow::Result<()> {
-        let m = self.metrics;
+        let m = self.metrics.ui();
         let label_lh = m.line_height * label;
         let row_h = label_lh * DROP_ROW_SCALE.0;
         let menus = crate::menu::roster();
@@ -258,7 +258,7 @@ impl TextPipeline {
             row_h,
             label_char_w,
             self.md_enabled,
-            self.metrics.scale,
+            m.scale,
             &self.config_keys,
             &self.config_linux_keep,
             self.config_keymap_flavor,
@@ -365,7 +365,7 @@ impl TextPipeline {
         self.menubar_buffer.set_size(
             &mut self.font_system,
             Some(1.0),
-            Some(self.metrics.line_height),
+            Some(self.metrics.ui().line_height),
         );
         self.menubar_buffer.set_text(
             &mut self.font_system,
@@ -428,7 +428,7 @@ impl TextPipeline {
             buf.set_size(
                 &mut self.font_system,
                 Some(1.0),
-                Some(self.metrics.line_height),
+                Some(self.metrics.ui().line_height),
             );
             buf.set_text(
                 &mut self.font_system,
@@ -525,7 +525,7 @@ impl TextPipeline {
     /// [`crate::menubar::drop_item_at`], so it matches the drawn rows.
     pub fn menubar_item_at(&self, px: f32, py: f32) -> Option<(usize, usize)> {
         let (menu, rect) = (self.menu_drop_menu?, self.menu_drop_rect?);
-        let s = self.metrics.scale;
+        let s = self.metrics.ui().scale;
         crate::menubar::drop_item_at(rect, &self.menu_drop_rows, px, py, s).map(|i| (menu, i))
     }
 

@@ -214,7 +214,7 @@ pub const DROP_PAD_Y: Logical = Logical(6.0);
 /// ⚠️ **NOT THE DOOR. `TextPipeline::menubar_reserve` IS.** This is the ARITHMETIC;
 /// the question "how tall is the menu bar on this frame" has exactly one answer, and
 /// it lives in `render/geometry.rs` where the gate on `menu_bar_on()` and the
-/// LABEL-scaled line height live with it. The reserve and the drawn strip each used
+/// UI-metric LABEL line height live with it. The reserve and the drawn strip each used
 /// to spell `bar_height(metrics.line_height * LABEL, metrics.scale)` for themselves
 /// and agreed only by both remembering to — the same shape `TEXT_TOP +
 /// menubar_reserve()` had at SIX call sites, where a real bug then survived at half

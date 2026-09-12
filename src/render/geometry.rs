@@ -822,13 +822,13 @@ impl TextPipeline {
     /// shift together, every card budget subtracts it, and `chrome/menubar.rs` DRAWS
     /// the strip at this exact value instead of re-spelling `bar_height(line_height *
     /// LABEL, scale)` — which is what the two of them each did, agreeing only by
-    /// coincidence. Gated on `menu_bar_on()`: OFF by default on macOS, so a default
-    /// frame is byte-identical there. Public for the capture sidecar's own text top.
+    /// coincidence. As interface furniture, it uses [`Metrics::ui`] and never changes
+    /// with document zoom. OFF stays byte-identical; public for the sidecar's text top.
     pub fn menubar_reserve(&self) -> f32 {
         if crate::menubar::menu_bar_on() {
             crate::menubar::bar_height(
-                self.metrics.line_height * crate::markdown::type_scale::LABEL,
-                self.metrics.scale,
+                self.metrics.ui().line_height * crate::markdown::type_scale::LABEL,
+                self.metrics.ui().scale,
             )
         } else {
             0.0

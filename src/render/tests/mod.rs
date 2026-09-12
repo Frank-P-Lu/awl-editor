@@ -168,6 +168,7 @@ mod marker_chevron_owner;
 /// planner's own signed inset names, and each diagonal world paints the mark its
 /// display face asks for.
 mod marker_side;
+mod menubar_zoom_law;
 mod nits;
 /// THE CALM NOTICE: where it draws, whether it can be seen, and whether a
 /// HELD notice can be told from a self-clearing one — three floors, no one of
