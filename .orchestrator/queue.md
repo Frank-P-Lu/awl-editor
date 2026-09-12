@@ -6,70 +6,8 @@
 
 ## Open build and design tasks
 
-**6 open numbered tasks.** Ready: 647–649, 646, 645 and 644.
+**3 open numbered tasks.** Ready: 646, 645 and 644.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 649 — consolidate shared folder-picker navigation (user request, 2026-09-12)
-
-🟢 READY — queue only. Coordinate overlapping files with 640 and 646.
-
-Build: inspect repeated directory descent and acceptance in
-`src/actions/overlay_nav.rs` against the existing policy owner
-`src/overlay/location.rs`. Share only the common selected-directory navigation
-and relevel bookkeeping. Keep typed commit effects and consumer-specific handling
-explicit: Browse, MoveDest, ExportDest/Save Copy, Project and ProjectBrowse have
-different final operations. Preserve MoveHere/NewFolder rows, cancel/back behavior,
-root scope and filesystem effects. Avoid a generic dialog framework; if the
-current tree already shares a candidate, report that rather than forcing a change.
-
-Verify: read docs/render.md, docs/platform.md and docs/verification.md. Use focused
-route tests covering folder/leaf/contextual rows, accept/back/cancel and root
-boundaries for every affected consumer; preserve the distinct final effects.
-Prove the shared navigation rule with a regression-sensitive law. Report actual
-net source savings. Workers run targeted checks; the integrated candidate gets
-one native/wasm gate under the verification policy.
-
----
-
-### 648 — share retained-line cache splice bookkeeping (user request, 2026-09-12)
-
-🟢 READY — queue only. Sequence overlapping edits with 646.
-
-Build: inspect `NitProjection::refresh` and `HanEvidenceProjection::refresh` in
-`src/render/rects.rs`. Extract a small private helper for genuinely identical
-changed-band validation and prefix/replacement/suffix bookkeeping. Keep eligibility,
-line analysis and Han evidence removal/addition in their existing owners. Preserve
-full reseeding on state mismatch. Do not absorb spell/squiggle caches with different
-invalidation semantics or introduce a generic projection framework for line savings.
-
-Verify: read docs/render.md and docs/verification.md. Cover insertion, deletion,
-replacement, unchanged bands, empty input, invalid bands, eligibility changes and
-buffer swaps; compare incremental results with full recomputation. Preserve work
-bounds and count changed-line analysis. Mutation-prove the shared splice law and
-report actual net source savings. Use targeted worker checks, then the integrated
-native/wasm gate; apply rendering outcome checks if behavior or geometry changes.
-
----
-
-### 647 — share concealed replacement-slot mechanics (user request, 2026-09-12)
-
-🟢 READY — queue only. Sequence overlapping edits with 646.
-
-Build: inspect the repeated leading-scalar reservation and remainder concealment
-in `src/render/spans/conceal/footnotes.rs`, `bare_url.rs` and `smart_punct.rs`.
-Extract one private helper for the identical span-writing mechanism. Keep footnote
-number lookup, bare-URL tail eligibility/fallthrough, and smart-punctuation spacing
-calibration distinct. Preserve UTF-8 boundaries, actual glyph advances, caret/hit
-geometry, reveal behavior and output. Do not expand into glyph-cache unification.
-
-Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
-docs/verification.md. Target all three constructs and their reveal/selection,
-heading/body and multi-digit/multibyte boundaries. Prove the helper preserves span
-ranges and reserved advances, with a regression-sensitive law. Use applicable
-world/DPI pixel checks and the standing render vision smoke. Report actual net
-source savings; targeted worker checks precede one integrated native/wasm gate.
-
----
 
 ### 646 — shorten historical commentary in tests and production source (user request, 2026-09-12)
 
@@ -88,8 +26,8 @@ Scope: inventory `src/` and work in bounded batches. Starting samples are
 `src/render/tests/caret_transition.rs`, `src/actions/workspace_nav.rs`,
 `src/app/apply.rs` and `src/main/args/flags.rs`. Keep executable code, test names,
 attributes, assertions, fixtures, thresholds, enrollment and skips unchanged.
-Implementation refactoring is separate work (647–649); sequence overlapping files
-so commentary savings remain independently measurable. There is no deletion quota.
+The shared refactors are already landed; measure only this cleanup so commentary
+savings remain independently reproducible. There is no deletion quota.
 
 Done/Verify: follow docs/verification.md. Prove executable Rust tokens and test
 enrollment unchanged with syntax-aware comparison; preserve doc-test code,
@@ -296,12 +234,12 @@ the resolved 584/626 investigation does not require another confirmation sitting
 
 ## Latest recorded verification
 
-The latest recorded native/wasm baseline is **`776dc1d0`** (640 integrated
-navigation/coherence acceptance), already on main:
+The latest recorded native/wasm baseline is **`0c49d174`** (647–649 integrated
+refactor candidate), already on main:
 
 ```text
-native-gate-receipt commit=776dc1d0bd903c2c5ffc21fa3def3f43dadec324 health=pass:281s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5176
+native-gate-receipt commit=0c49d1748852bcc36595ea5ff22d7e7438d0139a health=pass:284s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5183
   unit_shards=6 integration_targets=18
 web-smoke: OK
 ```
