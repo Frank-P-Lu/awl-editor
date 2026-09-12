@@ -12,8 +12,8 @@ Outstanding review of landed work and hardware checks are listed separately belo
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
-🟢 READY — queue only, not dispatched. Corrective follow-up to 637/628/640;
-previous completion does not establish fidelity to the approved design.
+🟡 IN PROGRESS — `/root/files_657_658` (Codex), coordinated sequentially with
+658. Corrective follow-up to 637/628/640; prior completion does not establish fidelity.
 
 Evidence: the user's native screenshot shows a detached search strip, Change
 folder and New document as list rows, ambiguous `root/` scope, repeated folder
@@ -39,8 +39,8 @@ the public repo; native visual review remains owed before calling fidelity compl
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🟢 READY — queue only, not dispatched. Reproduce before treating observations as
-confirmed product defects; coordinate action placement with 657.
+🟡 IN PROGRESS — `/root/files_657_658` (Codex), coordinated sequentially with
+657. Reproduce before treating observations as confirmed product defects.
 
 Observed through the running app's accessibility state: Cmd-A then Backspace in a
 nonempty Files query removed only its last character on two attempts. An unmatched
@@ -66,7 +66,7 @@ working document or rely on a stale screenshot to establish focus.
 
 ### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
 
-🟢 READY — queue only, not dispatched. Follow-up to 639/640; share chrome work
+🟡 IN PROGRESS — `/root/settings_659` (Codex). Follow-up to 639/640; coordinate
 with 657 rather than introducing another panel framework.
 
 Observed: Settings opened on Categories; Tab entered the setting list, typing
@@ -95,8 +95,8 @@ was actually observed, and keep unverified appearance/feel claims explicitly ope
 
 ### 655 — use Nishiki’s native bold checkbox pair in every world (user approved, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/list_markers_655_656` (Codex); supersedes 644’s
-per-world task-pair mapping and shares one sequential implementation lane with 656.
+🟠 INTEGRATED — implementation and independent Metal/pixel audit landed on local
+`main` at merge `c67785c9`; combined native/web gate remains.
 
 Decision: use Nishiki-teki U+2610 BALLOT BOX for open tasks and U+1F5F9
 BALLOT BOX WITH BOLD CHECK for completed tasks across all worlds. The user
@@ -124,8 +124,8 @@ neighborhood audit and visual smoke. The specimen is taste evidence only.
 
 ### 656 — align rich list bullets and task markers consistently (user report, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/list_markers_655_656` (Codex), coordinated sequentially
-with 655 through the shared list-marker owner.
+🟠 INTEGRATED — implementation and independent Metal/pixel audit landed on local
+`main` at merge `c67785c9`; combined native/web gate remains.
 
 Finding: the user’s screenshot shows a star bullet and task boxes sitting at
 inconsistent horizontal positions, with task text beginning farther right than
