@@ -194,7 +194,7 @@ fn ink_row_bounds(
         })
     });
     let first = rows.next()?;
-    Some((first, rows.last().unwrap_or(first)))
+    Some((first, rows.next_back().unwrap_or(first)))
 }
 
 fn assert_marker_enrolment(
@@ -307,7 +307,7 @@ fn assert_task_marker_pixels(
         "{} dpi {dpi}: open and checked task pixels must differ",
         world.name
     );
-    assert_marker_seating(p, &target, world, dpi, marks, &masks, &frame, body_xs);
+    assert_marker_seating(p, &target, world, marks, &masks, &frame, body_xs);
     for (state, mark, mask, body_x) in [
         ("open", &marks[0], &masks[0], body_xs[0]),
         ("checked", &marks[1], &masks[1], body_xs[1]),
@@ -351,12 +351,12 @@ fn assert_marker_seating(
     p: &TextPipeline,
     target: &RenderTarget<'_>,
     world: &crate::theme::Theme,
-    dpi: f32,
     marks: &[crate::render::rects::ListMark],
     masks: &[MarkerMask],
     frame: &[Pixel],
     body_xs: [f32; 4],
 ) {
+    let dpi = p.dpi;
     let body_by_mark = [
         body_xs[0],
         body_xs[1],
@@ -383,7 +383,7 @@ fn assert_marker_seating(
         let row_y0 = mark.top.floor() as i32;
         let row_y1 = (mark.top + p.metrics.line_height).ceil() as i32;
         let (body_top, body_bottom) = ink_row_bounds(
-            &frame,
+            frame,
             target.width,
             target.height,
             [
