@@ -6,10 +6,48 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks.** Active integration: 659. Integrated work awaiting the
+**14 open numbered tasks.** Ready: 660. Active integration: 659. Integrated work awaiting the
 combined verification: 658, 657, 656, 655, 654, 653, 650, 646, 645 and 644.
 Blocked direction: 651. Read-only follow-up investigation complete: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 660 — optically lower the star list bullet beside prose (user approved, 2026-09-13)
+
+🟢 READY — queue only; optical follow-up to 656, not a new horizontal alignment fix.
+
+Finding: after 655/656, the user confirms task rendering is fine but the hollow
+star U+2606 appears too high beside “add chinese”. Horizontal body starts are no
+longer the reported issue. The desired outcome is optical vertical alignment with
+nearby lowercase text. Mathematical centering alone does not establish that outcome.
+
+Build/Scope: inspect current marker seating against actual body-font metrics,
+then apply a small downward optical adjustment for U+2606 through one shared,
+glyph-keyed data owner. Use font-relative units so the correction scales with zoom
+and DPI and applies consistently wherever that star is used as a list bullet.
+Around 0.05 em downward is an audition starting point, not an approved constant or
+measured fix. Choose the final offset from real awl comparisons. Preserve existing
+checkbox placement, other glyph assignments, horizontal spacing, line height,
+wrapping, caret/hit geometry, reveal behavior and source bytes. Do not globally
+lower all markers or alter divider stars merely because they share a codepoint.
+
+Done/Verify: read docs/markdown.md, docs/render.md and capture references before
+implementation; follow docs/verification.md. Compare matched before/after captures
+in every world using U+2606, with representative font sizes, DPI 1/2, nested lists
+and neighboring task rows. Record the measured displacement and verify unchanged
+layout and checkbox pixels. Add a regression-sensitive check for the chosen paint
+offset and cover caret/selection reveal; perform the required neighborhood audit
+and visual smoke. Required user-requested visual reviewer: a separate
+`gpt-6-astra` agent at `low` reasoning effort (Astra light). Give it the actual
+matched before/after awl images at normal reading size and close-up, across the
+star-using worlds and representative sizes. Ask whether the star sits optically
+centered beside lowercase prose, whether it now looks too low, and whether the
+neighboring checkbox/text alignment remains coherent. It must inspect the images
+and explicitly approve the placement or request a revision; numeric tests alone
+cannot close this item. Revise and repeat the visual review if it finds a defect.
+Present the reviewed captures to the user; their subsequent taste feedback remains
+authoritative.
+
+---
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
