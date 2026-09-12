@@ -301,7 +301,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3104
+lines = 3073
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
 # `TextPipeline`; the row treatment reads this state beside selection geometry.
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
@@ -337,17 +337,17 @@ reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owne
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
-lines = 480
+lines = 477
 reason = "+2 net: prepare_hud and prepare_streaks_card consume the shared plan_float_card and plan_streaks_card geometry records instead of owning card arithmetic. +1: the HUD re-exports its selection-figure drawing owner. +27: `streaks_card_rect`/`streaks_hint_row_rect` publish the drawn card's rect and its first line's rect (the ←/→ paging hint) — the one owner of both `prepare_hud`'s and `prepare_streaks_card`'s set/clear of that state, read by the click hit-test and by render-tier laws."
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
-lines = 545
+lines = 544
 reason = "+6: the dropdown plan takes the frame's scale so its minimum width resolves at the pixel-space boundary, and the two dial constants gain the doc lines that record their unit family. +2: the dropdown plan now also takes the config keys/keep slices it threads into the chord column. Item 527/528's drawn menu reads config_keymap_flavor to resolve a seeded chord fallback, beside the config_linux_keep it already reads."
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1309
+lines = 1293
 reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero. +13: the float-panel border's outset moves off an inline literal onto a named, documented `FLOAT_BORDER_RING_PX` constant, so the docked-tab seam merge can size its own overlap against the ring's real width instead of guessing it. +1: declares the gutter's own lava frost seeds as a sibling module, split out to keep gutter.rs under its production ceiling. +1: declares the new overlay_query_field module beside its sibling overlay_draw/overlay_rows, split out to keep overlay_draw.rs under its own file-size mark. +151: re-exports the count-cue arithmetic (window_edge_counts, resolve_window_and_cue, OverlayGeom's cue_reserved/cue_above/cue_below split) through the shared chrome surface, plus the new fit_rows submodule split out of overlay_rows.rs to keep it under its own file-size mark. Insert Table's dimension-picker geometry module is declared beside the other per-overlay-kind chrome owners. +1: declares the new `asset_preview` submodule beside the other per-overlay-kind chrome owners. +27: `PanelShape::selection_span` (the band's two edges in the caret's own coordinate shape), `field_view_window_offset` (the field-scroll rule stated once so the band and the caret cross by the same arithmetic), and the `panel_selection` submodule declaration split out to keep `panel.rs` under its own ceiling. +5: re-exports the start surface's convention-truthful Go-to chord label so the capture sidecar can report the exact string the folder line drew, rather than a second derivation of its own. +16: `PanelHit` gains four click targets the reference bordered chrome adds (nav prev/next, Replace, Replace all); re-exports `ControlSpan`/`PanelControlSpans` so `panel.rs` and `panel_draw.rs` share one control-span owner; declares `panel_controls` and `panel_draw`, the latter split out of `panel.rs` (the upload + hit-test half) to keep it under its own ceiling."
 
 [[file_size_mark]]
@@ -362,12 +362,12 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 546
+lines = 545
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit. Insert Table's dimension-picker grid draw joins the other overlay pipelines this shared upload owner already serves. +8: `prepare_asset_preview`/`park_asset_preview` join the shared overlay prepare/park pass, drawn after the card so painter's order never hides the preview. +21: every overlay draw branch resolves its chrome geometry through the shared UI metric owner in this single painter-ordered upload pass, keeping document zoom out of card marks, rules, selection bands, and rotated-location bounds without creating per-surface draw owners."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 231
+lines = 229
 reason = "+15: every range rail now computes its OWN thumb ink and uploads through `prepare_multicolor`, instead of one frame-wide `thumb_ink` painted onto every rail by a shared `set_color` -- a rail that was not the selected row wore the selected row's ink. No new pipeline: `prepare_multicolor` already carries per-instance colour for the writing-streaks heatmap, so this reaches for the existing mechanism rather than a second one. The track stays uniform."
 
 [[file_size_mark]]
@@ -377,7 +377,7 @@ reason = "The chord column's glyph alignment is the accessory column's own flow 
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
-lines = 604
+lines = 598
 reason = "+5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site. +49: the format popover's hover state (`popover_hover`, `resolve_popover_hover`, `clear_popover_hover`) and its paint — a hairline ring drawn over the hovered button's full hit region (padding plus half the inter-button gap either side), sharing one owner with the actual click-routing hit-test so the drawn acknowledgement and the clickable region can never disagree."
 
 [[file_size_mark]]
@@ -392,7 +392,7 @@ reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction s
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1025
+lines = 1023
 reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: every `BURST_WORLDS` hop and eager theme-preview arrow step must reshape. The witness prevents a timing result from passing when no reshape occurred. Its tests live in sibling `framebench/tests.rs` because this file is at its frozen baseline and further growth requires a carve-out."
 
 [[file_size_mark]]
@@ -413,7 +413,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 596
+lines = 585
 # +1: the exhaustive `TextPipeline::new` literal seeds `overlay_rows_focused`
 # inertly beside the other overlay focus state.
 # The exhaustive pipeline constructor initializes typing profiling and work counters.
@@ -426,7 +426,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 599
+lines = 594
 # +1: the one ViewState-to-pipeline mirror copies `overlay_rows_focused` beside
 # the other overlay fields, preventing partial renderer state.
 # The pipeline geometry owner exposes changed-line assembly through the shared helper.
@@ -572,6 +572,13 @@ reason = "The leak audit walks ONE field list, and that list is shared by constr
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
+file = "src/render/chrome/menubar.rs"
+function = "TextPipeline::prepare_menu_dropdown"
+message = "this function has too many lines (101/100)"
+reason = "The drawn menu's dropdown plan threads config-aware labels through the same measured row assembly as every menu item; splitting one line of the existing owner would add a seam without reducing complexity."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
 file = "src/render/tests/range_rail.rs"
 function = "the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels"
 message = "this function has too many lines (111/100)"
@@ -583,13 +590,6 @@ file = "src/overlay/tests/row_meta_laws.rs"
 function = "representative_overlay"
 message = "this function has too many lines (115/100)"
 reason = "Item 527/528: visible_effective_bindings gained a third KeymapFlavor argument, wrapping this fixture's one call site across four lines. +11: SearchFolder's representative fixture, matching the other per-kind representative rows this function already builds."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/menubar.rs"
-function = "TextPipeline::prepare_menu_dropdown"
-message = "this function has too many lines (101/100)"
-reason = "Item 527/528: the drawn menu's dropdown plan now threads self.config_keymap_flavor into the same call join_slots_truthful already makes for the palette."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -763,14 +763,14 @@ reason = "The row plan reaches this shaper so the strip's active mark rides its 
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
 function = "TextPipeline::prepare_hud"
-message = "this function has too many lines (162/100)"
+message = "this function has too many lines (160/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. +2: clears the streaks card's rect/text-origin state in the `!streaks` arm, beside the sibling quad-clear it already performs there."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
 function = "TextPipeline::prepare_streaks_card"
-message = "this function has too many lines (153/100)"
+message = "this function has too many lines (152/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. +2: stores the card's plan rect/text origin for the click hit-test and render-tier laws to read, beside the plan it is derived from."
 
 [[clippy_exception]]
@@ -798,7 +798,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/whichkey.rs"
 function = "TextPipeline::prepare_whichkey"
-message = "this function has too many lines (144/100)"
+message = "this function has too many lines (142/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
@@ -889,7 +889,7 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (534/100)"
+message = "this function has too many lines (523/100)"
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default. +1: `squiggle_projection`'s construction beside its sibling `squiggle_cache` initializer (item 633)."
 
 [[clippy_exception]]
@@ -1090,7 +1090,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "bars_float_bounded_plates_for_every_overlay_kind"
-message = "this function has too many lines (120/100)"
+message = "this function has too many lines (105/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Shifted by one more line: the new Keymap kind joins the roster this test sweeps. Shifted by one more line: the new Credits kind joins the roster this test sweeps. +1: SearchFolder joins the swept kind roster."
 
 [[clippy_exception]]
@@ -1418,7 +1418,7 @@ reason = "The one HTML-emission owner for the survey page: page shell/CSS, the p
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_geometry.rs"
 function = "TextPipeline::sync_theme_colors"
-message = "this function has too many lines (110/100)"
+message = "this function has too many lines (105/100)"
 reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor beside its siblings so a new theme constant cannot be wired to only some of them. +2: colors `panel_query_selection` via `theme::selection_document()` and mirrors `overlay_query_selection` from the view. +5: colors the find/replace panel's own bordered-chrome pipelines (`panel_control_fill`/`panel_control_border`/`panel_rules`) from the SAME tokens (`base_200`/`surface_selected`/`muted`) every other summoned card's fill/border/hairline already reads."
 
 [[clippy_exception]]
