@@ -608,6 +608,126 @@ fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
     }
 }
 
+/// The hollow star's paint-only correction is a fixed body-em value, applied
+/// in every world that assigns it and at both representative display scales.
+/// The surrounding task rows prove that this is not a general marker drop;
+/// nested reveal states prove it remains an ornament-only treatment.
+const HOLLOW_STAR: char = '\u{2606}';
+const HOLLOW_STAR_DROP_EM: f32 = 0.05;
+const HOLLOW_STAR_BULLET_DOC: &str = "- add chinese\n- [ ] neighboring task\n  - cloud depth\n    - comet depth\n      - nested star\n      - [x] nested task\n\n";
+
+fn assert_hollow_star_paint_and_task_seats(p: &TextPipeline, world: &theme::Theme, dpi: f32) {
+    let marks = p.list_marks();
+    let expected_drop = p.metrics.font_size * HOLLOW_STAR_DROP_EM;
+    let stars: Vec<_> = marks
+        .iter()
+        .filter(|mark| mark.glyph == HOLLOW_STAR)
+        .collect();
+    assert_eq!(
+        stars.len(),
+        2,
+        "{} at {dpi}x: both star depths paint",
+        world.name
+    );
+    for mark in stars {
+        assert!(
+            ((mark.paint_top - mark.top) - expected_drop).abs() < 0.001,
+            "{} at {dpi}x: U+2606 must drop by the approved {HOLLOW_STAR_DROP_EM}em \\
+             paint-only correction (got {})",
+            world.name,
+            mark.paint_top - mark.top
+        );
+    }
+    for mark in marks
+        .iter()
+        .filter(|mark| matches!(mark.kind, crate::render::rects::ListLineKind::Task(_)))
+    {
+        assert_eq!(
+            mark.paint_top, mark.top,
+            "{} at {dpi}x: task checkbox must keep its structural seat",
+            world.name
+        );
+    }
+}
+
+fn assert_hollow_star_reveal_state(p: &mut TextPipeline, world: &theme::Theme, dpi: f32) {
+    let mut caret = view(HOLLOW_STAR_BULLET_DOC, 0, 0);
+    caret.is_markdown = true;
+    p.set_view(&caret);
+    let caret_marks = p.list_marks();
+    assert_eq!(
+        caret_marks
+            .iter()
+            .filter(|mark| mark.glyph == HOLLOW_STAR)
+            .count(),
+        1,
+        "{} at {dpi}x: caret reveal must remove only its star ornament",
+        world.name
+    );
+
+    let mut selected = view(HOLLOW_STAR_BULLET_DOC, 6, 0);
+    selected.is_markdown = true;
+    selected.selection = Some(((4, 0), (4, 14)));
+    p.set_view(&selected);
+    let selected_marks = p.list_marks();
+    for (state, marks) in [("caret", &caret_marks), ("selection", &selected_marks)] {
+        assert_eq!(
+            marks
+                .iter()
+                .filter(|mark| matches!(mark.kind, crate::render::rects::ListLineKind::Task(_)))
+                .count(),
+            2,
+            "{} at {dpi}x: {state} reveal must not remove neighboring task markers",
+            world.name
+        );
+    }
+    assert_eq!(
+        selected_marks
+            .iter()
+            .filter(|mark| mark.glyph == HOLLOW_STAR)
+            .count(),
+        1,
+        "{} at {dpi}x: selection reveal must remove only its nested star ornament",
+        world.name
+    );
+}
+
+#[test]
+fn hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals: no wgpu adapter"
+        );
+        return;
+    };
+    let star_worlds: Vec<_> = theme::THEMES
+        .iter()
+        .enumerate()
+        .filter(|(_, world)| world.bullets.0 == HOLLOW_STAR)
+        .collect();
+    assert!(
+        !star_worlds.is_empty(),
+        "the law needs at least one live U+2606 bullet assignment"
+    );
+
+    for dpi in [1.0_f32, 2.0] {
+        p.set_dpi(dpi);
+        for &(world_index, world) in &star_worlds {
+            theme::set_active(world_index);
+            p.sync_theme();
+            let mut off = view(HOLLOW_STAR_BULLET_DOC, 6, 0);
+            off.is_markdown = true;
+            p.set_view(&off);
+            assert_hollow_star_paint_and_task_seats(&p, world, dpi);
+            assert_hollow_star_reveal_state(&mut p, world, dpi);
+        }
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.set_dpi(1.0);
+}
+
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
 /// [`theme::Theme::bullets`] triple (drawn in its ornament face). The bullet
 /// vocabulary is deliberately disjoint from `---`/`***`/`___` dividers and

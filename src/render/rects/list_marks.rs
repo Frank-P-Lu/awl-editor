@@ -19,6 +19,9 @@ pub(super) struct ListLine {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct ListMark {
     pub(in crate::render) top: f32,
+    /// The paint-only vertical seat. This can carry a glyph-specific optical
+    /// correction without changing marker layout or its retained prefix slot.
+    pub(in crate::render) paint_top: f32,
     pub(in crate::render) left: f32,
     pub(in crate::render) kind: ListLineKind,
     pub(in crate::render) glyph: char,
@@ -110,6 +113,8 @@ impl TextPipeline {
                 };
                 ListMark {
                     top,
+                    paint_top: top
+                        + crate::theme::bullet_optical_drop(glyph, self.metrics.font_size),
                     left: text_left + x,
                     kind: item.kind,
                     glyph,

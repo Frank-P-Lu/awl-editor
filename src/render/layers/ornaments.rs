@@ -169,7 +169,7 @@ impl ListMarkers {
         areas.push(TextArea {
             buffer,
             left: marker.left,
-            top: marker.top,
+            top: marker.paint_top,
             scale: 1.0,
             bounds,
             default_color: glyphon::Color::rgba(
