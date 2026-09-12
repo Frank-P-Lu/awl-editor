@@ -51,7 +51,7 @@ impl TextPipeline {
             .map_err(|e| anyhow::anyhow!("glyphon panel prepare failed: {e:?}"))?;
 
         // ELEVATE the card on the reusable floating-panel primitive (raised
-        // border + base_300 card, no drop shadow — dark-depth Option C), so the
+        // border + base_300 card), so the
         // summoned find/replace panel reads as risen a step above the crisp
         // document (DESIGN §5) — clearer, more present furniture than the old
         // flat pill.

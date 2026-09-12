@@ -708,7 +708,7 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
 /// at the misspelled word on its own float-panel primitive, UNCONDITIONALLY
 /// elevated in every world — see `chrome_panels.rs`'s
 /// `spell_panel_floats_at_the_word_not_center_screen`) rides `panel_card` +
-/// its `panel_border`/`panel_shadow` companions
+/// its `panel_border` companion
 /// (`TextPipeline::prepare_panel_card_elevation`). This mirrors the SAME
 /// production fact `app/viewstate.rs` encodes (`overlay_spell` is `Some`
 /// IFF `o.kind == OverlayKind::Spell` — `overlay/state.rs::new_spell` is the
@@ -729,10 +729,10 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
 
     #[derive(PartialEq, Eq)]
     enum CardFamily {
-        /// Rides the shared float-panel primitive (`float_shadow`/`float_border`/
-        /// `float_card`), unconditionally elevated — today only `Spell`.
+        /// Rides the shared float-panel primitive (`float_border`/`float_card`),
+        /// unconditionally elevated — today only `Spell`.
         FloatAnchored,
-        /// Rides `panel_card` + `panel_shadow`/`panel_border`, elevated (bordered)
+        /// Rides `panel_card` + `panel_border`, elevated (bordered)
         /// ONLY on a true 1-bit world.
         CenteredPanel,
     }
@@ -1072,8 +1072,8 @@ fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
 
 /// THE OTHER NON-OVERLAY SUMMONED CARDS (HUD / About / the menu-bar dropdown)
 /// already rode the shared float-panel primitive UNCONDITIONALLY before this
-/// round (see `render.rs`'s `hud_shadow`/`hud_border`/`hud_card` and
-/// `menu_drop_shadow`/`menu_drop_border`/`menu_drop_card` construction) — this
+/// round (see `render.rs`'s `hud_border`/`hud_card` and
+/// `menu_drop_border`/`menu_drop_card` construction) — this
 /// is the reference case the user's own report named as ALREADY working
 /// ("the menu-bar dropdown shows the border"). Asserted here alongside the
 /// palette fix so the full "every summoned card" enumeration the round asked

@@ -228,7 +228,7 @@ impl TextPipeline {
     }
 
     /// Shape + upload one open dropdown: the float card (raised border -> `base_300`
-    /// card, no drop shadow — dark-depth Option C), the item LABELS (left, `base_content`),
+    /// card), the item LABELS (left, `base_content`),
     /// the native CHORDS (right, MUTED secondary column), and the separator hairlines.
     /// Records `menu_drop_rect` / `menu_drop_rows` / `menu_drop_menu` for the click hit-test.
     #[allow(clippy::too_many_arguments)]
@@ -410,7 +410,6 @@ impl TextPipeline {
         bounds: TextBounds,
     ) -> anyhow::Result<()> {
         super::set_float_quads(
-            &mut self.menu_drop_shadow,
             &mut self.menu_drop_border,
             &mut self.menu_drop_card,
             device,

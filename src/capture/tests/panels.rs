@@ -2449,13 +2449,13 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
 /// (`base_content`) at low alpha — near-WHITE on a dark world — so the
 /// "shadow" measurably BRIGHTENED the ground it sat on into a pale slab
 /// (+0.12..0.25 luminance, measured on Currawong's card) instead of receding
-/// it. `render::chrome::set_float_quads` now parks the shadow pipeline
-/// unconditionally (see [`FloatElevation`]'s doc), so this asserts the
+/// it. `render::chrome::set_float_quads` contains no shadow pipeline or
+/// shadow geometry, so this asserts the
 /// OUTCOME in real pixels — never inferred from the sidecar (the Wagtail
-/// tripwire): WCAG relative luminance in the EXACT footprint the old shadow
-/// quad used to occupy (`[x-2, y+h+4, w+4, h+6]`, `set_float_quads`'
-/// `Shadowed` arm) must be no brighter than an equal-size reference band a little
-/// further below (past the shadow footprint's reach). The TWO-ZONE comparison
+/// tripwire): WCAG relative luminance in the EXACT former footprint of the
+/// removed shadow quad (`[x-2, y+h+4, w+4, h+6]`) must be no brighter than
+/// an equal-size reference band a little further below (past the shadow
+/// footprint's reach). The TWO-ZONE comparison
 /// rides adjacent Y bands so it stays
 /// world-agnostic (a per-world margin gradient/dot/star pattern, if any,
 /// affects both zones roughly alike; only a shadow quad singles

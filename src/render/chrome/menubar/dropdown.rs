@@ -43,7 +43,6 @@ impl TextPipeline {
         self.menu_drop_rows.clone_from(&plan.rows);
         self.menu_drop_menu = Some(menu_i);
         super::set_float_quads(
-            &mut self.menu_drop_shadow,
             &mut self.menu_drop_border,
             &mut self.menu_drop_card,
             device,

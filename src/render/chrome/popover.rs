@@ -4,14 +4,13 @@
 //! selection, this shapes the button labels, measures their real glyph spans,
 //! lays out a small elevated card ANCHORED just above (or below) the selection's
 //! first endpoint, and uploads: the RIMMED float elevation (raised border →
-//! `base_300` card, NO drop shadow — see [`FloatElevation::Rimmed`], the "fat
-//! chin" cure), a `base_200` value-step wash behind each LIT button, and the
+//! `base_300` card), a `base_200` value-step wash behind each LIT button, and the
 //! button labels themselves. Parked (nothing drawn) when the model is `None`, so a
 //! popover-down frame is byte-identical.
 //!
 //! THE ONE SHARED FLOAT-SURFACE PRIMITIVE (overlay/chrome polish round): the
-//! elevation trio rides [`TextPipeline::prepare_float_panel`] — the SAME quads
-//! (`float_shadow`/`float_border`/`float_card`) the contextual SPELL popup, the
+//! elevation pair rides [`TextPipeline::prepare_float_panel`] — the SAME quads
+//! (`float_border`/`float_card`) the contextual SPELL popup, the
 //! caret-style preview panel, and the search panel already share, never a
 //! popover-only duplicate. Safe because [`ViewState::popover`]'s own gate
 //! (`app/viewstate.rs`) requires `WorkspaceState::pickers_clear` — the
@@ -77,7 +76,7 @@ fn demo_attrs(button: PopoverButton, base: &Attrs<'static>) -> Attrs<'static> {
 
 impl TextPipeline {
     /// Build + upload the format popover for this frame, or park it. Mirrors the
-    /// which-key panel's shape (own float trio + text renderer), drawn in
+    /// which-key panel's shape (own float pair + text renderer), drawn in
     /// `draw_chrome_tail`. Reads `self.popover_model` (mirrored from the view) +
     /// `self.selection` (the anchor). See the module doc.
     pub(in crate::render) fn prepare_popover(
@@ -109,14 +108,9 @@ impl TextPipeline {
                 // Float elevation via THE ONE SHARED SURFACE PRIMITIVE every summoned
                 // micro-panel rides (`prepare_float_panel` — the caret-style preview
                 // panel, the search panel, and the contextual SPELL popup all share
-                // it too, onto the SAME `float_shadow`/`float_border`/`float_card`
-                // quads; see that owner's doc for why sharing one buffer trio across
-                // structurally-mutually-exclusive summoners is safe) — but RIMMED
-                // (border + card, no shadow): the drop-shadow quad hung a hard-edged
-                // ~9px slab below this two-line-height card's rim, out-massing its
-                // own 7px pad — the LIVE "fat chin" that survived the card-hug fix,
-                // at every scale (the card rect measured tight while the slab
-                // painted OUTSIDE it). See [`FloatElevation::Rimmed`]. `geom` is
+                // it too, onto the SAME `float_border`/`float_card` quads; see that
+                // owner's doc for why sharing one buffer pair across
+                // structurally-mutually-exclusive summoners is safe). `geom` is
                 // `Some` only when `touch_float` is already true (the SAME
                 // `WorkspaceState::pickers_clear` gate `popover_model`
                 // itself requires), so this call is never actually skipped here —

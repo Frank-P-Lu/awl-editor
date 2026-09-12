@@ -148,7 +148,6 @@ impl TextPipeline {
         }
         if !showing {
             set_float_quads(
-                &mut self.hud_shadow,
                 &mut self.hud_border,
                 &mut self.hud_card,
                 device,
@@ -274,7 +273,6 @@ impl TextPipeline {
             m.px(TEXT_TOP),
         );
         set_float_quads(
-            &mut self.hud_shadow,
             &mut self.hud_border,
             &mut self.hud_card,
             device,
@@ -442,7 +440,6 @@ impl TextPipeline {
             .prepare_multicolor(device, queue, width, height, &quads);
 
         set_float_quads(
-            &mut self.hud_shadow,
             &mut self.hud_border,
             &mut self.hud_card,
             device,

@@ -824,8 +824,7 @@ pub(crate) fn copy_pulse_ease(t: f32) -> f32 {
 /// The COPY-PULSE peak tint: the active theme's own `selection()` wash lifted
 /// ONE brighten-step within its OWN hue + saturation family (never a new hue,
 /// never amber) plus a touch more opacity — [`COPY_PULSE_LIFT_L`] /
-/// [`COPY_PULSE_LIFT_ALPHA`]. Mirrors the free `*_srgba` theme-derivation helpers
-/// above (`float_shadow_srgba`, `nit_underline_srgba`): reads the active theme,
+/// [`COPY_PULSE_LIFT_ALPHA`]. Like `nit_underline_srgba`, it reads the active theme,
 /// so `new` + a live theme switch agree without extra bookkeeping. At `settle ==
 /// 1.0` (settled/off) [`TextPipeline::prepare_selection_layer`] never reaches
 /// this value at all — see [`selection::SelectionPipeline::prepare_pulsed`].
@@ -923,31 +922,6 @@ pub const OVERSCROLL_KEEP_ROWS: usize = 1;
 /// document (1 char = 1 advance), keeping the panels' fixed-pitch caret/column math
 /// honest. The panel buffers are re-shaped every frame, so a live theme switch picks
 /// up the new family on the next `prepare` with no extra reshape bookkeeping.
-/// RETIRED (dark-depth Option C, 2026-07-22) — was the FLOATING PANEL
-/// PRIMITIVE's drop-shadow tone: the active world's INK (`base_content`) at a
-/// low alpha. That is exactly the measured bug: `base_content` is near-WHITE
-/// on a dark world, so the "shadow" quad BRIGHTENED the ground it sat on into
-/// a pale slab (+0.12..0.25 luminance on Currawong's card) instead of
-/// receding it. `render::chrome::set_float_quads` no longer uploads a shadow
-/// quad for ANY [`chrome::FloatElevation`], on any world — the raised
-/// border's own `surface_selected` value step + the card's `base_300` step
-/// over `base_100` carry the depth instead (DESIGN §5: "a thin value step
-/// does the work", not a cast shadow). This fn is consequently DEAD CODE in
-/// practice — every one of its six call sites (`sync_theme_colors`) colors a
-/// `_shadow` pipeline that `set_float_quads` now unconditionally parks at 0
-/// instances — kept only because the `_shadow` `SelectionPipeline` fields
-/// themselves aren't deleted this round (a further cleanup, logged, not
-/// blocking). Left computing a real per-world tone rather than a bare
-/// `[0, 0, 0, 0]` so a future full removal of the shadow plumbing has nothing
-/// surprising to untangle.
-fn float_shadow_srgba() -> [u8; 4] {
-    if theme::active().render_caps.decorative_wash == theme::DecorativeWash::Off {
-        return [0, 0, 0, 0];
-    }
-    let c = theme::base_content();
-    theme::Srgb::rgba(c.r, c.g, c.b, 0x26).rgba_bytes()
-}
-
 fn nit_underline_srgba() -> [u8; 4] {
     if theme::active().render_caps.decorative_wash == theme::DecorativeWash::Off {
         return [0, 0, 0, 0];
@@ -2057,7 +2031,6 @@ pub struct TextPipeline {
     pub table_rule_pipeline: SelectionPipeline,
     pub table_empty_pipeline: SelectionPipeline,
     pub panel_card: SelectionPipeline,
-    pub panel_shadow: SelectionPipeline,
     pub panel_border: SelectionPipeline,
     pub panel_material: SelectionPipeline,
     /// Transparent pane material continued through a `DockedTab` active facet.
@@ -2090,8 +2063,8 @@ pub struct TextPipeline {
     pub panel_caret: CaretPipeline,
     /// The find/replace panel's own INNER chrome — bordered field/button/checkbox
     /// boxes and the thin region separators, all local to this one summoned
-    /// card (never shared with the overlay's `panel_card`/`panel_shadow`/
-    /// `panel_border` trio, which belongs to the picker/list surfaces and is
+    /// card (never shared with the overlay's `panel_card`/`panel_border` pair,
+    /// which belongs to the picker/list surfaces and is
     /// parked empty whenever the search panel is the thing up). `panel_control_fill`
     /// carries every box's FILL (one `prepare()` call, one shared corner/color),
     /// `panel_control_border` the matching STROKE-only outline (padded out by
@@ -2124,7 +2097,6 @@ pub struct TextPipeline {
     pub panel_query_selection: SelectionPipeline,
     pub caret_preview_pipeline: CaretPipeline,
     pub caret_preview_glyph_pipeline: CaretGlyphPipeline,
-    pub float_shadow: SelectionPipeline,
     pub float_border: SelectionPipeline,
     pub float_card: SelectionPipeline,
     pub(in crate::render) float_panel_model: Option<chrome::FloatPanelModel>,
@@ -2372,7 +2344,7 @@ pub struct TextPipeline {
     /// THE ASSET CLEANER's live PREVIEW PANEL (`render/chrome/asset_preview.rs`)
     /// — a second coordinated region beside the picker's row list, gated on
     /// [`Self::overlay_asset_preview`]. Three DEDICATED pipelines (never the
-    /// shared float-panel trio `float_shadow`/`float_border`/`float_card`,
+    /// shared float-panel pair `float_border`/`float_card`,
     /// which the search panel / caret-preview claim in the SAME frame the
     /// Assets picker can be open in): the panel's own flat background quad,
     /// the thumbnail (reusing the ONE inline-image decode/texture path,
@@ -2593,7 +2565,6 @@ pub struct TextPipeline {
     pub menubar_hi: SelectionPipeline,
     pub menubar_renderer: TextRenderer,
     pub menubar_buffer: GlyphBuffer,
-    pub menu_drop_shadow: SelectionPipeline,
     pub menu_drop_border: SelectionPipeline,
     pub menu_drop_card: SelectionPipeline,
     pub menu_drop_sep: SelectionPipeline,
@@ -2613,7 +2584,6 @@ pub struct TextPipeline {
     /// Which roster menu the stored `menu_drop_rect`/`menu_drop_rows` belong to, so a
     /// stale frame's geometry can't be attributed to the wrong menu. `None` closed.
     pub menu_drop_menu: Option<usize>,
-    pub hud_shadow: SelectionPipeline,
     pub hud_border: SelectionPipeline,
     pub hud_card: SelectionPipeline,
     pub streak_cells: SelectionPipeline,
@@ -2637,7 +2607,6 @@ pub struct TextPipeline {
     streaks_view: Option<crate::streaks::StreaksView>,
     peek_rows: Vec<crate::peek::PeekRow>,
     keybindings_tips: Vec<String>,
-    pub wk_shadow: SelectionPipeline,
     pub wk_border: SelectionPipeline,
     pub wk_card: SelectionPipeline,
     pub wk_renderer: TextRenderer,

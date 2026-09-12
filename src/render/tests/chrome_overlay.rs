@@ -833,19 +833,11 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
         rect[1] > 52.0 + 3.0 * p.metrics.line_height,
         "the panel floats below the picker card: {rect:?}"
     );
-    // The panel primitive's elevation quads + the demo caret are all drawn. NO
-    // drop shadow (dark-depth Option C, 2026-07-22): the shadow quad is
-    // retired outright, on every world — the border's own muted surface-step
-    // rim + the card's value step carry the depth (DESIGN §5).
+    // The border/card elevation pair and demo caret are all drawn.
     assert_eq!(
         p.float_card.instance_count(),
         1,
         "the float card is summoned"
-    );
-    assert_eq!(
-        p.float_shadow.instance_count(),
-        0,
-        "no drop shadow — retired (dark-depth Option C)"
     );
     assert_eq!(
         p.float_border.instance_count(),
@@ -870,7 +862,6 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
         0,
         "float card parked on close"
     );
-    assert_eq!(p.float_shadow.instance_count(), 0, "shadow parked on close");
     assert_eq!(p.float_border.instance_count(), 0, "border parked on close");
     assert!(
         !p.caret_preview_pipeline.is_drawn(),
@@ -935,11 +926,6 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
                     p.float_border.instance_count(),
                     0,
                     "{ctx}: close parks border"
-                );
-                assert_eq!(
-                    p.float_shadow.instance_count(),
-                    0,
-                    "{ctx}: close parks shadow"
                 );
             }
         }

@@ -136,7 +136,6 @@ impl TextPipeline {
                 self.draw_document_content(&mut pass)?;
             }
         } else if self.search_active {
-            self.float_shadow.draw(&mut pass);
             self.float_border.draw(&mut pass);
             self.float_card.draw(&mut pass);
             self.panel_card.draw(&mut pass);
@@ -269,10 +268,8 @@ impl TextPipeline {
     }
 
     fn draw_overlay_card<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) -> anyhow::Result<()> {
-        self.float_shadow.draw(pass);
         self.float_border.draw(pass);
         self.float_card.draw(pass);
-        self.panel_shadow.draw(pass);
         self.panel_border.draw(pass);
         self.panel_card.draw(pass);
         self.panel_material.draw(pass);
@@ -368,15 +365,13 @@ impl TextPipeline {
         self.zoom_readout_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon zoom-readout render failed: {e:?}"))?;
-        // Float-panel elevation, painter's order: drop shadow -> raised border -> card.
-        self.hud_shadow.draw(pass);
+        // Float-panel elevation, painter's order: raised border -> card.
         self.hud_border.draw(pass);
         self.hud_card.draw(pass);
         self.streak_cells.draw(pass);
         self.hud_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon hud render failed: {e:?}"))?;
-        self.wk_shadow.draw(pass);
         self.wk_border.draw(pass);
         self.wk_card.draw(pass);
         self.wk_renderer
@@ -387,7 +382,6 @@ impl TextPipeline {
         self.menubar_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon menubar render failed: {e:?}"))?;
-        self.menu_drop_shadow.draw(pass);
         self.menu_drop_border.draw(pass);
         self.menu_drop_card.draw(pass);
         self.menu_drop_sep.draw(pass);
@@ -403,7 +397,7 @@ impl TextPipeline {
         // a default render is byte-identical.
         //
         // THE SHARED FLOAT-SURFACE QUADS (overlay/chrome polish round): the
-        // popover's elevation trio is `float_shadow`/`float_border`/`float_card` —
+        // popover's elevation pair is `float_border`/`float_card` —
         // the SAME quads the caret-preview panel / spell popup (`draw_overlay_card`,
         // gated on `overlay_active`) and the search panel (`render`'s
         // `search_active` branch) already draw. Those two call sites already cover
@@ -412,10 +406,9 @@ impl TextPipeline {
         // frame is the one those buffers hold — see that fn's doc); this ONE extra
         // draw call covers the remaining case (no overlay, no search — exactly when
         // the popover CAN be the real summoner). Drawing it a second time whenever
-        // overlay/search already drew it would double-blend the translucent shadow,
-        // so it's gated to fire only in the case those two draw sites DON'T cover.
+        // overlay/search already drew it would render the shared surface twice, so
+        // it's gated to fire only in the case those two draw sites DON'T cover.
         if !self.overlay_active && !self.search_active {
-            self.float_shadow.draw(pass);
             self.float_border.draw(pass);
             self.float_card.draw(pass);
         }
