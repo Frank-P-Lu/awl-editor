@@ -275,6 +275,8 @@ fn the_ratio_family_holds_its_value_at_every_scale() {
         return;
     };
     let mut cells = 0usize;
+    let mut chrome_lh_by_dpi = [None, None];
+    let mut document_lh_bounds = [(f32::MAX, f32::MIN); 2];
     for (zoom, dpi) in [
         (1.0f32, 1.0f32),
         (1.0, 2.0),
@@ -287,6 +289,17 @@ fn the_ratio_family_holds_its_value_at_every_scale() {
         v.zoom = zoom;
         p.set_view(&v);
         let lh = p.overlay_lh();
+        let dpi_i = usize::from(dpi > 1.0);
+        if let Some(expected) = chrome_lh_by_dpi[dpi_i] {
+            assert_eq!(
+                lh, expected,
+                "zoom {zoom} moved UI row pitch at fixed dpi {dpi}"
+            );
+        } else {
+            chrome_lh_by_dpi[dpi_i] = Some(lh);
+        }
+        document_lh_bounds[dpi_i].0 = document_lh_bounds[dpi_i].0.min(p.metrics.line_height);
+        document_lh_bounds[dpi_i].1 = document_lh_bounds[dpi_i].1.max(p.metrics.line_height);
         assert!(lh > 0.0, "an inert row pitch would make every ratio 0/0");
         let cell = format!("zoom {zoom} dpi {dpi} (lh {lh})");
         // Both owners `.round()` their result, so the tolerance is the rounding
@@ -311,7 +324,7 @@ fn the_ratio_family_holds_its_value_at_every_scale() {
                  would square itself here."
             );
         }
-        let type_scale = p.overlay_char_width() / p.metrics.char_width;
+        let type_scale = p.overlay_char_width() / p.metrics.ui().char_width;
         assert!(
             (type_scale - chrome::OVERLAY_UI_SCALE).abs() < 1e-5,
             "{cell}: the overlay type scale is a RATIO and must not move: got \
@@ -321,6 +334,13 @@ fn the_ratio_family_holds_its_value_at_every_scale() {
         cells += 1;
     }
     assert_eq!(cells, 5, "the ratio sweep must visit every cell");
+    for (dpi_i, (lo, hi)) in document_lh_bounds.into_iter().enumerate() {
+        assert!(
+            hi > lo,
+            "document line height did not vary at dpi {} — the zoom axis is vacuous",
+            dpi_i + 1
+        );
+    }
     p.set_dpi(1.0);
 }
 

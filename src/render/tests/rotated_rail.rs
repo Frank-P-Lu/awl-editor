@@ -562,14 +562,13 @@ fn grade_cell_pixels(
 // ---------------------------------------------------------------------------
 
 /// **WHERE THE MARGIN CANNOT HOLD THE AUTHORED RUN THE CUE IS ABSENT, NOT SMALLER.**
-/// The zoom sweep grows the widest card until its drawn left edge closes the
-/// room's margin.
+/// The canvas-width sweep closes the room's margin around the UI-metric card.
 /// Graded on real pixels — zero cue ink in the whole margin — and proven to be
 /// the PARK rather than a missing datum (the view's own `overlay_location`
 /// still carries one; `RotatedRail` reads it directly, never through a
 /// planned row).
 ///
-/// NON-VACUITY is the lower-zoom arm: the same cell draws before it parks.
+/// NON-VACUITY is the wide arm: the same authored run draws before it parks.
 #[test]
 fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
     let _g = crate::testlock::serial();
@@ -581,44 +580,44 @@ fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
     p.sync_theme();
 
     let mut seen = Vec::new();
-    for zoom in [1.0f32, 1.8, 2.4] {
-        let mut v = command_view("Navigate");
-        v.zoom = zoom;
+    for width in [1200u32, 1000, 800, 640, 520, 464] {
+        p.set_size(width as f32, 800.0);
+        let v = command_view("Navigate");
         p.set_view(&v);
-        p.prepare(&device, &queue, 1200, 800).unwrap();
-        let geom = p.overlay_geometry(1200);
+        p.prepare(&device, &queue, width, 800).unwrap();
+        let geom = p.overlay_geometry(width);
         assert_eq!(
             v.overlay_location.as_deref(),
             Some("Navigate"),
-            "zoom {zoom}: the location datum itself is missing, so an absent cue would \
+            "width {width}: the location datum itself is missing, so an absent cue would \
              prove nothing about the park"
         );
         assert!(
             geom.plan_labels_probe()
                 .iter()
                 .all(|s| !s.starts_with("loc:")),
-            "zoom {zoom}: `RotatedRail` plans no location row; one showed up ({:?})",
+            "width {width}: `RotatedRail` plans no location row; one showed up ({:?})",
             geom.plan_labels_probe()
         );
-        let with = shoot(&device, &queue, &mut p, 1200, 800);
+        let with = shoot(&device, &queue, &mut p, width, 800);
         let mut b = command_view("Navigate");
-        b.zoom = zoom;
         blank_location(&mut b);
         p.set_view(&b);
-        p.prepare(&device, &queue, 1200, 800).unwrap();
-        let without = shoot(&device, &queue, &mut p, 1200, 800);
+        p.prepare(&device, &queue, width, 800).unwrap();
+        let without = shoot(&device, &queue, &mut p, width, 800);
         // THE PIXELS ARE THE ORACLE. The park is taken in either of two places
         // — the placement declines (no wordmark, no margin at all) or the
         // shared preparation measures the authored run over its fit box and clears —
         // and which one fired is not the product claim. That the cue is ABSENT
         // rather than SHRUNK is.
-        let ink = diff_ink(&with, &without, 1200, 800, (0, 1200), (0, 800));
-        seen.push((zoom, ink.is_some()));
+        let canvas_w = i64::from(width);
+        let ink = diff_ink(&with, &without, canvas_w, 800, (0, canvas_w), (0, 800));
+        seen.push((width, ink.is_some()));
     }
     theme::set_active(theme::DEFAULT_THEME);
     assert!(
         seen.first().is_some_and(|(_, drawn)| *drawn) && seen.iter().any(|(_, drawn)| !drawn),
-        "the zoom sweep must cross from a present locator into a parked one without \
+        "the width sweep must cross from a present locator into a parked one without \
          shrinking it: {seen:?}"
     );
 }

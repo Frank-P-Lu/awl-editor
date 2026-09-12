@@ -20,18 +20,18 @@
 //! 2. **A STAGE THAT YIELDS EVERY CANDIDATE STILL DRAWS ITS TEACHING FOOTER OR
 //!    THE OTHER REGION** — at every window a real session can be in, down to the
 //!    app's own enforced minimum, across the whole authored zoom band. The footer
-//!    reservation may honestly spend the last candidate at the maximum zoom; it
-//!    may never turn that degradation into a blank card.
+//!    reservation may honestly spend the last candidate when available height is
+//!    tight; it may never turn that degradation into a blank card.
 //!
 //! Fact 2 is the PRESENCE FLOOR fact 1 needs. "There are no rows on this stage"
 //! is satisfied perfectly by a workspace whose rows exist on no stage at any
 //! width, so fact 1 alone would grade a blank product as correct.
 //!
-//! **The zoom axis is here because it is the axis that produced the misreading.**
-//! The threshold is a width in LOGICAL px and every term feeding it is scaled
-//! text, so it moves with zoom. Launch and capture share the authored 1.0
-//! default, but a single quoted width is still only the threshold at the zoom
-//! that measured it; the below-default stress arm proves that distinction.
+//! **Width and available height are the responsive axes.** The workspace is UI
+//! furniture, so document zoom changes the prose behind it without moving its
+//! stage threshold, row pitch, or protected footer. A pair of below-launch-minimum
+//! height cells reaches that footer-first degradation directly; the remaining
+//! cells cover every window a live session may occupy.
 //!
 //! Enrolment is derived from `OverlayKind`'s roster through `workspace_shape()`,
 //! and the swept arms are the distinct `rows_are_primary()` answers that roster
@@ -45,16 +45,17 @@ use super::{comparison_view, headless_dqp, view};
 use crate::overlay::workspace::WorkspaceShape;
 use crate::overlay::{OverlayKind, OverlayState};
 
-/// Logical window sizes every sweep here crosses: comfortably wide, around the
-/// staging threshold at both zooms that matter, genuinely narrow, and the app's
-/// OWN enforced minimum window — `MIN_COLS(30) * CHAR_WIDTH + 2 * TEXT_LEFT` by
-/// `MIN_LINES(8) * LINE_HEIGHT + 2 * TEXT_TOP` (`app::lifecycle`), the smallest
-/// window a user can drag to. Derived from those metrics rather than written out,
-/// so a change to either moves this cell with it.
+/// Logical window sizes every sweep here crosses: two height-only solver stress
+/// cells that reach the protected-footer degradation, then comfortably wide,
+/// around the staging threshold, genuinely narrow, and the app's OWN enforced
+/// minimum window — `MIN_COLS(30) * CHAR_WIDTH + 2 * TEXT_LEFT` by
+/// `MIN_LINES(8) * LINE_HEIGHT + 2 * TEXT_TOP` (`app::lifecycle`).
 fn logical_canvases() -> Vec<(u32, u32)> {
     let min_w = (30.0 * CHAR_WIDTH + 2.0 * TEXT_LEFT.0).ceil() as u32;
     let min_h = (8.0 * LINE_HEIGHT + 2.0 * TEXT_TOP.0).ceil() as u32;
     vec![
+        (min_w, 200),
+        (min_w, 240),
         (min_w, min_h),
         (520, 400),
         (640, 800),
@@ -174,6 +175,7 @@ impl Cell {
 
 /// What one rendered cell committed: how many rows the row-owning region planned,
 /// whether this width fits both regions, and whether the OTHER region is drawn.
+#[derive(Clone, Debug, PartialEq)]
 struct StageOutcome {
     rows: usize,
     wide: bool,
@@ -183,46 +185,6 @@ struct StageOutcome {
     footer_box: Option<(f32, f32, f32)>,
     card: [f32; 4],
 }
-
-/// The existing maximum-zoom height limit for the staged OTHER region. Its
-/// header leaves neither a rail grid nor comparison viewport at the two shortest
-/// windows, and the protected footer belongs to the paired row-owning stage.
-/// Kept exact so this footer-first change neither claims that separate corner
-/// nor lets it expand.
-const MAX_ZOOM_OTHER_REGION_LIMIT: &[Cell] = &[
-    Cell {
-        rows_primary: false,
-        w: 464,
-        h: 288,
-        zoom: 3.0,
-        dpi: 1.0,
-        detail: false,
-    },
-    Cell {
-        rows_primary: false,
-        w: 464,
-        h: 288,
-        zoom: 3.0,
-        dpi: 2.0,
-        detail: false,
-    },
-    Cell {
-        rows_primary: false,
-        w: 520,
-        h: 400,
-        zoom: 3.0,
-        dpi: 1.0,
-        detail: false,
-    },
-    Cell {
-        rows_primary: false,
-        w: 520,
-        h: 400,
-        zoom: 3.0,
-        dpi: 2.0,
-        detail: false,
-    },
-];
 
 fn stage(
     device: &wgpu::Device,
@@ -279,17 +241,13 @@ fn stage(
     }
 }
 
-/// THE SWEEP'S RUNNING RECORD. Collected rather than asserted in place so one
-/// run reports every new blank or stale maximum-zoom control.
+/// THE SWEEP'S RUNNING RECORD, including explicit subject-enrolment counts.
 #[derive(Default)]
 struct Tally {
     graded: usize,
     staged: usize,
     wide: usize,
     zero_row_with_footer: usize,
-    comparison_limit_hits: usize,
-    new_blank: Vec<String>,
-    healed_limit: Vec<String>,
 }
 
 impl Tally {
@@ -303,8 +261,9 @@ impl Tally {
         p: &mut TextPipeline,
         window: Cell,
         kinds: &[&'static str],
-    ) {
+    ) -> Vec<StageOutcome> {
         let mut with_presence = 0usize;
+        let mut outcomes = Vec::new();
         for detail in [false, true] {
             let cell = Cell { detail, ..window };
             let what = cell.describe(kinds);
@@ -319,6 +278,7 @@ impl Tally {
             if out.rows > 0 {
                 with_presence += 1;
                 self.wide += usize::from(out.wide);
+                outcomes.push(out);
                 continue;
             }
             self.staged += 1;
@@ -328,24 +288,27 @@ impl Tally {
                  is a card that stopped drawing its list, not a stage"
             );
             let present = out.other_region_drawn || out.footer_drawn;
-            let limited = MAX_ZOOM_OTHER_REGION_LIMIT.contains(&cell);
-            self.comparison_limit_hits += usize::from(limited);
-            match (present, limited) {
-                (false, false) => self.new_blank.push(what),
-                (true, true) => self.healed_limit.push(what),
-                _ => {}
-            }
+            assert!(
+                present,
+                "{what}: a zero-row stage lost both its footer and other region"
+            );
             with_presence += usize::from(present);
             self.zero_row_with_footer += usize::from(out.footer_drawn);
+            outcomes.push(out);
         }
         assert!(
             with_presence > 0,
             "{}: neither stage draws candidates, a teaching footer, or its other region",
             window.describe(kinds)
         );
+        outcomes
     }
 
     fn finish(&self, expected: usize) {
+        eprintln!(
+            "workspace-stage enrollment: graded={} staged={} wide={} zero-row-footer={}",
+            self.graded, self.staged, self.wide, self.zero_row_with_footer
+        );
         assert_eq!(
             self.graded, expected,
             "every arm x canvas x zoom x dpi x stage cell must be graded"
@@ -354,22 +317,6 @@ impl Tally {
             self.zero_row_with_footer > 0,
             "the sweep never reached the protected-footer degradation; deleting footer \
              reservation could pass vacuously"
-        );
-        assert!(
-            self.new_blank.is_empty(),
-            "a zero-row stage also lost its footer/other region outside the known \
-             maximum-zoom other-region limit:\n  {}",
-            self.new_blank.join("\n  ")
-        );
-        assert!(
-            self.healed_limit.is_empty(),
-            "the maximum-zoom other-region limit healed; remove these stale control cells:\n  {}",
-            self.healed_limit.join("\n  ")
-        );
-        assert_eq!(
-            self.comparison_limit_hits,
-            MAX_ZOOM_OTHER_REGION_LIMIT.len() * 2,
-            "every maximum-zoom comparison control must still be reached in both menu states"
         );
         assert!(
             self.staged > 0 && self.wide > 0,
@@ -394,8 +341,7 @@ impl Tally {
 ///   * and the paired stages have some visible presence at the same geometry.
 ///
 /// The zoom axis spans the authored band (`crate::range::ZOOM`) plus a smaller
-/// non-default zoom, because the staging threshold is a scaled-text width and a
-/// geometry claim made at one zoom cannot be carried onto another.
+/// non-default zoom as a CONTRAST: each UI outcome must remain byte-identical.
 #[test]
 fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
     let _g = crate::testlock::serial();
@@ -404,7 +350,7 @@ fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
         return;
     };
     // The authored zoom band's own ends and default, plus a smaller non-default
-    // value. One quoted width is never the threshold for the whole zoom axis.
+    // value. Each fixed canvas must produce one UI geometry across all four.
     let zooms = [
         crate::range::ZOOM.min,
         0.8,
@@ -422,8 +368,10 @@ fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
         crate::menubar::set_menu_bar_on(menu_bar);
         for (rows_primary, kinds) in &arms {
             for (w, h) in logical_canvases() {
-                for zoom in zooms {
-                    for dpi in [1.0f32, 2.0] {
+                for dpi in [1.0f32, 2.0] {
+                    let mut expected = None;
+                    let mut document_lhs = Vec::new();
+                    for zoom in zooms {
                         let window = Cell {
                             rows_primary: *rows_primary,
                             w,
@@ -432,8 +380,23 @@ fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
                             dpi,
                             detail: false,
                         };
-                        tally.grade_window(&device, &queue, &mut p, window, kinds);
+                        let outcomes = tally.grade_window(&device, &queue, &mut p, window, kinds);
+                        document_lhs.push(p.metrics.line_height);
+                        if let Some(ref expected) = expected {
+                            assert_eq!(
+                                &outcomes,
+                                expected,
+                                "{}: document zoom moved UI-metric workspace geometry",
+                                window.describe(kinds)
+                            );
+                        } else {
+                            expected = Some(outcomes);
+                        }
                     }
+                    assert!(
+                        document_lhs.first() != document_lhs.last(),
+                        "{w}x{h} dpi {dpi}: document metrics did not vary across zoom"
+                    );
                 }
             }
         }
@@ -466,7 +429,7 @@ fn the_staged_workspace_still_puts_ink_in_its_card() {
     };
     for (rows_primary, kinds) in swept_arms() {
         let mut v = arm_view(rows_primary, rows_primary);
-        // A below-default stress zoom at which this canvas is genuinely staged.
+        // A below-default document zoom; staging remains a UI-width decision.
         v.zoom = 0.8;
         p.set_dpi(1.0);
         p.set_size(w as f32, h as f32);

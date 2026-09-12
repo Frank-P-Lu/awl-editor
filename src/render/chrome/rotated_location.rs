@@ -150,7 +150,7 @@ impl TextPipeline {
     ///   `every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor`
     ///   fails by name if a future world asks for one.
     /// - **A margin the authored run does not fit.** Between the card's own drawn
-    ///   left edge and the room's, past roughly 1.7× zoom on the widest card,
+    ///   left edge and the room's, as the canvas narrows around the widest card,
     ///   the margin the cue lives in closes; the placard bleeds behind the card
     ///   there, and a cue seated on it would too. Parking rather than shrinking is
     ///   [`Overflow::Park`]'s own doc: the scale IS the composition, so the cue is
@@ -225,8 +225,8 @@ impl TextPipeline {
     /// BOX.** `geom.card_x` is where the card's own surface starts; under
     /// `ListStyle::Bars` the SELECTED row's plate grows OUTWARD past it
     /// (`grow_span`, mirrored on a right-anchored card) and the plate scrim
-    /// then pads that by [`BAR_SCRIM_PAD`] again — at 1.8× zoom on a
-    /// right-anchored card that is 32 device px of card LEFT of `card_x`, and
+    /// then pads that by [`BAR_SCRIM_PAD`] again — on an ordinary 1× canvas that
+    /// is 32 device px of card LEFT of `card_x`, and
     /// a cue bounded by `card_x` alone cleared the box while sitting 2 px from
     /// the plate. Asked through the plate's OWN span owners rather than
     /// re-derived, and at the growth animation's SETTLED maximum (progress

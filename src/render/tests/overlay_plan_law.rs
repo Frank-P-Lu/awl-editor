@@ -633,9 +633,10 @@ fn assert_sweep_floors(
     );
 }
 
-/// THE PLAN IS DERIVED, NEVER RETAINED. A resize, a zoom, and a buffer SWAP each
-/// move the candidate band inside the very next frame, and the hit-test follows
-/// in that same frame.
+/// THE PLAN IS DERIVED, NEVER RETAINED. Width and available-height resizes plus a
+/// buffer SWAP each move the candidate band inside the very next frame, and the
+/// hit-test follows in that same frame. Document zoom is the contrasting axis:
+/// the document metrics change while UI-metric picker geometry stays fixed.
 ///
 /// This is the invalidation class the plan deliberately has no cache for: there
 /// is no plan key to go stale, so no `buffer.version()` collision can serve a
@@ -668,7 +669,13 @@ fn the_plan_is_rederived_across_resize_zoom_and_a_buffer_swap() {
             hit, first.item,
             "the first planned row must always hit-test to its own item"
         );
-        (plan.first_top(), plan.lh(), plan.candidate_rows(), x0)
+        (
+            plan.first_top(),
+            plan.lh(),
+            plan.candidate_rows(),
+            x0,
+            p.metrics.line_height,
+        )
     };
 
     let base = sample(&mut p, &v, 1200, 800);
@@ -681,20 +688,29 @@ fn the_plan_is_rederived_across_resize_zoom_and_a_buffer_swap() {
         "a narrower canvas must move the planned card — otherwise this arm is vacuous"
     );
 
-    // ZOOM — the row pitch is a measured metric, so a zoom must move both the
-    // band's origin and its pitch.
+    // AVAILABLE HEIGHT — the card has less room for candidates, and the next
+    // frame must publish that smaller window immediately.
+    let shorter = sample(&mut p, &v, 1200, 480);
+    assert!(
+        shorter.2 < base.2,
+        "a shorter canvas must reduce the planned candidate window ({} -> {})",
+        base.2,
+        shorter.2
+    );
+
+    // ZOOM — the picker is interface furniture, so its origin and row pitch
+    // remain fixed while the document behind it genuinely changes scale.
     let mut zoomed = overlay_view(OverlayKind::Keybindings, 30);
     zoomed.zoom = 2.0;
     let z = sample(&mut p, &zoomed, 1200, 800);
-    assert!(
-        z.1 > base.1 * 1.5,
-        "zoom 2.0 must widen the planned row pitch ({} -> {})",
-        base.1,
-        z.1
+    assert_eq!(
+        (z.0, z.1, z.2, z.3),
+        (base.0, base.1, base.2, base.3),
+        "document zoom must not move UI-metric picker geometry"
     );
     assert_ne!(
-        z.0, base.0,
-        "zoom must move the planned band's origin, not just its pitch"
+        z.4, base.4,
+        "the document line height must change or the zoom contrast is vacuous"
     );
 
     // BUFFER SWAP — a different document under the SAME open picker, with the
