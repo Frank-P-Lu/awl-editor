@@ -138,6 +138,7 @@ fn capture_date_picker(
         hint: crate::overlay::OverlayKind::Date.hint().to_string(),
         files_location: None,
         files_query_focused: false,
+        settings_focus: None,
         browse_dir: None,
         return_to: None,
         spell_target: None,

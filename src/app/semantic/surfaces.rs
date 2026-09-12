@@ -98,6 +98,7 @@ impl SemanticView<'_> {
         let list_id = format!("{dialog_id}.rows");
         let mut dialog = SemanticNode::new(&dialog_id, SemanticRole::Dialog, overlay.title());
         dialog.description = Some(self.workspace_state.journey().foot_hint());
+        let settings_focus = self.workspace_state.journey().settings_focus();
 
         let query_name = if overlay.files_mode {
             "Search files".to_string()
@@ -118,7 +119,7 @@ impl SemanticView<'_> {
         query.focusable = true;
         query.editable = true;
         query.actions = vec![SemanticAction::Focus, SemanticAction::SetValue];
-        query.focused = files_overlay::query_focused(overlay);
+        query.focused = files_overlay::query_focused(overlay, settings_focus);
 
         let mut list = SemanticNode::new(&list_id, SemanticRole::ListBox, overlay.title());
         let labels = overlay.item_strings();
@@ -135,7 +136,10 @@ impl SemanticView<'_> {
             row.value = values.get(visible).filter(|v| !v.is_empty()).cloned();
             row.selected = Some(visible == overlay.selected);
             row.focusable = true;
-            row.focused = files_overlay::row_focused(overlay, corpus, visible);
+            row.focused = files_overlay::row_focused(overlay, corpus, visible, settings_focus);
+            if overlay.value_edit.is_some() && row.focused {
+                row.description = Some("Editing value".to_string());
+            }
             row.actions = actions;
             list.children.push(row_id);
             nodes.push(row);
@@ -156,10 +160,17 @@ impl SemanticView<'_> {
             ));
         }
         dialog.children.push(query_id.clone());
-        files_overlay::append_workspace_rail(overlay, &dialog_id, &mut dialog, nodes);
+        files_overlay::append_workspace_rail(
+            overlay,
+            settings_focus,
+            &dialog_id,
+            &mut dialog,
+            nodes,
+        );
         files_overlay::append_controls(overlay, &dialog_id, &mut dialog, nodes);
         dialog.children.push(list_id.clone());
-        let focus_id = files_overlay::focus_id(overlay, &dialog_id, query_id.clone());
+        let focus_id =
+            files_overlay::focus_id(overlay, &dialog_id, query_id.clone(), settings_focus);
         if focus_id == query_id {
             query.focused = true;
         }

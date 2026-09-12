@@ -26,6 +26,41 @@ fn query_view(text: &str, query: &str, title: &'static str) -> ViewState {
     v
 }
 
+/// Settings keeps its Search field visible while Categories or Controls owns
+/// the keyboard. Only Search may draw the gold query caret; pointer hit-testing
+/// remains available so clicking the quiet field can focus it again.
+#[test]
+fn settings_draws_the_query_caret_only_while_search_owns_focus() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping Settings query-focus law: no wgpu adapter");
+        return;
+    };
+    let mut v = query_view("hello\n", "page", "settings");
+    v.overlay_workspace = true;
+    v.overlay_lens = vec![("All".into(), true), ("Writing".into(), false)];
+    v.overlay_query_placeholder = Some("Search settings".into());
+    for focused in [false, true, false] {
+        v.overlay_query_focused = focused;
+        p.set_view(&v);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let geom = p.overlay_geometry(1200);
+        let plan = p.overlay_row_plan(&geom);
+        assert_eq!(
+            p.overlay_query_caret_box(&geom, &plan).is_some(),
+            focused,
+            "the query caret's presence must equal Search focus"
+        );
+        let field = plan.query_band().expect("Settings draws a search field");
+        let (_, card_right) = plan.card_x_span();
+        assert!(
+            p.overlay_query_char_at(card_right - 2.0, field.center())
+                .is_some(),
+            "the unfocused field remains clickable"
+        );
+    }
+}
+
 /// THE HEADLINE LAW: every char boundary in the query — over a short/empty/
 /// accented/CJK roster, an untitled and a titled card, both DPIs — is
 /// clickable exactly where its own caret is drawn.

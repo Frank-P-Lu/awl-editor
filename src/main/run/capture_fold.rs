@@ -233,6 +233,7 @@ fn overlay_capture_info_optional(
         hint: journey.foot_hint(),
         files_location: ov.files_location(),
         files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
+        settings_focus: journey.settings_focus().map(|focus| focus.as_str()),
         browse_dir: ov.browse_dir.clone(),
         return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,

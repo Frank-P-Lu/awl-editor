@@ -106,6 +106,10 @@ pub struct ViewState {
     /// up, so the inert value is the one that keeps every existing frame
     /// byte-identical.
     pub overlay_query_field: bool,
+    /// Whether the query field is the active keyboard recipient. Separate
+    /// from `overlay_query_field`: an unfocused Settings search is still a
+    /// real field, but its caret must not claim attention.
+    pub overlay_query_focused: bool,
     /// The active selection in `overlay_query`, as CHAR indices `(start, end)`
     /// — armed only while a Rename minibuffer's seeded stem-selection hasn't
     /// yet been collapsed (`OverlayState::query`'s own [`crate::textbox::
@@ -412,6 +416,7 @@ impl ViewState {
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
+            overlay_query_focused: true,
             overlay_query_selection: None,
             overlay_query_placeholder: None,
             overlay_title: String::new(),

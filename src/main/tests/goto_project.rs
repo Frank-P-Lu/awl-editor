@@ -329,7 +329,7 @@ fn replay_keys_a_cancelled_settings_child_resumes_on_the_row_it_left() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET Esc").unwrap();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET RET Esc").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
 
@@ -349,6 +349,11 @@ fn replay_keys_a_cancelled_settings_child_resumes_on_the_row_it_left() {
         "and with the filter that found it"
     );
     assert_eq!(res.journey.parked_kind(), None, "single-level");
+    assert_eq!(
+        res.journey.settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Controls),
+        "the child returns the exact Controls recipient"
+    );
     crate::theme::set_active(0);
 }
 
@@ -361,7 +366,7 @@ fn replay_keys_the_sidecar_reports_the_parked_workspace_under_a_child() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET").unwrap();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(

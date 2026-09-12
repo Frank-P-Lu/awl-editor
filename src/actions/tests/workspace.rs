@@ -203,6 +203,29 @@ fn settings_focus_route_is_complete_in_both_directions_and_skips_absent_controls
         Some(SettingsFocus::Search)
     );
     assert_eq!(typed_from_controls.card().unwrap().query.text(), "z");
+
+    settings_drive(&mut typed_from_controls, &Action::SelectAll);
+    let selected = typed_from_controls.card().unwrap();
+    assert_eq!(
+        typed_from_controls.settings_focus(),
+        Some(SettingsFocus::Search)
+    );
+    assert_eq!(
+        selected.query.selection_range(),
+        Some((0, 1)),
+        "Select All belongs to the Settings query even when Controls owned focus"
+    );
+    settings_drive(&mut typed_from_controls, &Action::ForwardChar);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 1);
+    assert_eq!(
+        typed_from_controls.card().unwrap().query.selection_range(),
+        None,
+        "a query motion collapses its own selection instead of reaching the document"
+    );
+    settings_drive(&mut typed_from_controls, &Action::LineStart);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 0);
+    settings_drive(&mut typed_from_controls, &Action::LineEnd);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 1);
 }
 
 /// Settings' fine focus recipient never changes the workspace-level close:

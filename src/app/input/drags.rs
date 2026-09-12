@@ -88,6 +88,14 @@ impl App {
         {
             ov.selected = item;
         }
+        if self
+            .workspace_state
+            .overlay()
+            .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+        {
+            self.workspace_state
+                .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
+        }
         let Some(cell) = self
             .workspace_state
             .overlay()

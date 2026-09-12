@@ -65,7 +65,7 @@ impl TextPipeline {
         // advertises an edit that cannot happen — the same promise the document
         // caret makes over a relocated transcript, one region up. The line still
         // draws; only its caret parks.
-        if !self.overlay_query_field {
+        if !self.overlay_query_field || !self.overlay_query_focused {
             return None;
         }
         let m = self.metrics;

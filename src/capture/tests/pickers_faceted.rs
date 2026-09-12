@@ -31,6 +31,7 @@ fn picker_opts(ov: &crate::overlay::OverlayState, empty: Option<String>) -> Capt
         hint: ov.foot_hint(),
         files_location: ov.files_location(),
         files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
+        settings_focus: None,
         browse_dir: ov.browse_dir.clone(),
         return_to: None,
         spell_target: None,
@@ -309,6 +310,7 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         hint: ov.foot_hint(),
         files_location: ov.files_location(),
         files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
+        settings_focus: None,
         browse_dir: None,
         return_to: None,
         spell_target: None,
@@ -397,6 +399,7 @@ fn overlay_empty_state_renders_and_reports() {
         hint: ov.foot_hint(),
         files_location: ov.files_location(),
         files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
+        settings_focus: None,
         browse_dir: ov.browse_dir.clone(),
         return_to: None,
         spell_target: None,
@@ -632,6 +635,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
             files_location: ov.files_location(),
             files_query_focused: ov.files_mode
                 && ov.files_focus == crate::overlay::FilesFocus::Query,
+            settings_focus: None,
             browse_dir: ov.browse_dir.clone(),
             return_to: None,
             spell_target: None,
@@ -961,6 +965,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
         hint: crate::overlay::OverlayKind::History.hint(),
         files_location: None,
         files_query_focused: false,
+        settings_focus: None,
         browse_dir: None,
         return_to: None,
         spell_target: None,
@@ -1059,6 +1064,7 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
         hint: crate::overlay::OverlayKind::History.hint(),
         files_location: None,
         files_query_focused: false,
+        settings_focus: None,
         browse_dir: None,
         return_to: None,
         spell_target: None,
@@ -1178,7 +1184,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // navigation rail, and the rail's `→` enters the content pane. `→` on a
     // range ROW is the rail step this law is about, so put the card where a user
     // pressing this chord would be, through the lifecycle's own transition.
-    overlay.toggle_detail();
+    overlay.focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
     let mut shift = false;
     let mut search = None;
     let mut make = |_k: crate::overlay::OverlayKind| None;
@@ -1223,23 +1229,26 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
             .unwrap();
     let o = &j["overlay"];
     assert_eq!(o["mode"], serde_json::json!("settings"));
+    assert_eq!(o["settings_focus"], serde_json::json!("controls"));
     // …and the CARD'S OWN FOOT LINE, through the same `foot_hint` seam the live card
     // draws, advertises what ←/→ just did here — step the value, NOT cycle the lens.
     // The footer is awl's only statement of what a key does and there is no
     // accessibility tree behind it (ACCESSIBILITY.md), so this is agent-verifiable on
     // the sidecar rather than only in the pixels.
-    // The workspace's derived BACK cell rides on the end of that line. It is
-    // NAMED here rather than read back off the card, so this stays an assertion:
-    // the content pane's query is empty, so the erase key is free and `⌫` is
-    // what goes back.
-    let mut expected = crate::overlay::OverlayKind::Settings.range_row_actions();
-    expected.push(crate::overlay::workspace::BackKey::Erase.hint());
-    assert_eq!(
-        o["hint"],
-        serde_json::json!(crate::overlay::format_hint(&expected)),
-        "a selected rail row must advertise its own ←/→ meaning: {:?}",
-        o["hint"]
-    );
+    let hint = o["hint"].as_str().expect("hint is text");
+    for cell in [
+        "↑/↓ control",
+        "←/→ adjust",
+        "↵ edit",
+        "tab categories",
+        "⇧tab search",
+        "esc close",
+    ] {
+        assert!(
+            hint.split(crate::overlay::HINT_SEP).any(|got| got == cell),
+            "the Controls hint must name {cell:?}: {hint:?}"
+        );
+    }
     assert_eq!(
         o["lens_strip"][0][1],
         serde_json::json!(true),

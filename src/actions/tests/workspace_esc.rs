@@ -150,6 +150,9 @@ fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
             Action::DeleteBackward,
             Action::DeleteWordBackward,
         ] {
+            if kind == OverlayKind::Settings {
+                continue;
+            }
             let mut journey = on_the_detail_stage(kind);
             settings_drive(&mut journey, &back);
             assert!(
@@ -181,6 +184,12 @@ fn the_footer_names_the_back_it_actually_has_on_every_sustained_kind() {
     let _g = crate::testlock::serial();
     let mut graded = 0usize;
     for kind in sustained_kinds() {
+        if kind == OverlayKind::Settings {
+            // Settings has three named recipients; its complete forward and
+            // reverse route and per-recipient hints are graded by the
+            // Settings-specific workspace laws.
+            continue;
+        }
         // THE DETAIL STAGE — advertises the Back, and the Back works. Which key
         // that is comes from the one owner both the footer and the keyboard
         // read; the law's job is to prove they landed on the SAME one, and that
@@ -225,7 +234,10 @@ fn the_footer_names_the_back_it_actually_has_on_every_sustained_kind() {
             graded += 1;
         }
     }
-    assert_eq!(graded, 8, "four members x two stages must each be graded");
+    assert_eq!(
+        graded, 6,
+        "three two-stage members x two stages are graded here"
+    );
 }
 
 /// AND THE TABLE AGREES WITH THE KEYBOARD. The lifecycle's own statement of the

@@ -90,6 +90,14 @@ pub enum SettingsFocus {
 }
 
 impl SettingsFocus {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Categories => "categories",
+            Self::Search => "search",
+            Self::Controls => "controls",
+        }
+    }
+
     pub(crate) fn step(self, delta: isize, has_controls: bool) -> Self {
         use SettingsFocus::{Categories, Controls, Search};
         let route: &[SettingsFocus] = if has_controls {

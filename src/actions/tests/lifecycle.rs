@@ -242,6 +242,7 @@ fn a_toggle_keeps_a_workspace_and_completes_a_launcher() {
     for c in "typewriter".chars() {
         settings_drive(&mut journey, &Action::InsertChar(c));
     }
+    settings_drive(&mut journey, &Action::Newline); // search -> controls
     let eff = settings_drive(&mut journey, &Action::Newline);
     assert!(
         matches!(eff, Effect::SettingToggle { .. }),

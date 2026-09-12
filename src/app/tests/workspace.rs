@@ -102,8 +102,8 @@ fn persisted(mem: &crate::fs::InMemoryFs, key: &str) -> Option<String> {
 }
 
 /// WALK INTO THE WORKSPACE and stand on `row`, using only real chords: the
-/// binding that summons it, `Tab` into the content pane (a fresh summon lands on
-/// the navigation rail, which is the workspace's primary list), then one `Down`
+/// binding that summons it, two `Tab`s through Search into Controls (a fresh
+/// summon lands on the navigation rail), then one `Down`
 /// per row of the corpus. Panics naming the row if the walk does not land on it,
 /// so a corpus reorder is a loud failure rather than a silently mis-aimed
 /// assertion.
@@ -120,8 +120,8 @@ fn stand_on(app: &mut App, row: &SettingRow) {
         Some(false),
         "a fresh summon stands on the navigation rail, the workspace's primary list"
     );
-    app.press_spec_headless("Tab")
-        .expect("Tab parses and crosses into the content pane");
+    app.press_spec_headless("Tab Tab")
+        .expect("Tab parses and crosses through Search into Controls");
     let idx = crate::settings::visible_rows()
         .iter()
         .position(|r| r.id == row.id)

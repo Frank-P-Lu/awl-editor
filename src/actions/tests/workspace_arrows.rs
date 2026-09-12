@@ -101,7 +101,14 @@ fn on_the_primary_list(kind: OverlayKind, query: &str, steps: usize) -> Journey 
         settings_drive(&mut journey, &Action::InsertChar(c));
     }
     if journey.card().is_some_and(|o| o.detail_focus) {
-        settings_drive(&mut journey, &Action::InsertTab);
+        settings_drive(
+            &mut journey,
+            if kind == OverlayKind::Settings {
+                &Action::Outdent
+            } else {
+                &Action::InsertTab
+            },
+        );
     }
     assert!(
         journey.card().is_some_and(|o| !o.detail_focus),
@@ -152,6 +159,14 @@ fn left_closes_every_door_right_opens_on_every_workspace_stage() {
                 cells += 1;
                 let mut journey = on_the_primary_list(kind, query, step);
                 let origin = standing(&journey);
+                // A Settings category with no surviving controls deliberately
+                // routes Right to Search, not through a nonexistent Controls
+                // stop. The complete no-match route has its own law.
+                if kind == OverlayKind::Settings
+                    && journey.card().is_some_and(|card| card.items.is_empty())
+                {
+                    continue;
+                }
 
                 // PRESENCE FLOOR. `→` has to have really moved focus, or the
                 // symmetry below is a claim about nothing.
@@ -220,12 +235,15 @@ fn left_returns_from_every_workspace_detail_stage_or_the_footer_names_its_owner(
     for kind in workspace_kinds() {
         let mut journey = Journey::seeded(Some(card_for(kind)));
         settings_drive(&mut journey, &Action::InsertTab);
+        if kind == OverlayKind::Settings {
+            settings_drive(&mut journey, &Action::InsertTab);
+        }
         let card = journey.card().expect("the workspace is up");
         assert!(
             card.detail_focus,
             "{kind:?}: precondition — the focus key must reach the detail stage"
         );
-        let hint = card.foot_hint();
+        let hint = journey.foot_hint();
         let owns_axis = !card.detail_left_returns();
         let advertised = hint
             .split(crate::overlay::HINT_SEP)

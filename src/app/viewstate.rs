@@ -155,6 +155,7 @@ impl App {
         // 172): fourteen `overlay_*` fields read it, and asking its owner
         // fourteen times made rustfmt break every one across five lines.
         let ov = self.workspace_state.overlay();
+        let settings_focus = self.workspace_state.journey().settings_focus();
         let mut view = ViewState {
             document_active: true,
             // The no-document start surface's own concern; irrelevant with a
@@ -216,10 +217,14 @@ impl App {
             // question here goes through. `true` with no card up: nothing draws
             // a query caret then, so the inert answer is the one that leaves
             // every ordinary frame byte-identical.
-            overlay_query_field: ov.is_none_or(|o| {
-                o.kind.offers_query()
-                    && (!o.files_mode || o.files_focus == crate::overlay::FilesFocus::Query)
-            }),
+            overlay_query_field: ov.is_none_or(|o| o.kind.offers_query()),
+            overlay_query_focused: match settings_focus {
+                Some(crate::overlay::workspace::SettingsFocus::Search) => true,
+                Some(_) => false,
+                None => ov.is_none_or(|o| {
+                    !o.files_mode || o.files_focus == crate::overlay::FilesFocus::Query
+                }),
+            },
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
             overlay_query_placeholder: ov
                 .and_then(|o| o.kind.field_placeholder().map(str::to_string)),
@@ -333,7 +338,11 @@ impl App {
             eol: self.document.buffer().eol(),
             popover,
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
-            overlay_rows_focused: ov.is_none_or(crate::overlay::OverlayState::files_rows_focused),
+            overlay_rows_focused: match settings_focus {
+                Some(crate::overlay::workspace::SettingsFocus::Controls) => true,
+                Some(_) => false,
+                None => ov.is_none_or(crate::overlay::OverlayState::files_rows_focused),
+            },
             folds: Vec::new(),
             fold_tails: Vec::new(),
             folded_headings: Vec::new(),
