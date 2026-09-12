@@ -321,19 +321,24 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
     );
 }
 
-/// THE ROW-COUNT PROOF, independent of the shaped glyphs. A hint reserves
-/// exactly TWO rows out of an overfull candidate window — its own (shrunk)
-/// line, plus the blank separator ahead of it — over the FLAT, GROUPED and
-/// WORKSPACE families alike. This is the one law in the file that reads
-/// `overlay_hint_gap_rows`'s effect directly (`plan.candidate_rows()`, the
-/// windowed row count every family's `chrome_rows` bounds) rather than
-/// through the shaped buffer: the WORKSPACE family's card is CANVAS-sized
-/// (`regions.card`, never content-derived — `workspace.rs`'s own doc), so on
-/// a generously large canvas the drawn-gap law above cannot see a missing
-/// reservation there — the extra unbudgeted row simply still fits inside a
-/// card that was never going to hug it. Proven against exactly that gap by
-/// mutation (`hint_gap_rows = 0` in `workspace.rs` passes the drawn-gap law
-/// above but fails this one).
+/// THE BUDGET PROOF, independent of the shaped glyphs. A hint reserves one
+/// authored compact-pixel band — its compact line, the compact separator
+/// ahead of it, and the trailing chin — over the FLAT, GROUPED and WORKSPACE
+/// families alike. That band is taller than one candidate pitch and shorter
+/// than two. Turning its pixel height into an integral candidate window can
+/// therefore cost either one or two visible rows, depending on the remaining
+/// pixels in the card; an exact two-row assertion mistakes that derived
+/// rounding outcome for the authored invariant.
+///
+/// This is the one law in the file that reads `overlay_hint_gap_rows`'s effect
+/// directly (`plan.candidate_rows()`, the windowed row count every family's
+/// `chrome_rows` bounds) rather than through the shaped buffer: the WORKSPACE
+/// family's card is CANVAS-sized (`regions.card`, never content-derived —
+/// `workspace.rs`'s own doc), so on a generously large canvas the drawn-gap
+/// law above cannot see a missing reservation there — the extra unbudgeted
+/// pixels simply still fit inside a card that was never going to hug them.
+/// Proven against exactly that gap by mutation (`hint_gap_rows = 0` in
+/// `workspace.rs` passes the drawn-gap law above but fails this one).
 ///
 /// **RUN IN BOTH MENU-BAR STATES.** The drawn menu bar takes a vertical reserve
 /// off the top of the card's own budget (`menubar_reserve`, folded into
@@ -359,103 +364,183 @@ fn a_nonempty_hint_enrols_exactly_one_separator_row() {
     }
 }
 
+#[derive(Clone, Copy)]
+struct HintBudgetCell {
+    dpi: f32,
+    logical_w: f32,
+    logical_h: f32,
+    menu_bar: bool,
+    line_h: f32,
+    reserve: f32,
+    min_cost: usize,
+    max_cost: usize,
+}
+
+#[derive(Default)]
+struct HintBudgetCoverage {
+    one_pitch: usize,
+    two_pitch: usize,
+}
+
+fn grade_hint_budget_roster(
+    p: &mut TextPipeline,
+    cell: HintBudgetCell,
+    coverage: &mut HintBudgetCoverage,
+) {
+    let HintBudgetCell {
+        dpi,
+        logical_w,
+        logical_h,
+        menu_bar,
+        line_h,
+        reserve,
+        min_cost,
+        max_cost,
+    } = cell;
+    crate::menubar::set_menu_bar_on(menu_bar);
+    let visible_rows = |p: &mut TextPipeline, v: &ViewState| -> usize {
+        p.set_view(v);
+        let n = p.overlay_window_report().expect("overlay open").1;
+        // PRESENCE FLOOR, per reading: a row-difference assertion is
+        // satisfied vacuously when the candidate band collapses.
+        assert!(
+            n > 0,
+            "dpi={dpi} size={logical_w}x{logical_h} menu_bar={menu_bar}: the card \
+             must show candidate rows for their count to mean anything"
+        );
+        n
+    };
+
+    let mut enrolled = 0usize;
+    let mut excluded_popups = 0usize;
+    let mut excluded_footerless = 0usize;
+    let mut flat_cells = 0usize;
+    let mut grouped_cells = 0usize;
+    let mut workspace_cells = 0usize;
+    for kind in OverlayKind::ALL {
+        let mut v = overlay_view(kind, Shape::Scrolled);
+        if v.overlay_spell.is_some() {
+            excluded_popups += 1;
+            continue;
+        }
+        // A kind whose product hint is the empty string — today only the
+        // pointer-anchored context menu — has no "bare vs hinted" row cost.
+        if v.overlay_hint.is_empty() {
+            excluded_footerless += 1;
+            continue;
+        }
+        if let Some(shape) = kind.workspace_shape() {
+            v.overlay_workspace = true;
+            v.overlay_rows_primary = shape.rows_are_primary();
+            workspace_cells += 1;
+        } else if v.overlay_lens.is_empty() {
+            flat_cells += 1;
+        } else {
+            grouped_cells += 1;
+        }
+        // Section headers are a coupled row cost, not the hint's cost. Keep
+        // the grouped family but use its section-free home lens.
+        v.overlay_sections.clear();
+        let hint = v.overlay_hint.clone();
+        assert!(
+            !hint.is_empty(),
+            "{kind:?}: an enrolled surface must carry a real product hint"
+        );
+        v.overlay_hint.clear();
+        let bare = visible_rows(p, &v);
+        v.overlay_hint = hint;
+        let hinted = visible_rows(p, &v);
+        let cost = bare.saturating_sub(hinted);
+        assert!(
+            (min_cost..=max_cost).contains(&cost),
+            "{kind:?} dpi={dpi} size={logical_w}x{logical_h} menu_bar={menu_bar}: \
+             the compact {reserve}px footer may cost {min_cost} or {max_cost} whole \
+             {line_h}px candidate pitches, got {cost} (bare={bare}, hinted={hinted})"
+        );
+        coverage.one_pitch += usize::from(cost == 1);
+        coverage.two_pitch += usize::from(cost == 2);
+        enrolled += 1;
+    }
+    assert_eq!(
+        enrolled + excluded_popups + excluded_footerless,
+        OverlayKind::ALL.len(),
+        "every roster member must be enrolled or excluded by its presentation"
+    );
+    assert!(
+        enrolled > 10
+            && excluded_popups > 0
+            && excluded_footerless > 0
+            && flat_cells > 0
+            && grouped_cells > 0
+            && workspace_cells > 0,
+        "the roster sweep, every surface family, and both presentation-based \
+         exclusions must be non-vacuous"
+    );
+}
+
 #[test]
-fn a_hint_reserves_compact_pixels_before_workspace_rows_and_two_slots_on_cards() {
+fn a_hint_reserves_its_compact_pixel_band_before_candidates_on_every_surface() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping a_hint_reserves_exactly_two_rows_from_the_candidate_window: no wgpu adapter"
-        );
+        eprintln!("skipping compact hint budget law: no wgpu adapter");
         return;
     };
     // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here reports
     // the host that COMPILED the test, not the branch the initialiser took.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
-    for bar in [false, true] {
-        crate::menubar::set_menu_bar_on(bar);
-        // A SHORT canvas, deliberately: `OverlayKind::window_rows()` is a per-kind
-        // FIXED cap (12 for both kinds below), and on the default 800px-tall
-        // canvas that fixed cap — not the pixel budget the hint's rows come out
-        // of — is what binds, so the hint's cost would not show up in the visible
-        // count at all. Shrinking the canvas makes the pixel budget the binding
-        // constraint, which is the constraint `overlay_hint_gap_rows` actually
-        // feeds.
-        p.set_size(1200.0, 460.0);
-
-        let visible_rows = |p: &mut TextPipeline, v: &ViewState| -> usize {
-            p.set_view(v);
-            let n = p.overlay_window_report().expect("overlay open").1;
-            // PRESENCE FLOOR, per reading: `bare - hinted == 2` is satisfied by a
-            // band that collapsed to nothing as readily as by the right difference.
+    let mut coverage = HintBudgetCoverage::default();
+    for dpi in [1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        for (logical_w, logical_h) in [(900.0, 420.0), (1200.0, 460.0), (1400.0, 500.0)] {
+            // SHORT canvases, deliberately: `OverlayKind::window_rows()` is a
+            // per-kind FIXED cap, and on the default 800px-tall canvas that cap
+            // — not the pixel budget the hint comes out of — binds. These sizes
+            // keep the pixel budget binding while sampling its rounding residue.
+            p.set_size(logical_w * dpi, logical_h * dpi);
+            let line_h = p.overlay_lh();
+            let reserve = p.overlay_footer_reserve(1, 1);
+            let authored =
+                p.overlay_hint_gap_h() + p.overlay_hint_h() + p.metrics.ui().px(Logical(2.0));
             assert!(
-                n > 0,
-                "menu_bar={bar}: the card must show candidate rows for their count to \
-             mean anything — a row-cost law cannot be graded on an empty band"
+                (reserve - authored).abs() <= 0.01,
+                "dpi={dpi} size={logical_w}x{logical_h}: the footer must reserve the \
+                 authored compact gap + hint + chin in pixels (reserve={reserve}, \
+                 authored={authored})"
             );
-            n
-        };
+            let min_cost = (reserve / line_h).floor() as usize;
+            let max_cost = (reserve / line_h).ceil() as usize;
+            assert_eq!(
+                (min_cost, max_cost),
+                (1, 2),
+                "dpi={dpi}: the compact footer must remain strictly between one and two \
+                 candidate pitches (reserve={reserve}, pitch={line_h})"
+            );
 
-        let mut enrolled = 0usize;
-        let mut excluded_popups = 0usize;
-        let mut excluded_footerless = 0usize;
-        for kind in OverlayKind::ALL {
-            let mut v = overlay_view(kind, Shape::Scrolled);
-            if v.overlay_spell.is_some() {
-                excluded_popups += 1;
-                continue;
-            }
-            // A kind whose product hint is the empty string — today only the
-            // pointer-anchored context menu — has no "bare vs hinted" row
-            // cost to measure: there is nothing to clear before the `bare`
-            // reading, so the two readings would trivially agree at cost 0
-            // rather than proving anything about the reservation.
-            if v.overlay_hint.is_empty() {
-                excluded_footerless += 1;
-                continue;
-            }
-            if let Some(shape) = kind.workspace_shape() {
-                v.overlay_workspace = true;
-                v.overlay_rows_primary = shape.rows_are_primary();
-            }
-            // Section headers are a coupled row cost, not the hint's cost. Keep
-            // the real grouped family but ask it on its section-free home lens.
-            v.overlay_sections.clear();
-            let hint = v.overlay_hint.clone();
-            assert!(
-                !hint.is_empty(),
-                "{kind:?}: an enrolled surface must carry a real product hint"
-            );
-            v.overlay_hint.clear();
-            let bare = visible_rows(&mut p, &v);
-            v.overlay_hint = hint;
-            let hinted = visible_rows(&mut p, &v);
-            let cost = bare.saturating_sub(hinted);
-            if kind.workspace_shape().is_some() {
-                assert!(
-                    (1..=2).contains(&cost),
-                    "{kind:?} menu_bar={bar}: a fixed-height workspace reserves the compact \
-                     separator + teaching line before candidates, which must cost one or two \
-                     whole candidate pitches at this control (bare={bare}, hinted={hinted})"
-                );
-            } else {
-                assert_eq!(
-                    cost, 2,
-                    "{kind:?} menu_bar={bar}: a floating card still budgets the hint and its \
-                     separator as exactly two candidate slots (bare={bare}, hinted={hinted})"
+            for menu_bar in [false, true] {
+                grade_hint_budget_roster(
+                    &mut p,
+                    HintBudgetCell {
+                        dpi,
+                        logical_w,
+                        logical_h,
+                        menu_bar,
+                        line_h,
+                        reserve,
+                        min_cost,
+                        max_cost,
+                    },
+                    &mut coverage,
                 );
             }
-            enrolled += 1;
         }
-        assert_eq!(
-            enrolled + excluded_popups + excluded_footerless,
-            OverlayKind::ALL.len(),
-            "every roster member must be enrolled or excluded by its presentation"
-        );
-        assert!(
-            enrolled > 10 && excluded_popups > 0 && excluded_footerless > 0,
-            "the roster sweep and both its exclusions (word-anchored popup, \
-             empty-hint policy) must be non-vacuous"
-        );
     }
+    assert!(
+        coverage.one_pitch > 0 && coverage.two_pitch > 0,
+        "the sweep must witness both legitimate integral outcomes of the compact pixel \
+         budget (one={}, two={})",
+        coverage.one_pitch,
+        coverage.two_pitch
+    );
+    p.set_dpi(1.0);
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
