@@ -142,6 +142,7 @@ mod glide_anchor_law;
 /// moved no pixel of the product.
 mod glyph_alpha_law;
 /// The GPU program cache: amortised, single-owner, and world-neutral.
+mod gpu_cache_audit;
 mod gpu_cache_law;
 mod grapheme_click;
 mod ground_space;

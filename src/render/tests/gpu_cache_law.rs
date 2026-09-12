@@ -24,6 +24,7 @@
 //! WHOLE `THEMES` roster rather than a world someone imagined.
 
 use super::super::*;
+use super::gpu_cache_audit::render_pipeline_ownership;
 use super::{dither, headless_dqp};
 
 /// Law 1 — the amortisation itself. A second `TextPipeline` on the shared
@@ -108,35 +109,49 @@ fn create_shader_module_has_exactly_one_owner() {
     );
 }
 
-/// Law 2b — the same rule for render pipelines, which is where a Metal backend
-/// actually compiles. The descriptors are too varied to move into one module,
-/// so the law is structural instead: a file that calls `create_render_pipeline`
-/// must call `gpu_cache::render_pipeline` exactly as many times, i.e. every raw
-/// construction sits inside a cached build closure.
+/// Production descriptor modules grouped by family. Background's tunnel mesh
+/// is deliberately extracted from its main owner.
+const PIPELINE_FAMILY_MODULES: &[(&str, &[&str])] = &[
+    ("background", &["background.rs", "background/tunnel.rs"]),
+    ("blur", &["render/blur.rs"]),
+    ("caret", &["caret/pipeline.rs"]),
+    ("caret_glyph", &["caret_glyph.rs"]),
+    ("image", &["image_pipeline.rs"]),
+    ("lava", &["lava.rs"]),
+    ("rotated_label", &["rotated_label.rs"]),
+    ("selection", &["selection/pipeline.rs"]),
+    ("spellunderline", &["spellunderline.rs"]),
+];
+/// Raw constructors factored into a descriptor helper whose sole call remains
+/// inside the cache closure. All other production constructors are inline.
+const DELEGATED_PIPELINE_BUILDERS: &[(&str, &str)] =
+    &[("caret/pipeline.rs", "build_render_pipeline")];
+
+/// Law 2b — every raw render-pipeline constructor has exactly one cache owner.
+/// The family/module roster makes a split deliberate without confusing source
+/// files with pipeline families.
 #[test]
 fn every_render_pipeline_is_built_inside_the_cache() {
     let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut bad = Vec::new();
-    let mut cached_files = 0usize;
+    let mut found_modules = std::collections::BTreeSet::new();
     scan(&src, &src, &mut |rel, text| {
         let file = rel.rsplit('/').next().unwrap_or(rel);
-        if file == "gpu_cache_law.rs" || file == "gpu_cache.rs" {
+        if matches!(
+            file,
+            "gpu_cache_law.rs" | "gpu_cache_audit.rs" | "gpu_cache.rs"
+        ) {
             return;
         }
-        let code = |pat: &str| {
-            text.lines()
-                .filter(|l| l.contains(pat) && !l.trim_start().starts_with("//"))
-                .count()
-        };
-        let raw = code("create_render_pipeline(&");
-        if raw == 0 {
-            return;
+        let delegated = DELEGATED_PIPELINE_BUILDERS
+            .iter()
+            .find_map(|&(module, builder)| (module == rel).then_some(builder));
+        let report = render_pipeline_ownership(text, delegated);
+        if !report.raw_lines.is_empty() {
+            found_modules.insert(rel.to_owned());
         }
-        let wrapped = code("gpu_cache::render_pipeline(");
-        if raw != wrapped {
-            bad.push(format!("  {rel}: {raw} raw vs {wrapped} cached"));
-        } else {
-            cached_files += 1;
+        for failure in report.failures {
+            bad.push(format!("  {rel}: {failure}"));
         }
     });
     assert!(
@@ -146,12 +161,56 @@ fn every_render_pipeline_is_built_inside_the_cache() {
          rather than once per process:\n{}",
         bad.join("\n")
     );
-    // NON-VACUOUS: the nine pipeline families really are there to be checked.
+    let mut expected_modules = std::collections::BTreeMap::new();
+    for &(family, modules) in PIPELINE_FAMILY_MODULES {
+        assert!(
+            !modules.is_empty(),
+            "pipeline family {family} owns no modules"
+        );
+        for &module in modules {
+            assert!(
+                expected_modules.insert(module, family).is_none(),
+                "pipeline module {module} is assigned to more than one family"
+            );
+        }
+    }
+    let expected: std::collections::BTreeSet<_> = expected_modules.keys().copied().collect();
+    let found: std::collections::BTreeSet<_> = found_modules.iter().map(String::as_str).collect();
     assert_eq!(
-        cached_files, 9,
-        "expected the nine pipeline families (background, blur, caret, caret_glyph, image, \
-         lava, rotated_label, selection, spellunderline) to build through the cache; found \
-         {cached_files}"
+        found, expected,
+        "render-pipeline constructor modules changed without being classified by family; \
+         expected {expected_modules:?}"
+    );
+}
+
+/// NON-VACUITY: rename the real tunnel constructor's cache owner. The audit
+/// must name that production call; a module census would still see the file.
+#[test]
+fn an_uncached_production_pipeline_constructor_fails_the_ownership_audit() {
+    let source = include_str!("../../background/tunnel.rs");
+    let clean = render_pipeline_ownership(source, None);
+    assert!(
+        clean.failures.is_empty(),
+        "real owner is not clean: {clean:?}"
+    );
+    assert_eq!(
+        clean.raw_lines.len(),
+        1,
+        "tunnel fixture lost its constructor"
+    );
+    let broken = source.replacen(
+        "crate::gpu_cache::render_pipeline",
+        "crate::uncached::render_pipeline",
+        1,
+    );
+    let report = render_pipeline_ownership(&broken, None);
+    assert_eq!(
+        report.failures,
+        vec![format!(
+            "line {} raw constructor has 0 cache owners",
+            report.raw_lines[0]
+        )],
+        "renaming the real cache owner did not expose its production constructor"
     );
 }
 
