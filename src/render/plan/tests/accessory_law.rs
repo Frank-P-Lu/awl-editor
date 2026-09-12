@@ -115,7 +115,7 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
             // These widths STRADDLE the accessory column's yield boundary on the
             // shipped roster, which is what makes `yielded_cells` non-zero and the
             // yielding state graded rather than only the comfortable one.
-            for &logical_width in &[640u32, 680, 720, 1200] {
+            for &logical_width in &[464u32, 520, 640, 1200] {
                 for &dpi in &[1.0f32, 2.0] {
                     let width = (logical_width as f32 * dpi).round() as u32;
                     let height = (800.0 * dpi).round() as u32;
@@ -253,6 +253,10 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
 /// (world, menu-bar) run rather than per cell, because the claim is a RELATION
 /// between two regimes of the same card.
 ///
+/// Only runs observed on BOTH sides enter this relation. A composition that
+/// never draws an accessory still has its label lane graded above, but a narrow
+/// label there is ordinary card pressure, not budget returned by this gate.
+///
 /// Two things must hold, and the second is what stops the first being vacuous:
 ///
 /// 1. **Yielding the accessory column returns its budget to the names.** On a
@@ -274,12 +278,17 @@ fn assert_budget_returns_to_the_names(cells: &[Cell]) {
         .expect("the sweep visited cells");
     let mut paid = 0usize;
     let mut returned = 0usize;
+    let mut crossing_runs = 0usize;
     for run in cells.iter().filter(|c| c.logical_width == widest_swept) {
         let reference = run.widest_label;
-        for c in cells
-            .iter()
-            .filter(|c| c.world == run.world && c.bar == run.bar)
-        {
+        let same_run = |c: &&Cell| c.world == run.world && c.bar == run.bar;
+        let crosses = cells.iter().filter(same_run).any(|c| c.granted)
+            && cells.iter().filter(same_run).any(|c| !c.granted);
+        if !crosses {
+            continue;
+        }
+        crossing_runs += 1;
+        for c in cells.iter().filter(same_run) {
             let ctx = format!(
                 "world={} bar={} w={} (reference {reference} at w={widest_swept})",
                 c.world, c.bar, c.logical_width
@@ -301,10 +310,11 @@ fn assert_budget_returns_to_the_names(cells: &[Cell]) {
         }
     }
     assert!(
-        returned > 0 && paid > 0,
-        "the budget relation graded {returned} yielded cells and found {paid} \
+        crossing_runs > 0 && returned > 0 && paid > 0,
+        "the budget relation graded {crossing_runs} same-world/menu runs, {returned} \
+         yielded cells and found {paid} \
          granted cells whose names had actually paid for the column. Zero of \
-         either makes the relation vacuous: with no yielded cell there is nothing \
+         any population makes the relation vacuous: with no yielded cell there is nothing \
          to return a budget to, and with no elided granted cell the names never \
          pay and the claim is trivially true."
     );
