@@ -63,9 +63,8 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
         y > p.metrics.line_height,
         "the panel hangs below the word's row: y={y}"
     );
-    // It rides the FLOAT primitive (border + card, no drop shadow — dark-depth
-    // Option C, 2026-07-22: the shadow quad is retired outright, on every
-    // world), and the flat centered card + the amber query caret are BOTH parked.
+    // It rides the FLOAT primitive (border + card, no drop shadow), and the flat
+    // centered card + the amber query caret are BOTH parked.
     assert_eq!(
         p.float_card.instance_count(),
         1,
@@ -93,10 +92,10 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
 
     // CONTRAST: a takeover overlay (no spell target) is a WIDE card on the flat
     // panel card — NOT the float primitive, and NOT the small word-anchored popup.
-    // COMPOSITION-C2 made the DEFAULT anchor TOP-CENTER, so the takeover card
-    // re-centres under the top third (via the ONE owner `overlay_card_x`) — force
-    // it here so the assertion is deterministic regardless of the active world —
-    // still plainly distinct from the spell popup's word-anchored `text_left`.
+    // The DEFAULT anchor is TOP-CENTER, so the takeover card re-centres under the
+    // top third via the ONE owner `overlay_card_x`. Force it here so the assertion
+    // is deterministic regardless of the active world and remains distinct from
+    // the spell popup's word-anchored `text_left`.
     set_card_anchor_test_override(Some(theme::CardAnchor::TopCenter));
     let mut c = view("teh quick brown fox\n", 0, 0);
     c.overlay_active = true;
@@ -993,14 +992,11 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
     theme::set_active(ambient);
 }
 
-/// WEB/LINUX MENU BAR YIELD, the SWEEP's own two remaining stragglers: the centered
-/// command-palette/picker card ([`TextPipeline::overlay_geometry`]) and the faceted
-/// theme/caret picker card ([`TextPipeline::theme_overlay_geometry`]) both used a
-/// bare `margin + 40.0` top — unlike the outline / search panel / debug panel, they
-/// did NOT yield to a shown bar, so a shown bar (drawn LAST, `draw_chrome_tail`)
-/// painted straight over a palette's own top rows. Both now fold in the SAME
-/// [`TextPipeline::menubar_reserve`] accessor; bar OFF stays the exact pre-existing
-/// `margin + 40.0` (byte-identical).
+/// The centered command-palette card ([`TextPipeline::overlay_geometry`]) and
+/// faceted theme/caret card ([`TextPipeline::theme_overlay_geometry`]) both yield
+/// to a shown menu bar. Because the bar draws LAST (`draw_chrome_tail`), omitting
+/// the reserve paints over the palette's top rows. Both cards use the SAME
+/// [`TextPipeline::menubar_reserve`] accessor; bar OFF stays `margin + 40.0`.
 #[test]
 fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
     let _g = crate::testlock::serial();
@@ -1181,13 +1177,10 @@ fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
     );
 }
 
-/// THE INPUT-GAP LAW (overlay/chrome polish round, pasted-8): the calm divider
-/// between the query INPUT line and the first RESULT row must read as MORE
-/// than a bare row of space — a full row (`OVERLAY_QUERY_BEAT == 1.0`) still
-/// shipped as "too tight" on a fresh report, so the shipped ratio widened past
-/// `1.0`. Locks the OUTCOME (`header_gap > lh`), not the exact dial value, so
-/// a future taste tweak can move the number without un-writing this law —
-/// only a regression back to "one row or less" fails it. Swept over BOTH
+/// The calm divider between the query INPUT line and the first RESULT row must
+/// read as MORE than a bare row of space. One row (`OVERLAY_QUERY_BEAT == 1.0`)
+/// was calibrated as too tight, so this locks the OUTCOME (`header_gap > lh`),
+/// not the exact dial value. Swept over BOTH
 /// picker families (flat: `header_rows == 1`, no strip; faceted: the Cmd-P
 /// palette's own lens-strip layout) through the ONE shared owner
 /// `overlay_header_gap`, so neither family can silently starve the beat the
@@ -1430,12 +1423,10 @@ fn overlay_right_column_yields_before_names_elide() {
     );
 }
 
-/// REGRESSION (the faceted-palette invisible-chord bug): once the Cmd-P command
-/// palette grew a lens strip it routed through the FACETED shaper, which never
-/// built the right column — so every command's key chord rendered as BLANK
-/// pixels, even though the sidecar `overlay.bindings` still carried it correctly
-/// (`⌘S`, `⌘Z`, …). Per the Wagtail-invisible-row lesson, the sidecar CANNOT
-/// catch this class (it was green throughout), so this asserts over the SHAPED
+/// The FACETED shaper must build the Cmd-P command palette's right column, or
+/// every key chord renders as BLANK pixels while the sidecar still carries it
+/// correctly (`⌘S`, `⌘Z`, …). The sidecar CANNOT catch this class, so this asserts
+/// over the SHAPED
 /// bind buffer directly: a faceted picker with bindings shapes its chord column,
 /// aligned so each chord sits on ITS command's row (the alignment crux — faceted
 /// `header_rows == 2`, plus section headers get no chord); the literal Theme
@@ -1623,10 +1614,9 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
     }
 }
 
-/// RESPONSIVE CARD (composition round items 3 + 7): at a wide canvas the flat
-/// card holds the tightened cap [`chrome::CARD_MAX_W.px(1.0, 1.0)`] (narrower than the old
-/// sprawling 600); as the window narrows past the point the cap can seat with
-/// floor pads, the card RE-CENTERS and fills the window minus a floor pad each
+/// At a wide canvas the flat card holds the cap
+/// [`chrome::CARD_MAX_W.px(1.0, 1.0)`]; as the window narrows past the point it
+/// can seat with floor pads, the card RE-CENTERS and fills the window minus a floor pad each
 /// side (`window − 2·floor`), mirroring the responsive page column.
 #[test]
 fn overlay_card_spans_nearly_the_full_narrow_window() {
@@ -1637,8 +1627,7 @@ fn overlay_card_spans_nearly_the_full_narrow_window() {
     };
     let floor = chrome::CARD_EDGE_INSET_FLOOR.px(1.0);
     // Pin the anchor TOP-LEFT so this width-response test reads the edge inset
-    // deterministically (C2 made the world-DEFAULT anchor TopCenter; this test is
-    // about width regimes, not the per-world anchor).
+    // deterministically; this test is about width regimes, not the per-world anchor.
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
@@ -1859,16 +1848,16 @@ fn workspace_back_glyph_is_awlmarks_in_every_world() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE MENU-BAR SLIVER FIX — REAL-PIXEL proof (mirrors `render::tests::dither`'s
+// MENU-BAR SLIVER REAL-PIXEL proof (mirrors `render::tests::dither`'s
 // offscreen-texture readback dance in miniature; that helper is private inside its
 // own module, so this is the same small, deliberate cross-module duplication the
 // codebase already accepts elsewhere — e.g. `srgba_u8_to_linear` between
 // `selection.rs`/`background.rs`). `menubar::bleed_to_canvas_edges` is proven pure
 // in `menubar.rs`'s own unit tests; this proves the REAL GPU quad it feeds renders
 // row y=0 as the bar's own ground across the whole canvas width, never a blend with
-// whatever the frame drew underneath — the exact bug a live `--menu-bar` capture
-// exhibited before the fix (row 0 measured the bar color blended at ~84% opacity
-// over the pre-existing content, on EVERY theme this was checked against).
+// whatever the frame drew underneath. A live `--menu-bar` capture measured the
+// defective row as the bar color blended at ~84% opacity over the content on every
+// sampled theme.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MENUBAR_TEST_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -2266,13 +2255,11 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
     }
 }
 
-/// C2 FOOTER-DRIFT LAW (supersedes the old flat-only hint-lip check) — the foot
-/// hint reads as the card's bottom EDGE, not a floating orphan: it rides a
+/// The foot hint reads as the card's bottom EDGE, not a floating orphan: it rides a
 /// SHORTER line ([`TextPipeline::overlay_hint_h`]), and the card's bottom gap
 /// below THAT compact strip is ONE comfortable breathing pad — IDENTICAL
-/// across every picker kind. Before C2 the theme / faceted shaper drew the
-/// hint at FULL row height (a fat lip) while the flat shaper drew it compact
-/// (too tight): the fix routes BOTH card-height owners through
+/// across every picker kind. A full-height faceted hint makes a fat lip while a
+/// tighter flat hint drifts; BOTH card-height owners therefore route through
 /// [`TextPipeline::overlay_footer_reclaim`] and BOTH shapers through the one
 /// hint-spans owner. Here the FLAT and the FACETED/THEME geometry owners are
 /// driven with the same hint and their below-hint gaps must be EQUAL (the
@@ -2550,15 +2537,12 @@ fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-// ===== CHROME GEOMETRY ONE-OWNER SWEEP (2026-07-18) =====================
+// ===== CHROME GEOMETRY ONE-OWNER LAWS ==================================
 //
-// The architecture pass found chrome geometry re-growing the exact duplication
-// class the module was reorganized to kill: `card_h` computed in three places
-// (one already diverged), the theme-strip Y band computed 3×, the right-column
-// label precedence copied 2×, and the symbol-split span-push loop hand-rolled at
-// 5 sites. The sweep merged each into ONE owner (`overlay_card_h`,
-// `overlay_strip_band`, `overlay_right_labels`, and `spans::push_symbol_split`);
-// these laws are the no-wildcard cap so copy #2 fails a test instead of shipping.
+// These laws keep one owner for card height, theme-strip Y, right-column label
+// precedence, and symbol-split spans: `overlay_card_h`, `overlay_strip_band`,
+// `overlay_right_labels`, and `spans::push_symbol_split`. The no-wildcard sweeps
+// make a duplicate or divergent derivation fail a test.
 //
 // The lens-strip Y band is deliberately NOT in the list below: it is gone from
 // `render/chrome` entirely, so "exactly one site here" is the wrong claim — the
@@ -2606,10 +2590,8 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
     }
 }
 
-/// CARD-HEIGHT ONE-OWNER LAW (behavioral). Every picker's `card_h` now comes from
-/// [`TextPipeline::overlay_card_h`]; before the sweep the flat, faceted, and spell
-/// geometries each spelled the formula out (the faceted copy had already diverged
-/// once — the C2 footer drift). Here the flat takeover card, the Spell
+/// CARD-HEIGHT ONE-OWNER LAW (behavioral). Every picker's `card_h` comes from
+/// [`TextPipeline::overlay_card_h`]. The flat takeover card, the Spell
 /// contextual popup, and the pointer-anchored Context menu are DRIVEN, their real
 /// `card_h` read back from the card rect, and independently reproduced by feeding
 /// the owner the same `(total_rows, header_gap, hint_rows, gap_rows, pad)` — with

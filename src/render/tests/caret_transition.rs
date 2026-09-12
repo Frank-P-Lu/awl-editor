@@ -1,14 +1,10 @@
 //! THE CARET CELL TRANSITION LAWS — every seam this file was built to bound is
 //! now EXACTLY ZERO, because a proportional row has one caret cell and no seam.
 //!
-//! THE HISTORY IS LOAD-BEARING, since these fixtures were each written against
-//! a different rule. The caret's cell height was once a fixed fraction of the
-//! ROW; then the anchored GLYPH'S own raster ink box (which fixed the row
-//! fraction's 8–9px of dead accent above an `a` and introduced a top that moves
-//! with every letter typed); then a two-arm shape where a glyphless column
-//! BORROWED a neighbouring letter's ink so the two arms would agree at the
-//! seam. That whole apparatus existed to make per-glyph heights CONTINUOUS.
-//! The user's taste call retired the per-glyph height itself: every
+//! The prior per-glyph model matters to these fixtures' non-vacuity: a fixed
+//! ROW fraction left 8–9px of dead accent above an `a`; raster ink boxes made
+//! the top move with every letter; neighbour borrowing only joined the two arms
+//! at a seam. Every
 //! proportional anchor now takes the row's own TYPICAL-LETTER box
 //! (`facepitch::typical_letter_ratio` × the row's real `max_ascent`, padded),
 //! so continuity is not achieved, it is structural.
@@ -66,12 +62,12 @@ fn pixel_scale(p: &TextPipeline) -> f32 {
 const TRANSITION_BOUND_PX: f32 = 3.0;
 
 /// THE WIDE AUTHORED BOUND: an ABSOLUTE sanity ceiling for a REAL-ink-to-REAL-
-/// ink transition the repair round's neighbor-borrow does not collapse to
+/// ink transition that neighbor-borrow does not collapse to
 /// literal adjacency on its own — a LIGATURE cluster next to a plain glyph
 /// (both read straight off [`TextPipeline::caret_anchor_raster_box`], never
 /// the synthetic path at all) or the wrap-boundary sibling. Deliberately
-/// ABSOLUTE, not "no worse than the pre-105 formula": the repair round found
-/// that framing was the WRONG invariant here — pre-105's number was a crude
+/// ABSOLUTE, not "no worse than the pre-105 formula": that framing is the WRONG
+/// invariant here — pre-105's number was a crude
 /// row-centred guess, post-105's is the glyph's OWN real ink (a genuine
 /// deliberate improvement), so the two can legitimately differ
 /// by any natural amount without either being a regression; a "no worse than
@@ -305,18 +301,17 @@ fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
 /// roster, at the LITERAL adjacent seam: ascender, x-height, descender,
 /// punctuation, digit, and CAPITAL — each as the very last character before
 /// end-of-line, immediately followed by it, the exact shape the headline
-/// `aaa` fixture uses for `a`. This is the axis the first repair did
-/// not sweep: CAPITAL was entirely absent from its class roster, and on that
-/// exact absence the first landing regressed 11/11 proportional worlds
+/// `aaa` fixture uses for `a`. CAPITAL must be in the class roster: without it,
+/// all 11 proportional worlds regressed
 /// against pre-105 (new Δ 2.3–4.4px vs old Δ 0.4–2.9px) without any test
 /// noticing — see this file's module doc.
 ///
-/// EVERY class now gets the TIGHT bound, not just x-height: the repair
-/// round's neighbor-borrow (`caret_cell_vertical`'s fallback arm) makes a
+/// EVERY class gets the TIGHT bound, not just x-height: neighbor-borrow
+/// (`caret_cell_vertical`'s fallback arm) makes a
 /// literal adjacent transition BORROW the real letter's own ink rather than
 /// approximate it, so the residual is not merely bounded, it is (up to float
 /// rounding) exactly zero for every class this sweeps — a strictly stronger
-/// claim than the first landing's per-class "close enough" bound, proven
+/// claim than a per-class "close enough" bound, proven
 /// per-fixture non-vacuous against the pre-105 code below.
 #[test]
 fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
@@ -614,8 +609,7 @@ fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// A RUN OF 2+ CONSECUTIVE GLYPHLESS COLUMNS — the SECOND repair round (found
-/// auditing the first one). The first round's neighbor-borrow was a SINGLE
+/// A RUN OF 2+ CONSECUTIVE GLYPHLESS COLUMNS. A SINGLE-hop neighbor-borrow
 /// backward hop: the second glyphless column in any run has a `col - 1` that
 /// is ITSELF glyphless, so the hop fails and that column falls straight to
 /// the synthetic guess — jumping against its own immediate neighbor, which
@@ -624,10 +618,10 @@ fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
 /// trailing spaces, or an ordinary mid-paragraph double space, reproduce this
 /// directly. Every adjacent pair across the run — 'A'->space1,
 /// space1->space2, space2->EOL — must stay bounded; and since the second
-/// round's fix searches OUTWARD rather than stopping at one hop, space1,
+/// the search runs OUTWARD rather than stopping at one hop, so space1,
 /// space2, and EOL all resolve to the exact SAME borrowed 'A' ink, so they
 /// read identically to each other (near-zero, not merely bounded) — proof
-/// the fix reaches ACROSS the whole run instead of degrading one column in.
+/// it reaches ACROSS the whole run instead of degrading one column in.
 #[test]
 fn run_of_glyphless_columns_stays_bounded_end_to_end() {
     let _t = crate::testlock::serial();
@@ -1320,8 +1314,8 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE THEME-PREVIEW SEAM ON REAL TEXT (found auditing the repair round's own
-/// first fix to [`TextPipeline::caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font`]).
+/// THE THEME-PREVIEW SEAM ON REAL TEXT complements
+/// [`TextPipeline::caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font`].
 /// That law's ONLY fixture is an EMPTY buffer, where `caret_row_metrics`'s
 /// ascent approximation is `self.metrics.font_size * 0.8` — theme-INDEPENDENT
 /// by construction (`Metrics::with_dpi` never reads the active theme) — so
@@ -1335,7 +1329,7 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 /// worst case 5.19px at (Tawny → Bilby), the SAME magnitude as the original
 /// transition bug this whole file exists to close.
 ///
-/// THE FIX: `caret_synthetic_ink_box`'s ratio now reads `caret_row_metrics`'s
+/// `caret_synthetic_ink_box`'s ratio reads `caret_row_metrics`'s
 /// own THIRD element — whichever font actually produced the ascent it is
 /// paired with — never an independently-chosen font. This does NOT (and
 /// cannot, without paying for the very reshape the debounce exists to defer)
@@ -1491,8 +1485,7 @@ fn assert_glyph_to_glyph_is_one_cell(p: &mut TextPipeline, prop: &[&'static str]
     (glyph_to_glyph, ink_spread)
 }
 
-/// THE WHOLE-ROW SWEEP, over the fixtures three separate repair rounds each
-/// needed: a glyphless column tied between two DIFFERENT letters (a table's
+/// THE WHOLE-ROW SWEEP covers a glyphless column tied between two DIFFERENT letters (a table's
 /// `"| 1"` — pipe one side, digit the other), a run of consecutive spaces, a
 /// leading space at column 0, a trailing space, an empty line, and the
 /// headline `aaa`->EOL. Under the borrowed-ink shape each of these was its own
@@ -1500,9 +1493,8 @@ fn assert_glyph_to_glyph_is_one_cell(p: &mut TextPipeline, prop: &[&'static str]
 /// are one claim, and the fixtures are kept because a future second rule would
 /// have to break one of them to get in.
 ///
-/// THE REFERENCE THIS ONCE MEASURED — the empirical GLYPH-TO-GLYPH cell delta
-/// between different letter classes, "the transitions the product already ships
-/// with nobody calling them a bug", once a 14.0px bar — is now itself required
+/// The empirical GLYPH-TO-GLYPH cell delta between different letter classes,
+/// formerly a 14.0px comparison bar, is now itself required
 /// to be ZERO, and the measurement it was derived from (the per-glyph raster
 /// INK spread, still 5px+) becomes this law's non-vacuity oracle instead. That
 /// inversion is the reversal in one line: the variation the product used to
@@ -2084,13 +2076,9 @@ fn assert_mono_glyphless_spaces(
     }
 }
 
-/// THE ALL-BLANK WRAPPED ROW (adjudicated 2026-07-26). Two independent audit
-/// passes each measured the ABSOLUTE caret position stepping across a run of
-/// spaces long enough to fill an entire wrapped visual row by itself —
-/// flanked above and below by real-ink rows of the SAME logical line — and
-/// reported a ~30px jump as a HIGH-severity defect. It is not one: this law
-/// is the standing, non-vacuous refutation, so this exact shape cannot be
-/// re-reported a fifth time without checking here first.
+/// THE ALL-BLANK WRAPPED ROW. An ABSOLUTE caret-position measurement across a
+/// run of spaces filling a wrapped visual row reports a ~30px jump. It is row
+/// pitch, not a defect; this law is the non-vacuous refutation.
 ///
 /// THE MECHANISM (real, and BY DESIGN, not a bug). `nearest_row_raster_box`
 /// is deliberately bounded to the caret's OWN visual row — an explicit
