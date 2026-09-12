@@ -309,6 +309,16 @@ impl WorkspaceState {
         }
     }
 
+    /// Focus one named Settings recipient through the shared lifecycle owner.
+    /// Pointer and accessibility requests do not pass through the key/action
+    /// seam, so this is their narrow mutation door.
+    pub(in crate::app) fn focus_settings(
+        &mut self,
+        focus: crate::overlay::workspace::SettingsFocus,
+    ) {
+        self.journey.focus_settings(focus);
+    }
+
     /// Close the find/replace panel. Called on every buffer swap (opening a
     /// file, starting a fresh document) — a panel's matches are indices into
     /// the buffer it was opened against, so it can never survive the swap.

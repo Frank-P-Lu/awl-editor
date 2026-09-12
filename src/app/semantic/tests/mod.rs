@@ -693,6 +693,27 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
         .unwrap();
     assert!(!selected_row.focused, "selection is not rail focus");
 
+    let query_id = "overlay.settings.query".to_string();
+    assert!(settings.apply_semantic_request(SemanticRequest::Focus {
+        id: query_id.clone(),
+    }));
+    let search = settings.semantic_snapshot();
+    one_focus(&search);
+    assert_eq!(search.focus_id, query_id);
+    assert_eq!(
+        settings.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Search)
+    );
+    assert!(settings.apply_semantic_request(SemanticRequest::SetValue {
+        id: query_id,
+        value: "a".to_string(),
+    }));
+    assert_eq!(
+        settings.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Search),
+        "setting the query keeps Search as the one semantic focus owner"
+    );
+
     assert!(settings.apply_semantic_request(SemanticRequest::Click { id: rail0 }));
     let detail = settings.semantic_snapshot();
     one_focus(&detail);
@@ -704,6 +725,10 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
     assert_eq!(detail.focus_id, detail_row.id);
     assert_eq!(detail_row.role, SemanticRole::Button);
     assert!(settings.workspace_state.overlay().unwrap().detail_focus);
+    assert_eq!(
+        settings.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Controls)
+    );
 
     let rail1 = "overlay.settings.rail.1".to_string();
     assert!(settings.apply_semantic_request(SemanticRequest::Focus { id: rail1.clone() }));
@@ -711,6 +736,10 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
     one_focus(&returned);
     assert_eq!(returned.focus_id, rail1);
     assert!(!settings.workspace_state.overlay().unwrap().detail_focus);
+    assert_eq!(
+        settings.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Categories)
+    );
 
     let mut history = hermetic();
     let mut card = OverlayState::new_history(

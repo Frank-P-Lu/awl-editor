@@ -63,9 +63,12 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          ones the current row plan actually shaped. The bordered chrome
 ///          round added real click targets the old single `case_toggle`
 ///          span could not name.
+/// `/215` — `overlay.settings_focus`: the exact Settings keyboard recipient
+///          (`categories`, `search`, or `controls`), distinct inside the
+///          existing coarse `detail_focus` lifecycle stage.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 212;
+pub const SCHEMA_VERSION: u32 = 215;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

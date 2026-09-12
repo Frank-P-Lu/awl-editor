@@ -91,6 +91,7 @@ fn every_path_bearing_sidecar_field_is_home_relative() {
         mode: "switch",
         files_location: None,
         files_query_focused: false,
+        settings_focus: None,
         browse_dir: Some(browse_dir.to_string_lossy().to_string()),
         ..blank_overlay()
     };
@@ -217,6 +218,7 @@ fn blank_overlay() -> OverlayInfo {
         hint: String::new(),
         files_location: None,
         files_query_focused: false,
+        settings_focus: None,
         browse_dir: None,
         spell_target: None,
         table_dims: None,

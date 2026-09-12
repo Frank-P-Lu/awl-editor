@@ -513,6 +513,7 @@ impl TextPipeline {
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_field: true,
+            overlay_query_focused: true,
             overlay_query_selection: None,
             overlay_query_placeholder: None,
             overlay_title: String::new(),

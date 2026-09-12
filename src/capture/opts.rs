@@ -135,6 +135,9 @@ pub struct OverlayInfo {
     /// kept beside the full location so a settled capture cannot revive the
     /// query caret while a file choice or header/footer control owns focus.
     pub files_query_focused: bool,
+    /// Settings only: the exact keyboard recipient (`categories`, `search`, or
+    /// `controls`). Emitted as `overlay.settings_focus`; `None` elsewhere.
+    pub settings_focus: Option<&'static str>,
     /// Browse only: the root-relative directory the current level lists (`None` =
     /// the root). Surfaced so a `--keys` descend/ascend is verifiable; emitted as
     /// JSON null for the goto/switch modes.
@@ -207,9 +210,8 @@ pub struct OverlayInfo {
     pub workspace: bool,
     /// Does the summoned surface's DETAIL stage hold the keyboard? For History's
     /// diff-as-preview that is the diff panel (↑/↓ scroll it; its border
-    /// strengthens); for Settings it is the content pane
-    /// beside the rail. One fact, one field: emitted as `overlay.detail_focus`,
-    /// and false for every card with no second region.
+    /// strengthens). Settings' exact recipient is `settings_focus`; this stays
+    /// its coarse categories-versus-detail lifecycle projection.
     pub detail_focus: bool,
     /// DIFF-AS-PREVIEW (History only): the diff panel's scroll in VISUAL ROWS
     /// (PgUp/PgDn / panel ↑/↓ / the wheel over the page). Emitted as

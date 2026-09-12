@@ -1,21 +1,32 @@
 //! Accessibility projection for Files' focusable regions.
 
 use super::*;
-use crate::overlay::{FilesFocus, OverlayState};
+use crate::overlay::{FilesFocus, OverlayState, workspace::SettingsFocus};
 
-pub(super) fn query_focused(overlay: &OverlayState) -> bool {
+pub(super) fn query_focused(overlay: &OverlayState, settings_focus: Option<SettingsFocus>) -> bool {
+    if let Some(focus) = settings_focus {
+        return focus == SettingsFocus::Search;
+    }
     if contextual_text_field_owns_focus(overlay) {
         return true;
     }
     overlay.files_mode && overlay.files_focus == FilesFocus::Query
 }
 
-pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize) -> bool {
+pub(super) fn row_focused(
+    overlay: &OverlayState,
+    corpus: usize,
+    visible: usize,
+    settings_focus: Option<SettingsFocus>,
+) -> bool {
     if visible != overlay.selected {
         return false;
     }
     if contextual_text_field_owns_focus(overlay) {
         return false;
+    }
+    if let Some(focus) = settings_focus {
+        return focus == SettingsFocus::Controls;
     }
     if let Some(shape) = overlay.workspace_shape() {
         let rows_focused = overlay.detail_focus != shape.rows_are_primary();
@@ -32,6 +43,7 @@ pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize)
 /// selected without continuing to tell assistive technology it owns focus.
 pub(super) fn append_workspace_rail(
     overlay: &OverlayState,
+    settings_focus: Option<SettingsFocus>,
     dialog_id: &str,
     dialog: &mut SemanticNode,
     nodes: &mut Vec<SemanticNode>,
@@ -49,7 +61,10 @@ pub(super) fn append_workspace_rail(
         let mut item = SemanticNode::new(&id, SemanticRole::Option, label);
         item.focusable = true;
         item.selected = Some(active);
-        item.focused = active && !overlay.detail_focus;
+        item.focused = active
+            && settings_focus
+                .map(|focus| focus == SettingsFocus::Categories)
+                .unwrap_or(!overlay.detail_focus);
         item.actions = vec![SemanticAction::Focus, SemanticAction::Click];
         rail.children.push(id);
         nodes.push(item);
@@ -124,11 +139,22 @@ pub(super) fn append_controls(
     }
 }
 
-pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String) -> String {
+pub(super) fn focus_id(
+    overlay: &OverlayState,
+    dialog_id: &str,
+    query_id: String,
+    settings_focus: Option<SettingsFocus>,
+) -> String {
     if contextual_text_field_owns_focus(overlay) {
         return query_id;
     }
-    if overlay.files_mode {
+    if let Some(focus) = settings_focus {
+        match focus {
+            SettingsFocus::Categories => workspace_rail_row_id(dialog_id, overlay.facet_lens),
+            SettingsFocus::Search => query_id,
+            SettingsFocus::Controls => selected_row_id(overlay, dialog_id).unwrap_or(query_id),
+        }
+    } else if overlay.files_mode {
         match overlay.files_focus {
             FilesFocus::Query => query_id,
             FilesFocus::Files => format!("{dialog_id}.files"),

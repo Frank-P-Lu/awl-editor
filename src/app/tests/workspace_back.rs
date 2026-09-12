@@ -1,33 +1,9 @@
-//! **THE WORKSPACE'S BACK IS A KEY OF ITS OWN, AND `TAB` IS NOT TAUGHT AS ONE.**
+//! Real-key coverage for Settings' three named focus recipients.
 //!
-//! # The report this file answers
-//!
-//! `Tab` returning from the Settings content pane to its category rail is
-//! strange, and it is *most* strange below `workspace_is_wide`, where the layout
-//! stages: the rail you are "returning focus to" is not merely unfocused there,
-//! it is off screen. `Tab` is a FOCUS key. A focus key reads as a Back only while
-//! both regions are visible at once, and half of a workspace's reachable widths
-//! do not show both.
-//!
-//! # What could not be changed, and why
-//!
-//! `Esc` is the obvious Back and it is spoken for. The user settled it once for
-//! BOTH workspace members on 2026-08-02: ONE ESC ALWAYS LEAVES, from either
-//! region, so that Esc cannot mean two different things depending on where focus
-//! sits. That decision stands untouched here — `actions::tests::workspace_esc`
-//! is its law and still passes — and this file is deliberately the *other* half
-//! of the bill it left: with Esc leaving, the Back has to be named, and the key
-//! it names has to be one whose ordinary meaning survives the staged layout.
-//!
-//! # What the Back is
-//!
-//! `⌫`, under exactly the rule awl's folder navigators already teach as `⌫ up`:
-//! it belongs to the search field until the field is empty, and it goes up a
-//! level the moment it is. `crate::overlay::workspace::BackKey` is the one owner
-//! of that answer; the footer and the action seam both read it, so what is
-//! advertised and what acts cannot come apart. `Tab`/`Shift-Tab` still cross —
-//! nothing about the action model or the wide layout changed — they are simply
-//! no longer the sentence the footer teaches.
+//! The shared action laws own the pure route. These tests drive the live App
+//! door and prove the same route and teaching survive keymap dispatch: Tab and
+//! Shift-Tab visit Categories, Search, and Controls; typing hands attention to
+//! Search; erasing never performs a hidden region transition; Esc closes.
 //!
 //! # Why THIS tier
 //!
@@ -46,7 +22,6 @@
 //! transition.
 
 use super::*;
-use crate::overlay::workspace::BackKey;
 use crate::overlay::{OverlayKind, OverlayState};
 use std::sync::Arc;
 
@@ -114,16 +89,6 @@ fn in_the_content_pane() -> App {
     app
 }
 
-/// Every real chord spec that reaches one [`BackKey`]. Two per key, because the
-/// keyboard offers two of each, and a footer cell true for only the one an
-/// author happened to try is a footer cell that is false for a user.
-fn chords_for(back: BackKey) -> [&'static str; 2] {
-    match back {
-        BackKey::Erase => ["Backspace", "M-Backspace"],
-        BackKey::Focus => ["Tab", "S-Tab"],
-    }
-}
-
 /// Does `hint` carry a cell reading exactly `glyph label`?
 fn advertises(hint: &str, glyph: &str, label: &str) -> bool {
     hint.split(crate::overlay::HINT_SEP)
@@ -138,45 +103,39 @@ fn advertises(hint: &str, glyph: &str, label: &str) -> bool {
 /// that key are driven, and the workspace has to survive all of it — a Back that
 /// closed the surface would be an exit, not a Back.
 #[test]
-fn the_advertised_back_key_walks_from_the_settings_content_pane_to_its_rail() {
+fn the_advertised_route_walks_from_controls_to_categories_and_search() {
     let mem = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(mem));
     let _g = crate::testlock::serial();
 
-    let app = in_the_content_pane();
-    let stood = card(&app, "in the content pane");
-    let back = stood
-        .detail_back()
-        .expect("the content pane must have SOME Back — Esc leaves, it does not come back");
+    use crate::overlay::workspace::SettingsFocus;
+    let mut app = in_the_content_pane();
     assert_eq!(
-        back,
-        BackKey::Erase,
-        "with an empty query the erase key is free, so ⌫ is the Back a user is taught. \
-         The focus key is the fallback for a live query, not the default."
+        app.workspace_state.journey().settings_focus(),
+        Some(SettingsFocus::Controls)
     );
-    let hint = stood.foot_hint();
-    assert!(
-        advertises(&hint, back.glyph(), "back"),
-        "the content pane must NAME its Back — awl's footer is its only statement of what a \
-         key does, and there is no accessibility tree behind it. got {hint:?}"
-    );
+    let hint = app.workspace_state.journey().foot_hint();
+    assert!(advertises(&hint, "tab", "categories"), "{hint:?}");
+    assert!(advertises(&hint, "⇧tab", "search"), "{hint:?}");
 
-    for chord in chords_for(back) {
-        let mut app = in_the_content_pane();
-        app.press_spec_headless(chord)
-            .unwrap_or_else(|e| panic!("{chord} parses: {e}"));
-        let after = card(&app, &format!("after {chord}"));
-        assert!(
-            !after.detail_focus,
-            "{chord}: the advertised `{} back` must land on the category rail",
-            back.glyph()
-        );
-        assert_eq!(
-            after.kind,
-            OverlayKind::Settings,
-            "{chord}: a Back comes back — it does not leave the workspace"
-        );
-    }
+    app.press_spec_headless("Tab").expect("Tab parses");
+    assert_eq!(
+        app.workspace_state.journey().settings_focus(),
+        Some(SettingsFocus::Categories),
+        "the forward route wraps from Controls to Categories"
+    );
+    app.press_spec_headless("S-Tab").expect("Shift-Tab parses");
+    assert_eq!(
+        app.workspace_state.journey().settings_focus(),
+        Some(SettingsFocus::Controls),
+        "the reverse route wraps back to Controls"
+    );
+    app.press_spec_headless("S-Tab").expect("Shift-Tab parses");
+    assert_eq!(
+        app.workspace_state.journey().settings_focus(),
+        Some(SettingsFocus::Search),
+        "the reverse route reaches Search"
+    );
 }
 
 /// **THE FORMER SURPRISE, PINNED OUT.** A freshly entered content pane must not
@@ -193,38 +152,25 @@ fn the_advertised_back_key_walks_from_the_settings_content_pane_to_its_rail() {
 /// regression that quietly re-grew the line would be a legibility defect on a
 /// real world rather than a wording one.
 #[test]
-fn the_settings_content_pane_does_not_teach_tab_as_back() {
+fn the_settings_controls_hint_names_every_focus_destination() {
     let mem = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(mem));
     let _g = crate::testlock::serial();
 
     let app = in_the_content_pane();
-    let hint = card(&app, "in the content pane").foot_hint();
+    let hint = app.workspace_state.journey().foot_hint();
     assert!(
-        !advertises(&hint, BackKey::Focus.glyph(), "back"),
-        "the Settings content pane still teaches `{} back`. Below workspace_is_wide the rail \
-         it returns focus to is OFF SCREEN, so a focus key is being taught as a Back for a \
-         region the user cannot see. got {hint:?}",
-        BackKey::Focus.glyph()
+        !hint.contains(" back"),
+        "Settings teaches destinations, not an ambiguous Back: {hint:?}"
     );
     let cells = hint.split(crate::overlay::HINT_SEP).count();
     assert!(
-        cells <= 4,
-        "the rows line grew to {cells} cells ({hint:?}) — a fifth overruns the card on a \
-         narrow Bars world, so the Back is named by REPLACING a cell, never by adding one"
+        cells <= 6,
+        "the controls line grew unexpectedly to {cells} cells: {hint:?}"
     );
-
-    // AND TAB STILL CROSSES. The action model did not change: Tab is the focus
-    // key and on a wide stage it is exactly what a user reaches for. What
-    // changed is only what the footer TEACHES. Asserting this here is what keeps
-    // the law above from being satisfiable by deleting the focus transfer.
-    let mut app = in_the_content_pane();
-    app.press_spec_headless("Tab").expect("Tab parses");
-    assert!(
-        !card(&app, "after Tab").detail_focus,
-        "Tab must still cross between the two regions — the footer stopped naming it, the \
-         keyboard did not stop offering it"
-    );
+    assert!(advertises(&hint, "tab", "categories"), "{hint:?}");
+    assert!(advertises(&hint, "⇧tab", "search"), "{hint:?}");
+    assert!(advertises(&hint, "esc", "close"), "{hint:?}");
 }
 
 /// **THE ERASE KEY IS THE QUERY'S FIRST, AND THE BACK ONLY WHEN THE QUERY IS
@@ -237,7 +183,7 @@ fn the_settings_content_pane_does_not_teach_tab_as_back() {
 /// other thing for exactly as long as that lasts. A static cell would be a lie
 /// for part of every filtered journey.
 #[test]
-fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
+fn typing_and_erasing_stay_in_search_until_focus_is_moved_explicitly() {
     let mem = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(mem));
     let _g = crate::testlock::serial();
@@ -251,15 +197,9 @@ fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
         "the real keys reached the query"
     );
     assert_eq!(
-        typed.detail_back(),
-        Some(BackKey::Focus),
-        "with a live query the erase key belongs to the field, so the focus key is the \
-         honest Back"
-    );
-    assert!(
-        advertises(&typed.foot_hint(), BackKey::Focus.glyph(), "back"),
-        "and the footer says so: {:?}",
-        typed.foot_hint()
+        app.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Search),
+        "typing hands Controls to Search"
     );
 
     // FOUR ERASES DRAIN THE QUERY AND CHANGE NOTHING ELSE — the field's own
@@ -275,25 +215,14 @@ fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
         assert_eq!(now.query.text().chars().count(), 4 - n, "erase {n} of 4");
     }
 
-    // THE FOOTER HANDS THE CELL BACK the instant the field is empty…
-    let drained = card(&app, "with the query drained");
-    assert_eq!(
-        drained.detail_back(),
-        Some(BackKey::Erase),
-        "an empty query releases the erase key"
-    );
-    assert!(
-        advertises(&drained.foot_hint(), BackKey::Erase.glyph(), "back"),
-        "…and the footer hands the cell back with it: {:?}",
-        drained.foot_hint()
-    );
-
-    // …and the NEXT erase goes back, which is the whole grammar in one press.
+    // An extra erase is still a query edit, never an implicit region change.
     app.press_spec_headless("Backspace")
         .expect("Backspace parses");
-    assert!(
-        !card(&app, "after the fifth erase").detail_focus,
-        "the erase after the last character is the Back — the same one press the folder \
-         navigators spend to go up a level"
+    assert_eq!(
+        app.workspace_state.journey().settings_focus(),
+        Some(crate::overlay::workspace::SettingsFocus::Search)
     );
+    assert!(card(&app, "after the fifth erase").query.text().is_empty());
+    let hint = app.workspace_state.journey().foot_hint();
+    assert!(advertises(&hint, "⇧tab", "categories"), "{hint:?}");
 }

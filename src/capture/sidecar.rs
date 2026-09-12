@@ -332,6 +332,10 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .as_ref()
                 .map(|m| json_string(m))
                 .unwrap_or_else(|| "null".into());
+            let settings_focus = o
+                .settings_focus
+                .map(json_string)
+                .unwrap_or_else(|| "null".into());
             format!(
                 concat!(
                     "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, ",
@@ -341,7 +345,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                     "\"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
                     "\"preview_id\": {}, \"preview_view\": {}, ",
-                    "\"detail_focus\": {}, \"diff_scroll\": {}, ",
+                    "\"detail_focus\": {}, \"settings_focus\": {}, \"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
                     "\"asset_preview\": {}, ",
                     "\"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], ",
@@ -366,6 +370,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 preview_id,
                 preview_view,
                 o.detail_focus,
+                settings_focus,
                 o.diff_scroll,
                 o.show_hidden,
                 capture,
@@ -387,7 +392,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 "\"notice\": \"\", ",
                 "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
                 "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
-                "\"detail_focus\": false, ",
+                "\"detail_focus\": false, \"settings_focus\": null, ",
                 "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
                 "\"empty\": null, \"window\": null, \"asset_preview\": {}, \"items\": [], ",
                 "\"bindings\": [], \"ranges\": [], \"git\": [] }}",

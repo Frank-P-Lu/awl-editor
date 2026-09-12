@@ -13,6 +13,7 @@
 
 use super::overlay_drive::command_overlay_with_settings;
 use super::*;
+use crate::overlay::workspace::SettingsFocus;
 use crate::overlay::{Beneath, Event, OverlayKind, State, Surface, landing_of};
 
 fn journey_state(journey: &crate::overlay::Journey) -> State {
@@ -144,8 +145,106 @@ fn typing_on_the_rail_searches_and_moves_into_the_results() {
     assert_eq!(
         surface(&journey),
         Some(Surface::WorkspaceDetail),
-        "and focus followed the results into the content pane"
+        "and focus followed the text into the detail stage"
     );
+    assert_eq!(journey.settings_focus(), Some(SettingsFocus::Search));
+}
+
+/// SETTINGS' THREE FOCUS STOPS form one closed route. This is intentionally an
+/// outcome table: reverting to the old two-state toggle, swapping an edge, or
+/// leaving a phantom Controls stop when the filter has no matches breaks it.
+#[test]
+fn settings_focus_route_is_complete_in_both_directions_and_skips_absent_controls() {
+    let _g = crate::testlock::serial();
+
+    let mut forward = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    for (action, expected) in [
+        (Action::InsertTab, SettingsFocus::Search),
+        (Action::InsertTab, SettingsFocus::Controls),
+        (Action::InsertTab, SettingsFocus::Categories),
+    ] {
+        settings_drive(&mut forward, &action);
+        assert_eq!(forward.settings_focus(), Some(expected));
+    }
+
+    let mut reverse = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    for expected in [
+        SettingsFocus::Controls,
+        SettingsFocus::Search,
+        SettingsFocus::Categories,
+    ] {
+        settings_drive(&mut reverse, &Action::Outdent);
+        assert_eq!(reverse.settings_focus(), Some(expected));
+    }
+
+    let mut empty = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    for c in "zzzz".chars() {
+        settings_drive(&mut empty, &Action::InsertChar(c));
+    }
+    assert!(
+        empty.card().unwrap().items.is_empty(),
+        "the fixture has no match"
+    );
+    assert_eq!(empty.settings_focus(), Some(SettingsFocus::Search));
+    settings_drive(&mut empty, &Action::InsertTab);
+    assert_eq!(empty.settings_focus(), Some(SettingsFocus::Categories));
+    settings_drive(&mut empty, &Action::Outdent);
+    assert_eq!(empty.settings_focus(), Some(SettingsFocus::Search));
+
+    let mut typed_from_controls = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    settings_drive(&mut typed_from_controls, &Action::ForwardChar);
+    assert_eq!(
+        typed_from_controls.settings_focus(),
+        Some(SettingsFocus::Controls)
+    );
+    settings_drive(&mut typed_from_controls, &Action::InsertChar('z'));
+    assert_eq!(
+        typed_from_controls.settings_focus(),
+        Some(SettingsFocus::Search)
+    );
+    assert_eq!(typed_from_controls.card().unwrap().query.text(), "z");
+
+    settings_drive(&mut typed_from_controls, &Action::SelectAll);
+    let selected = typed_from_controls.card().unwrap();
+    assert_eq!(
+        typed_from_controls.settings_focus(),
+        Some(SettingsFocus::Search)
+    );
+    assert_eq!(
+        selected.query.selection_range(),
+        Some((0, 1)),
+        "Select All belongs to the Settings query even when Controls owned focus"
+    );
+    settings_drive(&mut typed_from_controls, &Action::ForwardChar);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 1);
+    assert_eq!(
+        typed_from_controls.card().unwrap().query.selection_range(),
+        None,
+        "a query motion collapses its own selection instead of reaching the document"
+    );
+    settings_drive(&mut typed_from_controls, &Action::LineStart);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 0);
+    settings_drive(&mut typed_from_controls, &Action::LineEnd);
+    assert_eq!(typed_from_controls.card().unwrap().query.caret(), 1);
+}
+
+/// Settings' fine focus recipient never changes the workspace-level close:
+/// one Esc from every ordinary stop restores the editor immediately. Inline
+/// value edit is intentionally separate; its first Esc cancels that edit.
+#[test]
+fn one_esc_restores_the_editor_from_every_settings_focus() {
+    let _g = crate::testlock::serial();
+    for focus in [
+        SettingsFocus::Categories,
+        SettingsFocus::Search,
+        SettingsFocus::Controls,
+    ] {
+        let mut journey = crate::overlay::Journey::seeded(Some(settings_overlay()));
+        assert!(journey.focus_settings(focus));
+        settings_drive(&mut journey, &Action::Cancel);
+        assert_eq!(journey.state(), State::Editor, "{focus:?}");
+        assert!(journey.card().is_none(), "{focus:?}: card closed");
+    }
 }
 
 /// THE RAIL IS THE ONE CATEGORY STATE, AND ONLY THE RAIL STEPS IT.
@@ -192,6 +291,9 @@ fn the_rail_is_the_one_category_state_and_only_the_rail_steps_it() {
     // In the CONTENT pane the horizontal keys are the seam's, not the strip's:
     // `→` has nothing to its right and `←` comes back.
     settings_drive(&mut journey, &Action::InsertTab);
+    assert_eq!(journey.settings_focus(), Some(SettingsFocus::Search));
+    settings_drive(&mut journey, &Action::InsertTab);
+    assert_eq!(journey.settings_focus(), Some(SettingsFocus::Controls));
     assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
     settings_drive(&mut journey, &Action::ForwardChar);
     assert_eq!(
@@ -265,6 +367,7 @@ fn a_palette_settings_row_deep_links_into_the_workspace_at_its_own_row() {
         card.detail_focus,
         "and focus on the content pane, where the row is"
     );
+    assert_eq!(journey.settings_focus(), Some(SettingsFocus::Controls));
     assert!(
         card.selected_range().is_some(),
         "the row now carries the rail control the palette could not show"
@@ -303,6 +406,8 @@ fn a_workspace_audition_commits_or_reverts_and_returns_to_its_exact_row() {
             assert_eq!(card.selected_value(), Some(row_name));
             let before_value = card.item_bindings()[card.selected].clone();
 
+            settings_drive(&mut journey, &Action::InsertTab);
+            assert_eq!(journey.settings_focus(), Some(SettingsFocus::Controls));
             settings_drive(&mut journey, &Action::Newline);
             assert_eq!(
                 journey.card().unwrap().kind,
@@ -346,6 +451,11 @@ fn a_workspace_audition_commits_or_reverts_and_returns_to_its_exact_row() {
             assert!(
                 back.detail_focus,
                 "{row_name}: and in the content pane, where that row lives"
+            );
+            assert_eq!(
+                journey.settings_focus(),
+                Some(SettingsFocus::Controls),
+                "{row_name}: and on the exact control recipient"
             );
             // COMMIT/REVERT PARITY, read from the live owner the row's own cell
             // reads — the audition either stuck or it did not.

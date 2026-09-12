@@ -101,6 +101,14 @@ impl App {
         if let Some(ov) = self.workspace_state.overlay_mut() {
             ov.query_set_caret(idx);
         }
+        if self
+            .workspace_state
+            .overlay()
+            .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+        {
+            self.workspace_state
+                .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
+        }
         self.sync_view(true);
         self.request_frame();
     }
@@ -143,7 +151,16 @@ impl App {
             if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.set_facet_lens(rail_idx);
             }
-            self.workspace_state.focus_workspace_detail();
+            if self
+                .workspace_state
+                .overlay()
+                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+            {
+                self.workspace_state
+                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
+            } else {
+                self.workspace_state.focus_workspace_detail();
+            }
             self.sync_view(true);
             self.request_frame();
             return;
@@ -198,6 +215,14 @@ impl App {
             {
                 ov.selected = idx;
             }
+            if self
+                .workspace_state
+                .overlay()
+                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+            {
+                self.workspace_state
+                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
+            }
             // Range labels select only; Enter would open the numeric editor.
             let is_range = self
                 .workspace_state
@@ -216,6 +241,14 @@ impl App {
             // through to the generic "inside, off a row" swallow below.
             if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.query_set_caret(char_idx);
+            }
+            if self
+                .workspace_state
+                .overlay()
+                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+            {
+                self.workspace_state
+                    .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
             }
             self.input.pointer.query_drag = true;
         } else {

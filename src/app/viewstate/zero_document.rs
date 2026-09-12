@@ -10,6 +10,7 @@ impl App {
             self.update_title();
         }
         let ov = self.workspace_state.overlay();
+        let settings_focus = self.workspace_state.journey().settings_focus();
         let mut view = ViewState::base();
         view.document_active = false;
         // THE START SCREEN NAMES THE FOLDER: a real root is ALWAYS resolved
@@ -27,6 +28,14 @@ impl App {
         view.overlay_retains_room = ov.is_some_and(|o| o.kind.retains_readable_room());
         view.overlay_query = ov.map(|o| o.query.text().to_string()).unwrap_or_default();
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
+        view.overlay_query_field = ov.is_none_or(|o| o.kind.offers_query());
+        view.overlay_query_focused = match settings_focus {
+            Some(crate::overlay::workspace::SettingsFocus::Search) => true,
+            Some(_) => false,
+            None => ov.is_none_or(|o| {
+                !o.files_mode || o.files_focus == crate::overlay::FilesFocus::Query
+            }),
+        };
         view.overlay_query_selection = ov.and_then(|o| o.query.selection_range());
         view.overlay_query_placeholder =
             ov.and_then(|o| o.kind.field_placeholder().map(str::to_string));
@@ -44,15 +53,11 @@ impl App {
         view.overlay_times = ov.map(|o| o.item_times()).unwrap_or_default();
         view.overlay_git = ov.map(|o| o.item_git_tags()).unwrap_or_default();
         view.overlay_selected = ov.map(|o| o.selected).unwrap_or(0);
-        view.overlay_rows_focused = ov.is_none_or(|o| {
-            !o.files_mode
-                || matches!(
-                    o.files_focus,
-                    crate::overlay::FilesFocus::Choices
-                        | crate::overlay::FilesFocus::ChangeFolder
-                        | crate::overlay::FilesFocus::NewDocument
-                )
-        });
+        view.overlay_rows_focused = match settings_focus {
+            Some(crate::overlay::workspace::SettingsFocus::Controls) => true,
+            Some(_) => false,
+            None => ov.is_none_or(crate::overlay::OverlayState::files_rows_focused),
+        };
         view.overlay_scroll = ov.map(|o| o.scroll).unwrap_or(0);
         view.overlay_window_rows = ov.map(|o| o.window_rows()).unwrap_or(12);
         view.overlay_hint = self.workspace_state.journey().foot_hint();

@@ -467,6 +467,7 @@ impl OverlayKind {
     pub fn field_placeholder(self) -> Option<&'static str> {
         match self {
             OverlayKind::InsertLink => Some("Paste or type a URL"),
+            OverlayKind::Settings => Some("Search settings"),
             _ => None,
         }
     }

@@ -50,6 +50,7 @@ fn insert_link_opts(query: &str) -> CaptureOpts {
             hint: "esc cancel".to_string(),
             files_location: None,
             files_query_focused: false,
+            settings_focus: None,
             browse_dir: None,
             return_to: None,
             spell_target: None,

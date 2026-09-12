@@ -170,6 +170,7 @@ enum Stage {
 #[derive(Default)]
 pub struct Journey {
     stage: Stage,
+    settings_focus: super::workspace::SettingsFocus,
 }
 
 impl Journey {
@@ -250,6 +251,9 @@ impl Journey {
     /// a plainly-summoned card is never mid-descend from Settings.
     pub fn foot_hint(&self) -> String {
         match self.card() {
+            Some(card) if card.kind == OverlayKind::Settings => {
+                card.settings_focus_hint(self.settings_focus)
+            }
             Some(card) => card.foot_hint_scoped(self.bind()),
             None => String::new(),
         }
@@ -262,6 +266,7 @@ impl Journey {
     /// that found nothing to show) leaves the editor, which is what the old
     /// `*ctx.overlay = make_overlay(kind)` always did.
     pub fn enter(&mut self, card: Option<OverlayState>) {
+        self.settings_focus = super::workspace::SettingsFocus::Categories;
         self.stage = match card {
             Some(card) => Stage::Card(card),
             None => Stage::Editor,
@@ -371,12 +376,16 @@ impl Journey {
             Landing::Stay => {}
             Landing::Editor => self.stage = Stage::Editor,
             Landing::Primary => {
-                if let Some(card) = self.card_mut() {
+                if self.settings_focus().is_some() {
+                    self.set_settings_focus(super::workspace::SettingsFocus::Categories);
+                } else if let Some(card) = self.card_mut() {
                     card.detail_focus = false;
                 }
             }
             Landing::Detail => {
-                if let Some(card) = self.card_mut() {
+                if self.settings_focus().is_some() {
+                    self.set_settings_focus(super::workspace::SettingsFocus::Search);
+                } else if let Some(card) = self.card_mut() {
                     card.detail_focus = true;
                 }
             }
@@ -424,6 +433,57 @@ impl Journey {
         self.advance(Event::ToggleDetail, &mut |_| None)
     }
 
+    /// The exact Settings recipient, distinct within the lifecycle's coarse
+    /// primary/detail projection. `None` when Settings is not the active card.
+    pub fn settings_focus(&self) -> Option<super::workspace::SettingsFocus> {
+        self.card()
+            .is_some_and(|card| card.kind == OverlayKind::Settings)
+            .then_some(self.settings_focus)
+    }
+
+    /// Walk Settings' focus stops, skipping Controls when the filter has no
+    /// matches. Every writer stays beside the lifecycle projection it updates.
+    pub fn step_settings_focus(&mut self, delta: isize) -> bool {
+        let Some(card) = self.card() else {
+            return false;
+        };
+        if card.kind != OverlayKind::Settings {
+            return false;
+        }
+        let next = self.settings_focus.step(delta, !card.items.is_empty());
+        self.set_settings_focus(next)
+    }
+
+    /// Put Settings on one named recipient. A request for Controls with no
+    /// matching row lands on Search, the only useful input at that point.
+    pub fn focus_settings(&mut self, requested: super::workspace::SettingsFocus) -> bool {
+        let Some(card) = self.card() else {
+            return false;
+        };
+        if card.kind != OverlayKind::Settings {
+            return false;
+        }
+        let focus =
+            if requested == super::workspace::SettingsFocus::Controls && card.items.is_empty() {
+                super::workspace::SettingsFocus::Search
+            } else {
+                requested
+            };
+        self.set_settings_focus(focus)
+    }
+
+    fn set_settings_focus(&mut self, focus: super::workspace::SettingsFocus) -> bool {
+        let Some(card) = self.card_mut() else {
+            return false;
+        };
+        if card.kind != OverlayKind::Settings {
+            return false;
+        }
+        card.detail_focus = focus != super::workspace::SettingsFocus::Categories;
+        self.settings_focus = focus;
+        true
+    }
+
     /// GO SOMEWHERE: the whole journey ends, parked parent included. You asked
     /// to land in the document, so you land there.
     pub fn navigate_away(&mut self) -> Landing {
@@ -456,7 +516,7 @@ impl Journey {
     /// behaviour without replaying the Action that summons it.
     #[cfg(test)]
     pub fn install_for_test(&mut self, card: OverlayState) {
-        self.stage = Stage::Card(card);
+        self.enter(Some(card));
     }
 
     /// TEST-ONLY: a journey already standing on `card` (or on the editor).

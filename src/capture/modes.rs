@@ -476,13 +476,28 @@ pub(super) fn settled_viewstate(
     vstate.overlay_query_field = opts.overlay.as_ref().is_none_or(|o| {
         crate::overlay::OverlayKind::from_mode(o.mode)
             .is_none_or(crate::overlay::OverlayKind::offers_query)
-            && (!vstate.overlay_files_surface || o.files_query_focused)
+    });
+    vstate.overlay_query_focused = opts.overlay.as_ref().is_none_or(|o| {
+        if o.mode == crate::overlay::OverlayKind::Settings.as_str() {
+            o.settings_focus == Some("search")
+        } else {
+            !vstate.overlay_files_surface || o.files_query_focused
+        }
     });
     vstate.overlay_detail_focus = opts
         .overlay
         .as_ref()
         .map(|o| o.detail_focus)
         .unwrap_or(false);
+    vstate.overlay_rows_focused = opts.overlay.as_ref().is_none_or(|o| {
+        if o.mode == crate::overlay::OverlayKind::Settings.as_str() {
+            o.settings_focus == Some("controls")
+        } else if vstate.overlay_files_surface {
+            !o.files_query_focused
+        } else {
+            true
+        }
+    });
     // Spell and context cards retain their real pointer/text anchors.
     vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
     vstate.overlay_table_dims = opts.overlay.as_ref().and_then(|o| o.table_dims);
