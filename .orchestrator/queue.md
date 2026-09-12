@@ -6,13 +6,51 @@
 
 ## Open build and design tasks
 
-**6 open numbered tasks.** Ready fixes: 650, 651, 646, 645 and 644.
+**7 open numbered tasks.** Ready fixes: 653, 650, 651, 646, 645 and 644.
 Read-only follow-up investigation: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
 
+### 653 — remove the checked-in legacy web-editor bundle (user request, 2026-09-12)
+
+🟡 IN PROGRESS — `/root/legacy_web_bundle` (Codex), branch
+`codex/653-remove-legacy-editor-bundle`.
+
+Finding: `site/editor/` is generated Trunk/wasm-bindgen output, not authored product
+source. The only tracked files are a 137,136-byte hashed JavaScript glue file and its
+generated `index.html`; that page references an `_bg.wasm` file which is not tracked,
+so the checked-in bundle is incomplete. The current `deploy-web.yml` already ignores
+this directory: it builds a fresh release bundle into `dist/`, copies `site/` to a
+scratch deploy directory, removes the copied `editor/`, and installs the fresh build
+there. The workflow itself labels the checked-in files legacy. Git history preserves
+the old artifact if it is ever needed.
+
+Build/Scope: remove the tracked `site/editor/` files and prevent generated editor
+bundles from being recommitted. Preserve `/editor/` in the deployed website by keeping
+one fresh Trunk build as the source of that route. Update `site/README.md`,
+`.github/workflows/deploy-web.yml`, `scripts/with-remap.sh`, ignore rules and any other
+live references so they describe the current scratch-assembly path rather than a
+committed deployable bundle. Preserve a documented local way to preview the landing
+page and freshly built editor together without restoring generated output to Git; reuse
+the existing assembly mechanism rather than introducing a parallel build pipeline.
+Do not change editor behavior, analytics coverage, hosting, release policy or the
+generated bundle's public URL. The separate code-growth dashboard is out of scope.
+
+Done/Verify: follow `docs/verification.md`. Require `git ls-files site/editor` to be
+empty and add a structural audit that fails if a generated editor bundle is tracked
+there again. Exercise the deploy assembly against a fresh
+`scripts/with-remap.sh trunk build --release --public-url /editor/`; require the staged
+`editor/index.html`, its hashed JavaScript and wasm references to exist, remain rooted
+at `/editor/`, carry the analytics beacon, and contain no builder-home path. Run the
+relevant site/link checks and `scripts/web-smoke.sh`. Inspect the deletion and updated
+documentation/workflow diff; this item does not authorize a deploy, push, tag or
+release.
+
+---
+
 ### 650 — Files listings use names, never file contents (user-approved scope, 2026-09-12)
 
-🟢 READY — queue only; implementation is not dispatched. Prioritize this user-reproduced hang.
+🟠 INTEGRATED — implementation + targeted/mutation evidence landed on local
+`main` at merge `1bb70883`; seeded live release smoke and the combined gate remain.
 
 Finding: a three-second sample of the frozen live macOS app put every sampled main-thread
 stack in `App::apply` → `FilesOverlayBuilder::attach_level` →
@@ -58,7 +96,8 @@ gate after the candidate is committed and frozen.
 
 ### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
 
-🟢 READY — queue only; implementation is not dispatched. Separate from 650.
+🟡 IN PROGRESS — `/root/search_folder_budgets` (Codex), branch
+`codex/651-search-folder-budgets`. Separate from 650 and based on its landed owner.
 
 Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
 `search_folder::load_corpus` synchronously with whole-file `read_to_string` before
@@ -92,7 +131,8 @@ gate for a final code candidate, never describe retained-corpus tests as I/O bou
 
 ### 652 — investigate neighboring synchronous I/O stalls (user request, 2026-09-12)
 
-🔎 INVESTIGATION — read-only follow-up; implementation/design is not dispatched.
+✅ INVESTIGATION COMPLETE — measured on `32cad5c6`, independently audited on
+`76d3a151`; no application changes. Implementation/design remains out of scope.
 The initial source audit is complete. The items below are source-confirmed blocking
 paths, not independently reproduced freezes. Measure with controlled fixtures and
 blocked/slow readers before choosing changes; no probing by reading large private files.
@@ -132,9 +172,11 @@ verification. No application source edits are authorized by this investigation i
 
 ---
 
-### 646 — shorten historical commentary in tests and production source (user request, 2026-09-12)
+### 646 — shorten historical commentary, starting with `src/render.rs` (user request, 2026-09-12)
 
-🟢 READY — queued cleanup only; implementation is not dispatched.
+🟠 INTEGRATED — the original production/test batches landed through `76d3a151`;
+the `src/render.rs` batch landed at merge `c4f9496a` and its source-size guard at
+`83323622`. The combined native/web gate remains.
 
 Build: shorten comments in tests and live code that recount previous bugs,
 implementation rounds, queue items, superseded designs or repeated narratives.
@@ -143,14 +185,23 @@ correctness constraints and each test's purpose, defect, coverage and oracle.
 Preserve calibration evidence and mutation rationale needed to maintain a law.
 Git retains history; do not move the removed narrative into another large document.
 
-Scope: inventory `src/` and work in bounded batches. Starting samples are
+Scope: the first bounded batch is specifically `src/render.rs`, before the wider
+`src/` inventory. It is currently 3,198 physical lines: cloc classifies 1,432 as
+code, 1,586 as comments and 180 as blank. Its 1,061-line `TextPipeline` declaration
+alone contains about 726 comment lines around 334 declaration/nonblank code lines.
+Shorten historical narratives, repeated per-field mechanism tours, retired-option
+comparisons and commentary that merely restates adjacent types or modules. Preserve
+concise present-tense ownership, ordering, cache invalidation, units, safety and
+cross-platform constraints; several long comments encode real rendering laws, so the
+raw 1,586-comment count is not a deletion target. Keep every executable Rust token,
+attribute and public API unchanged in this first batch. Measure `src/render.rs`
+independently before expanding to starting samples such as
 `src/render/tests/chrome_panels.rs`, `src/render/tests/list_surfaces.rs`,
 `src/capture/tests/panels.rs`, `src/app_icon/tests.rs`,
 `src/render/tests/caret_transition.rs`, `src/actions/workspace_nav.rs`,
-`src/app/apply.rs` and `src/main/args/flags.rs`. Keep executable code, test names,
-attributes, assertions, fixtures, thresholds, enrollment and skips unchanged.
-The shared refactors are already landed; measure only this cleanup so commentary
-savings remain independently reproducible. There is no deletion quota.
+`src/app/apply.rs` and `src/main/args/flags.rs`. The shared refactors are already
+landed; measure only this cleanup so commentary savings remain independently
+reproducible. There is no deletion quota.
 
 Done/Verify: follow docs/verification.md. Prove executable Rust tokens and test
 enrollment unchanged with syntax-aware comparison; preserve doc-test code,
@@ -173,7 +224,8 @@ or performance improvement.
 
 ### 645 — distinct bullet, divider and task vocabularies (user direction, 2026-09-12)
 
-🟢 READY — queue only. User approved the revised Site symbol sets on 2026-09-12.
+🟠 INTEGRATED — landed with 644 at merge `30c4d1a4`; combined gate remains.
+User approved the revised Site symbol sets on 2026-09-12.
 Implement alongside 644; routine fitting does not require another taste approval.
 
 Finding: Gumtree's depth-zero bullet is U+F591, named `SNAKE-4 tail` in
@@ -250,7 +302,8 @@ evidence and the standing vision smoke; a browser specimen is a taste aid only.
 
 ### 644 — add visible open/completed task markers (design approved, 2026-09-12)
 
-🟢 READY — per-theme Nishiki picks approved by the user; enhancement, not an
+🟠 INTEGRATED — landed with 645 at merge `30c4d1a4`; combined gate remains.
+Per-theme Nishiki picks were approved by the user; enhancement, not an
 established regression. Implement the approved mapping below.
 
 Finding: a direct pulldown-cmark 0.13 probe with task lists enabled recognises
