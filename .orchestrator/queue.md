@@ -6,9 +6,42 @@
 
 ## Open build and design tasks
 
-**7 open numbered tasks.** Ready fixes: 653, 650, 651, 646, 645 and 644.
+**8 open numbered tasks.** Ready fixes: 654, 653, 650, 651, 646, 645 and 644.
 Read-only follow-up investigation: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 654 — remove retired floating-card shadow machinery (user request, 2026-09-12)
+
+🟢 READY TO MERGE — branch `codex/654-remove-dead-shadow-pipelines`, commit
+`4e8668a0` (based on `c4f9496a0`).
+
+Finding: the July 22 visual fix stopped emitting drop-shadow geometry but deliberately
+left five complete `SelectionPipeline` instances wired through construction, theme
+sync, per-frame preparation, painter order, benchmarks and tests. They can produce no
+pixels: every preparation supplies an empty rectangle slice and `draw` returns at zero
+instances. The retained objects nevertheless create ten explicit GPU buffers (13,200
+requested bytes in total), five bind groups and the associated live-app pipeline/layout
+objects, plus five empty 80-byte uniform writes during ordinary chrome preparation.
+
+Build complete: delete `panel_shadow`, `float_shadow`, `hud_shadow`, `wk_shadow` and
+`menu_drop_shadow`; remove their constructors, tint writes, empty prepares, draw calls
+and structural tests; remove `float_shadow_srgba`; update live comments and theme/render
+contracts from shadow/border/card trios to border/card pairs. Preserve `FloatElevation`
+because it still selects rimmed versus flat cards. Preserve the two pixel laws proving
+dark worlds have no bright slab and light cards remain visibly elevated by their rim.
+The branch changes 24 files, removing 186 lines and adding 48 (138 net removed), with
+no remaining source or contract-doc reference to the retired identifiers.
+
+Verification: formatting and diff checks pass; `cargo check --tests` passes; the native
+source ownership test `float_surface_primitive_has_no_bypass_among_the_unified_family`
+passes; `cargo check --target wasm32-unknown-unknown` passes with the base branch's
+existing Wasm warnings. Both retained appearance tests compile but skip because the
+worktree environment exposes no GPU, so the integrated candidate still needs the real
+GPU native gate and `scripts/web-smoke.sh`. `scripts/preflight.sh` currently stops on
+the inherited `clippy::obfuscated_if_else` at `src/overlay/build.rs:353`, outside this
+branch's diff; resolve that integrated-base blocker before treating the gate as green.
+
+---
 
 ### 653 — remove the checked-in legacy web-editor bundle (user request, 2026-09-12)
 
