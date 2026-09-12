@@ -32,7 +32,7 @@ pub(crate) fn goto_chord_label() -> String {
 
 /// The two action rows' geometry, ALWAYS exactly [`START_ACTIONS`].len() long
 /// regardless of `folder_line` — a click only ever lands on "New document" or
-/// "Go to", never on the folder-naming line above them. `folder_line` only
+/// "Files", never on the folder-naming line above them. `folder_line` only
 /// shifts the block down to leave room for that extra line, so
 /// [`TextPipeline::start_action_at`] and [`TextPipeline::prepare_start_surface`]
 /// agree on where the two clickable rows actually sit.
@@ -40,7 +40,7 @@ fn start_rows(width: f32, height: f32, row_h: f32, folder_line: bool) -> [[f32; 
     let extra_rows = if folder_line { 1 } else { 0 };
     let block_h = row_h * (START_ACTIONS.len() + extra_rows) as f32;
     let top = ((height - block_h) * 0.5).max(0.0) + row_h * extra_rows as f32;
-    // The folder line's own text (name + convention chord + "Go to") runs
+    // The folder line's own text (name + convention chord + "Files") runs
     // longer than either bare action row, especially under
     // `Convention::Linux`'s word-labelled chords ("Ctrl+O" vs "⌘O") — a box
     // sized for the SHORT action rows alone let that line wrap onto a

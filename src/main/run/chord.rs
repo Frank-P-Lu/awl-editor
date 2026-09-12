@@ -225,9 +225,7 @@ impl ReplaySession<'_> {
         let picker_kind = crate::overlay::picker_kind_for(
             &action,
             self.journey.parked_kind(),
-            self.journey
-                .card()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings),
+            self.journey.card(),
         );
         let picker_input = match picker_kind {
             Some(crate::overlay::OverlayKind::Goto) => Some(crate::overlay::PickerInput::Goto(
@@ -237,6 +235,10 @@ impl ReplaySession<'_> {
             Some(crate::overlay::OverlayKind::Caret) => Some(crate::overlay::PickerInput::Caret),
             Some(crate::overlay::OverlayKind::Dictionary) => {
                 Some(crate::overlay::PickerInput::Dictionary)
+            }
+            Some(crate::overlay::OverlayKind::CjkLang | crate::overlay::OverlayKind::Date) => {
+                let values = settings_values();
+                Some(crate::overlay::PickerInput::Settings(values))
             }
             Some(crate::overlay::OverlayKind::Keymap) => {
                 Some(crate::overlay::PickerInput::Keymap {
@@ -291,9 +293,7 @@ impl ReplaySession<'_> {
                 Some(crate::overlay::PickerInput::Credits)
             }
             Some(
-                crate::overlay::OverlayKind::CjkLang
-                | crate::overlay::OverlayKind::Date
-                | crate::overlay::OverlayKind::Browse
+                crate::overlay::OverlayKind::Browse
                 | crate::overlay::OverlayKind::MoveDest
                 | crate::overlay::OverlayKind::ExportDest
                 | crate::overlay::OverlayKind::Project

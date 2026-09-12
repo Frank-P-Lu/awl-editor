@@ -60,7 +60,7 @@ fn assert_shared_fold_keeps_faceted_hug_roster(
     current: &std::path::Path,
     root: &std::path::Path,
     config: &Config,
-    headings: &str,
+    spec: &str,
 ) {
     let mut buffer = Buffer::from_file(current);
     let corpus = crate::index::build_index(root);
@@ -76,7 +76,7 @@ fn assert_shared_fold_keeps_faceted_hug_roster(
         None,
         &mut keymap,
     );
-    for chord in crate::keyspec::parse_chords(headings).expect("headings chords") {
+    for chord in crate::keyspec::parse_chords(spec).expect("Files chords") {
         session
             .apply_chord(&chord)
             .expect("shared-fold chord applies");
@@ -85,27 +85,27 @@ fn assert_shared_fold_keeps_faceted_hug_roster(
         .journey()
         .card()
         .and_then(crate::overlay::OverlayState::hug_roster)
-        .expect("real Go-to summon has an unlensed hug corpus");
+        .expect("real Files summon has a faceted hug corpus");
     let folded = fold_capture_state(&session, project_info(root, &None, None, config));
     let folded_roster = folded
         .overlay_hug_roster
         .as_ref()
-        .expect("shared capture fold preserves the Go-to hug corpus");
+        .expect("shared capture fold preserves the Files hug corpus");
     assert!(std::sync::Arc::ptr_eq(&summon_roster, folded_roster));
     assert!(
         folded_roster
             .primary
             .iter()
             .any(|row| row.contains("very-long-project-folder-name")),
-        "shared fold carries the wide All corpus, not the narrow Headings roster"
+        "shared fold carries the full Files corpus, not only the visible level"
     );
 }
 
 /// Both ordinary capture doors must carry the summon-time faceted corpus into
 /// their settled `ViewState`.  The storyboard/live fold has a typed seam;
 /// one-shot `--screenshot --keys` still owns its short replay fold locally.
-/// Drive the real Go-to path through each so deleting either enrolment makes
-/// the wide All corpus disappear when Headings is selected.
+/// Drive the real Files path through each so deleting either enrolment makes
+/// the full corpus disappear when Recent is selected.
 #[test]
 fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     let _serial = crate::testlock::serial();
@@ -119,10 +119,10 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     std::fs::write(&current, "# Current\n").expect("seed current file");
     std::fs::write(long_folder.join("old.md"), "# Old\n").expect("seed nested file");
     let config = Config::empty();
-    let all = "s-p g o Space t o Enter";
-    let headings = "s-p g o Space t o Enter Right Right";
+    let files = "s-o";
+    let recent = "s-o Tab Tab Enter";
 
-    assert_shared_fold_keeps_faceted_hug_roster(&current, &root, &config, headings);
+    assert_shared_fold_keeps_faceted_hug_roster(&current, &root, &config, recent);
 
     if capture::build_oracle(&Buffer::from_file(&current), &CaptureOpts::default()).is_none() {
         eprintln!("skipping faceted-hug capture fold pixels: no wgpu adapter");
@@ -166,23 +166,23 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     );
     for world in mirrors {
         let _world = crate::theme::WorldPin::world(world).expect("enrolled world exists");
-        let all_json = capture(&format!("{world}-all"), all);
-        let headings_json = capture(&format!("{world}-headings"), headings);
+        let files_json = capture(&format!("{world}-files"), files);
+        let recent_json = capture(&format!("{world}-recent"), recent);
         assert_eq!(
-            all_json["overlay"]["lens"], "all",
-            "[{world}] one-shot starts at All"
+            files_json["overlay"]["lens"], "files",
+            "[{world}] one-shot starts at Files"
         );
         assert_eq!(
-            headings_json["overlay"]["lens"], "headings",
-            "[{world}] one-shot navigation reaches Headings"
+            recent_json["overlay"]["lens"], "recent",
+            "[{world}] one-shot navigation reaches Recent"
         );
-        let all_band = band(&all_json);
-        let headings_band = band(&headings_json);
+        let files_band = band(&files_json);
+        let recent_band = band(&recent_json);
         assert!(
-            (all_band.0 - headings_band.0).abs() <= 0.01
-                && (all_band.1 - headings_band.1).abs() <= 0.01,
-            "[{world}] one-shot fold lost the summon-time hug corpus across All -> Headings: \
-             all={all_band:?}, headings={headings_band:?}"
+            (files_band.0 - recent_band.0).abs() <= 0.01
+                && (files_band.1 - recent_band.1).abs() <= 0.01,
+            "[{world}] one-shot fold lost the summon-time hug corpus across Files -> Recent: \
+             files={files_band:?}, recent={recent_band:?}"
         );
     }
 }
@@ -497,12 +497,10 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
     }
 }
 
-/// The unified Folders lens exposes known workspace children and terminates in
-/// the platform chooser fallback. Ordinary replay cannot open an OS panel, but
-/// it must report that exact typed seam rather than resurrecting a second
-/// switch-project stage.
+/// Files exposes Change folder as an explicit terminal action. Ordinary replay
+/// cannot open an OS panel, but it must report that exact typed seam.
 #[test]
-fn keys_capture_folders_lens_ends_in_the_typed_platform_fallback() {
+fn keys_capture_files_change_folder_reaches_the_typed_platform_fallback() {
     let _fs = crate::testlock::serial();
     for convention in [
         crate::convention::Convention::Mac,
@@ -528,13 +526,13 @@ fn keys_capture_folders_lens_ends_in_the_typed_platform_fallback() {
             .iter()
             .map(|row| row.as_str().unwrap())
             .collect();
-        assert_eq!(rows.last().copied(), Some("Choose another folder…"));
+        assert!(rows.contains(&"Change folder…"));
         assert!(!rows.iter().any(|row| row.contains("nested")));
 
         let fallback = folder_capture(
             &dir,
             convention,
-            &format!("{chord} Down Down Down Enter"),
+            &format!("{chord} c h a n g e Space f o l d e r Enter"),
             Some(dir.join("old-ws/proj-a")),
         );
         assert_eq!(

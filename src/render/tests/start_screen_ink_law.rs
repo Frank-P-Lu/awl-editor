@@ -1,6 +1,6 @@
 //! THE START SCREEN'S TWO ACTIONS SHARE ONE INK; ONLY THE CHORD READS QUIET.
 //!
-//! `New document` and `Go to` wear the SAME ink — a muted verb doubles as the
+//! `New document` and `Files` wear the SAME ink — a muted verb doubles as the
 //! universal disabled costume elsewhere in this codebase, so a reader could not
 //! tell "second in order" from "not available" if one action stayed dimmer.
 //! Hierarchy is order alone; both verbs read in `theme::base_content()`. Each

@@ -135,9 +135,7 @@ impl App {
         let kind = crate::overlay::picker_kind_for(
             action,
             self.workspace_state.journey().parked_kind(),
-            self.workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings),
+            self.workspace_state.overlay(),
         )?;
         if matches!(
             kind,
@@ -252,6 +250,10 @@ impl App {
             crate::overlay::OverlayKind::Dictionary => {
                 Some(crate::overlay::PickerInput::Dictionary)
             }
+            crate::overlay::OverlayKind::CjkLang => Some(crate::overlay::PickerInput::CjkLang),
+            crate::overlay::OverlayKind::Date => Some(crate::overlay::PickerInput::Date {
+                today_ymd: crate::dateformat::today_from_system_clock(),
+            }),
             crate::overlay::OverlayKind::Keymap => Some(crate::overlay::PickerInput::Keymap {
                 configured: self.config.keymap.clone().unwrap_or_default(),
             }),
@@ -288,9 +290,7 @@ impl App {
             | crate::overlay::OverlayKind::SearchFolder => {
                 unreachable!("content picker routing bypassed its owner")
             }
-            crate::overlay::OverlayKind::CjkLang
-            | crate::overlay::OverlayKind::Date
-            | crate::overlay::OverlayKind::Browse
+            crate::overlay::OverlayKind::Browse
             | crate::overlay::OverlayKind::MoveDest
             | crate::overlay::OverlayKind::ExportDest
             | crate::overlay::OverlayKind::Project

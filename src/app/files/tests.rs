@@ -558,26 +558,11 @@ fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
     });
 }
 
-/// **THE BOTTOM IDENTITY ALWAYS NAMES THE ACTIVE FILE's OWN FOLDER, NEVER
-/// THE NOMINALLY "active project."** Switch-project alone moves
-/// `project_location.root` without opening or activating a document, so the
-/// file that stays on screen never told the working set anything —
-/// `active_root()` must keep reporting the root it already had, and the
-/// identity formatter must read from it rather than from the ambient
-/// `project_location.project.name`.
-///
-/// Driven through the REAL "Switch project" chord (`Action::OpenProject`,
-/// `s-S-p`/`C-S-p`) into the unified Go to picker's `folders` facet — the
-/// same door every real switch takes — not a direct call to
-/// `switch_project`, so a regression in the picker's own row order would
-/// also be caught here.
-///
-/// Both halves of the decision are asserted: the identity's folder line
-/// stays on the OLD root (`notes`) while the DISPATCH root (what New
-/// document, Go to and Move would use) moves to the NEW one (`archive`) —
-/// the two are deliberately not re-synced.
+/// The retired Switch-project chord is a compatibility door onto the unified
+/// Files surface. Merely summoning it cannot mutate either the writing folder
+/// or the open document's remembered folder identity.
 #[test]
-fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dispatch_root_moves() {
+fn legacy_switch_project_chord_opens_files_without_changing_folder_identity() {
     let _guard = crate::testlock::serial();
     let mem = Arc::new(
         crate::fs::InMemoryFs::new()
@@ -600,10 +585,6 @@ fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dis
             "the open file's own remembered root, before any switch"
         );
 
-        // "Switch project…" to `archive`, the real binding, real picker row
-        // order (the facet opens on the WORKSPACE row itself; one `Down`
-        // moves to its first alphabetical child, `archive`, ahead of
-        // `notes`), with NOTHING else — no open, no activate.
         let open_project = match crate::convention::Convention::current() {
             crate::convention::Convention::Mac => "s-S-p",
             crate::convention::Convention::Linux => "C-S-p",
@@ -614,38 +595,30 @@ fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dis
             app.workspace_state
                 .overlay()
                 .and_then(|o| o.active_facet_id()),
-            Some("folders"),
-            "OpenProject focuses the unified picker's folders facet"
+            Some("files"),
+            "the compatibility chord opens the unified Files home"
         );
-        app.press_spec_headless("Down Enter")
-            .expect("accepting the selected row parses");
         assert!(
-            !app.workspace_state.overlay_open(),
-            "accepting the row closes the picker"
+            app.workspace_state
+                .overlay()
+                .is_some_and(|overlay| overlay.files_mode),
+            "the chord must not resurrect the retired project picker"
         );
 
-        // THE DISPATCH ROOT MOVED — Switch project keeps doing exactly what
-        // it says.
         assert_eq!(
             app.project_location.root,
-            Path::new("/ws/archive"),
-            "New document / Go to / Move / export must default into the \
-             newly chosen project"
+            Path::new("/ws/notes"),
+            "summoning Files cannot silently change the writing folder"
         );
-
-        // THE IDENTITY DID NOT — no document opened or activated, so the
-        // working set's memory of the visible file's own folder is
-        // untouched, and that is what the gutter must keep naming.
         assert_eq!(
             app.document.working_set().active_root(),
             Some(Path::new("/ws/notes")),
-            "the active file never moved, so its own remembered root must \
-             not follow the ambient project switch"
+            "the visible file keeps its own remembered folder"
         );
         assert_eq!(
             app.document.buffer().path(),
             Some(Path::new("/ws/notes/index.md")),
-            "no document was opened or activated by the switch itself"
+            "opening Files does not activate another document"
         );
     });
 }
@@ -2308,34 +2281,16 @@ fn assert_live_and_capture_locations_agree(
     });
 }
 
-/// THE SAME BUG, DRIVEN FROM REAL KEYS THROUGH THE LIVE `App`.
-///
-/// Every test above calls `App::switch_project` directly, because until this
-/// round nothing else could: `App::apply` — the ONE seam a keypress, a menu
-/// change, a palette command and an overlay click all funnel through — demanded
-/// an `&ActiveEventLoop`, which exists only inside a running winit loop and
-/// cannot be constructed. A request to drive Switch-project
-/// through the real keymap and assert the picker's contents") named a capture
-/// that structurally could not exist. Narrowing that borrow to the ONE
-/// capability `apply` actually used (`app::Exit` — `event_loop.exit()`, nothing
-/// else) is what made this test possible.
-///
-/// Nothing here stands in for the live path; it IS the live path minus the
-/// window. The chords take `App::press_chord_headless` →
-/// `dispatch_pressed_key` (the same owner `WindowEvent::KeyboardInput` and the
-/// `--live-script` probe call) → keymap resolve → `App::apply` →
-/// `Effect::OverlayAccept(Project, ..)` → `switch_project` → `set_root` →
-/// `resync_project_location`. The picker is a REAL summoned overlay built by
-/// the real `browse_to` closure, navigated by real Backspace/Down/Enter.
-///
-/// The spec branches on the running convention rather than hardcoding one, so
-/// `native-gate.sh`'s mac AND linux passes each drive their own real chord for
-/// "Switch project…" — the axis a hardcoded `s-S-p` would have skipped.
+/// The compatibility shortcut is driven through the real keymap and live App
+/// transition seam. It enters the unified Files journey; browsing a directory
+/// changes only the card's level, never the writing or workspace roots.
 #[test]
-fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
+fn legacy_switch_project_chord_browses_files_without_repointing_the_workspace() {
     let fake = Arc::new(
         crate::fs::InMemoryFs::new()
             .with_dir("/old-ws/proj-a")
+            .with_dir("/old-ws/proj-a/docs")
+            .with_file("/old-ws/proj-a/docs/guide.md", "guide\n")
             .with_dir("/old-ws/sibling")
             .with_dir("/new-ws/other")
             .with_dir("/new-ws/proj-b"),
@@ -2352,9 +2307,7 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
             app.project_location.workspace_root,
             Some(PathBuf::from("/old-ws"))
         );
-        assert_eq!(project_picker_rows(&app), vec!["proj-a", "sibling"]);
-
-        // "Switch project…" — the real binding of the convention this pass runs.
+        // The compatibility binding of the convention this pass runs.
         let open_project = match crate::convention::Convention::current() {
             crate::convention::Convention::Mac => "s-S-p",
             crate::convention::Convention::Linux => "C-S-p",
@@ -2364,34 +2317,29 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
         let overlay = app
             .workspace_state
             .overlay()
-            .expect("the chord summoned the unified Go to picker");
+            .expect("the chord summoned Files");
         assert_eq!(overlay.kind, crate::overlay::OverlayKind::Goto);
-        assert_eq!(overlay.active_facet_id(), Some("folders"));
+        assert!(overlay.files_mode);
+        assert_eq!(overlay.active_facet_id(), Some("files"));
 
-        // The unified Folders lens is flat over the workspace destinations.
-        // Two Downs move from the workspace row through `proj-a` to `sibling`;
-        // Enter switches immediately.
-        // Backspace belongs to the shared picker's cancel grammar, so it is
-        // deliberately not an ascent gesture here.
-        app.press_spec_headless("Down Down Enter")
-            .expect("the navigation chords parse");
+        // `docs` is the only ordinary choice at root; Enter descends in Files.
+        app.press_spec_headless("Enter")
+            .expect("the directory accept parses");
 
         assert!(
-            !app.workspace_state.overlay_open(),
-            "accepting the row closes the picker, exactly as live"
+            app.workspace_state.overlay_open(),
+            "directory browsing keeps Files open"
         );
-        assert_eq!(app.project_location.root, PathBuf::from("/old-ws/sibling"));
+        assert_eq!(app.project_location.root, PathBuf::from("/old-ws/proj-a"));
         assert_eq!(
             app.project_location.workspace_root,
-            Some(PathBuf::from("/old-ws")),
-            "a direct-child switch never moves the configured-workspace boundary — \
-             driven by real keys, not only by a direct call to switch_project"
+            Some(PathBuf::from("/old-ws"))
         );
         assert_eq!(
-            project_picker_rows(&app),
-            vec!["proj-a", "sibling"],
-            "the picker still lists the SAME workspace's direct children after \
-             switching between two of them"
+            app.workspace_state
+                .overlay()
+                .and_then(|overlay| overlay.browse_dir.as_deref()),
+            Some("docs")
         );
     });
 }

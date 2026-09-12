@@ -8,7 +8,7 @@ use crate::keymap::Action;
 pub(crate) fn picker_kind_for(
     action: &Action,
     parked_kind: Option<OverlayKind>,
-    settings_open: bool,
+    current: Option<&super::OverlayState>,
 ) -> Option<OverlayKind> {
     match action {
         Action::OpenGoto
@@ -28,8 +28,16 @@ pub(crate) fn picker_kind_for(
         Action::OpenUserWords => Some(OverlayKind::UserWords),
         Action::OpenSearchFolder => Some(OverlayKind::SearchFolder),
         Action::OpenCredits => Some(OverlayKind::Credits),
-        Action::Cancel | Action::Newline | Action::AcceptAlternate => parked_kind,
-        _ if settings_open => Some(OverlayKind::Settings),
+        Action::Cancel => parked_kind,
+        Action::Newline | Action::AcceptAlternate => current
+            .filter(|card| card.kind == OverlayKind::Settings)
+            .and_then(super::OverlayState::selected_corpus_index)
+            .and_then(|index| crate::settings::visible_rows().get(index).copied())
+            .and_then(|row| crate::settings::sub_overlay(row.id))
+            .or(parked_kind),
+        _ if current.is_some_and(|card| card.kind == OverlayKind::Settings) => {
+            Some(OverlayKind::Settings)
+        }
         _ => None,
     }
 }

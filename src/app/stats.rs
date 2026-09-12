@@ -318,7 +318,7 @@ mod tests {
         use crate::keymap::Action;
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-            // Reached repeatedly via the palette; Go to… HAS a native chord (Cmd-O).
+            // Reached repeatedly via the palette; Files HAS a native chord (Cmd-O).
             for _ in 0..4 {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Palette);
             }
@@ -363,7 +363,7 @@ mod tests {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // A fake ledger: three native-chord commands reached via slow doors, ranked
-            // by slow-door count (Go to 4 > Switch theme 2 > Version history 1).
+            // by slow-door count (Files 4 > Switch theme 2 > Version history 1).
             for _ in 0..4 {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Palette);
             }
@@ -399,7 +399,7 @@ mod tests {
             // The PEEK rows: chord+name, ranked, chordless Keep version excluded.
             let peek = app.peek_rows_from_ledger();
             let names: Vec<&str> = peek.iter().map(|r| r.name.as_str()).collect();
-            assert_eq!(names, vec!["Go to", "Switch theme", "Version history"]);
+            assert_eq!(names, vec!["Files", "Switch theme", "Version history"]);
             assert_eq!(peek[0].chord, goto_chord);
             assert_eq!(peek[1].chord, theme_chord);
 
@@ -408,7 +408,7 @@ mod tests {
             assert_eq!(
                 tips,
                 vec![
-                    format!("{goto_chord}  Go to"),
+                    format!("{goto_chord}  Files"),
                     format!("{theme_chord}  Switch theme"),
                     format!("{history_chord}  Version history"),
                 ]

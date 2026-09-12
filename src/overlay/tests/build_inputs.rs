@@ -222,7 +222,7 @@ fn picker_action_roster_has_one_shared_owner() {
     ];
     for (action, expected) in direct {
         assert_eq!(
-            crate::overlay::picker_kind_for(&action, None, false),
+            crate::overlay::picker_kind_for(&action, None, None),
             Some(expected),
             "{action:?} must choose its one focused picker kind"
         );
@@ -233,18 +233,32 @@ fn picker_action_roster_has_one_shared_owner() {
         crate::keymap::Action::AcceptAlternate,
     ] {
         assert_eq!(
-            crate::overlay::picker_kind_for(&action, Some(OverlayKind::Command), false),
+            crate::overlay::picker_kind_for(&action, Some(OverlayKind::Command), None),
             Some(OverlayKind::Command),
             "{action:?} must rebuild the parked parent",
         );
     }
+    let mut settings = build(&PickerInput::Settings(Default::default())).unwrap();
+    assert!(settings.select_accept("Caret style"));
+    for action in [
+        crate::keymap::Action::Newline,
+        crate::keymap::Action::AcceptAlternate,
+    ] {
+        assert_eq!(
+            crate::overlay::picker_kind_for(&action, Some(OverlayKind::Command), Some(&settings),),
+            Some(OverlayKind::Caret),
+            "a Settings row's selected child wins over an older parked launcher",
+        );
+    }
+    let retained =
+        crate::overlay::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, Some(&settings));
     assert_eq!(
-        crate::overlay::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, true),
+        retained,
         Some(OverlayKind::Settings),
         "a Settings-owned child action must retain its parent input",
     );
     assert_eq!(
-        crate::overlay::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, false),
+        crate::overlay::picker_kind_for(&crate::keymap::Action::ToggleDebug, None, None),
         None,
         "an ordinary action must not acquire a picker input",
     );

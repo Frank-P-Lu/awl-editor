@@ -845,7 +845,7 @@ fn zero_document_capture_has_two_start_actions_and_no_page_surface() {
     assert_eq!(json["document"]["active"], false);
     assert_eq!(
         json["document"]["start_actions"],
-        serde_json::json!(["New document", "Go to"])
+        serde_json::json!(["New document", "Files"])
     );
     assert!(json["page"].is_null());
     assert!(json["text_origin"].is_null());
