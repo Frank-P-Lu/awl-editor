@@ -471,11 +471,8 @@ fn assert_ornament_enrolment(
         world.name
     );
     assert_eq!(
-        tasks.iter().map(|mark| mark.glyphs).collect::<Vec<_>>(),
-        vec![
-            world.task_marker.glyphs(false),
-            world.task_marker.glyphs(true)
-        ],
+        tasks.iter().map(|mark| mark.glyph).collect::<Vec<_>>(),
+        crate::theme::TASK_MARKERS,
         "{}: rendered task enrolment drifted from theme consumers",
         world.name
     );

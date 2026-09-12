@@ -992,10 +992,10 @@ fn list_indent_widens_only_on_wide_tier_worlds_and_grows_linearly_with_depth() {
 /// retired per-line O(li) `line_glyph_xs` walk (an O(doc) `layout_runs` walk from
 /// doc start, per bullet — O(visible_bullets × scroll) each frame, breaking the
 /// O(visible) law its sibling `rule_marks` honours by reading cached row geometry).
-/// An UNINDENTED bullet needs no walk at all (its marker sits at column 0); an
-/// INDENTED bullet resolves through the BATCHED, memo-safe `visual_rows_for_lines`,
-/// never a per-line `visual_rows` (which would clobber the single-slot cursor-line
-/// row memo). Placement stays byte-identical to the retired `line_glyph_xs`-based x.
+/// Every visible marker measures its normalized body gap through the BATCHED,
+/// memo-safe `visual_rows_for_lines`, never a per-line `visual_rows` (which would
+/// clobber the single-slot cursor-line row memo). Placement stays byte-identical
+/// to the retired `line_glyph_xs`-based x.
 /// Mirrors `range_rects_selection_is_visible_bounded_and_memo_safe`.
 #[test]
 fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
@@ -1009,9 +1009,9 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
         return;
     };
 
-    // PART A — PLACEMENT UNCHANGED. A small doc mixing an UNINDENTED bullet
-    // (indent 0, my x==0 branch) and an INDENTED one (indent 2, the batched path),
-    // caret on the trailing blank line so every bullet is placed. Each mark's x
+    // PART A — PLACEMENT UNCHANGED. A small doc mixing an UNINDENTED bullet and
+    // an INDENTED one (indent 2), caret on the trailing blank line so every
+    // bullet is placed. Each mark's x
     // must equal the retired `line_glyph_xs(li)[indent]`-based x, byte-for-byte.
     let mut small = view("- a\n  - b\n- c\n\n", 3, 0);
     small.is_markdown = true;
@@ -1065,12 +1065,9 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
     let (all_marks, visits) = p.list_marks_with_work();
     let tall_marks: Vec<_> = all_marks
         .iter()
-        .filter_map(|mark| match (mark.kind, mark.glyphs) {
-            (
-                crate::render::rects::ListLineKind::Bullet,
-                crate::theme::TaskMarkerGlyphs::Single(ch),
-            ) => Some((mark.top, mark.left, ch)),
-            _ => None,
+        .filter_map(|mark| match mark.kind {
+            crate::render::rects::ListLineKind::Bullet => Some((mark.top, mark.left, mark.glyph)),
+            crate::render::rects::ListLineKind::Task(_) => None,
         })
         .collect();
     assert!(!tall_marks.is_empty(), "the visible bullets must be placed");
@@ -1084,9 +1081,9 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
         "the frame visited {visits} of {N} cached list rows"
     );
     // WITNESS THE WORK: an INDENTED bullet is in the visible band (some x sits
-    // right of column 0), so `visual_rows_for_lines` genuinely ran — and it left
-    // the cursor-line memo warm (the batched, memo-safe path, not per-line
-    // `visual_rows`).
+    // right of column 0), so the shared geometry batch genuinely covered both
+    // placement and marker-slot measurement — and it left the cursor-line memo
+    // warm (the batched, memo-safe path, not per-line `visual_rows`).
     assert!(
         tall_marks.iter().any(|m| m.1 > text_left + 0.5),
         "an indented bullet must be visible so the batched geometry path runs"

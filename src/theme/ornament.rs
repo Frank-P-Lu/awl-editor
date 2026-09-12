@@ -360,49 +360,17 @@ pub const BULLET_WHEEL_OPTICAL_SCALE: f32 = 1.25;
 /// can fit inside EB Garamond's narrow retained `"- "` advance.
 pub const BULLET_FULL_INK_MARKS: [char; 3] = ['\u{270E}', '\u{2701}', '\u{2709}'];
 
-/// The three approved task-marker drawings. The rounded checked state is a
-/// deliberate two-glyph composition, represented by the type rather than a
-/// second renderer path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TaskMarkerStyle {
-    Native,
-    Bold,
-    Rounded,
+/// The one approved Nishiki task pair, shared by every world.
+pub const TASK_MARKERS: [char; 2] = ['☐', '🗹'];
+
+pub const fn task_marker(checked: bool) -> char {
+    TASK_MARKERS[checked as usize]
 }
 
-/// Glyph plan for one task state. `Overlay` paints both glyphs in the same
-/// bounded marker slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TaskMarkerGlyphs {
-    Single(char),
-    Overlay { base: char, mark: char },
-}
-
-impl TaskMarkerStyle {
-    pub const fn glyphs(self, checked: bool) -> TaskMarkerGlyphs {
-        match (self, checked) {
-            (Self::Native, false) | (Self::Bold, false) => TaskMarkerGlyphs::Single('☐'),
-            (Self::Native, true) => TaskMarkerGlyphs::Single('☑'),
-            (Self::Bold, true) => TaskMarkerGlyphs::Single('🗹'),
-            (Self::Rounded, false) => TaskMarkerGlyphs::Single('▢'),
-            (Self::Rounded, true) => TaskMarkerGlyphs::Overlay {
-                base: '▢',
-                mark: '✓',
-            },
-        }
-    }
-
-    pub const fn codepoints(self) -> &'static [char] {
-        match self {
-            Self::Native => &['☐', '☑'],
-            Self::Bold => &['☐', '🗹'],
-            Self::Rounded => &['▢', '✓'],
-        }
-    }
-}
-
-/// Task boxes use one shared size independent of the world's bullet scale.
-pub const TASK_MARKER_SCALE: f32 = 0.60;
+/// Task boxes use one shared fitted size independent of the world's bullet
+/// scale. The bold checked tick deliberately leaves its box, so this tier fits
+/// that complete drawing inside the shared list-prefix gap without clipping it.
+pub const TASK_MARKER_SCALE: f32 = 0.55;
 
 // --- The per-world LIST-ITEM INDENT scale (the other half of bullet-
 // level readability) ---------------------------------------------------------

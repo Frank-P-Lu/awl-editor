@@ -76,7 +76,7 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
     );
     assert_eq!(
         roster.len(),
-        138,
+        135,
         "the generated subset has one exact cmap roster"
     );
     for role in [
@@ -353,14 +353,10 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
     );
 
     let task_role = role_codepoints("task-marker");
-    let consumed_tasks: BTreeSet<u32> = theme::THEMES
-        .iter()
-        .flat_map(|world| world.task_marker.codepoints().iter().copied())
-        .map(|ch| ch as u32)
-        .collect();
+    let consumed_tasks: BTreeSet<u32> = theme::TASK_MARKERS.iter().map(|ch| *ch as u32).collect();
     assert_eq!(
         task_role.len(),
-        5,
+        2,
         "the approved task-marker union is exact"
     );
     assert_eq!(

@@ -6,8 +6,8 @@ use super::{
     diagonal::DiagonalSpine,
     ground::Background,
     ornament::{
-        BULLET_FULL_INK_MARKS, BULLET_WHEEL_OPTICAL_SCALE, FoldMark, Ornaments, TaskMarkerStyle,
-        fold_mark_for, ornament_register,
+        BULLET_FULL_INK_MARKS, BULLET_WHEEL_OPTICAL_SCALE, FoldMark, Ornaments, fold_mark_for,
+        ornament_register,
     },
 };
 mod chrome;
@@ -652,7 +652,6 @@ pub struct Theme {
     pub ornament_scale: f32,
     pub bullets: (char, char, char),
     pub bullet_scale: f32,
-    pub task_marker: TaskMarkerStyle,
     pub list_indent_scale: f32,
     pub tags: ThemeTags,
     pub role_overrides: RoleOverrides,

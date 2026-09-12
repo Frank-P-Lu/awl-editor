@@ -36,7 +36,6 @@ pub const CASSOWARY: Theme = Theme {
     // Lightning / electric arrow / asterisk: the approved sharp-depth sequence.
     bullets: ('\u{2607}', '\u{2301}', '\u{2733}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
