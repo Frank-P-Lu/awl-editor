@@ -1,11 +1,6 @@
-//! The summoned workspace's action seam: the two-region keyboard,
-//! and the Cmd-P deep link into it.
-//!
-//! Carved out of `overlay_nav.rs` (a grandfathered file already at its own
-//! code-health high-water mark) so the workspace's navigation reads as one
-//! thing rather than as two arms inside the picker intercept. The content model
-//! is `crate::overlay::workspace`; the lifecycle it advances is
-//! `crate::overlay::Journey`.
+//! The summoned workspace's action seam: the two-region keyboard and the Cmd-P
+//! deep link. The content model is `crate::overlay::workspace`; the lifecycle it
+//! advances is `crate::overlay::Journey`.
 
 use super::*;
 
@@ -20,7 +15,7 @@ use super::*;
 ///   * `⌫` is the BACK from the detail stage, whenever
 ///     [`crate::overlay::workspace::BackKey`] says the erase key is free there.
 ///     The footer reads that SAME owner, so what is advertised and what acts
-///     are one answer rather than two that agree today.
+///     are one answer.
 ///   * `←/→` are the REGION SEAM's own axis and they come as a pair: `→` off the
 ///     primary list opens the content, `←` off the content closes it again, and
 ///     each has nothing on its far side. Which stage's arrows belong to the seam
@@ -65,8 +60,8 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
     // answer here as well, or the pair a user reaches for would be true for only
     // one of them. `Esc` is not one of these keys: it leaves the workspace from
     // either stage.
-    // On the timeline shape, `CompareVersion` is History's own long-standing
-    // second door to the same toggle (its palette command, "Compare with
+    // On the timeline shape, `CompareVersion` is History's second door to the
+    // same toggle (its palette command, "Compare with
     // version…"). Checked before either region's own keys so it can never be
     // shadowed by them.
     if matches!(action, Action::InsertTab | Action::Outdent)
@@ -149,18 +144,16 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
 }
 
 /// The primary-rows arm, reached through `rows_primary` rather than a kind
-/// check. Diff-paging
-/// (`PageUp`/`PageDown`) always pages the comparison, focused on it or not — a
-/// browsing convenience predating this fold, kept verbatim. `CompareVersion`/
-/// `Tab` are handled by the caller before this runs.
+/// check. Diff-paging (`PageUp`/`PageDown`) always pages the comparison,
+/// focused on it or not. `CompareVersion`/`Tab` are handled by the caller
+/// before this runs.
 ///
 /// Bare `Newline` never restores: unfocused it does
 /// what `CompareVersion`/`Tab` already do (move focus into the comparison);
 /// focused, there is nothing further to "enter", so it is a calm no-op. Only
 /// `AcceptAlternate` (⇧↵) restores, regardless of which region holds focus —
 /// deliberately absent from every arm below so it falls through to the
-/// ordinary accept path (`accept_overlay` → the kind's own accept), exactly
-/// where bare `Enter` used to land.
+/// ordinary accept path (`accept_overlay` → the kind's own accept).
 fn rows_primary_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap();
     let page = ctx.scroll_page_lines.max(1);
@@ -237,22 +230,12 @@ pub(super) fn deep_link_settings(ctx: &mut ActionCtx, row: crate::settings::Sett
     ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Settings)
 }
 
-/// Open the "Keep version…" naming minibuffer, PARKING whatever is
-/// already open rather than replacing it outright. `Action::KeepVersion`'s own
-/// dispatch calls this (today always reached with nothing open — the Command
-/// palette closes itself before its `RunAction` re-dispatch, same door every
-/// other palette-launched picker uses), and it is the door a future
-/// in-workspace "keep" gesture (116d's History timeline) must call DIRECTLY —
-/// like [`deep_link_settings`] above, never by re-dispatching an `Action`
-/// through `apply_transition`'s top-level intercept gate, which would
-/// swallow it outright while a card is already open — proven by the sibling
-/// test in `actions::tests::overlay_drive`, which calls this function
-/// directly for exactly that reason.
-///
-/// `overlay::Journey` owns suspend/return — this reuses it
-/// rather than writing a second parking mechanism the way the old
-/// unconditional `ctx.journey.enter(...)` effectively was (it replaced
-/// whatever was up and parked nothing, silently stranding it).
+/// Open the "Keep version…" naming minibuffer, PARKING whatever is already
+/// open rather than replacing it outright. `Action::KeepVersion` reaches this
+/// with no card open because the Command palette closes before its `RunAction`
+/// re-dispatch. A caller already inside a workspace must call this helper
+/// directly: `apply_transition`'s top-level intercept owns an open card and
+/// claims a re-dispatched action. `overlay::Journey` owns suspend/return.
 pub(super) fn open_keep_version(ctx: &mut ActionCtx) {
     let card = crate::overlay::OverlayState::new_keep_name();
     if ctx.journey.card().is_some() {

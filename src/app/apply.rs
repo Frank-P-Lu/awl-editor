@@ -37,7 +37,7 @@ impl App {
     }
 
     /// Preview colors and the paintable prefix; only the latest world's tail settles.
-    // `prev` (the outgoing world) is now only named by the native probe trace, so
+    // `prev` (the outgoing world) is named only by the native probe trace, so
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub(super) fn retint_theme_preview(&mut self, prev: crate::theme::Theme) {
@@ -354,8 +354,8 @@ impl App {
             match effect {
                 actions::Effect::RunAction(act) => {
                     // Run the nested transition at this exact position, then
-                    // continue the outer stream. Returning here used to drop
-                    // the outer SyncView + Redraw requests.
+                    // continue the outer stream so its SyncView + Redraw requests
+                    // still propagate.
                     crate::commands::record_recent(&act);
                     nested_quit |= self.apply(act, shift, exit, crate::stats::Door::Palette);
                     let (_, journey) = self.workspace_state.core_slots();
@@ -408,8 +408,8 @@ impl App {
 
     fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) {
         // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
-        // per-command counts (`app/stats.rs`) — the discoverability signal phase 2
-        // surfaces (never a nudge). Native-only + config-gated inside; a non-catalog
+        // per-command counts (`app/stats.rs`), which surface discoverability signals
+        // but never a nudge. Native-only + config-gated inside; a non-catalog
         // action (motion / self-insert / overlay-open) is filtered there. Placed at
         // the very top so it sees EVERY dispatch (incl. the macOS About early-return
         // and the palette `RunAction` re-dispatch); `apply` is the ONE seam all three
@@ -418,11 +418,11 @@ impl App {
         self.ledger_note_dispatch(action, door);
         #[cfg(target_arch = "wasm32")]
         let _ = (action, door);
-        // DIFF-AS-PREVIEW note: the old Compare TAKEOVER's read-only gate lived
-        // here. The takeover is RETIRED — the writer's diff now lives entirely
-        // inside the History picker's live preview, whose read-only law is the
-        // overlay's own modality (every key routes through `overlay_intercept`;
-        // typing filters the QUERY, never the transcript or the buffer).
+        // The writer's diff lives entirely inside History's live preview.
+        // The overlay's own modality keeps that preview read-only. Every key
+        // routes through `overlay_intercept`; typing filters only the QUERY.
+        // The transcript and its underlying buffer remain untouched.
+        // The gate therefore belongs to the overlay, not this interpreter.
 
         // Buffer/zoom/search transitions are shared with headless `--keys` via
         // `actions::apply_transition`. Work the core cannot own is returned in
@@ -582,9 +582,9 @@ impl App {
             actions::Effect::Surface(surface) => self.apply_surface_effect(surface),
             actions::Effect::Notice(effect) => self.apply_notice_effect(effect),
             actions::Effect::Render(effect) => self.apply_render_effect(effect),
-            // NOTES VERBS round: the RENAME minibuffer committed — perform the
-            // actual disk rename + the one-owner path-keyed bookkeeping (refusing
-            // calmly on a git-managed file or a name collision).
+            // The RENAME minibuffer committed: perform the disk rename and the
+            // one-owner path-keyed bookkeeping, refusing calmly on a git-managed
+            // file or a name collision.
             actions::Effect::RenameNoteCommit { new_name } => self.rename_current_file(&new_name),
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
             actions::Effect::SaveCopyName { dest, name } => self.save_copy_named(&dest, &name),
@@ -630,9 +630,9 @@ impl App {
                 self.persist_date_format();
                 self.refresh_settings_overlay();
             }
-            // Picked a row (native/emacs), not a boolean flip: unlike the old
-            // Toggle row this never previews live, so the accept is the whole
-            // apply — persist, rebuild the live keymap, and name the resulting
+            // Picked a row (native/emacs), not a boolean flip. This never previews
+            // live, so the accept is the whole apply: persist, rebuild the live
+            // keymap, and name the resulting
             // layout (never a silent flip, `Action::ConvertLineEndings`'s "which
             // one am I on" precedent). An unparseable `value` is a calm no-op —
             // the corpus only ever emits a real `KeymapFlavor::config_name()`.
