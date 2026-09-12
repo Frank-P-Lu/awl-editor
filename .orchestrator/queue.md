@@ -6,9 +6,69 @@
 
 ## Open build and design tasks
 
-**8 open numbered tasks.** Ready fixes: 654, 653, 650, 651, 646, 645 and 644.
+**10 open numbered tasks.** Ready fixes: 656, 655, 654, 653, 650, 651, 646, 645 and 644.
 Read-only follow-up investigation: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 655 — use Nishiki’s native bold checkbox pair in every world (user approved, 2026-09-12)
+
+🟢 READY — queue only; supersedes 644’s per-world task-pair mapping.
+
+Decision: use Nishiki-teki U+2610 BALLOT BOX for open tasks and U+1F5F9
+BALLOT BOX WITH BOLD CHECK for completed tasks across all worlds. The user
+selected the second and fourth drawings in a specimen of the actual 4.0.5 font.
+Both are already bundled in Awl Marks. The rounded checked example in the
+[Task marker study](https://awl-task-marker-study.s84fzrm6tq.chatgpt.site) is
+U+25A2 plus a separately overlaid U+2713, not a native rounded checked glyph;
+retire that composition and the lighter U+2611 task treatment. Nishiki’s native
+bold tick extends beyond its box by design; do not redraw or clip that shape.
+
+Build/Scope: route task states through one shared native pair, removing obsolete
+per-world task styles and overlay machinery where no longer consumed. Preserve
+world ink, completed-body dimming, source syntax, caret/selection reveal, undo,
+file bytes and the approved decorative bullet roster. Coordinate fitting with 656;
+do not replace bullets with plain dots or dashes. No Site edit is requested.
+
+Done/Verify: follow docs/verification.md and the Markdown/render contracts. Update
+roster/style laws without discarding their coverage. Verify open/checked states,
+nested/wrapped tasks, invalid `- []` syntax and reveal transitions across every
+world at DPI 1/2. Require real awl pixel evidence for presence, state distinction,
+no fallback or duplicate marker, and clearance from body text, plus the required
+neighborhood audit and visual smoke. The specimen is taste evidence only.
+
+---
+
+### 656 — align rich list bullets and task markers consistently (user report, 2026-09-12)
+
+🟢 READY — coordinate sequentially with 655 through the shared list-marker owner.
+
+Finding: the user’s screenshot shows a star bullet and task boxes sitting at
+inconsistent horizontal positions, with task text beginning farther right than
+ordinary list text. Code inspection finds ordinary bullets left-aligned while
+task glyphs are centered, different slot-width derivation for the two kinds, and
+an additional retained task separator. These are confirmed mechanisms, not yet
+a measured attribution of every visible offset. The lower empty task may be
+source-indented; reproduce with a seeded fixture before calling that a defect.
+
+Build/Scope: give rich bullets and the approved native task pair one coherent
+marker alignment and body-text spacing rule at each nesting level. Measure both
+horizontal placement and optical vertical seating beside the actual body face.
+Preserve the approved per-world bullet symbols, their depth cycle and optical
+scale adjustments. Keep source indentation meaningful, raw Markdown editable on
+caret/selection reveal, wrapping and hit geometry correct, and saved bytes intact.
+Own placement in the shared renderer; avoid per-world code paths or cosmetic
+translations that leave text and interaction geometry disagreeing.
+
+Done/Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
+CAPTURE.md before choosing evidence. Follow docs/verification.md. Capture before/
+after mixed ordinary/open/checked lists, nested and wrapped rows, `-`/`*`/`+`
+markers, proportional/mono faces, all worlds and DPI 1/2. Assert actual marker
+alignment, consistent same-depth body starts, legibility and positive text gaps;
+prove the headline regression law fails with the old placement restored. Cover
+caret/selection reveal and neighboring ordered-list behavior. Include the standing
+visual smoke; human taste remains separate from numeric alignment evidence.
+
+---
 
 ### 654 — remove retired floating-card shadow machinery (user request, 2026-09-12)
 
@@ -336,6 +396,7 @@ evidence and the standing vision smoke; a browser specimen is a taste aid only.
 ### 644 — add visible open/completed task markers (design approved, 2026-09-12)
 
 🟠 INTEGRATED — landed with 645 at merge `30c4d1a4`; combined gate remains.
+Follow-up 655 supersedes the pair mapping below with the native bold pair for all worlds.
 Per-theme Nishiki picks were approved by the user; enhancement, not an
 established regression. Implement the approved mapping below.
 
