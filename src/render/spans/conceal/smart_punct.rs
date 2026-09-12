@@ -141,9 +141,9 @@ pub(in crate::render) fn smart_punct_kind_for(
 
 /// Force a concealed smart-punctuation span's leading scalar to the reserved
 /// substitute advance and zero-width the rest — mirrors
-/// [`super::footnotes::add_footnote_conceal_spans`] /
-/// [`super::bare_url::add_bare_url_conceal_spans`]'s forced-first-scalar
-/// shape exactly. Unlike those two this has no
+/// [`super::footnotes::add_footnote_conceal_spans`] and
+/// [`super::bare_url::add_bare_url_conceal_spans`] through the same private
+/// writer. Unlike those two this has no
 /// "not actually mine" fallthrough: every `ConcealKind::SmartPunct` span
 /// always gets this treatment (there is no SCHEME/TAIL-style second case), so
 /// this is called unconditionally rather than returning a dispatch bool.
@@ -161,21 +161,12 @@ pub(super) fn add_smart_punct_conceal_spans(
     let Some(kind) = smart_punct_kind_for(line_text, local_range) else {
         return;
     };
-    let first_len = line_text[(lo - line_doc_start)..]
-        .chars()
-        .next()
-        .map_or(0, char::len_utf8);
-    let first_end = (lo + first_len).min(hi);
-    if first_end > lo {
-        let forcing = hidden
-            .clone()
-            .letter_spacing(advances.smart_punct_forcing_spacing(kind, heading_level));
-        al.add_span(
-            (lo - line_doc_start)..(first_end - line_doc_start),
-            &forcing,
-        );
-    }
-    if first_end < hi {
-        al.add_span((first_end - line_doc_start)..(hi - line_doc_start), hidden);
-    }
+    super::substitutes::add_reserved_conceal_spans(
+        al,
+        line_text,
+        line_doc_start,
+        lo..hi,
+        hidden,
+        advances.smart_punct_forcing_spacing(kind, heading_level),
+    );
 }
