@@ -6,8 +6,131 @@
 
 ## Open build and design tasks
 
-**3 open numbered tasks.** Ready: 646, 645 and 644.
+**6 open numbered tasks.** Ready fixes: 650, 651, 646, 645 and 644.
+Read-only follow-up investigation: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 650 — Files listings use names, never file contents (user-approved scope, 2026-09-12)
+
+🟢 READY — queue only; implementation is not dispatched. Prioritize this user-reproduced hang.
+
+Finding: a three-second sample of the frozen live macOS app put every sampled main-thread
+stack in `App::apply` → `FilesOverlayBuilder::attach_level` →
+`overlay::files::unsupported_level_files` → `openable::classify` → `std::fs::read`.
+The open descriptor named a 778,658,385-byte MP4 in the user's Documents folder.
+No Files list had appeared; the app beachballed. This is a synchronous content read
+before presentation, not a GPU failure or observed process crash. Keep private paths
+and the raw process sample out of tracked artifacts.
+
+Origin: `22872ed0` (2026-09-11, “fix: preserve Files unsupported-only outcome”)
+added whole-corpus content classification to Files. `26e7758e` seven minutes later
+restricted that to the displayed directory, retaining full reads per file.
+`b4c3f92f` (2026-09-12) added selected deep-result classification, with a 256 KiB
+metadata threshold. Browse's corresponding whole-file listing reads date to
+`9d888a65f` (2026-07-25). These origins are verified from diffs; historical binaries
+were not replayed. The live sample confirms the current directory-level path.
+
+Build/Scope: make Files and Browse listing/filtering use filenames, extensions and
+entry kinds only. Use one shared, pure presentation-hint owner. Unknown, extensionless
+and misleading extensions may be offered and then refused on open; that tradeoff is
+user-approved. Remove preaccept content reads from directory summon/relevel AND
+selected deep results, including query, wheel, pointer, accessibility and replay doors.
+Do not claim “text · ready” or a definitive content verdict from a filename. Preserve
+folders, hidden-file policy, Text/All semantics, recent/open identities and selection.
+Keep full content validation at the actual open gate before any document/path mutation.
+This item does not introduce asynchronous folder scanning or claim immunity to slow
+metadata/directory reads; that wider work is investigated in 652.
+
+Done/Verify: follow docs/verification.md. Extend the existing CountingFs laws to require
+zero content reads before acceptance across Files summon/relevel, Browse Text/All,
+and deep selection input doors. Sweep ordinary text, large video/archive, empty,
+extensionless, unknown-extension and binary-under-.md cases. Assert actual listing
+outcomes as well as zero reads. Acceptance must still refuse binary content without
+changing the active document, root or disk bytes. Update the tests that currently
+REQUIRE preaccept reads/readiness, including `app/tests/files.rs` and the replay law
+in `main/tests/capture_scenarios.rs`; preserve their input-door coverage. Prove the
+zero-read regression law fails when a real old classify call is restored. Update
+`openable.rs`/`file_visibility.rs` documentation. Use seeded roots/configs for any
+capture and a live release smoke for the reported route; one integrated native/wasm
+gate after the candidate is committed and frozen.
+
+---
+
+### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
+
+🟢 READY — queue only; implementation is not dispatched. Separate from 650.
+
+Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
+`search_folder::load_corpus` synchronously with whole-file `read_to_string` before
+showing the picker. `load_corpus` checks `max_file_bytes` only AFTER reading, and
+counts only retained files/bytes. Oversized or failed reads consume neither budget;
+the total retained-byte limit can also be exceeded by the last accepted file.
+A standalone probe compiled the unchanged SearchBudget/load_corpus source: with
+max_files=3, max_file_bytes=10 and max_total_bytes=25, 1,000 oversized candidates
+caused 1,000 callbacks returning 100,000 bytes and zero retained files; 1,000 failed
+reads also caused 1,000 callbacks. Ten-byte inputs retained 30 bytes against 25.
+This demonstrates the budget defect, not a reproduced live UI hang. Origin:
+`cca5b34e` introduced the loader on 2026-09-02; `054cdc90` wired the live feature.
+Existing tests primarily assert the retained corpus, not attempted I/O.
+
+Build/Scope: give attempted reads and actual bytes explicit enforceable budgets at
+the read owner, including oversized, invalid-text, failed and changing-size files.
+Avoid reading a complete giant file merely to reject its size. Preserve search
+correctness for admitted files and make incomplete coverage honest. A size/byte cap
+is not a time guarantee: assess background/cancelable loading with 652 before claiming
+responsiveness on slow storage. Coordinate shared loading design sequentially, not
+as overlapping worker changes. Do not turn this into the names-only policy from 650:
+full-text search legitimately needs contents.
+
+Done/Verify: read docs/verification.md. Count attempts and bytes at the actual FS seam;
+probe exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and
+read errors. Mutation-prove that the old post-read-only limits fail. Check live and
+replay consumers and incomplete-result communication. Use one integrated native/wasm
+gate for a final code candidate, never describe retained-corpus tests as I/O bounds.
+
+---
+
+### 652 — investigate neighboring synchronous I/O stalls (user request, 2026-09-12)
+
+🔎 INVESTIGATION — read-only follow-up; implementation/design is not dispatched.
+The initial source audit is complete. The items below are source-confirmed blocking
+paths, not independently reproduced freezes. Measure with controlled fixtures and
+blocked/slow readers before choosing changes; no probing by reading large private files.
+
+- Folder indexing: `gather_goto_inputs` → `rescan_file_index` → `index::build_index`
+  runs before Files, projects, Asset Cleaner and folder-search actions. Recursive
+  non-git walks and synchronous git commands remain after 650; the git path also
+  walks for .env files. Symlink directories and named junk directories are skipped.
+  Measure large and slow trees; background loading needs stale-result suppression
+  when root/query changes, bounded workers and responsive cancellation.
+- History: `gather_overlay_inputs` → `history::timeline_rows` loads every snapshot
+  before composing rows. Loose-file `load` rereads/parses the full history log for
+  each version; Git history runs synchronous `git log` and `git show` per version,
+  then computes row diffs. Inspect batching/lazy previews before adding machinery.
+  The timeline content-loading shape dates to `9b439f406` (2026-07-01), with later
+  module extraction; do not blame the September Files change for this older path.
+- Asset Cleaner: `assets::scan` reads every non-hidden Markdown candidate in full
+  on summon, then stats asset candidates. The scan originated in `9cfb65294`
+  (2026-07-09). Failed/incomplete reference scans must never become authoritative
+  evidence that a used asset is orphaned. The preview path
+  `render/chrome/asset_preview.rs` → `render/image_cache.rs::ensure` synchronously
+  opens/decodes on a cache miss; verify compressed size versus decoded pixel bounds
+  and stale-mtime behavior before proposing background decode.
+- External changes: `external::Seen::at` unconditionally reads/hashes the file at
+  focus/persistence/buffer-identity boundaries. This shape dates to `1127673d`
+  (2026-08-03). It detects same-size/same-mtime changes and MUST NOT be replaced by
+  a stat-only shortcut. Measure slow-file behavior and preserve save/conflict/data
+  guarantees if moving observation off the UI thread. Include explicit file open
+  and image-drop full reads in the neighboring inventory.
+
+Done/Verify: publish a small trigger × owner × blocking operation × existing guard
+matrix with measured cases, reproduction status and prioritized bounded proposals.
+For delayed work, prove Escape/navigation remains serviceable and late results cannot
+change the wrong root/document or authorize writes/deletions. Read docs/platform.md,
+docs/render.md and docs/harness-reach.md for the relevant surface before promising
+verification. No application source edits are authorized by this investigation item.
+
+---
 
 ### 646 — shorten historical commentary in tests and production source (user request, 2026-09-12)
 
