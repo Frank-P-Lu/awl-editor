@@ -34,6 +34,14 @@ if [ ! -f "$INDEX" ]; then
   exit 1
 fi
 
+is_hashed_js() {
+  printf '%s\n' "$1" | grep -Eq '^/editor/awl-[[:xdigit:]]{16}\.js$'
+}
+
+is_hashed_wasm() {
+  printf '%s\n' "$1" | grep -Eq '^/editor/awl-[[:xdigit:]]{16}_bg\.wasm$'
+}
+
 # The generated loader writes JS and wasm URLs as quoted /editor/ paths. Gather
 # both forms, then require every referenced asset to exist under the same mount.
 ASSETS="$(grep -Eo "['\"]/editor/[^'\"[:space:]]+\\.(js|wasm)" "$INDEX" | sed "s/^['\"]//" | sort -u || true)"
@@ -50,10 +58,8 @@ while IFS= read -r asset; do
     /editor/*.js) js=$((js + 1)) ;;
     /editor/*.wasm) wasm=$((wasm + 1)) ;;
   esac
-  case "$asset" in
-    /editor/awl-????????????????.js) hashed_js=$((hashed_js + 1)) ;;
-    /editor/awl-????????????????_bg.wasm) hashed_wasm=$((hashed_wasm + 1)) ;;
-  esac
+  if is_hashed_js "$asset"; then hashed_js=$((hashed_js + 1)); fi
+  if is_hashed_wasm "$asset"; then hashed_wasm=$((hashed_wasm + 1)); fi
   if [ ! -f "$ASSEMBLED${asset}" ]; then
     echo "web-site-assembly: missing referenced asset: $asset" >&2
     exit 1
