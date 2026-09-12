@@ -1,7 +1,6 @@
-//! PER-ITEM LIST SURFACES round — the law suite for the INERT-by-default
-//! capabilities (the "Persona list"): `ListStyle` (Pane | Bars, plus the V6 P5
-//! bar axes — extent HugText, coverage SelectedOnly; the V7 taste-gate DROPPED the
-//! `fill` Outline axis), the RIGHT-ANCHOR MIRROR (`CardAnchor::TopRight`, a
+//! The law suite for INERT-by-default list-surface capabilities: `ListStyle`
+//! (Pane | Bars, plus extent HugText and coverage SelectedOnly; the `fill`
+//! Outline axis is absent), the RIGHT-ANCHOR MIRROR (`CardAnchor::TopRight`, a
 //! first-class anchor value), and `FacetStyle` (Text | Band | Chips). Each
 //! capability's DEFAULT arm is inert: the
 //! divergent rendering is reachable only through the `AWL_*_FORCE` probes / the
@@ -9,26 +8,19 @@
 //! pixels (the Wagtail invisible-row lesson — assert the OUTCOME, not the
 //! mechanism).
 //!
-//! THE INERT GUARANTEE — re-scoped (2026-07-16, widened again in the
-//! overlay/chrome polish round). The gate is NO LONGER "byte-identical to the
-//! `main` base": ONE deliberate visual change rides every summoned picker —
-//! the QUERY-INPUT BEAT, widened `0.72 -> 1.0 -> 1.3` of a row across the two
-//! rounds (`OVERLAY_QUERY_BEAT`, a user-directed taste dial) — so EVERY
-//! summoned picker's query line and everything below it moves down a fraction
-//! vs `main` by design. Byte-identity-vs-`main` is therefore impossible for
-//! any query-line surface and must not be claimed. What the inert guarantee
-//! DOES assert, two ways:
+//! The inert guarantee is not byte identity to an earlier tree: the
+//! QUERY-INPUT BEAT (`OVERLAY_QUERY_BEAT`, a user-directed taste dial) affects
+//! every summoned picker. It instead asserts two current properties:
 //!   1. SELF-CONSISTENCY (`list_and_facet_probe_off_matches_world_default`):
 //!      forcing a probe to its OFF value (`AWL_OVERLAY_LIST_FORCE=pane` /
 //!      `AWL_FACET_STYLE_FORCE=text`) renders BYTE-IDENTICAL to the world's own
 //!      default with NO probe set — the probe's off arm perturbs nothing IN
-//!      THIS worktree. (Both sides carry the widened beat equally, so the beat
+//!      the current tree. (Both sides carry the beat equally, so the beat
 //!      is invisible to this comparison.)
 //!   2. THE MODEL-LEVEL INERT LAW
 //!      (`list_and_facet_default_are_inert_no_bars_no_chips_no_gap`): the
 //!      default draws ZERO bar surfaces and opens ZERO row gap.
-//!      Together these pin "the Persona capabilities cost nothing when off" without
-//!      the false byte-identity-vs-`main` claim the beat retired.
+//!      Together these pin "the Persona capabilities cost nothing when off."
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -239,9 +231,8 @@ fn parse_facet_style_force_grammar() {
         parse_facet_style_force("BAND"),
         Some(theme::FacetStyle::Band)
     );
-    // V6 P5 round — `chips` is WIRED for real now (the two prior attempts left it
-    // unrecognized, so a `-chips` shot silently came out as `text`). It parses.
-    // The bare `chips` word == the landed baseline (`Hairline`); each suffix maps
+    // `chips` must parse; otherwise a `-chips` shot silently comes out as `text`.
+    // The bare word selects `Hairline`; each suffix maps
     // to its treatment (CHIP-VARIATIONS PROBE).
     let chips = |v| Some(theme::FacetStyle::Chips(v));
     assert_eq!(
@@ -419,7 +410,7 @@ fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
     );
     assert!(mir[0] < unsel[0] - 1e-3, "mirror juts left");
 
-    // DESIGNER PIXEL-PASS FIX (2026-07-16): the selected bar juts INTO THE ROOM,
+    // The selected bar juts INTO THE ROOM,
     // past the card's own edge — the pane is dropped, so there is no box to stay
     // within; the framebuffer clips the trailing edge at the canvas. A big grow
     // therefore extends the jut fully (no `card_w` clamp capping it at
@@ -452,7 +443,7 @@ fn list_and_facet_default_are_inert_no_bars_no_chips_no_gap() {
     };
     let _g = crate::testlock::serial();
     // Belt-and-braces: no test override is set, so the world's own (Pane/Text)
-    // data governs — the inert default this whole round preserves.
+    // data governs the inert default.
     set_list_style_test_override(None);
     set_facet_style_test_override(None);
 
@@ -485,12 +476,10 @@ fn list_and_facet_default_are_inert_no_bars_no_chips_no_gap() {
     }
 }
 
-/// THE INERT SELF-CONSISTENCY LAW (real pixels) — the re-scoped replacement for
-/// the retired "byte-identical to `main`" gate (see the module doc). Forcing a
+/// THE INERT SELF-CONSISTENCY LAW (real pixels). Forcing a
 /// probe to its OFF value must render BYTE-IDENTICAL to the world's own default
-/// with NO probe set, IN THIS WORKTREE — so the probe's off arm is proven to
-/// perturb nothing without any claim about `main` (which the widened query beat
-/// legitimately diverges from). Both sides carry the same beat, so it cancels.
+/// with NO probe set, so the probe's off arm is proven to perturb nothing.
+/// Both sides carry the same query beat, so it cancels.
 #[test]
 fn list_and_facet_probe_off_matches_world_default() {
     let _g = crate::testlock::serial();
@@ -500,7 +489,7 @@ fn list_and_facet_probe_off_matches_world_default() {
         return;
     };
     let _g = crate::testlock::serial();
-    // A default (Pane/Text) world — the inert arm this round preserves.
+    // A default (Pane/Text) world exercises the inert arm.
     theme::set_active_by_name("Currawong").unwrap();
     p.sync_theme();
 

@@ -1,7 +1,6 @@
 //! Summoned-panel captures (debug, which-key, replace, HUD, menu bar, EOL
-//! convert, About/Lifetime/Peek cards, caret + dictionary pickers) -- absent
-//! by default, settled state when shown -- split out of the former
-//! monolithic `capture::tests` (2026-07 code-organization pass).
+//! convert, About/Lifetime/Peek cards, caret + dictionary pickers): absent by
+//! default and settled when shown.
 
 use super::super::*;
 use super::{adapter_available, sidecar};
@@ -586,11 +585,9 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
     );
 }
 
-/// SUMMONED ABOUT CARD (`about.rs` + `menu.rs`'s routed item, replacing muda's
-/// predefined About dialog — see CLAUDE.md's menu-bar section for the
-/// use-after-free this round actually fixed, which About's move to an in-app
-/// card is a separate taste upgrade from). ABSENT by default (`open=false`,
-/// byte-identical capture, matching the HUD's own default-off convention);
+/// SUMMONED ABOUT CARD (`about.rs` + `menu.rs`'s routed item). It is ABSENT by
+/// default (`open=false`, byte-identical capture, matching the HUD's own
+/// default-off convention);
 /// opened (mirroring `crate::hud::set_held(true)`, since there is no default
 /// chord to `--keys` replay — About is palette/menu-only) it reports
 /// `open=true` in the sidecar. Every figure the card renders (name, crate
@@ -635,7 +632,7 @@ fn about_card_absent_by_default_and_open_reports_true() {
         serde_json::json!(true),
         "open: About summoned"
     );
-    // CHECK FOR UPDATES round: a headless capture never calls the live-only
+    // A headless capture never calls the live-only
     // `sync_update_checked` seam, so the pipeline field stays `None` and
     // `about.checked` reports the fixed placeholder STRING (never `null`,
     // and never a real relative-time phrase) — the HUD `saved`-row
@@ -1434,10 +1431,10 @@ fn context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below() {
 }
 
 /// CARET-STYLE PICKER, MORPH highlighted: the settled preview demo actually PAINTS
-/// the glyph silhouette (`caret_preview.silhouette == true`) — the bug fix. Drives
+/// the glyph silhouette (`caret_preview.silhouette == true`). Drives
 /// the exact overlay shape a real `--keys "Cmd-P C a r e t Enter Down"` replay
-/// leaves open (see CAPTURE.md), so this is the capture-reachable pixel/state check
-/// the queue item asked for, not just a render-seam unit test.
+/// leaves open (see CAPTURE.md), so this is a capture-reachable pixel/state check,
+/// not just a render-seam unit test.
 #[test]
 fn caret_picker_morph_preview_paints_the_silhouette() {
     if !adapter_available() {
@@ -1650,19 +1647,19 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
 
 /// FORMAT POPOVER — the CARD-FITS law (the "fat chin" cure). The card must HUG the
 /// button GLYPH ROW: a uniform [`crate::render::POPOVER_VPAD`] band of card above the
-/// glyphs' ink top and below their ink bottom — NOT the leading-inflated line box
-/// that once left a slab of dead card below the buttons (`card_h = line_height + 2*
+/// glyphs' ink top and below their ink bottom — NOT a leading-inflated line box
+/// that leaves a slab of dead card below the buttons (`card_h = line_height + 2*
 /// VPAD` with the glyphs top-anchored). Asserted over the RENDERED PIXELS per the
 /// Wagtail tripwire (a geometry/appearance property is measured from the bytes, never
 /// inferred from sidecar state): force the toolbar, read the card rect from the
 /// sidecar, then scan the muted buttons' actual ink band in the PNG and require the
 /// top and bottom pads each equal the pad token within antialias tolerance.
 ///
-/// THE RETINA LESSON (the chin that SURVIVED the first fix): the law now runs the
+/// The law runs the
 /// same assertions at the 1x capture baseline, the live 2x retina scale
 /// (`--capture-dpi 2`, the `set_dpi` seam the real window drives), AND a 2x +
 /// non-default-zoom compound — and it measures OUTSIDE the card rect too. The first
-/// fix proved the CARD tight while the float drop-shadow quad still painted a
+/// A card-only measurement can pass while the float drop-shadow quad paints a
 /// hard-edged ~9px slab BELOW the rim (brighter than the page on a dark world) —
 /// dead mass no card-rect measurement could see. So each run also shoots a CONTROL
 /// capture (identical state, popover down) and requires the popover frame to match
@@ -1966,9 +1963,8 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// FORMAT POPOVER — SELF-DEMONSTRATING LABELS (the "a user would not know what
-/// ~~ or == means" round). Every button previews its own effect instead of
-/// leaking raw markdown syntax into chrome: `S` carries a REAL strike line from
+/// FORMAT POPOVER — SELF-DEMONSTRATING LABELS. Every button previews its own
+/// effect instead of leaking raw markdown syntax into chrome: `S` carries a REAL strike line from
 /// THE one strike-line owner (`render::spans::strike_line_band` — the same fn
 /// the document's `~~strike~~` quads read), `A` sits in the real
 /// `==highlight==` wash pill, `C` sits in the inline-code `base_200` pill.
@@ -1978,8 +1974,7 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
 /// and each pill paints beside its letter's ink where an unpilled button shows
 /// bare card. Runs on Mulga (pinned explicitly, not whatever the ambient
 /// active world happens to be — this law's thresholds only clear on a
-/// generous-enough world) — the cross-world legibility sweep is the round's
-/// capture-gallery audit, not this law.
+/// generous-enough world); cross-world legibility belongs to the capture-gallery audit.
 #[test]
 fn popover_labels_demonstrate_their_own_effects() {
     if !adapter_available() {
@@ -2126,15 +2121,12 @@ fn popover_labels_demonstrate_their_own_effects() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// HISTORY'S COMPARISON, the capture tier. While the History workspace is open with a
+/// HISTORY COMPARISON, the capture tier. While the History workspace is open with a
 /// version selected, the DOCUMENT itself becomes the writer's-diff transcript:
 /// the same substitution the live `sync_view` performs, with the same caret park
 /// on the transcript's blank line 1 so no line's WYSIWYG conceal reveals.
 ///
-/// **WHY TWO ARMS WENT AWAY.** This law once graded the transcript as an
-/// ORDINARY document drawn at the page column with no dressing — the composition
-/// between the diff panel's removal and the flip. History is now a summoned
-/// workspace: the transcript is RELOCATED into
+/// History is a summoned workspace: the transcript is RELOCATED into
 /// its content region and composited onto its surface, the backdrop behind the
 /// card frosts like every other workspace's, and `detail_focus` legitimately
 /// changes the focus cue. "Undressed at the page column" and "`detail_focus`
@@ -2143,13 +2135,12 @@ fn popover_labels_demonstrate_their_own_effects() {
 /// roster, the whole geometry range — live at the render tier in
 /// `render::tests::comparison_composite`.
 ///
-/// What is left here is what only THIS tier can see: the capture path's own
+/// This tier checks the capture path's own
 /// derivation of the workspace shape. A sidecar carries `workspace` and a mode,
 /// not a shape, so `capture::modes` re-derives `overlay_rows_primary` /
 /// `overlay_comparison` from `OverlayKind::workspace_shape` and the preview it
 /// was handed. Get that wrong and a replayed History workspace draws the OTHER
-/// shape while every unit law stays green — which is exactly what happened on
-/// this item's first capture.
+/// shape while every unit law stays green.
 #[test]
 fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
     if !adapter_available() {
@@ -2453,9 +2444,8 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
     (img, r)
 }
 
-/// DARK-DEPTH OPTION C — THE NO-SLAB LAW: retiring the drop-shadow quad must
-/// not leave a brighter band where it used to paint. Before this round
-/// `float_shadow_srgba()` colored the shadow quad in the world's own INK
+/// THE NO-SLAB LAW: the absent drop-shadow quad must not leave a brighter band.
+/// Coloring the shadow quad in the world's own INK
 /// (`base_content`) at low alpha — near-WHITE on a dark world — so the
 /// "shadow" measurably BRIGHTENED the ground it sat on into a pale slab
 /// (+0.12..0.25 luminance, measured on Currawong's card) instead of receding
@@ -2464,11 +2454,11 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
 /// OUTCOME in real pixels — never inferred from the sidecar (the Wagtail
 /// tripwire): WCAG relative luminance in the EXACT footprint the old shadow
 /// quad used to occupy (`[x-2, y+h+4, w+4, h+6]`, `set_float_quads`'
-/// `Shadowed` arm before this round) must be no brighter than an equal-size
-/// reference band a little further below (past where the old shadow ever
-/// reached) — the TWO-ZONE comparison rides adjacent Y bands so it stays
+/// `Shadowed` arm) must be no brighter than an equal-size reference band a little
+/// further below (past the shadow footprint's reach). The TWO-ZONE comparison
+/// rides adjacent Y bands so it stays
 /// world-agnostic (a per-world margin gradient/dot/star pattern, if any,
-/// affects both zones roughly alike; only the retired shadow quad singled
+/// affects both zones roughly alike; only a shadow quad singles
 /// out the nearer zone).
 #[test]
 fn dark_world_card_casts_no_brightening_slab_below_it() {
