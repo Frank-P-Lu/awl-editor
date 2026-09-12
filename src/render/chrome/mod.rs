@@ -219,7 +219,7 @@ pub(super) struct OverlayGeom {
     top_idx: usize,
     n_items: usize,
     hint: String,
-    hint_rows: usize,
+    pub(in crate::render) hint_rows: usize,
     hint_gap_rows: usize,
     footer: Vec<String>,
     /// Display rows the footer occupies: `0` when empty, else `footer.len() + 1` (a blank

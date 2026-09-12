@@ -104,11 +104,18 @@ impl TextPipeline {
             return None;
         }
         let frame = self.workspace_frame(self.window_w as u32);
-        let header_band = crate::render::plan::header_band_height(
+        let mut header_band = crate::render::plan::header_band_height(
             frame.fit.header_rows,
             self.overlay_lh(),
             frame.fit.header_gap,
         );
+        // On a narrow DETAIL stage the timeline itself is parked, but its
+        // teaching footer remains visible above the relocated comparison.
+        // Charge that compact band to the comparison's top edge so the prose
+        // cannot begin underneath the keys that explain how to navigate it.
+        if !frame.show_rows && frame.hint_rows > 0 {
+            header_band += self.overlay_footer_reserve(frame.hint_rows, frame.fit.hint_gap_rows);
+        }
         crate::render::plan::plan_comparison_viewport(
             frame.regions,
             true,

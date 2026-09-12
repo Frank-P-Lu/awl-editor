@@ -207,6 +207,19 @@ impl TextPipeline {
         self.workspace_rail_rows.clone()
     }
 
+    /// TEST-ONLY: the shaped width of the footer line in the rail buffer. The
+    /// rail owns that line only on the narrow RailOverRows primary stage; the
+    /// caller gates this read on the current geometry so stale parked buffer
+    /// contents can never count as a visible carrier.
+    #[cfg(test)]
+    pub(in crate::render) fn workspace_rail_footer_px_probe(&self) -> f32 {
+        let first_footer_line = self.overlay_lens.len() + 1;
+        self.workspace_rail_buffer
+            .layout_runs()
+            .filter(|run| run.line_i >= first_footer_line)
+            .fold(0.0_f32, |width, run| width.max(run.line_w))
+    }
+
     /// The rail's full box `[x, y, w, h]` — its measured column, seated on the
     /// row plan's own band origin so its first entry and the pane's first row
     /// share a line, and running to the workspace's bottom pad.
