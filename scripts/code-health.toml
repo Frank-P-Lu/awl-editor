@@ -301,11 +301,13 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3090
+lines = 3104
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
 # `TextPipeline`; the row treatment reads this state beside selection geometry.
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
 # Test-only per-pipeline counters witness actual search row gathering and visits.
+# The private benchmark-root owner preserves native any-CWD fixtures while keeping
+# compile-time checkout paths out of Wasm bundles.
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
 # (overlay_table_dims_hint_w, the shaped hint width measured once per
 # set_view so the geometry function can size the card without a
@@ -390,7 +392,7 @@ reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction s
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1026
+lines = 1025
 reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: every `BURST_WORLDS` hop and eager theme-preview arrow step must reshape. The witness prevents a timing result from passing when no reshape occurred. Its tests live in sibling `framebench/tests.rs` because this file is at its frozen baseline and further growth requires a carve-out."
 
 [[file_size_mark]]
