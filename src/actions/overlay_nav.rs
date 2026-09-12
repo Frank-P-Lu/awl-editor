@@ -67,6 +67,28 @@ fn journey_toggled(ctx: &mut ActionCtx) {
     } = ctx;
     journey.toggled(&mut resume_rebuild(&mut **make_overlay, &mut **browse_to));
 }
+
+enum FolderStep {
+    IntoSelected,
+    Parent,
+}
+
+fn relevel_folder(ctx: &mut ActionCtx, step: FolderStep) {
+    let card = ctx.journey.card().expect("folder navigator remains open");
+    let kind = card.kind;
+    let target = match step {
+        FolderStep::IntoSelected => card
+            .selected_value()
+            .filter(|_| card.selected_is_dir())
+            .map(|name| Some(crate::overlay::descend_target(card, name))),
+        FolderStep::Parent => crate::overlay::ascend_target(card),
+    };
+    let Some(target) = target else { return };
+    if let Some(next) = (ctx.browse_to)(kind, target) {
+        ctx.journey.relevel(next);
+    }
+}
+
 fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().rename_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -292,11 +314,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             let navigable = crate::overlay::consumer_for_route(ov, ctx.journey.bind())
                 .is_some_and(crate::overlay::LocationConsumer::supports_back);
             if navigable && ov.query.is_empty() {
-                if let Some(parent) = crate::overlay::ascend_target(ov)
-                    && let Some(next) = (ctx.browse_to)(ov.kind, parent)
-                {
-                    ctx.journey.relevel(next);
-                }
+                relevel_folder(ctx, FolderStep::Parent);
                 return Effect::None;
             }
             // The flat switch-project picker has nothing to pop on an EMPTY
@@ -436,14 +454,7 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             if crate::overlay::consumer_for_route(ov, ctx.journey.bind())
                 .is_some_and(crate::overlay::LocationConsumer::uses_folder_navigation)
             {
-                if ov.selected_is_dir()
-                    && let Some(name) = ov.selected_value().map(str::to_string)
-                {
-                    let child = crate::overlay::descend_target(ov, &name);
-                    if let Some(next) = (ctx.browse_to)(ov.kind, Some(child)) {
-                        ctx.journey.relevel(next);
-                    }
-                }
+                relevel_folder(ctx, FolderStep::IntoSelected);
             } else if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(1);
                 preview_move(ctx.journey.card_mut().unwrap());
@@ -460,11 +471,7 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             if crate::overlay::consumer_for_route(ov, ctx.journey.bind())
                 .is_some_and(crate::overlay::LocationConsumer::uses_folder_navigation)
             {
-                if let Some(parent) = crate::overlay::ascend_target(ov)
-                    && let Some(next) = (ctx.browse_to)(ov.kind, parent)
-                {
-                    ctx.journey.relevel(next);
-                }
+                relevel_folder(ctx, FolderStep::Parent);
             } else if ov.is_faceting() {
                 ctx.journey.card_mut().unwrap().cycle_lens(-1);
                 preview_move(ctx.journey.card_mut().unwrap());
@@ -480,13 +487,8 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 
 fn accept_browse(ctx: &mut ActionCtx, ov: &OverlayState) -> Option<Effect> {
     let effect = match ov.selected_value().map(str::to_string) {
-        Some(name) if ov.selected_is_dir() => {
-            if let Some(next) = (ctx.browse_to)(
-                ov.kind,
-                Some(crate::overlay::join_browse(ov.browse_dir.as_deref(), &name)),
-            ) {
-                ctx.journey.relevel(next);
-            }
+        Some(_name) if ov.selected_is_dir() => {
+            relevel_folder(ctx, FolderStep::IntoSelected);
             return Some(Effect::None);
         }
         Some(name) => Effect::OverlayAccept(
@@ -529,12 +531,7 @@ fn accept_move_dest(ctx: &mut ActionCtx, ov: &OverlayState) -> Effect {
             Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest)
         }
         _ if ov.selected_is_dir() => {
-            if let Some(name) = ov.selected_value().map(str::to_string)
-                && let Some(next) =
-                    (ctx.browse_to)(ov.kind, Some(crate::overlay::descend_target(ov, &name)))
-            {
-                ctx.journey.relevel(next);
-            }
+            relevel_folder(ctx, FolderStep::IntoSelected);
             Effect::None
         }
         _ => Effect::None,
@@ -582,12 +579,7 @@ fn accept_project(ctx: &mut ActionCtx, ov: &OverlayState) -> Effect {
         };
     }
     if ov.selected_is_dir() {
-        if let Some(name) = ov.selected_value().map(str::to_string)
-            && let Some(next) =
-                (ctx.browse_to)(ov.kind, Some(crate::overlay::descend_target(ov, &name)))
-        {
-            ctx.journey.relevel(next);
-        }
+        relevel_folder(ctx, FolderStep::IntoSelected);
         return Effect::None;
     }
     let dir = ctx
