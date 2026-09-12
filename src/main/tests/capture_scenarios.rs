@@ -2,6 +2,28 @@ use super::super::*;
 use super::keyspec;
 use crate::testscratch::ScratchDir;
 
+fn files_capture_variant(
+    dir: &ScratchDir,
+    name: &str,
+    buffer: &Buffer,
+    folded: &CaptureOpts,
+    mutate: impl FnOnce(&mut CaptureOpts),
+) -> image::RgbaImage {
+    let mut variant = folded.clone();
+    mutate(&mut variant);
+    let png = dir.join(name);
+    capture::capture_with(&png, buffer, &variant).expect("Files capture");
+    image::open(png).expect("decode Files capture").to_rgba8()
+}
+
+fn changed_pixels(control: &image::RgbaImage, other: &image::RgbaImage) -> usize {
+    control
+        .pixels()
+        .zip(other.pixels())
+        .filter(|(a, b)| a != b)
+        .count()
+}
+
 #[test]
 fn replay_files_query_keeps_deep_filename_candidates_content_free_before_accept() {
     use crate::fs::{FileSystem, InMemoryFs};
@@ -98,69 +120,50 @@ fn files_shared_fold_reaches_the_narrow_settled_capture() {
     crate::theme::set_active_by_name("Potoroo").expect("Potoroo is enrolled");
     folded.canvas = Some((720, 800));
     folded.dpi = Some(2.0);
-    let control_png = dir.join("control.png");
-    capture::capture_with(&control_png, session.buffer(), &folded)
-        .expect("real folded Files capture");
-
-    let mut location_mutation = folded.clone();
-    location_mutation
-        .overlay
-        .as_mut()
-        .expect("Files overlay")
-        .files_location = None;
-    let location_png = dir.join("without-location.png");
-    capture::capture_with(&location_png, session.buffer(), &location_mutation)
-        .expect("location mutation capture");
-
-    let mut surface_mutation = folded.clone();
-    surface_mutation
-        .overlay
-        .as_mut()
-        .expect("Files overlay")
-        .lens = None;
-    let surface_png = dir.join("without-files-surface.png");
-    capture::capture_with(&surface_png, session.buffer(), &surface_mutation)
-        .expect("surface mutation capture");
-
-    let mut focus_mutation = folded.clone();
-    focus_mutation
-        .overlay
-        .as_mut()
-        .expect("Files overlay")
-        .files_query_focused = false;
-    let focus_png = dir.join("without-query-focus.png");
-    capture::capture_with(&focus_png, session.buffer(), &focus_mutation)
-        .expect("query-focus mutation capture");
-
-    let control = image::open(&control_png)
-        .expect("decode Files control")
-        .to_rgba8();
-    let location = image::open(&location_png)
-        .expect("decode location mutation")
-        .to_rgba8();
-    let surface = image::open(&surface_png)
-        .expect("decode surface mutation")
-        .to_rgba8();
-    let focus = image::open(&focus_png)
-        .expect("decode query-focus mutation")
-        .to_rgba8();
-    let changed = |other: &image::RgbaImage| {
-        control
-            .pixels()
-            .zip(other.pixels())
-            .filter(|(a, b)| a != b)
-            .count()
-    };
+    let control = files_capture_variant(&dir, "control.png", session.buffer(), &folded, |_| {});
+    let location = files_capture_variant(
+        &dir,
+        "without-location.png",
+        session.buffer(),
+        &folded,
+        |mutation| {
+            mutation
+                .overlay
+                .as_mut()
+                .expect("Files overlay")
+                .files_location = None
+        },
+    );
+    let surface = files_capture_variant(
+        &dir,
+        "without-files-surface.png",
+        session.buffer(),
+        &folded,
+        |mutation| mutation.overlay.as_mut().expect("Files overlay").lens = None,
+    );
+    let focus = files_capture_variant(
+        &dir,
+        "without-query-focus.png",
+        session.buffer(),
+        &folded,
+        |mutation| {
+            mutation
+                .overlay
+                .as_mut()
+                .expect("Files overlay")
+                .files_query_focused = false;
+        },
+    );
     assert!(
-        changed(&location) > 100,
+        changed_pixels(&control, &location) > 100,
         "settled_viewstate ignored the folded full Files location"
     );
     assert!(
-        changed(&surface) > 1_000,
+        changed_pixels(&control, &surface) > 1_000,
         "settled_viewstate ignored the folded typed Files surface"
     );
     assert!(
-        changed(&focus) > 4,
+        changed_pixels(&control, &focus) > 4,
         "settled_viewstate ignored the folded Files query focus"
     );
 }

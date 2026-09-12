@@ -29,6 +29,334 @@ fn files_view(document: &str, empty: bool) -> ViewState {
     files_view_at(document, empty, "Writing/notes")
 }
 
+fn assert_files_action_regions(pipeline: &super::super::TextPipeline) -> [f32; 4] {
+    let [up, change, create] = pipeline.files_surface_action_regions_probe();
+    let (up_action, up) = up.expect("Up hit span");
+    let (change_action, change) = change.expect("Change folder hit span");
+    let (create_action, create) = create.expect("New document hit span");
+    assert_eq!(up_action, FilesSurfaceAction::Up);
+    assert_eq!(change_action, FilesSurfaceAction::ChangeFolder);
+    assert_eq!(create_action, FilesSurfaceAction::NewDocument);
+    assert!(
+        up[1] == change[1] && up[1] < create[1],
+        "{up:?} {change:?} {create:?}"
+    );
+    assert!(up[0] + up[2] < change[0], "header actions overlap");
+    for (action, rect) in [
+        (FilesSurfaceAction::Up, up),
+        (FilesSurfaceAction::ChangeFolder, change),
+        (FilesSurfaceAction::NewDocument, create),
+    ] {
+        let point = (rect[0] + rect[2] * 0.5, rect[1] + rect[3] * 0.5);
+        assert_eq!(
+            pipeline.files_surface_action_at(point.0, point.1),
+            Some(action)
+        );
+        assert!(pipeline.overlay_row_at(point.0, point.1).is_none());
+        assert!(pipeline.overlay_query_char_at(point.0, point.1).is_none());
+    }
+    create
+}
+
+fn assert_files_text_fits(
+    pipeline: &super::super::TextPipeline,
+    view: &ViewState,
+    width: u32,
+    dpi: f32,
+    location: &str,
+) -> ([f32; 4], [f32; 4]) {
+    let card = pipeline.overlay_card_rect().unwrap();
+    let (fitted_title, fitted_footer) = pipeline
+        .files_surface_text_probe()
+        .expect("Files fitted text");
+    let [text, header, footer, caret] = pipeline
+        .files_surface_ink_bounds_probe()
+        .expect("Files ink bounds");
+    for (label, ink) in [("header", header), ("footer", footer), ("caret", caret)] {
+        assert!(
+            ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
+            "{width}px @{dpi}x {label} clips horizontally: text={text:?} \
+             ink={ink:?} title={fitted_title:?} footer={fitted_footer:?}"
+        );
+    }
+    for essential in ["Up", "Change folder", "Search"] {
+        assert!(
+            fitted_title.contains(essential),
+            "{width}px @{dpi}x dropped {essential:?}: {fitted_title:?}"
+        );
+    }
+    assert!(
+        fitted_footer.starts_with("New document — "),
+        "{width}px @{dpi}x dropped the footer action: {fitted_footer:?}"
+    );
+    assert_eq!(view.overlay_files_location, location);
+    if location.chars().count() > 30 && width == 720 {
+        assert!(
+            fitted_title.contains('…') && fitted_footer.contains('…'),
+            "the long-path subjects must exercise measured elision: {fitted_title:?} / \
+             {fitted_footer:?}"
+        );
+    }
+    (card, caret)
+}
+
+fn assert_files_neighbourhood_edges(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    pipeline: &mut super::super::TextPipeline,
+    width: u32,
+    dpi: f32,
+    empty: bool,
+    location: &str,
+) {
+    pipeline.set_dpi(dpi);
+    pipeline.set_size(width as f32, 800.0);
+    let view = files_view_at(DENSE, empty, location);
+    pipeline.set_view(&view);
+    let _pixels = render_frame(device, queue, pipeline, width, 800);
+    assert_eq!(
+        pipeline.frost_mode(),
+        None,
+        "{width}px @{dpi}x empty={empty}"
+    );
+    let create = assert_files_action_regions(pipeline);
+    let (card, caret) = assert_files_text_fits(pipeline, &view, width, dpi, location);
+    let query_y = caret[1] + caret[3] * 0.5;
+    let query_x = (card[0].floor() as i32..=(card[0] + card[2]).ceil() as i32)
+        .map(|x| x as f32 + 0.5)
+        .find(|&x| pipeline.overlay_query_char_at(x, query_y).is_some())
+        .expect("labelled search retains a query input span");
+    assert!(pipeline.files_surface_action_at(query_x, query_y).is_none());
+    if !empty {
+        let row_y = (card[1].floor() as i32..=(card[1] + card[3]).ceil() as i32)
+            .find_map(|y| {
+                pipeline
+                    .overlay_row_at(card[0] + card[2] * 0.5, y as f32 + 0.5)
+                    .map(|_| y as f32 + 0.5)
+            })
+            .expect("choice row span");
+        assert!(
+            pipeline
+                .files_surface_action_at(card[0] + card[2] * 0.5, row_y)
+                .is_none()
+        );
+        let last_choice = pipeline
+            .files_surface_line_bounds_probe("deep  ›")
+            .expect("last Files choice bounds");
+        assert!(
+            create[1] - (last_choice[1] + last_choice[3]) >= create[3] * 0.45,
+            "destination footer has no internal interval from choices: \
+             choice={last_choice:?} footer={create:?}"
+        );
+    }
+}
+
+fn assert_huge_files_path_is_bounded(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    pipeline: &mut super::super::TextPipeline,
+) {
+    let huge_location = (0..400)
+        .map(|index| format!("component-{index:03}"))
+        .collect::<Vec<_>>()
+        .join("/");
+    let huge_len = huge_location.chars().count();
+    let huge_prepared = crate::overlay::PreparedDirectoryPath::new(&huge_location);
+    let leaf_budget = huge_prepared.leaf_identity_budget().unwrap();
+    let materialized_bound: usize =
+        super::super::chrome::files_location_fit_budgets(huge_len, Some(leaf_budget))
+            .into_iter()
+            .sum();
+    assert!(
+        materialized_bound <= huge_len.saturating_mul(2) + leaf_budget + 4,
+        "the fixed fit ladder would copy {materialized_bound} characters from a \
+         {huge_len}-character path"
+    );
+    pipeline.set_dpi(2.0);
+    pipeline.set_size(720.0, 800.0);
+    pipeline.set_view(&files_view_at(DENSE, false, &huge_location));
+    let _pixels = render_frame(device, queue, pipeline, 720, 800);
+    let (split_attempts, title_attempts, hint_attempts) =
+        pipeline.files_surface_fit_attempts_probe();
+    assert!(
+        split_attempts == 2
+            && (1..=9).contains(&title_attempts)
+            && (1..=9).contains(&hint_attempts),
+        "long-path fitting must stay bounded: split={split_attempts}, \
+         title={title_attempts}, hint={hint_attempts}"
+    );
+    let [text, header, footer, caret] = pipeline
+        .files_surface_ink_bounds_probe()
+        .expect("long-path Files ink bounds");
+    for (label, ink) in [("header", header), ("footer", footer), ("caret", caret)] {
+        assert!(
+            ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
+            "huge path {label} clips: text={text:?} ink={ink:?}"
+        );
+    }
+}
+
+fn assert_potoroo_first_narrow_files_frame() -> bool {
+    let Some((device, queue, mut pipeline)) = headless_dqp(720.0, 800.0) else {
+        eprintln!("skipping fresh Files first-frame law: no wgpu adapter");
+        return false;
+    };
+    pipeline.set_dpi(2.0);
+    pipeline.set_size(720.0, 800.0);
+    let mut narrow = files_view_at(DENSE, true, "root");
+    narrow.overlay_title = "root  Change folder  Search".into();
+    narrow.overlay_query = "zzz".into();
+    narrow.overlay_query_caret = 3;
+    pipeline.set_view(&narrow);
+    let _pixels = render_frame(&device, &queue, &mut pipeline, 720, 800);
+    assert_eq!(
+        pipeline.overlay_pane_fills_probe().len(),
+        1,
+        "Files must be one opaque surface on its very first narrow frame"
+    );
+    let (header, footer) = pipeline.files_surface_text_probe().unwrap();
+    assert!(
+        header.contains("Search: zzz")
+            && header.contains("root")
+            && header.contains("Change folder"),
+        "first narrow frame dropped compact rows: {header:?}"
+    );
+    assert_eq!(footer, "New document — root");
+    let [text, header_ink, footer_ink, caret] = pipeline.files_surface_ink_bounds_probe().unwrap();
+    for (label, ink) in [
+        ("header", header_ink),
+        ("footer", footer_ink),
+        ("caret", caret),
+    ] {
+        assert!(
+            ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
+            "first narrow {label} clips: text={text:?} ink={ink:?}"
+        );
+    }
+    let typed_geom = pipeline.overlay_geometry(720);
+    let typed_plan = pipeline.overlay_row_plan(&typed_geom);
+    assert!(
+        pipeline
+            .overlay_panel_bands(&typed_geom, &typed_plan)
+            .is_none(),
+        "Files' unified text column must not inherit Potoroo's generic split-band seats"
+    );
+    let mut split_mutation = narrow;
+    split_mutation.overlay_files_surface = false;
+    pipeline.set_view(&split_mutation);
+    let _pixels = render_frame(&device, &queue, &mut pipeline, 720, 800);
+    assert_eq!(
+        pipeline.overlay_pane_fills_probe().len(),
+        2,
+        "dropping the typed Files gate must restore Potoroo's ordinary split composition"
+    );
+    let split_geom = pipeline.overlay_geometry(720);
+    let split_plan = pipeline.overlay_row_plan(&split_geom);
+    assert_eq!(
+        pipeline.overlay_foot_left(&split_geom, &split_plan),
+        split_geom.footer_text_left(),
+        "dropping the typed Files gate must restore the ordinary footer seat owner"
+    );
+    true
+}
+
+fn assert_files_line_has_left_ink(
+    pixels: &[[u8; 4]],
+    width: usize,
+    label: &str,
+    text: [f32; 4],
+    line: [f32; 4],
+) {
+    assert!(
+        line[0] >= text[0] && line[0] + line[2] <= text[0] + text[2] + 0.5,
+        "{label} leaves the Files text column: text={text:?} line={line:?}"
+    );
+    let x0 = line[0].ceil() as usize;
+    let x1 = (line[0] + line[2].min(80.0)).floor() as usize;
+    let y0 = line[1].ceil() as usize;
+    let y1 = (line[1] + line[3]).floor() as usize;
+    let mut colors = std::collections::BTreeMap::new();
+    for y in y0..y1 {
+        for x in x0..x1 {
+            *colors.entry(pixels[y * width + x]).or_insert(0usize) += 1;
+        }
+    }
+    let total = (x1 - x0) * (y1 - y0);
+    let background = colors.values().copied().max().unwrap_or_default();
+    assert!(
+        total.saturating_sub(background) > 8,
+        "{label} has no visible left-edge ink: {line:?} colors={colors:?}"
+    );
+}
+
+fn assert_nested_potoroo_files_frame(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    pipeline: &mut super::super::TextPipeline,
+    nested: &ViewState,
+) -> Vec<[u8; 4]> {
+    pipeline.set_view(&files_view_at(DENSE, false, "root"));
+    let _root_pixels = render_frame(device, queue, pipeline, 1200, 800);
+    let root_scroll = pipeline.panel_buffer.scroll();
+    assert_eq!(
+        (
+            root_scroll.line,
+            root_scroll.vertical,
+            root_scroll.horizontal
+        ),
+        (0, 0.0, 0.0),
+        "Files root left stale panel-buffer scroll before browse"
+    );
+    pipeline.set_view(nested);
+    let pixels = render_frame(device, queue, pipeline, 1200, 800);
+    assert_eq!(pipeline.overlay_pane_fills_probe().len(), 1);
+    let nested_scroll = pipeline.panel_buffer.scroll();
+    assert_eq!(
+        (
+            nested_scroll.line,
+            nested_scroll.vertical,
+            nested_scroll.horizontal
+        ),
+        (0, 0.0, 0.0),
+        "root→nested reshape retained stale panel-buffer scroll"
+    );
+    let (header, footer) = pipeline.files_surface_text_probe().unwrap();
+    assert!(
+        header.contains("root/notes"),
+        "nested location prefix was lost: {header:?}"
+    );
+    assert_eq!(footer, "New document — root/notes");
+    let nested_geom = pipeline.overlay_geometry(1200);
+    let nested_plan = pipeline.overlay_row_plan(&nested_geom);
+    assert!(
+        pipeline
+            .overlay_panel_bands(&nested_geom, &nested_plan)
+            .is_none(),
+        "nested Files must suppress Potoroo's generic split-band text seats"
+    );
+    let text = [
+        nested_geom.text_left,
+        nested_geom.text_top,
+        nested_geom.text_w,
+        nested_geom.card_h,
+    ];
+    for (label, line) in [
+        (
+            "nested location",
+            pipeline
+                .files_surface_containing_line_bounds_probe("root/notes")
+                .unwrap(),
+        ),
+        (
+            "nested footer",
+            pipeline.files_surface_line_bounds_probe(&footer).unwrap(),
+        ),
+    ] {
+        assert_files_line_has_left_ink(&pixels, 1200, label, text, line);
+    }
+    pixels
+}
+
 #[test]
 fn files_is_no_frost_in_every_world_and_the_flag_is_the_mutation_subject() {
     let _guard = crate::testlock::serial();
@@ -87,137 +415,17 @@ fn header_query_choices_and_footer_keep_distinct_hit_regions_at_neighbourhood_ed
             "Writing/research/chapters/field-notes/interviews/september",
         ),
     ] {
-        pipeline.set_dpi(dpi);
-        pipeline.set_size(width as f32, 800.0);
-        let view = files_view_at(DENSE, empty, location);
-        pipeline.set_view(&view);
-        let _pixels = render_frame(&device, &queue, &mut pipeline, width, 800);
-        assert_eq!(
-            pipeline.frost_mode(),
-            None,
-            "{width}px @{dpi}x empty={empty}"
-        );
-
-        let [up, change, create] = pipeline.files_surface_action_regions_probe();
-        let (up_action, up) = up.expect("Up hit span");
-        let (change_action, change) = change.expect("Change folder hit span");
-        let (create_action, create) = create.expect("New document hit span");
-        assert_eq!(up_action, FilesSurfaceAction::Up);
-        assert_eq!(change_action, FilesSurfaceAction::ChangeFolder);
-        assert_eq!(create_action, FilesSurfaceAction::NewDocument);
-        assert!(
-            up[1] == change[1] && up[1] < create[1],
-            "{up:?} {change:?} {create:?}"
-        );
-        assert!(up[0] + up[2] < change[0], "header actions overlap");
-        for (action, rect) in [
-            (FilesSurfaceAction::Up, up),
-            (FilesSurfaceAction::ChangeFolder, change),
-            (FilesSurfaceAction::NewDocument, create),
-        ] {
-            let point = (rect[0] + rect[2] * 0.5, rect[1] + rect[3] * 0.5);
-            assert_eq!(
-                pipeline.files_surface_action_at(point.0, point.1),
-                Some(action)
-            );
-            assert!(pipeline.overlay_row_at(point.0, point.1).is_none());
-            assert!(pipeline.overlay_query_char_at(point.0, point.1).is_none());
-        }
-        let card = pipeline.overlay_card_rect().unwrap();
-        let (fitted_title, fitted_footer) = pipeline
-            .files_surface_text_probe()
-            .expect("Files fitted text");
-        let [text, header, footer, caret] = pipeline
-            .files_surface_ink_bounds_probe()
-            .expect("Files ink bounds");
-        for (label, ink) in [("header", header), ("footer", footer), ("caret", caret)] {
-            assert!(
-                ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
-                "{width}px @{dpi}x {label} clips horizontally: text={text:?} ink={ink:?} title={fitted_title:?} footer={fitted_footer:?}"
-            );
-        }
-        for essential in ["Up", "Change folder", "Search"] {
-            assert!(
-                fitted_title.contains(essential),
-                "{width}px @{dpi}x dropped {essential:?}: {fitted_title:?}"
-            );
-        }
-        assert!(
-            fitted_footer.starts_with("New document — "),
-            "{width}px @{dpi}x dropped the footer action: {fitted_footer:?}"
-        );
-        assert_eq!(view.overlay_files_location, location);
-        if location.chars().count() > 30 && width == 720 {
-            assert!(
-                fitted_title.contains('…') && fitted_footer.contains('…'),
-                "the long-path subjects must exercise measured elision: {fitted_title:?} / {fitted_footer:?}"
-            );
-        }
-        let query_y = caret[1] + caret[3] * 0.5;
-        let query_x = (card[0].floor() as i32..=(card[0] + card[2]).ceil() as i32)
-            .map(|x| x as f32 + 0.5)
-            .find(|&x| pipeline.overlay_query_char_at(x, query_y).is_some())
-            .expect("labelled search retains a query input span");
-        assert!(pipeline.files_surface_action_at(query_x, query_y).is_none());
-        if !empty {
-            let row_y = (card[1].floor() as i32..=(card[1] + card[3]).ceil() as i32)
-                .find_map(|y| {
-                    pipeline
-                        .overlay_row_at(card[0] + card[2] * 0.5, y as f32 + 0.5)
-                        .map(|_| y as f32 + 0.5)
-                })
-                .expect("choice row span");
-            assert!(
-                pipeline
-                    .files_surface_action_at(card[0] + card[2] * 0.5, row_y)
-                    .is_none()
-            );
-            let last_choice = pipeline
-                .files_surface_line_bounds_probe("deep  ›")
-                .expect("last Files choice bounds");
-            assert!(
-                create[1] - (last_choice[1] + last_choice[3]) >= create[3] * 0.45,
-                "destination footer has no internal interval from choices: choice={last_choice:?} footer={create:?}"
-            );
-        }
-    }
-
-    let huge_location = (0..400)
-        .map(|index| format!("component-{index:03}"))
-        .collect::<Vec<_>>()
-        .join("/");
-    let huge_len = huge_location.chars().count();
-    let huge_prepared = crate::overlay::PreparedDirectoryPath::new(&huge_location);
-    let leaf_budget = huge_prepared.leaf_identity_budget().unwrap();
-    let materialized_bound: usize =
-        super::super::chrome::files_location_fit_budgets(huge_len, Some(leaf_budget))
-            .into_iter()
-            .sum();
-    assert!(
-        materialized_bound <= huge_len.saturating_mul(2) + leaf_budget + 4,
-        "the fixed fit ladder would copy {materialized_bound} characters from a {huge_len}-character path"
-    );
-    pipeline.set_dpi(2.0);
-    pipeline.set_size(720.0, 800.0);
-    pipeline.set_view(&files_view_at(DENSE, false, &huge_location));
-    let _pixels = render_frame(&device, &queue, &mut pipeline, 720, 800);
-    let (split_attempts, title_attempts, hint_attempts) =
-        pipeline.files_surface_fit_attempts_probe();
-    assert!(
-        split_attempts == 2
-            && (1..=9).contains(&title_attempts)
-            && (1..=9).contains(&hint_attempts),
-        "long-path fitting must stay bounded: split={split_attempts}, title={title_attempts}, hint={hint_attempts}"
-    );
-    let [text, header, footer, caret] = pipeline
-        .files_surface_ink_bounds_probe()
-        .expect("long-path Files ink bounds");
-    for (label, ink) in [("header", header), ("footer", footer), ("caret", caret)] {
-        assert!(
-            ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
-            "huge path {label} clips: text={text:?} ink={ink:?}"
+        assert_files_neighbourhood_edges(
+            &device,
+            &queue,
+            &mut pipeline,
+            width,
+            dpi,
+            empty,
+            location,
         );
     }
+    assert_huge_files_path_is_bounded(&device, &queue, &mut pipeline);
 }
 
 #[test]
@@ -263,7 +471,8 @@ fn files_envelope_is_continuous_and_opaque_in_every_world_and_dpi() {
             let y1 = (card[1] + card[3] - inset).min(800.0).floor() as usize;
             assert!(
                 (x1 - x0) * (y1 - y0) > 10_000,
-                "{} {width}px @{dpi}x has no substantial safe interior: card={card:?} inset={inset}",
+                "{} {width}px @{dpi}x has no substantial safe interior: \
+                 card={card:?} inset={inset}",
                 world.name
             );
             let mut witnesses = 0usize;
@@ -296,7 +505,8 @@ fn files_envelope_is_continuous_and_opaque_in_every_world_and_dpi() {
             );
             assert_eq!(
                 leaks, 0,
-                "{} {width}px @{dpi}x leaked {leaks}/{witnesses} underlying document pixels through Files: {leak_points:?}",
+                "{} {width}px @{dpi}x leaked {leaks}/{witnesses} underlying document \
+                 pixels through Files: {leak_points:?}",
                 world.name,
             );
         }
@@ -392,7 +602,8 @@ fn every_world_fits_the_real_720_at_2x_files_header() {
         let background = colors.values().copied().max().unwrap_or_default();
         assert!(
             total.saturating_sub(background) > 12,
-            "{} has no visible left-location ink witness: band=({x0},{y0})..({x1},{y1}) colors={colors:?}",
+            "{} has no visible left-location ink witness: \
+             band=({x0},{y0})..({x1},{y1}) colors={colors:?}",
             world.name
         );
     }
@@ -404,156 +615,19 @@ fn fresh_potoroo_pipeline_bills_compact_rows_and_keeps_nested_left_edges() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active_by_name("Potoroo").unwrap();
 
-    let Some((device, queue, mut narrow_pipeline)) = headless_dqp(720.0, 800.0) else {
-        eprintln!("skipping fresh Files first-frame law: no wgpu adapter");
+    if !assert_potoroo_first_narrow_files_frame() {
         return;
-    };
-    narrow_pipeline.set_dpi(2.0);
-    narrow_pipeline.set_size(720.0, 800.0);
-    let mut narrow = files_view_at(DENSE, true, "root");
-    narrow.overlay_title = "root  Change folder  Search".into();
-    narrow.overlay_query = "zzz".into();
-    narrow.overlay_query_caret = 3;
-    narrow_pipeline.set_view(&narrow);
-    let _pixels = render_frame(&device, &queue, &mut narrow_pipeline, 720, 800);
-    assert_eq!(
-        narrow_pipeline.overlay_pane_fills_probe().len(),
-        1,
-        "Files must be one opaque surface on its very first narrow frame"
-    );
-    let (header, footer) = narrow_pipeline.files_surface_text_probe().unwrap();
-    assert!(
-        header.contains("Search: zzz")
-            && header.contains("root")
-            && header.contains("Change folder"),
-        "first narrow frame dropped compact rows: {header:?}"
-    );
-    assert_eq!(footer, "New document — root");
-    let [text, header_ink, footer_ink, caret] =
-        narrow_pipeline.files_surface_ink_bounds_probe().unwrap();
-    for (label, ink) in [
-        ("header", header_ink),
-        ("footer", footer_ink),
-        ("caret", caret),
-    ] {
-        assert!(
-            ink[0] >= text[0] && ink[0] + ink[2] <= text[0] + text[2] + 0.5,
-            "first narrow {label} clips: text={text:?} ink={ink:?}"
-        );
     }
-    let typed_geom = narrow_pipeline.overlay_geometry(720);
-    let typed_plan = narrow_pipeline.overlay_row_plan(&typed_geom);
-    assert!(
-        narrow_pipeline
-            .overlay_panel_bands(&typed_geom, &typed_plan)
-            .is_none(),
-        "Files' unified text column must not inherit Potoroo's generic split-band seats"
-    );
-    let mut split_mutation = narrow;
-    split_mutation.overlay_files_surface = false;
-    narrow_pipeline.set_view(&split_mutation);
-    let _pixels = render_frame(&device, &queue, &mut narrow_pipeline, 720, 800);
-    assert_eq!(
-        narrow_pipeline.overlay_pane_fills_probe().len(),
-        2,
-        "dropping the typed Files gate must restore Potoroo's ordinary split composition"
-    );
-    let split_geom = narrow_pipeline.overlay_geometry(720);
-    let split_plan = narrow_pipeline.overlay_row_plan(&split_geom);
-    assert_eq!(
-        narrow_pipeline.overlay_foot_left(&split_geom, &split_plan),
-        split_geom.footer_text_left(),
-        "dropping the typed Files gate must restore the ordinary footer seat owner"
-    );
 
     let Some((device, queue, mut nested_pipeline)) = headless_dqp(1200.0, 800.0) else {
         unreachable!("the same adapter disappeared")
     };
-    nested_pipeline.set_view(&files_view_at(DENSE, false, "root"));
-    let _root_pixels = render_frame(&device, &queue, &mut nested_pipeline, 1200, 800);
-    let root_scroll = nested_pipeline.panel_buffer.scroll();
-    assert_eq!(
-        (
-            root_scroll.line,
-            root_scroll.vertical,
-            root_scroll.horizontal
-        ),
-        (0, 0.0, 0.0),
-        "Files root left stale panel-buffer scroll before browse"
-    );
     let mut nested = files_view_at(DENSE, false, "root/notes");
     nested.overlay_items = vec!["deep  ›".into()];
     nested.overlay_sections = vec![String::new()];
     nested.overlay_empty = Some("no supported files in this folder".into());
     nested.overlay_query_field = false;
-    nested_pipeline.set_view(&nested);
-    let pixels = render_frame(&device, &queue, &mut nested_pipeline, 1200, 800);
-    assert_eq!(nested_pipeline.overlay_pane_fills_probe().len(), 1);
-    let nested_scroll = nested_pipeline.panel_buffer.scroll();
-    assert_eq!(
-        (
-            nested_scroll.line,
-            nested_scroll.vertical,
-            nested_scroll.horizontal,
-        ),
-        (0, 0.0, 0.0),
-        "root→nested reshape retained stale panel-buffer scroll"
-    );
-    let (header, footer) = nested_pipeline.files_surface_text_probe().unwrap();
-    assert!(
-        header.contains("root/notes"),
-        "nested location prefix was lost: {header:?}"
-    );
-    assert_eq!(footer, "New document — root/notes");
-    let nested_geom = nested_pipeline.overlay_geometry(1200);
-    let nested_plan = nested_pipeline.overlay_row_plan(&nested_geom);
-    assert!(
-        nested_pipeline
-            .overlay_panel_bands(&nested_geom, &nested_plan)
-            .is_none(),
-        "nested Files must suppress Potoroo's generic split-band text seats"
-    );
-    let text = [
-        nested_geom.text_left,
-        nested_geom.text_top,
-        nested_geom.text_w,
-        nested_geom.card_h,
-    ];
-    for (label, line) in [
-        (
-            "nested location",
-            nested_pipeline
-                .files_surface_containing_line_bounds_probe("root/notes")
-                .unwrap(),
-        ),
-        (
-            "nested footer",
-            nested_pipeline
-                .files_surface_line_bounds_probe(&footer)
-                .unwrap(),
-        ),
-    ] {
-        assert!(
-            line[0] >= text[0] && line[0] + line[2] <= text[0] + text[2] + 0.5,
-            "{label} leaves the Files text column: text={text:?} line={line:?}"
-        );
-        let x0 = line[0].ceil() as usize;
-        let x1 = (line[0] + line[2].min(80.0)).floor() as usize;
-        let y0 = line[1].ceil() as usize;
-        let y1 = (line[1] + line[3]).floor() as usize;
-        let mut colors = std::collections::BTreeMap::new();
-        for y in y0..y1 {
-            for x in x0..x1 {
-                *colors.entry(pixels[y * 1200 + x]).or_insert(0usize) += 1;
-            }
-        }
-        let total = (x1 - x0) * (y1 - y0);
-        let background = colors.values().copied().max().unwrap_or_default();
-        assert!(
-            total.saturating_sub(background) > 8,
-            "{label} has no visible left-edge ink: {line:?} colors={colors:?}"
-        );
-    }
+    let pixels = assert_nested_potoroo_files_frame(&device, &queue, &mut nested_pipeline, &nested);
 
     let Some((fresh_device, fresh_queue, mut fresh_pipeline)) = headless_dqp(1200.0, 800.0) else {
         unreachable!("the same adapter disappeared")

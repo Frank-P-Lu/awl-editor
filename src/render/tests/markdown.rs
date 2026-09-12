@@ -614,7 +614,14 @@ fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
 /// nested reveal states prove it remains an ornament-only treatment.
 const HOLLOW_STAR: char = '\u{2606}';
 const HOLLOW_STAR_DROP_EM: f32 = 0.05;
-const HOLLOW_STAR_BULLET_DOC: &str = "- add chinese\n- [ ] neighboring task\n  - cloud depth\n    - comet depth\n      - nested star\n      - [x] nested task\n\n";
+const HOLLOW_STAR_BULLET_DOC: &str = concat!(
+    "- add chinese\n- [ ] neighboring task\n  - cloud depth\n",
+    "    - comet depth\n      - nested star\n      - [x] nested task\n\n",
+);
+
+fn is_task_mark(mark: &crate::render::rects::ListMark) -> bool {
+    matches!(mark.kind, crate::render::rects::ListLineKind::Task(_))
+}
 
 fn assert_hollow_star_paint_and_task_seats(p: &TextPipeline, world: &theme::Theme, dpi: f32) {
     let marks = p.list_marks();
@@ -638,10 +645,7 @@ fn assert_hollow_star_paint_and_task_seats(p: &TextPipeline, world: &theme::Them
             mark.paint_top - mark.top
         );
     }
-    for mark in marks
-        .iter()
-        .filter(|mark| matches!(mark.kind, crate::render::rects::ListLineKind::Task(_)))
-    {
+    for mark in marks.iter().filter(|mark| is_task_mark(mark)) {
         assert_eq!(
             mark.paint_top, mark.top,
             "{} at {dpi}x: task checkbox must keep its structural seat",
@@ -672,10 +676,7 @@ fn assert_hollow_star_reveal_state(p: &mut TextPipeline, world: &theme::Theme, d
     let selected_marks = p.list_marks();
     for (state, marks) in [("caret", &caret_marks), ("selection", &selected_marks)] {
         assert_eq!(
-            marks
-                .iter()
-                .filter(|mark| matches!(mark.kind, crate::render::rects::ListLineKind::Task(_)))
-                .count(),
+            marks.iter().filter(|mark| is_task_mark(mark)).count(),
             2,
             "{} at {dpi}x: {state} reveal must not remove neighboring task markers",
             world.name
@@ -698,7 +699,8 @@ fn hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals() {
     let _world = crate::theme::WorldPin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals: no wgpu adapter"
+            "skipping hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals: \
+             no wgpu adapter"
         );
         return;
     };
