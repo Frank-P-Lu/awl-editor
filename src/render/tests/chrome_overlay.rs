@@ -116,9 +116,10 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
 /// constants blind to zoom while the glyphs doubled). Parameterized over zoom
 /// (1.0, 1.6, 2.0) the way the popover no-clip laws were parameterized over DPI.
 ///
-/// The card width now scales through the ONE owner [`overlay_card_desired_w`], so
-/// on a window with ROOM the primary cells NEVER elide as the type grows;
-/// elision fires only when the WINDOW genuinely lacks room. Asserted as an
+/// Interface furniture now remains at its authored UI size while document zoom
+/// changes the writing. On a window with ROOM the primary cells therefore never
+/// elide as the document grows; elision fires only when the CARD genuinely lacks
+/// room for its own content. Asserted as an
 /// OUTCOME over the shaper's real elision decision fed by the LIVE
 /// `overlay_geometry().text_w` ([`TextPipeline::overlay_elided_candidates`], which
 /// reruns `full_budget` + `fit_primary` off the true card width — a card-width
@@ -170,8 +171,7 @@ fn overlay_card_width_is_zoom_aware_no_elision_when_the_window_has_room() {
         p.overlay_elided_candidates(width)
     };
 
-    // ROOM: on the 1200-px canvas the card grows with the glyphs, so nothing elides
-    // at ANY of the three zooms — the whole point of the fix.
+    // ROOM: document zoom never changes the card or its UI glyph metrics.
     for &zoom in &[1.0f32, 1.6, 2.0] {
         let elided = palette(&mut p, 1200, zoom);
         assert!(
@@ -181,14 +181,34 @@ fn overlay_card_width_is_zoom_aware_no_elision_when_the_window_has_room() {
         );
     }
 
-    // LEGITIMATE-ELISION CONTROL: a genuinely NARROW window at 200% truly lacks
-    // room, so the card fills the window and the shaper DOES elide (correct — the
-    // fix must not paper over a real space shortage).
-    let narrow = palette(&mut p, 360, 2.0);
+    // The real palette labels also fit at the app's minimum logical width,
+    // identically at every document zoom.
+    let narrow1 = palette(&mut p, 464, 1.0);
+    let narrow2 = palette(&mut p, 464, 2.0);
+    assert_eq!(
+        narrow1, narrow2,
+        "document zoom changed the UI elision budget"
+    );
     assert!(
-        !narrow.is_empty(),
-        "zoom 2.0 in a 360px window genuinely lacks room — elision MUST still fire \
-         (else the fix is over-widening past the window)"
+        narrow1.is_empty(),
+        "the real palette labels fit the minimum window"
+    );
+
+    // LEGITIMATE-ELISION CONTROL: a deliberately overlong primary still
+    // elides at that same bounded card width. This keeps the law non-vacuous
+    // without pretending ordinary labels need less room than they now do.
+    let long = "A command name deliberately longer than the minimum-width card can display whole";
+    let mut v = view("hello\n", 0, 0);
+    v.zoom = 2.0;
+    v.overlay_active = true;
+    v.overlay_title = "commands".to_string();
+    v.overlay_items = vec![long.to_string()];
+    v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
+    p.set_view(&v);
+    assert_eq!(
+        p.overlay_elided_candidates(464),
+        vec![long.to_string()],
+        "a genuinely overlong primary must still take the elision path"
     );
 }
 

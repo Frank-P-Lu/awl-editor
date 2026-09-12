@@ -50,8 +50,8 @@ impl OverlayState {
             scheme
                 .strip
                 .iter()
-                .filter_map(|facet| self.kind.empty_lens_message(facet.id))
-                .map(str::to_string),
+                .filter(|facet| facet.id != "all")
+                .map(|facet| self.empty_message_for_lens(facet.id).to_string()),
         );
         text
     }

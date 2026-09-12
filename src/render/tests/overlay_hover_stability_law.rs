@@ -4,10 +4,10 @@
 //! arms run) used to RE-ANCHOR the card to the destination world's own
 //! rail — a fixed physical pixel could hit-test to a candidate row before the
 //! crossing and to NOTHING (off the relocated card) after it, with the
-//! pointer never having traveled a pixel. Since the picker's own chrome is now
-//! PINNED for the life of its summon (`crate::render::pin_picker_chrome`),
-//! that specific hazard cannot occur any more: a world crossing changes the
-//! preview behind the card, never the card's own geometry.
+//! pointer never having traveled a pixel. Since Themes now owns one fixed
+//! top-right rail and pins the rest of its chrome for the summon
+//! (`crate::render::pin_picker_chrome`), that hazard cannot occur: a world
+//! crossing changes the preview behind the card, never the card's geometry.
 //!
 //! This file proves the retirement against real geometry — the same
 //! `TextPipeline::overlay_row_at` seam the old hazard test drove — rather
@@ -51,6 +51,8 @@ fn picker_view(ov: &OverlayState) -> ViewState {
     v.overlay_items = (0..8).map(|i| format!("Row {i}")).collect();
     v.overlay_selected = 0;
     v.overlay_align = Some(ov.align);
+    v.overlay_theme_picker = true;
+    v.overlay_theme_chrome = ov.audition.theme_original();
     v
 }
 
@@ -94,8 +96,8 @@ fn a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_row(
     cross_to(&mut ov, "Wagtail");
     assert_eq!(
         ov.align,
-        theme::CardAnchor::TopLeft,
-        "the picker summoned (and stays) on Wagtail's rail"
+        theme::CardAnchor::TopRight,
+        "Themes keeps its reviewed stable top-right rail"
     );
     p.sync_theme();
     let v1 = picker_view(&ov);
@@ -120,9 +122,8 @@ fn a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_row(
     );
     assert_eq!(
         ov.align,
-        theme::CardAnchor::TopLeft,
-        "the card's own chrome stays pinned to the SUMMONED (Wagtail) rail, \
-         not Cassowary's, across the crossing"
+        theme::CardAnchor::TopRight,
+        "the card's fixed Themes rail survives the crossing"
     );
     p.sync_theme();
     let v2 = picker_view(&ov);
@@ -143,17 +144,15 @@ fn a_deliberate_world_crossing_no_longer_moves_a_stationary_pixels_hit_test_row(
     crate::render::set_card_anchor_test_override(None);
 }
 
-/// NON-VACUOUS: reverting to the pre-609 unpinned read (a bare
-/// `theme::active().render_caps.card_anchor`, ignoring the summon-time pin)
-/// makes the SAME crossing move the stationary pixel's hit-test row —
-/// proving the test above is exercising the pin, not a fixture that never
-/// really crosses rails.
+/// NON-VACUOUS: using each preview world's authored rail makes the SAME
+/// crossing move the stationary pixel's hit-test row — proving the test above
+/// exercises Themes' fixed rail, not a fixture that never crosses rails.
 #[test]
-fn without_the_pin_the_same_crossing_would_move_the_hit_test_row() {
+fn without_the_fixed_themes_rail_the_same_crossing_would_move_the_hit_test_row() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping without_the_pin_the_same_crossing_would_move_the_hit_test_row: \
+            "skipping without_the_fixed_themes_rail_the_same_crossing_would_move_the_hit_test_row: \
              no wgpu adapter"
         );
         return;
@@ -163,10 +162,8 @@ fn without_the_pin_the_same_crossing_would_move_the_hit_test_row() {
 
     p.set_size(WW, WH);
 
-    // Simulate the pre-609 unpinned render read directly: build the SAME flat
-    // picker view at each world's OWN live rail (no `OverlayState`/pin involved
-    // at all — this is exactly what every render consumer read before the pin
-    // existed) and show the stationary pixel's hit changes across the crossing.
+    // THE MUTATION: build an ordinary overlay at each world's own rail instead
+    // of using the fixed Themes alignment, and show the stationary hit changes.
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
     v.overlay_items = (0..8).map(|i| format!("Row {i}")).collect();
@@ -187,8 +184,8 @@ fn without_the_pin_the_same_crossing_would_move_the_hit_test_row() {
     assert_ne!(
         hit_before, hit_after,
         "an unpinned rail crossing really does move what a stationary pixel \
-         hits (hit_before={hit_before:?}, hit_after={hit_after:?}) — the pin \
-         is what the test above is proving holds it still"
+         hits (hit_before={hit_before:?}, hit_after={hit_after:?}) — the fixed \
+         Themes rail is what the test above proves holds it still"
     );
 
     theme::set_active_by_name(restore).unwrap();

@@ -79,8 +79,11 @@ fn the_panel_selection_band_paints_only_the_focused_row() {
         shape.caret_fallback_chars,
         shape.caret_row,
     );
-    let lh = p.metrics.line_height;
-    let row = |i: f32| Region::new(card[0], text_top + i * lh, card[2], lh);
+    let bands = p.panel_rows(text_top);
+    let row = |i: f32| {
+        let (top, h) = bands.band(i);
+        Region::new(card[0], top, card[2], h)
+    };
 
     let find_row = pixeldiff::diff_region(&without, &with, w as i64, h as i64, row(0.0));
     assert!(
@@ -244,11 +247,11 @@ fn a_scrolled_field_clips_its_band_to_the_visible_window() {
     // A PARTIAL selection in the SAME scrolled field is what the window
     // crossing actually exists for: a full-field band clips to the same cells
     // whether or not the offset is subtracted, so a law that only ever selects
-    // everything cannot see the rule it is testing. Chars 40..50 of a 60-char
-    // field sit inside the trailing window and must land INSIDE the field's
-    // cells, not at its start.
+    // everything cannot see the rule it is testing. A five-cell span near the
+    // end sits inside any shipped trailing window and must land INSIDE the
+    // field's cells, not at its start.
     let mut partial = panel_view(false, &long, REPLACEMENT);
-    partial.search_field_selection = Some((40, 50));
+    partial.search_field_selection = Some((long.len() - 10, long.len() - 5));
     p.set_view(&partial);
     let shape = p.panel_shape_text(width);
     let ((s_byte, _), (e_byte, _)) = shape
@@ -263,7 +266,7 @@ fn a_scrolled_field_clips_its_band_to_the_visible_window() {
     );
     assert_eq!(
         e_byte - s_byte,
-        10,
+        5,
         "the crossed span keeps the selection's own width"
     );
 

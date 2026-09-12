@@ -5,27 +5,29 @@
 //! surface, chrome face and the visible-row window — because the picker's own
 //! composition read `theme::active()` live, and the picker's own preview step
 //! (`preview_overlay`, reached from every input kind) is the one thing in the
-//! app that swaps `theme::active()` while an overlay stays open. The fix pins
-//! the picker's own chrome (`crate::render::pin_picker_chrome`, consulted by
+//! app that swaps `theme::active()` while an overlay stays open. Themes now
+//! owns one stable top-right rail, while the rest of the picker's chrome is
+//! pinned (`crate::render::pin_picker_chrome`, consulted by
 //! `effective_list_style`/`effective_facet_style`/`effective_pane_split`/
-//! `effective_chrome_face`/`effective_location_style`/`effective_card_anchor`)
-//! to the world active at summon, for the life of that summon — a PASSIVE
-//! pointer hover and a DELIBERATE keyboard/wheel crossing alike.
+//! `effective_chrome_face`/`effective_location_style`) to the world active at
+//! summon — a PASSIVE pointer hover and a DELIBERATE keyboard/wheel crossing
+//! alike.
 //!
 //! These laws pin the crossing at the render seam (real card x-extents, not
-//! the sidecar alone), spanning left↔center↔right AND Pane↔Bars:
+//! the sidecar alone), spanning opener worlds that author left↔center↔right
+//! rails and Pane↔Bars treatments:
 //!
 //! 1. **a deliberate crossing does not move the card** — after a keyboard/wheel
 //!    crossing the card's x-extents and its surface treatment
 //!    (`effective_list_style`) both stay exactly what they were at summon, even
-//!    though the newly-active world's OWN rail/list-style differ — while the
+//!    though the newly-active world's own rail/list-style differ — while the
 //!    interaction state (query, selected row, active world) still crosses live.
 //! 2. **passive hover does not move it either** — the same contrast, run
 //!    through the bare `preview_overlay` a pointer hover calls, so the law
 //!    covers both of the app's two crossing paths.
-//! 3. **non-vacuous**: restoring the pre-item-609 live read (bypassing the pin)
-//!    makes the SAME crossing relocate the card — proving the pin, not a
-//!    coincidence of the fixture, is what holds it.
+//! 3. **non-vacuous**: a raw ordinary overlay reading each world's authored
+//!    rail still relocates across the same roster — proving the stable Themes
+//!    identity, not a coincidental all-right fixture, holds the card.
 
 use super::super::*;
 use super::{headless_pipeline, view};
@@ -45,6 +47,15 @@ fn picker_view(align: theme::CardAnchor) -> ViewState {
     v.overlay_active = true;
     v.overlay_items = vec!["Alpha".into(), "Beta".into()];
     v.overlay_align = Some(align);
+    v
+}
+
+/// The same view folded as the live Themes surface, including the summon-time
+/// chrome owner that keeps row metrics stable while the preview changes.
+fn theme_picker_view(ov: &OverlayState) -> ViewState {
+    let mut v = picker_view(ov.align);
+    v.overlay_theme_picker = true;
+    v.overlay_theme_chrome = ov.audition.theme_original();
     v
 }
 
@@ -126,8 +137,8 @@ fn deliberate_crossing_holds_the_summoned_rail() {
     let summoned_align = ov.align;
     assert_eq!(
         summoned_align,
-        theme::CardAnchor::TopCenter,
-        "the picker froze Tawny's own CENTER rail at summon"
+        theme::CardAnchor::TopRight,
+        "Themes uses its reviewed stable top-right rail regardless of opener"
     );
     let summoned_bars = matches!(
         crate::render::effective_list_style(),
@@ -138,8 +149,8 @@ fn deliberate_crossing_holds_the_summoned_rail() {
     let query_snapshot = ov.query.clone();
     let corpus_len = ov.rows.len();
 
-    // A sequence spanning left → right → center → right → left, Pane and Bars —
-    // every destination's OWN rail/list-style genuinely differs from Tawny's.
+    // A sequence spanning every authored rail and both Pane/Bars styling. The
+    // Themes rail itself is fixed; its remaining composition stays pinned.
     for world in ["Wagtail", "Cassowary", "Tawny", "Mangrove", "Galah"] {
         cross_to(&mut ov, world);
 
@@ -153,7 +164,7 @@ fn deliberate_crossing_holds_the_summoned_rail() {
         // …but the picker's OWN chrome did not follow it anywhere.
         assert_eq!(
             ov.align, summoned_align,
-            "{world}: the card stays on the SUMMONED rail, not the destination's"
+            "{world}: the card stays on the Themes rail, not the destination's"
         );
         let bars = matches!(
             crate::render::effective_list_style(),
@@ -180,9 +191,9 @@ fn deliberate_crossing_holds_the_summoned_rail() {
             "{world}: the selected world is the crossing target"
         );
 
-        // PIXEL LAW: the drawn card's x-extents hug the SUMMONED rail, never
+        // PIXEL LAW: the drawn card's x-extents hug the Themes rail, never
         // the destination's, across every crossing in the sweep.
-        let rect = card_rect(&mut p, &picker_view(ov.align));
+        let rect = card_rect(&mut p, &theme_picker_view(&ov));
         assert_on_rail(rect, summoned_align);
     }
 
@@ -230,12 +241,12 @@ fn passive_hover_holds_the_summoned_rail_exactly_like_a_deliberate_move() {
     set_card_anchor_test_override(None);
     let restore = theme::active().name;
 
-    theme::set_active_by_name("Wagtail").unwrap(); // LEFT + Pane
+    theme::set_active_by_name("Wagtail").unwrap(); // opener varies; Themes stays RIGHT
     let names: Vec<String> = theme::THEMES.iter().map(|t| t.name.to_string()).collect();
     let mut ov = OverlayState::new_theme(names, theme::active_index());
     let summoned_align = ov.align;
-    assert_eq!(summoned_align, theme::CardAnchor::TopLeft);
-    let summon_rect = card_rect(&mut p, &picker_view(ov.align));
+    assert_eq!(summoned_align, theme::CardAnchor::TopRight);
+    let summon_rect = card_rect(&mut p, &theme_picker_view(&ov));
 
     // A PASSIVE hover onto Cassowary — a RIGHT + Bars world (a genuine crossing).
     hover_to(&mut ov, "Cassowary");
@@ -248,7 +259,7 @@ fn passive_hover_holds_the_summoned_rail_exactly_like_a_deliberate_move() {
         ov.align, summoned_align,
         "a passive hover must not move the frozen chrome"
     );
-    let hover_rect = card_rect(&mut p, &picker_view(ov.align));
+    let hover_rect = card_rect(&mut p, &theme_picker_view(&ov));
     assert!(
         (hover_rect[0] - summon_rect[0]).abs() < 0.5
             && (hover_rect[2] - summon_rect[2]).abs() < 0.5,
@@ -266,8 +277,8 @@ fn passive_hover_holds_the_summoned_rail_exactly_like_a_deliberate_move() {
         ov.align, summoned_align,
         "a deliberate move must not move the frozen chrome either"
     );
-    let deliberate_rect = card_rect(&mut p, &picker_view(ov.align));
-    assert_on_rail(deliberate_rect, theme::CardAnchor::TopLeft);
+    let deliberate_rect = card_rect(&mut p, &theme_picker_view(&ov));
+    assert_on_rail(deliberate_rect, theme::CardAnchor::TopRight);
     assert!(
         (deliberate_rect[0] - summon_rect[0]).abs() < 0.5,
         "the deliberately-crossed card sits exactly where it was summoned: \
@@ -280,17 +291,14 @@ fn passive_hover_holds_the_summoned_rail_exactly_like_a_deliberate_move() {
     set_card_anchor_test_override(None);
 }
 
-/// NON-VACUOUS: reverting `effective_list_style`/`effective_card_anchor` to a
-/// bare `theme::active()` read (bypassing the pin entirely) makes the SAME
-/// deliberate crossing relocate the card — proving the two laws above hold
-/// because of the pin, not because the fixture never crosses rails.
+/// NON-VACUOUS: using each preview world's authored rail makes the SAME
+/// deliberate crossing relocate the card — proving the laws above hold
+/// because Themes owns a stable rail, not because the fixture never crosses.
 #[test]
-fn without_the_pin_the_same_crossing_would_relocate_the_card() {
+fn without_the_fixed_themes_rail_the_same_crossing_would_relocate_the_card() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping without_the_pin_the_same_crossing_would_relocate_the_card: no wgpu adapter"
-        );
+        eprintln!("skipping fixed-Themes-rail mutation law: no wgpu adapter");
         return;
     };
     set_card_anchor_test_override(None);
@@ -301,18 +309,15 @@ fn without_the_pin_the_same_crossing_would_relocate_the_card() {
     let after = anchor_of("Cassowary"); // RIGHT
     assert_ne!(before, after, "the crossing must span two different rails");
 
-    // Simulate the PRE-609 unpinned read directly: the render consumer read
-    // `theme::active().render_caps.card_anchor` every frame with no pin at
-    // all, so a bare live crossing (no `OverlayState`/pin involved) alone
-    // moved the drawn rect — this is the mutation the laws above must catch
-    // if `pin_picker_chrome`/`picker_chrome_theme` were ever bypassed.
+    // THE MUTATION: feed the raw per-world anchors through an ordinary overlay
+    // identity instead of Themes' fixed alignment.
     let rect_before = card_rect(&mut p, &picker_view(before));
     let rect_after = card_rect(&mut p, &picker_view(after));
     assert!(
         (rect_before[0] - rect_after[0]).abs() > 1.0,
         "a bare live-anchor read really does relocate the card across this \
-         crossing (x_before={}, x_after={}) — the pin is what the laws above \
-         are proving holds it still",
+         crossing (x_before={}, x_after={}) — the fixed Themes rail is what \
+         the laws above prove holds it still",
         rect_before[0],
         rect_after[0]
     );

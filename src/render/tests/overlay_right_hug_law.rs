@@ -515,7 +515,7 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
     assert!(
         hug_items
             .iter()
-            .any(|s| s == "archive/very-long-project-folder-name/"),
+            .any(|s| s.starts_with("archive/very-long-project-folder-name/") && s.ends_with('›')),
         "the production summon corpus must include folders attached after construction: \
          {hug_items:?}"
     );

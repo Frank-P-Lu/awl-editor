@@ -164,10 +164,8 @@ impl TextPipeline {
         let margin = ui.px(super::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
-        // See `overlay_hint_gap_rows`'s own doc (`chrome/mod.rs`) — the ONE owner
-        // this grouped family shares with the flat family (`overlay.rs`) and the
-        // workspace family (`workspace.rs`), so a hint can't stop sitting flush
-        // against the last row in one family while still doing it in another.
+        // `overlay_hint_gap_rows` is shared with the flat and workspace families,
+        // so a hint cannot sit flush against the last row in only one family.
         let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
             self.overlay_chrome_inventory(n_items);
         let header_rows = 2;
@@ -177,8 +175,9 @@ impl TextPipeline {
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
         let chrome_rows = billed_header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
-        // THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
-        let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
+        // Fit and final card sizing share the compact footer's reclaimed slack.
+        let height_budget = self.window_h + self.overlay_footer_reclaim(hint_rows, hint_gap_rows);
+        let avail_px = (height_budget - card_y - margin - 2.0 * pad - header_gap).max(lh);
         // The cue's own fixed point (`resolve_window_and_cue`): `item_top`/
         // `item_visible` are ITEM counts straight off `scroll_window`, read
         // BEFORE `window_plan` turns them into a display-line count that
