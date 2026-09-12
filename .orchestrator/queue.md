@@ -12,7 +12,8 @@ Outstanding review of landed work and hardware checks are listed separately belo
 
 ### 655 — use Nishiki’s native bold checkbox pair in every world (user approved, 2026-09-12)
 
-🟢 READY — queue only; supersedes 644’s per-world task-pair mapping.
+🟡 IN PROGRESS — `/root/list_markers_655_656` (Codex); supersedes 644’s
+per-world task-pair mapping and shares one sequential implementation lane with 656.
 
 Decision: use Nishiki-teki U+2610 BALLOT BOX for open tasks and U+1F5F9
 BALLOT BOX WITH BOLD CHECK for completed tasks across all worlds. The user
@@ -40,7 +41,8 @@ neighborhood audit and visual smoke. The specimen is taste evidence only.
 
 ### 656 — align rich list bullets and task markers consistently (user report, 2026-09-12)
 
-🟢 READY — coordinate sequentially with 655 through the shared list-marker owner.
+🟡 IN PROGRESS — `/root/list_markers_655_656` (Codex), coordinated sequentially
+with 655 through the shared list-marker owner.
 
 Finding: the user’s screenshot shows a star bullet and task boxes sitting at
 inconsistent horizontal positions, with task text beginning farther right than
@@ -105,8 +107,8 @@ branch's diff; resolve that integrated-base blocker before treating the gate as 
 
 ### 653 — remove the checked-in legacy web-editor bundle (user request, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/legacy_web_bundle` (Codex), branch
-`codex/653-remove-legacy-editor-bundle`.
+🟠 INTEGRATED — implementation and independent audit landed on local `main` at
+merge `0d4310d4`; fresh assembly, live web smoke and the combined gate remain.
 
 Finding: `site/editor/` is generated Trunk/wasm-bindgen output, not authored product
 source. The only tracked files are a 137,136-byte hashed JavaScript glue file and its
