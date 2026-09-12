@@ -182,20 +182,22 @@ impl ReplaySession<'_> {
 
     // SEARCH IN FOLDER's headless twin of the live gather above: same budget,
     // same `crate::fs` seam, so a `--keys` capture sees the real corpus.
-    fn gather_search_corpus(&self, action: &Action) -> Vec<(String, String)> {
-        if !matches!(action, Action::OpenSearchFolder) {
-            return Vec::new();
+    fn gather_search_inputs(&self, action: &Action) -> crate::overlay::SearchFolderInputs {
+        let load = if matches!(action, Action::OpenSearchFolder) {
+            crate::search_folder::load_corpus(
+                &self.corpus,
+                &self.root,
+                &crate::search_folder::SearchBudget::default(),
+                crate::fs::active().as_ref(),
+            )
+        } else {
+            crate::search_folder::CorpusLoad::default()
+        };
+        crate::overlay::SearchFolderInputs {
+            root: self.root.clone(),
+            corpus: load.corpus,
+            incomplete: load.incomplete,
         }
-        let root = self.root.clone();
-        crate::search_folder::load_corpus(
-            &self.corpus,
-            &crate::search_folder::SearchBudget::default(),
-            |rel| {
-                crate::fs::active()
-                    .read_to_string(&crate::index::resolve(&root, rel))
-                    .ok()
-            },
-        )
     }
 
     /// Apply one action through the sole pure transition seam, then append its
@@ -283,12 +285,12 @@ impl ReplaySession<'_> {
             Some(crate::overlay::OverlayKind::UserWords) => Some(
                 crate::overlay::PickerInput::UserWords(self.gather_user_words(&action)),
             ),
-            Some(crate::overlay::OverlayKind::SearchFolder) => Some(
-                crate::overlay::PickerInput::SearchFolder(crate::overlay::SearchFolderInputs {
-                    root: self.root.clone(),
-                    corpus: self.gather_search_corpus(&action),
-                }),
-            ),
+            Some(crate::overlay::OverlayKind::SearchFolder) => {
+                let input = self.gather_search_inputs(&action);
+                // Carry the same partial-coverage fact the live gather owns.
+                let picker = crate::overlay::PickerInput::SearchFolder(input);
+                Some(picker)
+            }
             Some(crate::overlay::OverlayKind::Credits) => {
                 Some(crate::overlay::PickerInput::Credits)
             }

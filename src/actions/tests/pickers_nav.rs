@@ -1978,6 +1978,7 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
                             "a.md".to_string(),
                             "needle one\nneedle two\nneedle three\nneedle four".to_string(),
                         )],
+                        false,
                     );
                     for c in "needle".chars() {
                         ov.push(c);

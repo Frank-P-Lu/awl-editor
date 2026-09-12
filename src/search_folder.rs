@@ -2,9 +2,9 @@
 //! "the simple file operations, navigation, search, and version history needed
 //! to sustain writing," and Cmd-F/Cmd-R stop at the buffer -- this is the
 //! full-text search over the whole active folder that answers "where did I
-//! write about X". Pure logic, no filesystem and no GPU: the caller loads a
-//! bounded CORPUS (`(path, content)` pairs, already read once at summon —
-//! [`crate::overlay::OverlayState::new_search_folder`]) and this module turns
+//! write about X". The loader owns bounded reads through [`crate::fs`], then
+//! the pure matcher turns that bounded CORPUS (`(path, content)` pairs, read
+//! once at summon — [`crate::overlay::OverlayState::new_search_folder`]) into
 //! a typed query into ranked, grouped, snippeted [`Hit`]s on every keystroke
 //! (`OverlayState::refilter`'s `SearchFolder` branch), never touching disk
 //! itself so both the corpus load and the re-match stay independently
@@ -47,13 +47,12 @@ pub struct Hit {
 /// are named here so the tradeoff is one place to retune.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SearchBudget {
-    /// Distinct files whose content the CALLER will load into the corpus
-    /// (enforced by [`load_corpus`], not by [`search`] — the corpus handed to
-    /// `search` is already the loaded, bounded set).
+    /// Candidate files whose metadata/read path [`load_corpus`] will attempt.
+    /// Oversized, invalid, missing and failed files consume this budget too,
+    /// so a rejected corpus cannot cause an unbounded run of I/O calls.
     pub max_files: usize,
-    /// Cumulative bytes [`load_corpus`] will read across every file before it
-    /// stops loading MORE files (a large folder is bounded by total work, not
-    /// only by file count).
+    /// Cumulative bytes the bounded filesystem seam may materialize across
+    /// every attempted file, including truncated, invalid and failed reads.
     pub max_total_bytes: usize,
     /// A single file over this size is skipped by [`load_corpus`] outright
     /// (an accidentally-included log/binary never dominates the budget).
@@ -80,36 +79,83 @@ impl Default for SearchBudget {
     }
 }
 
+/// The result of one summon-time corpus load. `incomplete` means at least one
+/// indexed candidate was not searched: a budget stopped the walk, or a file
+/// was oversized, changing, invalid UTF-8, or unreadable. The picker carries
+/// that fact to its footer rather than presenting partial results as complete.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct CorpusLoad {
+    pub corpus: Vec<(String, String)>,
+    pub incomplete: bool,
+    pub attempted_files: usize,
+    pub bytes_read: usize,
+}
+
 /// Load a bounded CORPUS of `(root-relative path, content)` pairs from
-/// `files` (already gitignore-aware — `index::build_index`'s own roster),
-/// via caller-supplied `read` (production: `crate::fs::active().read_to_string`;
-/// tests: an in-memory map, no filesystem at all). Stops loading once
-/// `budget.max_files` or `budget.max_total_bytes` is reached; a single file
-/// over `budget.max_file_bytes`, or one `read` can't decode (binary, gone,
-/// permission-denied), is skipped rather than aborting the whole load.
+/// `files` (already gitignore-aware — `index::build_index`'s own roster).
+/// Every candidate, including a metadata-rejected one, consumes `max_files`;
+/// every byte returned by [`crate::fs::FileSystem::read_bounded`] consumes the
+/// total byte budget whether or not the file is admitted. Known-oversized
+/// files are rejected before content I/O, while unknown/changing sizes are
+/// capped at the same filesystem seam.
 ///
 /// This is where the FILE READ happens, once, at summon — never inside
 /// [`search`], which is pure and re-runs on every keystroke against the
 /// corpus this returns.
 pub fn load_corpus(
     files: &[String],
+    root: &std::path::Path,
     budget: &SearchBudget,
-    mut read: impl FnMut(&str) -> Option<String>,
-) -> Vec<(String, String)> {
-    let mut corpus = Vec::new();
-    let mut total_bytes = 0usize;
-    for path in files {
-        if corpus.len() >= budget.max_files || total_bytes >= budget.max_total_bytes {
+    fs: &dyn crate::fs::FileSystem,
+) -> CorpusLoad {
+    load_corpus_with(
+        files,
+        budget,
+        |path| {
+            fs.metadata(&crate::index::resolve(root, path))
+                .ok()
+                .and_then(|metadata| metadata.len)
+        },
+        |path, cap| fs.read_bounded(&crate::index::resolve(root, path), cap),
+    )
+}
+
+fn load_corpus_with(
+    files: &[String],
+    budget: &SearchBudget,
+    mut known_len: impl FnMut(&str) -> Option<u64>,
+    mut read: impl FnMut(&str, usize) -> crate::fs::BoundedRead,
+) -> CorpusLoad {
+    let mut load = CorpusLoad::default();
+    for (index, path) in files.iter().enumerate() {
+        if load.attempted_files >= budget.max_files || load.bytes_read >= budget.max_total_bytes {
+            load.incomplete = index < files.len();
             break;
         }
-        let Some(content) = read(path) else { continue };
-        if content.len() > budget.max_file_bytes {
+        load.attempted_files += 1;
+        let remaining = budget.max_total_bytes - load.bytes_read;
+        let read_cap = budget.max_file_bytes.min(remaining);
+        if known_len(path).is_some_and(|len| len > read_cap as u64) {
+            load.incomplete = true;
             continue;
         }
-        total_bytes += content.len();
-        corpus.push((path.clone(), content));
+        let outcome = read(path, read_cap);
+        let read_bytes = outcome.bytes_read();
+        assert!(
+            read_bytes <= read_cap,
+            "FileSystem::read_bounded returned {read_bytes} bytes against cap {read_cap}"
+        );
+        load.bytes_read += read_bytes;
+        let Some(bytes) = outcome.into_complete() else {
+            load.incomplete = true;
+            continue;
+        };
+        match String::from_utf8(bytes) {
+            Ok(content) => load.corpus.push((path.clone(), content)),
+            Err(_) => load.incomplete = true,
+        }
     }
-    corpus
+    load
 }
 
 /// Match `query` (empty query -> no scan, no results) against every line of

@@ -57,6 +57,7 @@ fn seeded_overlay(kind: OverlayKind) -> OverlayState {
                 "a.md".to_string(),
                 "needle one\nneedle two\nneedle three".to_string(),
             )],
+            false,
         );
         for c in "needle".chars() {
             ov.push(c);

@@ -179,6 +179,7 @@ pub fn build(input: &PickerInput<'_>) -> Option<OverlayState> {
         PickerInput::SearchFolder(ctx) => Some(OverlayState::new_search_folder(
             ctx.root.clone(),
             ctx.corpus.clone(),
+            ctx.incomplete,
         )),
         // CREDITS: a summoned read-only viewer over the embedded document, not
         // a buffer swap. Needs no caller-gathered context at all — unlike

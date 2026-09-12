@@ -1,6 +1,6 @@
 use super::FileSystem;
 #[cfg(target_arch = "wasm32")]
-use super::{DirEntry, Metadata, set_active};
+use super::{BoundedRead, DirEntry, Metadata, set_active};
 use std::path::Path;
 #[cfg(target_arch = "wasm32")]
 use std::sync::Arc;
@@ -43,6 +43,29 @@ pub(crate) const SEED_SAMPLES: &[(&str, &str)] = &[
 /// nothing and a migration pass isn't worth the complexity for one flag.
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) const SEED_SENTINEL_KEY: &str = "awlfs:seeded:v2";
+
+#[cfg(any(test, target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WebBoundedState {
+    Complete,
+    LimitReached,
+    StaleLength,
+}
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) fn classify_web_bounded_read(
+    known_len: usize,
+    bytes_read: usize,
+    complete: bool,
+) -> WebBoundedState {
+    if !complete {
+        WebBoundedState::LimitReached
+    } else if bytes_read == known_len {
+        WebBoundedState::Complete
+    } else {
+        WebBoundedState::StaleLength
+    }
+}
 
 /// Seed [`SEED_SAMPLES`] into `fs`, WRITE-IF-ABSENT per file: a path that
 /// already exists is left completely untouched (never overwritten), so a
@@ -96,6 +119,9 @@ pub(crate) fn seed_write_if_absent(
 //   * `awlfs:D:<path>` → a directory MARKER (value unused) so empty dirs exist.
 //   * `awlfs:M:<path>` → a file's modified millis (best-effort time; the browser
 //     has no inode, so it is recorded on write rather than read from a real stat).
+//   * `awlfs:L:<path>` → a file's UTF-8 byte length. Bounded search checks this
+//     tiny sidecar before retrieving `F:`; legacy/mid-write entries without it
+//     are skipped honestly, and an explicit whole-file read backfills it.
 //   * `awlfs:seeded:v2` → the SEED-generation sentinel (see `seed_samples`,
 //     [`super::SEED_SENTINEL_KEY`]) — bumped from the v1 `awlfs:seeded` key
 //     when the curated seed set changed; the old key is left inert, unread.
@@ -106,15 +132,36 @@ pub(crate) fn seed_write_if_absent(
 // and the only byte reader (the `AWL_FONT` face load) never runs on the web.
 #[cfg(target_arch = "wasm32")]
 mod backend {
-    use super::{DirEntry, FileSystem, Metadata};
+    use super::{BoundedRead, DirEntry, FileSystem, Metadata};
     use crate::clock::SystemTime;
     use std::io;
     use std::path::Path;
     use std::time::Duration;
+    use wasm_bindgen::prelude::*;
 
     const FILE_PREFIX: &str = "awlfs:F:";
     const DIR_PREFIX: &str = "awlfs:D:";
     const MTIME_PREFIX: &str = "awlfs:M:";
+    const LENGTH_PREFIX: &str = "awlfs:L:";
+
+    // `Storage.getItem` through web-sys converts the complete JS string into a
+    // Rust `String`. Search needs a different door: `encodeInto` writes only
+    // whole UTF-8 scalar encodings that fit in the cap-sized array and reports
+    // how many UTF-16 code units it consumed. Comparing that with `.length`
+    // distinguishes an exact fit without encoding or crossing another byte.
+    #[wasm_bindgen(inline_js = r#"
+export function awl_bounded_local_storage_utf8(key, maxBytes) {
+    const value = window.localStorage.getItem(key);
+    if (value === null) return null;
+    const output = new Uint8Array(maxBytes);
+    const result = new TextEncoder().encodeInto(value, output);
+    return [output.subarray(0, result.written), result.read === value.length];
+}
+"#)]
+    extern "C" {
+        #[wasm_bindgen(catch)]
+        fn awl_bounded_local_storage_utf8(key: &str, max_bytes: u32) -> Result<JsValue, JsValue>;
+    }
 
     #[derive(Debug, Default, Clone, Copy)]
     pub struct WebFs;
@@ -161,6 +208,15 @@ mod backend {
             }
         }
 
+        fn contains_key(s: &web_sys::Storage, wanted: &str) -> bool {
+            let Ok(len) = s.length() else { return false };
+            (0..len).any(|index| s.key(index).ok().flatten().as_deref() == Some(wanted))
+        }
+
+        fn record_length(s: &web_sys::Storage, path: &Path, byte_len: usize) {
+            let _ = s.set_item(&Self::key(LENGTH_PREFIX, path), &byte_len.to_string());
+        }
+
         /// SEED the sample docs on FIRST load (sentinel-gated on
         /// [`super::SEED_SENTINEL_KEY`], so a reload of an already-seeded
         /// generation is a no-op). Called once at startup by
@@ -193,20 +249,83 @@ mod backend {
 
     impl FileSystem for WebFs {
         fn read_to_string(&self, path: &Path) -> io::Result<String> {
-            storage()
-                .and_then(|s| s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))
+            let s =
+                storage().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
+            let text = s
+                .get_item(&Self::key(FILE_PREFIX, path))
+                .ok()
+                .flatten()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))?;
+            // The caller explicitly requested the whole value. Backfilling a
+            // legacy length costs only a tiny write and adds no content read.
+            Self::record_length(&s, path, text.len());
+            Ok(text)
         }
 
         fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
             self.read_to_string(path).map(String::into_bytes)
         }
 
+        fn read_bounded(&self, path: &Path, max_bytes: usize) -> BoundedRead {
+            let failed = |what: &str| BoundedRead::Failed {
+                bytes: Vec::new(),
+                _error: io::Error::new(io::ErrorKind::InvalidData, what),
+            };
+            let Ok(max_bytes) = u32::try_from(max_bytes) else {
+                return failed("bounded read cap exceeds browser array limit");
+            };
+            let Some(s) = storage() else {
+                return failed("localStorage unavailable");
+            };
+            let Some(known_len) = s
+                .get_item(&Self::key(LENGTH_PREFIX, path))
+                .ok()
+                .flatten()
+                .and_then(|value| value.parse::<usize>().ok())
+            else {
+                return failed("bounded-read length sidecar missing");
+            };
+            if known_len > max_bytes as usize {
+                return BoundedRead::LimitReached(Vec::new());
+            }
+            let value =
+                match awl_bounded_local_storage_utf8(&Self::key(FILE_PREFIX, path), max_bytes) {
+                    Ok(value) if !value.is_null() => value,
+                    Ok(_) => return failed("no such file"),
+                    Err(_) => return failed("bounded localStorage read failed"),
+                };
+            let pair = js_sys::Array::from(&value);
+            let bytes = js_sys::Uint8Array::new(&pair.get(0)).to_vec();
+            if bytes.len() > max_bytes as usize {
+                return failed("bounded localStorage reader exceeded its cap");
+            }
+            match super::classify_web_bounded_read(
+                known_len,
+                bytes.len(),
+                pair.get(1).as_bool() == Some(true),
+            ) {
+                super::WebBoundedState::Complete => BoundedRead::Complete(bytes),
+                super::WebBoundedState::LimitReached => BoundedRead::LimitReached(bytes),
+                super::WebBoundedState::StaleLength => BoundedRead::Failed {
+                    bytes,
+                    _error: io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "bounded-read length sidecar is stale",
+                    ),
+                },
+            }
+        }
+
         fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {
             let s = storage().ok_or_else(|| js_err("unavailable"))?;
             let text = String::from_utf8_lossy(data);
+            // Missing length means "do not search": invalidate it before the
+            // canonical write so a failed/interrupted update cannot leave a
+            // stale small length authorizing retrieval of a now-larger value.
+            let _ = s.remove_item(&Self::key(LENGTH_PREFIX, path));
             s.set_item(&Self::key(FILE_PREFIX, path), &text)
                 .map_err(|_| js_err("write"))?;
+            Self::record_length(&s, path, text.len());
             let now = now_millis().to_string();
             let _ = s.set_item(&Self::key(MTIME_PREFIX, path), &now);
             if let Some(parent) = path.parent() {
@@ -230,10 +349,13 @@ mod backend {
                 .ok()
                 .flatten()
                 .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))?;
+            let _ = s.remove_item(&Self::key(LENGTH_PREFIX, to));
             let _ = s.remove_item(&Self::key(FILE_PREFIX, from));
             let _ = s.remove_item(&Self::key(MTIME_PREFIX, from));
+            let _ = s.remove_item(&Self::key(LENGTH_PREFIX, from));
             s.set_item(&Self::key(FILE_PREFIX, to), &content)
                 .map_err(|_| js_err("rename"))?;
+            Self::record_length(&s, to, content.len());
             let _ = s.set_item(&Self::key(MTIME_PREFIX, to), &now_millis().to_string());
             if let Some(parent) = to.parent() {
                 if !parent.as_os_str().is_empty() {
@@ -257,10 +379,7 @@ mod backend {
         fn exists(&self, path: &Path) -> bool {
             storage()
                 .map(|s| {
-                    s.get_item(&Self::key(FILE_PREFIX, path))
-                        .ok()
-                        .flatten()
-                        .is_some()
+                    Self::contains_key(&s, &Self::key(FILE_PREFIX, path))
                         || s.get_item(&Self::key(DIR_PREFIX, path))
                             .ok()
                             .flatten()
@@ -318,19 +437,24 @@ mod backend {
                     .and_then(|v| v.parse::<u64>().ok())
                     .map(millis_to_system_time)
             };
-            // A file the store knows (it has content) reports its recorded times +
-            // byte length (the stored UTF-8 string's length); a bare directory has
-            // none; an unknown path errors like a native stat.
-            let content = s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten();
+            // File existence comes from key enumeration, never retrieving the
+            // unbounded canonical value. A legacy or mid-write file has no
+            // trusted length, so bounded search skips it rather than reading.
+            let is_file = Self::contains_key(&s, &Self::key(FILE_PREFIX, path));
+            let len = s
+                .get_item(&Self::key(LENGTH_PREFIX, path))
+                .ok()
+                .flatten()
+                .and_then(|value| value.parse::<u64>().ok());
             let is_dir = s
                 .get_item(&Self::key(DIR_PREFIX, path))
                 .ok()
                 .flatten()
                 .is_some();
-            if let Some(content) = content {
+            if is_file {
                 Ok(Metadata {
                     modified: read_ms(MTIME_PREFIX),
-                    len: Some(content.len() as u64),
+                    len,
                 })
             } else if is_dir {
                 Ok(Metadata {
@@ -345,11 +469,12 @@ mod backend {
         fn remove_file(&self, path: &Path) -> io::Result<()> {
             let s = storage().ok_or_else(|| js_err("unavailable"))?;
             let key = Self::key(FILE_PREFIX, path);
-            if s.get_item(&key).ok().flatten().is_none() {
+            if !Self::contains_key(&s, &key) {
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no such file"));
             }
             let _ = s.remove_item(&key);
             let _ = s.remove_item(&Self::key(MTIME_PREFIX, path));
+            let _ = s.remove_item(&Self::key(LENGTH_PREFIX, path));
             Ok(())
         }
     }

@@ -199,67 +199,210 @@ fn match_near_line_start_still_fills_the_window() {
     assert_eq!(hits[0].snippet.chars().count(), budget.snippet_chars + 1);
 }
 
-// ── load_corpus: the bounded, injectable file loader ───────────────────────
+// ── load_corpus: attempted-I/O and actual-byte laws ────────────────────────
+
+fn complete(text: &str) -> crate::fs::BoundedRead {
+    crate::fs::BoundedRead::Complete(text.as_bytes().to_vec())
+}
 
 #[test]
-fn load_corpus_stops_at_max_files() {
-    let files: Vec<String> = (0..10).map(|i| format!("f{i}.md")).collect();
+fn max_files_counts_attempts_including_all_rejected_candidates() {
+    let files: Vec<String> = (0..1_000).map(|i| format!("huge-{i}.md")).collect();
+    let budget = SearchBudget {
+        max_files: 3,
+        max_file_bytes: 10,
+        ..tight_budget()
+    };
+    let mut metadata_calls = 0;
+    let mut read_calls = 0;
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |_| {
+            metadata_calls += 1;
+            Some(100_000)
+        },
+        |_, _| {
+            read_calls += 1;
+            unreachable!("known-oversized files must be rejected before content I/O")
+        },
+    );
+    assert_eq!(load.attempted_files, 3);
+    assert_eq!(metadata_calls, 3);
+    assert_eq!(read_calls, 0);
+    assert_eq!(load.bytes_read, 0);
+    assert!(load.corpus.is_empty());
+    assert!(load.incomplete);
+}
+
+#[test]
+fn exact_attempt_limit_admits_exactly_that_many_files_and_marks_the_rest_incomplete() {
+    let files: Vec<String> = (0..4).map(|i| format!("f{i}.md")).collect();
     let budget = SearchBudget {
         max_files: 3,
         ..tight_budget()
     };
-    let corpus = load_corpus(&files, &budget, |p| Some(format!("content of {p}")));
-    assert_eq!(corpus.len(), 3);
+    let mut reads = 0;
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |_| Some(1),
+        |_, cap| {
+            reads += 1;
+            assert!(cap >= 1);
+            complete("x")
+        },
+    );
+    assert_eq!(reads, 3);
+    assert_eq!(load.attempted_files, 3);
+    assert_eq!(load.corpus.len(), 3);
+    assert_eq!(load.bytes_read, 3);
+    assert!(load.incomplete);
 }
 
 #[test]
-fn load_corpus_skips_a_file_over_the_per_file_cap() {
-    let files = vec!["small.md".to_string(), "huge.md".to_string()];
+fn exact_per_file_and_total_limits_are_admitted_but_cap_plus_one_is_not_read() {
+    let files = vec!["ten.md".into(), "fifteen.md".into(), "one-more.md".into()];
+    let budget = SearchBudget {
+        max_total_bytes: 25,
+        max_file_bytes: 15,
+        ..tight_budget()
+    };
+    let mut reads = Vec::new();
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |path| match path {
+            "ten.md" => Some(10),
+            "fifteen.md" => Some(15),
+            "one-more.md" => Some(1),
+            _ => unreachable!(),
+        },
+        |path, cap| {
+            reads.push((path.to_string(), cap));
+            match path {
+                "ten.md" => complete(&"a".repeat(10)),
+                "fifteen.md" => complete(&"b".repeat(15)),
+                _ => unreachable!("the total cap must stop before another read"),
+            }
+        },
+    );
+    assert_eq!(
+        reads,
+        vec![("ten.md".into(), 15), ("fifteen.md".into(), 15)]
+    );
+    assert_eq!(load.bytes_read, 25);
+    assert_eq!(load.corpus.len(), 2);
+    assert_eq!(load.corpus.iter().map(|(_, s)| s.len()).sum::<usize>(), 25);
+    assert!(load.incomplete);
+}
+
+#[test]
+fn known_file_over_per_file_cap_is_rejected_without_reading_it() {
+    let files = vec!["exact.md".into(), "cap-plus-one.md".into()];
     let budget = SearchBudget {
         max_file_bytes: 10,
         ..tight_budget()
     };
-    let corpus = load_corpus(&files, &budget, |p| {
-        if p == "huge.md" {
-            Some("x".repeat(1000))
-        } else {
-            Some("tiny".to_string())
-        }
-    });
-    assert_eq!(corpus.len(), 1);
-    assert_eq!(corpus[0].0, "small.md");
+    let mut reads = Vec::new();
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |path| Some(if path == "exact.md" { 10 } else { 11 }),
+        |path, cap| {
+            reads.push((path.to_string(), cap));
+            complete(&"x".repeat(10))
+        },
+    );
+    assert_eq!(reads, vec![("exact.md".into(), 10)]);
+    assert_eq!(load.bytes_read, 10);
+    assert_eq!(load.corpus.len(), 1);
+    assert!(load.incomplete);
 }
 
 #[test]
-fn load_corpus_stops_once_the_total_byte_budget_is_spent() {
-    let files: Vec<String> = (0..10).map(|i| format!("f{i}.md")).collect();
+fn unknown_or_growing_size_is_capped_and_never_admitted_as_a_prefix() {
+    let files = vec!["growing.md".into(), "never-attempted.md".into()];
     let budget = SearchBudget {
-        max_total_bytes: 25,
-        max_file_bytes: 1_000_000,
+        max_total_bytes: 10,
+        max_file_bytes: 10,
         ..tight_budget()
     };
-    let corpus = load_corpus(&files, &budget, |_| Some("a".repeat(10)));
-    assert!(
-        corpus.len() < 10,
-        "the loader must stop before exhausting every candidate once the byte budget is spent"
+    let mut reads = 0;
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |_| None,
+        |_, cap| {
+            reads += 1;
+            assert_eq!(cap, 10);
+            crate::fs::BoundedRead::LimitReached(vec![b'x'; cap])
+        },
     );
-    assert!(!corpus.is_empty());
+    assert_eq!(reads, 1);
+    assert_eq!(load.attempted_files, 1);
+    assert_eq!(load.bytes_read, 10);
+    assert!(load.corpus.is_empty());
+    assert!(load.incomplete);
 }
 
 #[test]
-fn load_corpus_skips_an_unreadable_file_rather_than_aborting() {
-    let files = vec![
-        "ok.md".to_string(),
-        "binary.png".to_string(),
-        "ok2.md".to_string(),
-    ];
-    let corpus = load_corpus(&files, &tight_budget(), |p| {
-        if p == "binary.png" {
-            None
-        } else {
-            Some("text".to_string())
-        }
-    });
-    assert_eq!(corpus.len(), 2);
-    assert!(corpus.iter().all(|(p, _)| p != "binary.png"));
+fn invalid_text_and_failed_reads_charge_actual_bytes_and_do_not_abort_later_text() {
+    let files = vec!["binary.md".into(), "failed.md".into(), "ok.md".into()];
+    let budget = SearchBudget {
+        max_total_bytes: 10,
+        max_file_bytes: 10,
+        ..tight_budget()
+    };
+    let mut calls = Vec::new();
+    let load = load_corpus_with(
+        &files,
+        &budget,
+        |_| None,
+        |path, cap| {
+            calls.push((path.to_string(), cap));
+            match path {
+                "binary.md" => crate::fs::BoundedRead::Complete(vec![0xff]),
+                "failed.md" => crate::fs::BoundedRead::Failed {
+                    bytes: vec![b'x', b'y'],
+                    _error: std::io::Error::other("late failure"),
+                },
+                "ok.md" => complete("needle"),
+                _ => unreachable!(),
+            }
+        },
+    );
+    assert_eq!(
+        calls,
+        vec![
+            ("binary.md".into(), 10),
+            ("failed.md".into(), 9),
+            ("ok.md".into(), 7)
+        ]
+    );
+    assert_eq!(
+        load.bytes_read, 9,
+        "invalid and partial-failure bytes are charged"
+    );
+    assert_eq!(load.corpus, vec![("ok.md".into(), "needle".into())]);
+    assert!(load.incomplete);
+}
+
+#[test]
+fn incomplete_coverage_is_visible_in_the_picker_footer_without_hiding_open() {
+    let complete = crate::overlay::OverlayState::new_search_folder(
+        std::path::PathBuf::from("/notes"),
+        vec![("a.md".into(), "needle".into())],
+        false,
+    );
+    let incomplete = crate::overlay::OverlayState::new_search_folder(
+        std::path::PathBuf::from("/notes"),
+        vec![("a.md".into(), "needle".into())],
+        true,
+    );
+    assert_eq!(complete.foot_hint(), "type to filter   ↵ open   esc close");
+    assert_eq!(
+        incomplete.foot_hint(),
+        "some files not searched   ↵ open   esc close"
+    );
 }

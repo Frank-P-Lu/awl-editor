@@ -36,6 +36,11 @@ impl crate::fs::FileSystem for CountingFs {
         self.inner.read(path)
     }
 
+    fn read_bounded(&self, path: &std::path::Path, max_bytes: usize) -> crate::fs::BoundedRead {
+        self.reads.lock().unwrap().push(path.to_path_buf());
+        self.inner.read_bounded(path, max_bytes)
+    }
+
     fn write(&self, path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
         self.inner.write(path, data)
     }
@@ -203,6 +208,47 @@ fn files_listing_is_names_only_and_preserves_filename_outcomes() {
             "Text hides known non-text hint {name}"
         );
     }
+}
+
+#[test]
+fn live_search_reads_admitted_text_but_reports_an_oversized_omission() {
+    use crate::fs::{FileSystem, InMemoryFs};
+
+    let mem = InMemoryFs::new().with_file("/proj/note.md", "a searchable needle\n");
+    mem.write(
+        std::path::Path::new("/proj/huge.md"),
+        &vec![b'x'; crate::search_folder::SearchBudget::default().max_file_bytes + 1],
+    )
+    .unwrap();
+    let fs = CountingFs::new(mem);
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/note.md")),
+        "/proj",
+        Config::empty(),
+    );
+    fs.clear_reads();
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(
+        Action::OpenSearchFolder,
+        false,
+        &exit,
+        crate::stats::Door::Chord,
+    );
+
+    assert_eq!(
+        fs.reads(),
+        vec![PathBuf::from("/proj/note.md")],
+        "full-text search reads admitted content, but metadata rejects huge.md before content I/O"
+    );
+    let overlay = app.workspace_state.overlay().expect("search picker opens");
+    assert!(overlay.search_incomplete);
+    assert_eq!(overlay.search_corpus.len(), 1);
+    assert_eq!(
+        overlay.foot_hint(),
+        "some files not searched   ↵ open   esc close"
+    );
 }
 
 #[test]

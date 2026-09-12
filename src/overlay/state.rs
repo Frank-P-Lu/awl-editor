@@ -113,6 +113,10 @@ pub struct OverlayState {
     /// gathers, the card just holds" shape. `None`/empty on every other kind.
     pub search_root: Option<std::path::PathBuf>,
     pub search_corpus: Vec<(String, String)>,
+    /// At least one indexed file was omitted from Search in folder's loaded
+    /// corpus. Kept beside that corpus so every live/replay/view consumer
+    /// reports the same partial-coverage state.
+    pub search_incomplete: bool,
     pub(super) hug_roster: Option<Arc<HugRoster>>,
 }
 
@@ -228,6 +232,7 @@ impl OverlayState {
             subject_name: None,
             search_root: None,
             search_corpus: Vec::new(),
+            search_incomplete: false,
             hug_roster: None,
         };
         s.refilter();
@@ -241,7 +246,11 @@ impl OverlayState {
     /// empty query and therefore zero rows (the calm "no matches" row) —
     /// `refilter`'s `SearchFolder` branch fills the list in as soon as
     /// something is typed, matching every other query-driven picker's shape.
-    pub fn new_search_folder(root: std::path::PathBuf, corpus: Vec<(String, String)>) -> Self {
+    pub fn new_search_folder(
+        root: std::path::PathBuf,
+        corpus: Vec<(String, String)>,
+        incomplete: bool,
+    ) -> Self {
         let mut s = Self::new_marked(
             OverlayKind::SearchFolder,
             Vec::new(),
@@ -253,6 +262,7 @@ impl OverlayState {
         );
         s.search_root = Some(root);
         s.search_corpus = corpus;
+        s.search_incomplete = incomplete;
         s
     }
 
@@ -759,6 +769,12 @@ impl OverlayState {
                 "type to filter   ↵ {}   → open   ← up",
                 route.commit_label()
             );
+        }
+        if let Some(hint) = self.files_hint() {
+            return hint;
+        }
+        if self.kind == OverlayKind::SearchFolder && self.search_incomplete {
+            return "some files not searched   ↵ open   esc close".to_string();
         }
         self.kind.hint()
     }

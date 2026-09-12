@@ -1,4 +1,4 @@
-use super::{DirEntry, FileSystem, Metadata};
+use super::{BoundedRead, DirEntry, FileSystem, Metadata};
 use crate::clock::SystemTime;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -77,6 +77,23 @@ impl FileSystem for InMemoryFs {
             .get(path)
             .map(|f| f.bytes.clone())
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))
+    }
+
+    fn read_bounded(&self, path: &Path, max_bytes: usize) -> BoundedRead {
+        let state = self.inner.read().unwrap();
+        let Some(file) = state.files.get(path) else {
+            return BoundedRead::Failed {
+                bytes: Vec::new(),
+                _error: io::Error::new(io::ErrorKind::NotFound, "no such file"),
+            };
+        };
+        let end = file.bytes.len().min(max_bytes);
+        let bytes = file.bytes[..end].to_vec();
+        if end == file.bytes.len() {
+            BoundedRead::Complete(bytes)
+        } else {
+            BoundedRead::LimitReached(bytes)
+        }
     }
 
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {

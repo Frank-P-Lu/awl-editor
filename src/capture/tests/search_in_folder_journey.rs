@@ -147,3 +147,49 @@ fn summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file() {
         "landed col (on the match, not line start): {json}"
     );
 }
+
+#[test]
+fn ordinary_replay_reports_when_the_attempt_budget_omits_files() {
+    use crate::fs::FileSystem;
+
+    let _g = crate::testlock::serial();
+    let budget = crate::search_folder::SearchBudget::default();
+    let memory = crate::fs::InMemoryFs::new();
+    let corpus: Vec<String> = (0..=budget.max_files)
+        .map(|i| {
+            let relative = format!("note-{i:03}.md");
+            memory
+                .write(
+                    std::path::Path::new("/proj").join(&relative).as_path(),
+                    b"needle",
+                )
+                .unwrap();
+            relative
+        })
+        .collect();
+    let _fs = crate::fs::FsGuard::install(std::sync::Arc::new(memory));
+    let mut buffer = Buffer::from_str("scratch\n");
+    let root = std::path::PathBuf::from("/proj");
+    let config = Config::empty();
+    let mut km =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = crate::run::ReplaySession::new(
+        crate::run::ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        &root,
+        Some(root.as_path()),
+        &config,
+        None,
+        &mut km,
+    );
+
+    open_search_in_folder(&mut session);
+    let overlay = session.journey().card().expect("search picker opens");
+    assert_eq!(overlay.search_corpus.len(), budget.max_files);
+    assert!(overlay.search_incomplete);
+    assert_eq!(
+        overlay.foot_hint(),
+        "some files not searched   ↵ open   esc close"
+    );
+}

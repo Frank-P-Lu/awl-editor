@@ -17,6 +17,7 @@ fn passive_hover_changes_selection_only_for_live_preview_kinds() {
             let mut overlay = OverlayState::new_search_folder(
                 std::path::PathBuf::from("/writing"),
                 vec![("note.md".into(), "needle one\nneedle two".into())],
+                false,
             );
             for ch in "needle".chars() {
                 overlay.push(ch);
@@ -449,6 +450,7 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             let mut ov = OverlayState::new_search_folder(
                 std::path::PathBuf::from("/proj"),
                 vec![("a.md".to_string(), a), ("b.md".to_string(), b)],
+                false,
             );
             for c in "needle".chars() {
                 ov.push(c);

@@ -59,11 +59,47 @@ pub struct Metadata {
     pub len: Option<u64>,
 }
 
+/// The result of one byte-capped read.
+///
+/// Every variant carries the bytes the backend actually materialized, so a
+/// caller can charge partial work even when the file grows past its allowance
+/// or the read fails after making progress. `LimitReached` is deliberately not
+/// a successful prefix: a consumer asking for a whole text file must not treat
+/// truncated UTF-8 as complete content.
+#[derive(Debug)]
+pub enum BoundedRead {
+    Complete(Vec<u8>),
+    LimitReached(Vec<u8>),
+    Failed { bytes: Vec<u8>, _error: io::Error },
+}
+
+impl BoundedRead {
+    pub fn bytes_read(&self) -> usize {
+        match self {
+            Self::Complete(bytes) | Self::LimitReached(bytes) | Self::Failed { bytes, .. } => {
+                bytes.len()
+            }
+        }
+    }
+
+    pub fn into_complete(self) -> Option<Vec<u8>> {
+        match self {
+            Self::Complete(bytes) => Some(bytes),
+            Self::LimitReached(_) | Self::Failed { .. } => None,
+        }
+    }
+}
+
 pub trait FileSystem: Send + Sync {
     /// Read the whole file at `path` as a UTF-8 string (config load, buffer open).
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
+
+    /// Read at most `max_bytes` from `path`, reporting whether those bytes are
+    /// the whole file. Implementations must never materialize a byte beyond
+    /// the cap merely to distinguish an exact-size file from a growing one.
+    fn read_bounded(&self, path: &Path, max_bytes: usize) -> BoundedRead;
 
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()>;
 
@@ -93,6 +129,9 @@ pub trait FileSystem: Send + Sync {
 
 #[cfg(test)]
 mod serialization_law;
+
+#[cfg(test)]
+mod bounded_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod scripted;
