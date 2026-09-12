@@ -71,11 +71,6 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
         "the spell panel is a floating card"
     );
     assert_eq!(
-        p.float_shadow.instance_count(),
-        0,
-        "no drop shadow — retired (dark-depth Option C)"
-    );
-    assert_eq!(
         p.float_border.instance_count(),
         1,
         "and a raised border edge"

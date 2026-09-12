@@ -2,7 +2,7 @@
 //! scanner shape): `chrome::mod::set_float_quads` is the private quad-math fn
 //! behind every summoned "small floating card, no scrim" surface. Some owners
 //! (the HUD card, the which-key panel, the menu-bar dropdown) legitimately
-//! carry their OWN dedicated elevation trio and call it directly — those are
+//! carry their OWN dedicated elevation pair and call it directly — those are
 //! OUT OF SCOPE for this round, an intentional allowlist. What this law bans
 //! is a SECOND direct caller among the files THIS round unified: the caret-
 //! style preview panel, the search panel, the contextual SPELL popup, and the
@@ -25,7 +25,7 @@
 /// Files allowed to call `set_float_quads(` DIRECTLY: `chrome/mod.rs` (the
 /// owner — its own definition, plus `prepare_float_panel`'s one call), and the
 /// three float-panel families this round deliberately left alone (each keeps
-/// its own dedicated elevation trio, never shared — a bigger unification than
+/// its own dedicated elevation pair, never shared — a bigger unification than
 /// this round's scope).
 const ALLOWED_DIRECT_CALLERS: &[&str] = &[
     "chrome/mod.rs",

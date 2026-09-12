@@ -569,7 +569,7 @@ fn bars_float_bounded_plates_pane_keeps_its_card() {
     assert_eq!(p.overlay_bars.instance_count(), 0, "Pane draws no bars");
     set_pane_split_test_override(None);
 
-    // BARS: the boxed pane vanishes — shadow + border park empty (no elevation) —
+    // BARS: the boxed pane vanishes — the border parks empty (no elevation) —
     // and `panel_card` carries only one local scrim per bar plate.
     set_bars(6.0, 10.0, 24.0);
     p.set_view(&v);
@@ -579,11 +579,6 @@ fn bars_float_bounded_plates_pane_keeps_its_card() {
         p.panel_card.instance_count(),
         plates,
         "Bars paint one bounded scrim per plate"
-    );
-    assert_eq!(
-        p.panel_shadow.instance_count(),
-        0,
-        "Bars draw no card shadow (no elevation)"
     );
     assert_eq!(
         p.panel_border.instance_count(),
@@ -1551,7 +1546,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             // at all (the prior round's clipped `base_100` room read as a
             // near-black BOX on the dark worlds). Its Pane-world `float_*`
             // elevation parks empty (no raised pane), and the
-            // `panel_shadow`/`panel_border` stay empty (no card) — but in place of
+            // `panel_border` stays empty (no card) — but in place of
             // any broad room, `panel_card` carries ONE minimal ground SCRIM
             // PER PLATE (a thin feathered moat confined to each plate's footprint),
             // so its count MATCHES the plate count, never 1. The document shows
@@ -1561,11 +1556,6 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
                 p.float_card.instance_count(),
                 0,
                 "{kind:?}: Bars draws NO raised float pane behind the spell popup"
-            );
-            assert_eq!(
-                p.float_shadow.instance_count(),
-                0,
-                "{kind:?}: Bars draws NO float shadow behind the spell popup"
             );
             assert_eq!(
                 p.float_border.instance_count(),
@@ -1583,11 +1573,6 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
                 "{kind:?}: the spell popup floats BARE — ONE ground scrim per plate ({plates}), NOT a single room box"
             );
             assert_eq!(
-                p.panel_shadow.instance_count(),
-                0,
-                "{kind:?}: the spell scrims carry no shadow (no elevation)"
-            );
-            assert_eq!(
                 p.panel_border.instance_count(),
                 0,
                 "{kind:?}: the spell scrims carry no border (no elevation)"
@@ -1598,11 +1583,6 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             p.panel_border.instance_count(),
             0,
             "{kind:?}: Bars draws NO card border (the wall the selected bar's grow collided with)"
-        );
-        assert_eq!(
-            p.panel_shadow.instance_count(),
-            0,
-            "{kind:?}: Bars draws NO card shadow (no boxed elevation)"
         );
         let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
         assert_eq!(

@@ -530,9 +530,8 @@ third option:
   avoids it. Disabled entirely for `is_one_bit()`; every consumer (overlay
   takeover, held HUD, the lifetime card, hold-peek) falls back to the
   pre-existing CRISP path the theme/caret pickers already use.
-- **The float-panel drop shadow** (`float_shadow_srgba`) and the
-  **writing-nit underline** (`nit_underline_srgba`) — both ink-at-low-alpha
-  washes over the canvas — forced OFF for `is_one_bit()`.
+- **The writing-nit underline** (`nit_underline_srgba`) — an ink-at-low-alpha
+  wash over the canvas — is forced OFF for `is_one_bit()`.
 - **The image-reveal caption scrim** (`theme::image_reveal_scrim`) — forced
   fully OPAQUE for `is_one_bit()` (occludes rather than dims; a narrow
   follow-on of images' own pre-existing logged palette exception).
@@ -541,8 +540,8 @@ third option:
 float/HUD/whichkey/menu-drop-panel BORDER token) gained a one-bit override
 returning pure white regardless of the (now-degenerate) ramp math, while the
 CARD FILL itself (`base_300`, read raw) stays pure black — flush with the
-canvas, so ink text drawn on it stays legible. This rides the EXISTING
-"shadow → 1px-larger border → card" double-rect float-panel primitive
+canvas, so ink text drawn on it stays legible. This rides the existing
+"1px-larger border → card" double-rect float-panel primitive
 verbatim (`render/chrome/mod.rs::set_float_quads`) — zero new render
 primitive, exactly the sanctioned "a white 1px border on a black card is
 1-bit-legal" call. A WYSIWYG fence panel / inline-code pill (`base_200` raw,
@@ -1262,8 +1261,8 @@ RenderCaps`):
 | `selection_style` | `Fill` \| `InverseVideo(TwoColour)` | Document selection: translucent fill vs. an arbitrary swap between two palette roles (`prepare_selection_layer`) — and, paired with `highlight_texture`, the search-match quad's color (`search_match_rgba_bytes`). Wagtail's pair is Base300 ↔ BaseContent. | `InverseVideo` — Wagtail |
 | `caret_block_style` | `Normal` \| `Filled` \| `InverseVideo(TwoColour)` | Whether the BLOCK caret draws as an ordinary opaque quad, a filled ink cell, or an independently authored swap between two palette roles; also degrades MORPH mode to BLOCK. Wagtail independently chooses Base300 ↔ BaseContent. | `Filled` — Cassowary; `InverseVideo` — Wagtail |
 | `backdrop` | `Blur` \| `Flat` | Whether a full-takeover overlay / held HUD / lifetime card / hold-peek recedes the document behind a frosted gaussian blur, or falls back to the crisp no-blur path (a defocus of a two-value document smears every edge into a forbidden grey). | `Flat` — Wagtail |
-| `elevation` | `Flat` \| `Bordered` \| `Recessed` | Whether a summoned card's elevation is the flat `base_300` fill alone (the blur/scrim backdrop carries its contrast), or ADDS the float-panel primitive's raised border rim + drop shadow (`prepare_panel_card_elevation` → `set_float_quads`, border ink `surface_selected`). `surface_selected` itself keys its pure-ink override on the COLLAPSED RAMP (`base_200 == base_300`), never on this field — so an ordinary `Bordered` world keeps its ordinary ramp-step band. | `Bordered` — Bilby, Brolga, Cassowary, Currawong, Firetail, Galah, Gumtree, Kite, Magpie, Mangrove, Paperbark, Quokka, Saltpan, Wagtail; `Recessed` — Potoroo |
-| `decorative_wash` | `Enabled` \| `Off` | The floating-panel drop shadow (`float_shadow_srgba`) and the writing-nit underline (`nit_underline_srgba`) — both a translucent low-alpha wash, forbidden on a world with no intermediate grey. | `Off` — Wagtail |
+| `elevation` | `Flat` \| `Bordered` \| `Recessed` | Whether a summoned card's elevation is the flat `base_300` fill alone (the blur/scrim backdrop carries its contrast), or ADDS the float-panel primitive's raised border rim (`prepare_panel_card_elevation` → `set_float_quads`, border ink `surface_selected`). `surface_selected` itself keys its pure-ink override on the COLLAPSED RAMP (`base_200 == base_300`), never on this field — so an ordinary `Bordered` world keeps its ordinary ramp-step band. | `Bordered` — Bilby, Brolga, Cassowary, Currawong, Firetail, Galah, Gumtree, Kite, Magpie, Mangrove, Paperbark, Quokka, Saltpan, Wagtail; `Recessed` — Potoroo |
+| `decorative_wash` | `Enabled` \| `Off` | The writing-nit underline (`nit_underline_srgba`), a translucent low-alpha wash forbidden on a world with no intermediate grey. | `Off` — Wagtail |
 | `image_reveal` | `Translucent` \| `Opaque` | The inline-image reveal caption scrim (`image_reveal_scrim`) — translucent veil vs. full opaque occlusion. | `Opaque` — Wagtail |
 | `highlight_texture` | `Wash` \| `Stipple { color, density }` | THE ONE emphasis texture `==highlight==` spans and search matches share (`highlight_wash`, `wagtail_dither_density`) — a hue-derived translucent wash vs. a fixed-color Bayer-ordered dither stipple at `density`. | `Stipple` — Wagtail |
 | `title_style` | `InlinePrefix` \| `Placard { corner, scale, ink }` | How a summoned overlay card announces its title: the quiet inline `"<title> › "` prefix, or a large corner-anchored dim WORDMARK behind the rows. Placards anchor to the canvas rather than the card; rows always composite over them, and the inline prefix is suppressed so titles never double. `ink` ∈ Faint / Ghost / **Stipple** (Bayer pixel-stipple of the wordmark — see the personality section below). | `Placard` — Cassowary, Firetail, Galah, Kite, Magpie, Mangrove |

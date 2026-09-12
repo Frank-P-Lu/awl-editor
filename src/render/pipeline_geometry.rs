@@ -83,7 +83,6 @@ impl TextPipeline {
         // takes its colour as a `prepare()` argument, not a persistent `set_color`.
         self.panel_card
             .set_color(theme::pane_surface(effective_card_elevation()).rgba_bytes());
-        self.panel_shadow.set_color(float_shadow_srgba());
         self.panel_border
             .set_color(theme::surface_selected().rgba_bytes());
         // The find/replace panel's OWN inner chrome: a value step off the
@@ -99,11 +98,9 @@ impl TextPipeline {
         self.panel_control_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.panel_rules.set_color(theme::muted().rgba_bytes());
-        self.hud_shadow.set_color(float_shadow_srgba());
         self.hud_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.hud_card.set_color(theme::base_300().rgba_bytes());
-        self.wk_shadow.set_color(float_shadow_srgba());
         self.wk_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.wk_card.set_color(theme::base_300().rgba_bytes());
@@ -137,7 +134,6 @@ impl TextPipeline {
         self.menubar_bg.set_color(theme::base_200().rgba_bytes());
         self.menubar_hi
             .set_color(theme::selection_document().rgba_bytes());
-        self.menu_drop_shadow.set_color(float_shadow_srgba());
         self.menu_drop_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.menu_drop_card
@@ -150,7 +146,6 @@ impl TextPipeline {
             .set_color(theme::primary().rgb_bytes());
         self.caret_preview_glyph_pipeline
             .set_color(theme::primary().rgb_bytes());
-        self.float_shadow.set_color(float_shadow_srgba());
         self.float_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.float_card.set_color(theme::base_300().rgba_bytes());

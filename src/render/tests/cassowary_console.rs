@@ -751,11 +751,6 @@ fn every_console_layer_shares_the_corner_mask_owner() {
             "{name}: panel fill disagrees with the corner-mask owner"
         );
         assert_eq!(
-            p.panel_shadow.chamfer(),
-            (expected.top, expected.bottom),
-            "{name}: panel shadow disagrees with the corner-mask owner"
-        );
-        assert_eq!(
             p.panel_border.chamfer(),
             (expected.top, expected.bottom),
             "{name}: panel border disagrees with the corner-mask owner"

@@ -131,7 +131,6 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         self.panel_card.prepare(device, queue, width, height, &[]);
-        self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
         self.panel_material
             .prepare(device, queue, width, height, &[]);

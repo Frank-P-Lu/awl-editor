@@ -49,7 +49,7 @@ impl TextPipeline {
         let image_placeholder_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         // THE ASSET CLEANER's live preview panel — a DEDICATED trio (never the
-        // shared float-panel trio below, which the search panel / caret-preview
+        // shared float-panel pair below, which the search panel / caret-preview
         // claim in the same frame this picker can be open in). See the field's
         // own doc on `TextPipeline`.
         let asset_preview_panel =
@@ -98,7 +98,6 @@ impl TextPipeline {
         let table_empty_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_material = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let overlay_facet_material = overlay_quad(PLACEHOLDER_RGBA);
@@ -121,7 +120,6 @@ impl TextPipeline {
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_glyph_pipeline =
             CaretGlyphPipeline::new(device, queue, format, PLACEHOLDER_RGB);
-        let float_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let float_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let float_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let preview_renderer =
@@ -201,8 +199,6 @@ impl TextPipeline {
         let menubar_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menubar_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let menu_drop_shadow =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let menu_drop_border =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let menu_drop_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
@@ -213,7 +209,6 @@ impl TextPipeline {
         let menu_chord_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menu_chord_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let hud_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let hud_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let hud_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let mut streak_cells = SelectionPipeline::new(
@@ -226,15 +221,14 @@ impl TextPipeline {
         let hud_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let hud_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let wk_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let wk_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let wk_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let wk_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let wk_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // FORMAT POPOVER: a value-step wash + label renderer. Its ELEVATION rides `float_shadow`/
-        // `float_border`/`float_card` quads (`prepare_float_panel`) — no dedicated
-        // trio of its own; see `render.rs`'s field doc. Empty/off until a mouse
+        // FORMAT POPOVER: a value-step wash + label renderer. Its ELEVATION rides
+        // the shared `float_border`/`float_card` quads (`prepare_float_panel`) — no
+        // dedicated pair of its own. Empty/off until a mouse
         // selection summons it (or the `AWL_POPOVER` capture probe).
         let popover_wash = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let mut popover_hl_wash =
@@ -300,7 +294,6 @@ impl TextPipeline {
             table_rule_pipeline,
             table_empty_pipeline,
             panel_card,
-            panel_shadow,
             panel_border,
             panel_material,
             overlay_facet_material,
@@ -321,7 +314,6 @@ impl TextPipeline {
             panel_query_selection,
             caret_preview_pipeline,
             caret_preview_glyph_pipeline,
-            float_shadow,
             float_border,
             float_card,
             float_panel_model: None,
@@ -457,7 +449,6 @@ impl TextPipeline {
             menubar_hi,
             menubar_renderer,
             menubar_buffer,
-            menu_drop_shadow,
             menu_drop_border,
             menu_drop_card,
             menu_drop_sep,
@@ -470,7 +461,6 @@ impl TextPipeline {
             menu_drop_rect: None,
             menu_drop_rows: Vec::new(),
             menu_drop_menu: None,
-            hud_shadow,
             hud_border,
             hud_card,
             streak_cells,
@@ -478,7 +468,6 @@ impl TextPipeline {
             hud_buffer,
             streaks_card_rect: None,
             streaks_text_origin: None,
-            wk_shadow,
             wk_border,
             wk_card,
             wk_renderer,

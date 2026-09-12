@@ -50,7 +50,6 @@ impl TextPipeline {
         // DOWN: park the card elevation + the text off-screen (byte-identical default).
         let Some(rows) = self.wk.rows.clone() else {
             set_float_quads(
-                &mut self.wk_shadow,
                 &mut self.wk_border,
                 &mut self.wk_card,
                 device,
@@ -161,7 +160,6 @@ impl TextPipeline {
             margin,
         );
         set_float_quads(
-            &mut self.wk_shadow,
             &mut self.wk_border,
             &mut self.wk_card,
             device,

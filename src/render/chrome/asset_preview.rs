@@ -23,7 +23,7 @@
 //!
 //! Draws through its OWN dedicated trio (`asset_preview_panel` /
 //! `asset_preview_image` / `asset_preview_text_renderer`) rather than the
-//! shared float-panel quads (`float_shadow`/`float_border`/`float_card`) the
+//! shared float-panel quads (`float_border`/`float_card`) the
 //! search panel and the caret-preview panel already claim in frames this
 //! picker can be open in — a second claimant on that shared model in the
 //! same frame is a real conflict, not a reuse.

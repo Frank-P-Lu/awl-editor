@@ -29,7 +29,7 @@ pub(in crate::render) struct CardHalftone {
 /// THE CORNER-MASK OWNER'S RESULT: the physical-px cut for a card's top and
 /// bottom corner pairs this frame, already narrowed to whatever rect(s) it
 /// was resolved against. Every console layer that draws a card-shaped quad
-/// (panel fill/border/shadow, the scanline material, the placard) carries this
+/// (panel fill/border, the scanline material, the placard) carries this
 /// SAME pair for the SAME logical card rather than inventing its own — see
 /// [`TextPipeline::card_shape_texture`], the one function that produces it.
 #[derive(Clone, Copy, Default, PartialEq, Debug)]
@@ -54,7 +54,7 @@ pub(in crate::render) enum FloatElevation {
     Flat,
 }
 
-/// The one per-frame decision for the shared floating-panel GPU trio. Claimants
+/// The one per-frame decision for the shared floating-panel GPU pair. Claimants
 /// describe their panel while preparing their own text/geometry; the chrome layer
 /// uploads this model once, after every claimant has had a chance to contribute.
 /// `None` is the parked state. This prevents an inactive surface's old "park"
@@ -69,7 +69,6 @@ pub(in crate::render) struct FloatPanelModel {
 
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads(
-    shadow: &mut SelectionPipeline,
     border: &mut SelectionPipeline,
     card: &mut SelectionPipeline,
     device: &wgpu::Device,
@@ -83,7 +82,6 @@ fn set_float_quads(
 ) {
     let one = rect.map(|r| [r]);
     set_float_quads_rects(
-        shadow,
         border,
         card,
         device,
@@ -105,7 +103,6 @@ pub(in crate::render) const FLOAT_BORDER_RING_PX: Physical = Physical(1.0);
 
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads_rects(
-    shadow: &mut SelectionPipeline,
     border: &mut SelectionPipeline,
     card: &mut SelectionPipeline,
     device: &wgpu::Device,
@@ -117,14 +114,12 @@ fn set_float_quads_rects(
     chamfer: CardChamfer,
     texture: Option<CardHalftone>,
 ) {
-    shadow.set_chamfer(chamfer.top, chamfer.bottom);
     border.set_chamfer(chamfer.top, chamfer.bottom);
     card.set_chamfer(chamfer.top, chamfer.bottom);
     match texture {
         Some(t) => card.set_halftone(t.density, t.angle_rad, t.cell_px, t.ink),
         None => card.set_halftone(0.0, 0.0, 1.0, [0; 4]),
     }
-    shadow.prepare(device, queue, width, height, &[]);
     let borders: Vec<[f32; 4]> = if elevation != FloatElevation::Flat {
         rects
             .iter()
@@ -488,25 +483,16 @@ pub(crate) use popover::VPAD as POPOVER_VPAD;
 pub(in crate::render) use readout::{TOAST_COLLISION_GAP, TOAST_SAFE_INSET, notice_plate_padding};
 
 impl TextPipeline {
-    /// Claim a small, summoned, transient FLOATING PANEL. The shared trio is
-    /// uploaded by [`Self::flush_float_panel`] once at the end of chrome
-    /// preparation; callers never park it directly.
-    /// bordered box with CARD ELEVATION (a crisp raised BORDER edge + the opaque
-    /// CARD — no drop shadow, see [`FloatElevation`]'s doc), and crucially NO
-    /// scrim — so it floats over the live document without dimming it, distinct
-    /// from the full-width takeover overlay. `rect = Some([x, y, w, h])` summons
-    /// it; `None` parks both elevation quads empty (nothing drawn). `elevation`
-    /// picks the dressing ([`FloatElevation`]) — the caret-style preview panel,
-    /// the spell popup, AND the format popover all ride the same RIMMED style
-    /// (border + card, no shadow slab — see [`Self::prepare_popover`]'s "fat
-    /// chin" note, the decision this round's `Shadowed`/`Rimmed` merge generalized).
+    /// Claim a small, summoned floating panel with no scrim. The shared
+    /// border/card pair is uploaded by [`Self::flush_float_panel`] once after
+    /// every claimant has prepared; callers never park it directly.
     ///
     /// THE ONE FLOAT-SURFACE OWNER (overlay/chrome polish round): every summoned
     /// micro-panel that wants this "small floating card, no scrim" language routes
     /// through here — the caret-style preview panel, the search panel, the
     /// contextual SPELL popup, AND the format popover — onto the SAME
-    /// `float_shadow`/`float_border`/`float_card` quads, never a per-feature
-    /// duplicate trio. `set_float_quads` (the underlying quad math) stays a
+    /// `float_border`/`float_card` quads, never a per-feature duplicate pair.
+    /// `set_float_quads` (the underlying quad math) stays a
     /// private fn of this module — this is its ONLY door (law-tested,
     /// `float_surface_primitive_has_no_bypass_among_the_unified_family`), so a
     /// future micro-panel in this family can't accidentally reinvent the call
@@ -569,7 +555,6 @@ impl TextPipeline {
     ) {
         let model = self.float_panel_model;
         set_float_quads(
-            &mut self.float_shadow,
             &mut self.float_border,
             &mut self.float_card,
             device,
@@ -620,7 +605,6 @@ impl TextPipeline {
         };
         let (chamfer, texture) = self.card_shape_texture(rects);
         set_float_quads_rects(
-            &mut self.panel_shadow,
             &mut self.panel_border,
             &mut self.panel_card,
             device,
@@ -638,7 +622,7 @@ impl TextPipeline {
     /// draw as this frame, resolves what shape that card's corners take —
     /// the active world's `CardShape`, narrowed to the smallest of `rects` so
     /// a tiny popup never lets the cut steal text room. Every console layer
-    /// that draws a card-shaped quad (the panel fill/border/shadow trio, the
+    /// that draws a card-shaped quad (the panel fill/border pair, the
     /// scanline material, the placard) calls THIS for its own rect rather
     /// than deciding its corner independently — see `overlay_material.rs`'s
     /// `prepare_overlay_material`, which resolves the placard's shape here

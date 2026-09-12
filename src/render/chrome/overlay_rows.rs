@@ -212,14 +212,12 @@ impl TextPipeline {
         } = surface;
         match backing {
             theme::ListBacking::BarePlates => {
-                self.panel_shadow.prepare(device, queue, width, height, &[]);
                 self.panel_border.prepare(device, queue, width, height, &[]);
             }
             theme::ListBacking::Card if spell => {
                 let (chamfer, texture) = self.card_shape_texture(&[card_rect]);
                 self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer, texture);
                 self.panel_card.prepare(device, queue, width, height, &[]);
-                self.panel_shadow.prepare(device, queue, width, height, &[]);
                 self.panel_border.prepare(device, queue, width, height, &[]);
             }
             theme::ListBacking::Card => {
