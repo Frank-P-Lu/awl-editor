@@ -6,9 +6,92 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks.** Ready fixes: 656, 655, 654, 653, 650, 651, 646, 645 and 644.
+**13 open numbered tasks.** New review follow-ups: 657–659. Ready fixes: 656, 655, 654, 653, 650, 651, 646, 645 and 644.
 Read-only follow-up investigation: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 657 — restore the approved Files composition (user report, 2026-09-12)
+
+🟢 READY — queue only, not dispatched. Corrective follow-up to 637/628/640;
+previous completion does not establish fidelity to the approved design.
+
+Evidence: the user's native screenshot shows a detached search strip, Change
+folder and New document as list rows, ambiguous `root/` scope, repeated folder
+markers and background blur. The live accessibility tree confirms the mixed rows.
+
+Build: compose Files as one coherent surface: named folder and Change folder in
+the header, labelled search, Files/Recent views, breadcrumbs/Up, file/folder choices,
+and a separate New document footer action naming its destination. Use one clear
+folder affordance rather than `/`, disclosure and “folder” together. Preserve the
+bottom-left working set and the approved quieter opaque chrome; remove background
+blur for the reviewed picker surfaces. Preserve native theme identities, bindings,
+root ownership and buffer/save semantics. The accepted site is reference only:
+https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05).
+
+Verify: use seeded native captures, explicit root/config and matched viewport/DPI;
+compare hierarchy and control placement against the approved composition, not just
+control presence. Cover browsing, search, empty folders and narrow layout. Read
+render/capture references and verification policy before choosing probes. Keep
+650's content-free listings and 651/652's I/O boundaries. No user-file captures in
+the public repo; native visual review remains owed before calling fidelity complete.
+
+---
+
+### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
+
+🟢 READY — queue only, not dispatched. Reproduce before treating observations as
+confirmed product defects; coordinate action placement with 657.
+
+Observed through the running app's accessibility state: Cmd-A then Backspace in a
+nonempty Files query removed only its last character on two attempts. An unmatched
+query left Change folder selected and advertised Enter as change-folder. A known
+filename vanished from the exposed result list while Enter still opened its file;
+that is an accessibility/result-publication hypothesis, not evidence search failed.
+The screenshot feed was stale during this sitting, so visual absence is unverified.
+
+Build: verify query selection through actual macOS menu Actions as well as key
+routing; make no-match state explicit and prevent a failed search from implicitly
+accepting Change folder. Expose matching choices, selection and focus consistently
+to accessibility. Preserve intentional New document access as a separate action.
+Check original shared state versus the automation/accessibility adapter before
+assigning blame; close false premises as oracle repairs, not product fixes.
+
+Verify in a disposable seeded workspace with a recorded build: query select-all,
+clear, matches/no matches, Tab and Enter, menu Select All, pointer and accessibility
+results. Add regression laws at the real owner and required live checks where replay
+cannot reach AppKit; follow docs/verification.md. Never type probes into the user's
+working document or rely on a stale screenshot to establish focus.
+
+---
+
+### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
+
+🟢 READY — queue only, not dispatched. Follow-up to 639/640; share chrome work
+with 657 rather than introducing another panel framework.
+
+Observed: Settings opened on Categories; Tab entered the setting list, typing
+filtered while the setting row retained accessible focus, and Enter opened Themes.
+Theme preview followed by Esc restored the original theme and the filtered Settings
+page. Those transitions worked. The approved prototype instead teaches an explicit
+search field followed by controls. Define and implement a discoverable complete
+forward/reverse focus route; keep search, categories, controls and value-editing
+states distinguishable, with accurate hints and editor-focus restoration.
+
+Verify search → matching controls → categories/close and reverse traversal, no
+matches, nested Theme/other pickers, cancellation and immediate-setting semantics.
+Use disposable documents: one rapid mixed-key sequence in the review appeared to
+send test text to the document; focus leakage versus automation timing remains
+unresolved. Inspect state after each transition before typing; do not infer a
+product bug from that sequence alone.
+
+Finish the visual review of Settings, Find/Replace and Themes on a visible,
+identified running build. The earlier screenshot feed remained on Files despite
+changing accessibility state; screen lock was not established as its cause.
+Recheck fixed Themes placement across opening/preview themes, Switch/Cancel,
+quieter chrome and removed blur. Read capture/verification references, record what
+was actually observed, and keep unverified appearance/feel claims explicitly open.
+
+---
 
 ### 655 — use Nishiki’s native bold checkbox pair in every world (user approved, 2026-09-12)
 
