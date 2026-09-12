@@ -95,6 +95,20 @@ mod image_cache;
 /// Prepare drawing layers for [`TextPipeline::prepare`].
 mod layers;
 
+/// Repository root for native-only benchmark fixtures. Native benches retain
+/// their any-working-directory behavior; wasm receives an inert relative root
+/// so a shipped bundle cannot embed the builder checkout through `env!`.
+fn benchmark_repo_root() -> std::path::PathBuf {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        std::path::PathBuf::from(".")
+    }
+}
+
 pub mod perfbench;
 
 /// FRAME PROFILER — a hidden `--bench-frame` harness timing the EXACT live

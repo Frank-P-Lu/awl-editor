@@ -21,6 +21,10 @@
 # committed. See site/README.md's "Check for updates" section.
 /site/version.json
 
+# Trunk/wasm-bindgen output is assembled into a scratch deploy/preview tree.
+# The editor remains served at /editor/ but no generated bundle belongs in Git.
+/site/editor/
+
 # Storyboard run outputs (`--storyboard`, default `<board>.run/` beside the
 # .toml — see CAPTURE.md's storyboard section). The storyboards themselves
 # (scenarios/*.toml + fixtures) are checked in; their runs never are.

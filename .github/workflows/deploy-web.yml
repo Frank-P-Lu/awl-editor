@@ -3,13 +3,11 @@ name: deploy-web
 # Deploys the awl website (site/) to Fly.io — landing page + a FRESH wasm
 # /editor/ build, assembled in the runner and never committed.
 #
-# site/editor/'s checked-in bundle (the .js glue + _bg.wasm + its own
-# index.html) is now LEGACY — kept in the repo only until the user decides to
-# drop it. This workflow does NOT read or write it; it builds a brand-new
-# `trunk build --release --public-url /editor/` bundle every run and layers
-# it over a copy of site/ in a scratch directory. CI deploys never commit
-# binaries (see CLAUDE.md's zero-network / supply-chain conventions — the
-# same "no blobs in git" discipline extends to how we ship this site).
+# This workflow builds a brand-new `trunk build --release --public-url
+# /editor/` bundle every run and layers it over a copy of site/ in a scratch
+# directory. CI deploys never commit binaries (see CLAUDE.md's zero-network /
+# supply-chain conventions — the same "no blobs in git" discipline extends to
+# how we ship this site).
 #
 # Trigger is workflow_dispatch ONLY — the user deploys deliberately. An
 # auto-deploy-on-push trigger can be added later once this has proven itself.
@@ -77,20 +75,13 @@ jobs:
       - name: trunk build --release --public-url /editor/
         run: scripts/with-remap.sh trunk build --release --public-url /editor/
 
-      # Assemble the deployable site: a copy of site/ (landing, Caddyfile,
-      # Dockerfile, fly.toml, fonts, images…) with its editor/ subdirectory
-      # replaced wholesale by the FRESH dist/ we just built. Never mutates
-      # the checked-out site/ tree, so nothing here can accidentally get
-      # committed.
+      # The shared scratch assembly keeps generated output out of site/ and
+      # makes deploy use the same landing + /editor/ shape as local preview.
       - name: Assemble deploy directory
-        run: |
-          rm -rf /tmp/awl-site-deploy
-          mkdir -p /tmp/awl-site-deploy
-          cp -R site/. /tmp/awl-site-deploy/
-          rm -rf /tmp/awl-site-deploy/editor
-          cp -R dist /tmp/awl-site-deploy/editor
-          echo "assembled deploy dir:"
-          find /tmp/awl-site-deploy -maxdepth 2 | sort
+        run: scripts/assemble-web-site.sh "$RUNNER_TEMP/awl-site-deploy-${{ github.run_attempt }}"
+
+      - name: Check generated editor assembly
+        run: scripts/check-web-site-assembly.sh "$RUNNER_TEMP/awl-site-deploy-${{ github.run_attempt }}"
 
       # site/check.html (the "Check for Updates" landing page) reads this
       # file same-origin at runtime — GENERATED here at deploy time from the
@@ -127,15 +118,15 @@ jobs:
             PRERELEASE="false"
           fi
           printf '{"version": "%s", "prerelease": %s}\n' "$VERSION" "$PRERELEASE" \
-            > /tmp/awl-site-deploy/version.json
+            > "$RUNNER_TEMP/awl-site-deploy-${{ github.run_attempt }}/version.json"
           echo "wrote version.json:"
-          cat /tmp/awl-site-deploy/version.json
+          cat "$RUNNER_TEMP/awl-site-deploy-${{ github.run_attempt }}/version.json"
 
       - name: Install flyctl
         run: curl -L https://fly.io/install.sh | sh
 
       - name: flyctl deploy
-        working-directory: /tmp/awl-site-deploy
+        working-directory: ${{ runner.temp }}/awl-site-deploy-${{ github.run_attempt }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |

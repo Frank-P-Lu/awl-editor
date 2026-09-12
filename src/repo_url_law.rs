@@ -27,20 +27,6 @@
 //!    quotes the bad reference verbatim, and always will — banning it there
 //!    would make the law fail on its own bug reports. Board content is
 //!    orchestrator-owned, not this law's.
-//!  - `site/editor/` — the checked-in, LEGACY wasm demo bundle (e.g.
-//!    `awl-347842567538f209_bg.wasm`). It is a BUILT artifact, not authored
-//!    text: `deploy-web.yml` assembles a fresh build over a COPY of `site/`
-//!    and never commits into `site/editor/`, and `scripts/web-smoke.sh`
-//!    without `--trunk` never touches it either — RELEASING.md calls it out
-//!    as refreshed only by an occasional deliberate "deploy: refresh /editor
-//!    wasm bundle" commit. The old reference living inside its compiled bytes
-//!    came from `README.md`, which this round already fixed at the source, so
-//!    the next such refresh clears it for free. Forcing a trunk rebuild inside
-//!    this law would couple a licence-text fix to an unrelated, unreviewed
-//!    multi-file bundle regeneration — excluded by path instead, deliberately.
-//!    (Binary files need no separate handling beyond this: `read_to_string`
-//!    simply fails to decode them as UTF-8 and they're skipped, so no other
-//!    checked-in binary needs naming here.)
 //!
 //! Not gated to wasm32: this law reads the repo's own tree off a real
 //! filesystem, which the browser build has none of — same reasoning as
@@ -58,10 +44,6 @@ fn repo_root() -> PathBuf {
 /// needle string literal necessarily quote the banned reference, the same
 /// self-exclusion `embedded_docs_law.rs` uses for its own citations.
 const SKIP_FILES: &[&str] = &[".orchestrator/queue.md", "src/repo_url_law.rs"];
-
-/// Path prefixes (repo-relative) excluded for a stated, deliberate reason
-/// (see module doc).
-const SKIP_PATH_PREFIXES: &[&str] = &["site/editor/"];
 
 /// The tracked tree, asked of git rather than reconstructed by walking the
 /// filesystem.
@@ -98,7 +80,6 @@ fn tracked_files(root: &Path) -> Vec<PathBuf> {
         .split('\0')
         .filter(|rel| !rel.is_empty())
         .filter(|rel| !SKIP_FILES.contains(rel))
-        .filter(|rel| !SKIP_PATH_PREFIXES.iter().any(|p| rel.starts_with(p)))
         .map(|rel| root.join(rel))
         .collect();
     files.sort();
