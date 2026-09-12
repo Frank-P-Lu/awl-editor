@@ -217,14 +217,16 @@ impl TextPipeline {
     }
 
     /// Reclaims the dead space `hint_rows` (`overlay_hint_h`-tall) and
-    /// `gap_rows` (`overlay_hint_gap_h`-tall) COMPACT rows leave behind in a
+    /// `gap_rows` (`overlay_hint_gap_h`-tall for ordinary pickers) COMPACT rows leave behind in a
     /// row budget that allocated each of them a full `overlay_lh` slot — the
     /// hint's own row and the blank separator ahead of it, each
     /// reclaimed at its OWN compact height rather than one borrowing the
     /// other's. ONE trailing [`OVERLAY_FOOTER_PAD`] survives regardless of how
     /// many compact rows there are, never one per row: the pad is the
     /// breathing room below the LAST compact row, not a tax per row, so the
-    /// gap row's own reclaim can't eat into the chin below the hint.
+    /// gap row's own reclaim can't eat into the chin below the hint. Files is
+    /// the deliberate exception: its destination action retains the whole
+    /// reserved gap, separating that action from candidate rows.
     pub(in crate::render) fn overlay_footer_reclaim(
         &self,
         hint_rows: usize,
@@ -235,7 +237,14 @@ impl TextPipeline {
         }
         let pad = self.metrics.ui().px(OVERLAY_FOOTER_PAD);
         let hint_slack = hint_rows as f32 * (self.overlay_lh() - self.overlay_hint_h()).max(0.0);
-        let gap_slack = gap_rows as f32 * (self.overlay_lh() - self.overlay_hint_gap_h()).max(0.0);
+        // Files' destination action is consequential rather than a continuation
+        // of the choice list. Keep its reserved separator as a full internal
+        // interval; ordinary compact picker hints retain the shorter beat.
+        let gap_slack = if self.overlay_files_surface {
+            0.0
+        } else {
+            gap_rows as f32 * (self.overlay_lh() - self.overlay_hint_gap_h()).max(0.0)
+        };
         (hint_slack + gap_slack - pad).max(0.0)
     }
 
@@ -310,7 +319,9 @@ impl TextPipeline {
 
     /// The item-independent chrome inventory both card families resolve
     /// before they can size the candidate window — the hint text and its
-    /// reserved gap, the footer lines, and the empty-state notice. Shared
+    /// reserved gap, the footer lines, and the empty/status notice. Files may
+    /// carry a level-status notice beside folder choices; other pickers only
+    /// carry this line when their candidate corpus is empty. Shared
     /// rather than duplicated (`theme_overlay_geometry` reads the identical
     /// six quantities off the identical three sources) so the two owners
     /// cannot drift; split out of `overlay_geometry` purely to keep it under
@@ -331,7 +342,7 @@ impl TextPipeline {
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
         let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let (footer, footer_rows) = self.overlay_footer_lines();
-        let empty = if n_items == 0 {
+        let empty = if n_items == 0 || self.overlay_files_surface {
             self.overlay_empty.clone()
         } else {
             None
@@ -889,15 +900,17 @@ impl TextPipeline {
             return false;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        let Some(field) = self.overlay_row_plan(&geom).query_band() else {
+        let plan = self.overlay_row_plan(&geom);
+        let Some(field) = plan.query_band() else {
             return false;
         };
-        px >= geom.card_x && px <= geom.card_x + geom.card_w && field.contains(py)
+        let x0 = self.overlay_query_input_x(&geom, &plan);
+        px >= x0 && px <= geom.card_x + geom.card_w && field.contains(py)
     }
 
     /// The CHAR index into the raw query text nearest pointer `(px, py)` — the
     /// click-to-place counterpart to [`Self::over_overlay_query`]'s I-beam gate:
-    /// same box (same `geom.card_x`/`card_w`/`field.contains`), so a click can
+    /// same box (same `query_x`/card-right/`field.contains`), so a click can
     /// only place a caret where the I-beam already promised one. `None` off the
     /// field.
     ///
@@ -914,7 +927,8 @@ impl TextPipeline {
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
         let field = plan.query_band()?;
-        if !(px >= geom.card_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
+        let query_x = self.overlay_query_input_x(&geom, &plan);
+        if !(px >= query_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
             return None;
         }
         let title_prefix = self.overlay_title_prefix(&geom);
@@ -938,10 +952,231 @@ impl TextPipeline {
             else {
                 continue;
             };
-            if px < geom.text_left + g.x + g.w * 0.5 {
+            if px < self.overlay_head_left(&geom, &plan) + g.x + g.w * 0.5 {
                 return Some(char_idx);
             }
         }
         Some(query_len)
+    }
+
+    /// Left edge of the editable query span. Files reserves the shaped title
+    /// prefix for header controls; ordinary cards retain their full-row field.
+    fn overlay_query_input_x(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
+        if !self.overlay_files_surface {
+            return geom.card_x;
+        }
+        let prefix = self.overlay_title_prefix(geom);
+        let origin = self.overlay_head_left(geom, plan);
+        self.panel_buffer
+            .layout_runs()
+            .next()
+            .and_then(|run| {
+                run.glyphs
+                    .iter()
+                    .find(|glyph| glyph.start >= prefix.len())
+                    .map(|glyph| origin + glyph.x)
+                    .or(Some(origin + run.line_w))
+            })
+            .unwrap_or(origin)
+    }
+
+    fn files_surface_action_regions(
+        &self,
+    ) -> [Option<(crate::render::FilesSurfaceAction, [f32; 4])>; 3] {
+        use crate::render::FilesSurfaceAction;
+        if !self.overlay_active || !self.overlay_files_surface {
+            return [None; 3];
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let split = self.files_query_is_split(&geom);
+        let actions_split = self.files_actions_are_split(&geom);
+        let action_line = usize::from(split) + usize::from(actions_split);
+        let header = (if split {
+            plan.header_lines().get(action_line).copied()
+        } else {
+            plan.query_band()
+        })
+        .and_then(|field| {
+            let prefix = if actions_split {
+                self.files_action_suffix()
+            } else if split {
+                self.overlay_files_fitted_title_prefix.clone()
+            } else {
+                self.overlay_title_prefix(&geom)
+            };
+            let run = self.panel_buffer.layout_runs().nth(action_line)?;
+            let origin = self.overlay_head_left(&geom, &plan);
+            let glyph_x = |byte: usize| {
+                run.glyphs
+                    .iter()
+                    .find(|glyph| glyph.start >= byte)
+                    .map(|glyph| origin + glyph.x)
+                    .unwrap_or(origin + run.line_w)
+            };
+            let region = |needle: &str, action| {
+                let start = prefix.rfind(needle)?;
+                let word = needle.trim();
+                let word_start = start + needle.find(word)?;
+                let word_end = word_start + word.len();
+                let x0 = glyph_x(word_start);
+                let x1 = glyph_x(word_end);
+                Some((action, [x0, field.top, x1 - x0, field.height]))
+            };
+            Some((
+                region("Up", FilesSurfaceAction::Up),
+                region("Change folder", FilesSurfaceAction::ChangeFolder),
+            ))
+        });
+        let footer = self
+            .panel_buffer
+            .layout_runs()
+            .find(|run| {
+                (run.text.starts_with("New document") || run.text.starts_with("› New document"))
+                    && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)
+            })
+            .and_then(|run| {
+                let start_byte = run.text.find("New document")?;
+                let end_byte = start_byte + "New document".len();
+                let x0 =
+                    geom.text_left + run.glyphs.iter().find(|glyph| glyph.start >= start_byte)?.x;
+                let x1 = geom.text_left
+                    + run
+                        .glyphs
+                        .iter()
+                        .find(|glyph| glyph.start >= end_byte)
+                        .map(|glyph| glyph.x)
+                        .unwrap_or(run.line_w);
+                Some((
+                    FilesSurfaceAction::NewDocument,
+                    [x0, geom.text_top + run.line_top, x1 - x0, run.line_height],
+                ))
+            });
+        let (up, change) = header.unwrap_or((None, None));
+        [up, change, footer]
+    }
+
+    /// Hit-test Files controls that are deliberately not candidate rows: Up
+    /// and Change folder in the header, and New document in the destination
+    /// footer. Their regions come from shaped glyph runs, so the pointer seats
+    /// on the words the frame actually drew at every DPI and width.
+    pub(crate) fn files_surface_action_at(
+        &self,
+        px: f32,
+        py: f32,
+    ) -> Option<crate::render::FilesSurfaceAction> {
+        self.files_surface_action_regions()
+            .into_iter()
+            .flatten()
+            .find_map(|(action, [x, y, w, h])| {
+                (px >= x && px <= x + w && py >= y && py <= y + h).then_some(action)
+            })
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_action_regions_probe(
+        &self,
+    ) -> [Option<(crate::render::FilesSurfaceAction, [f32; 4])>; 3] {
+        self.files_surface_action_regions()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_ink_bounds_probe(&self) -> Option<[[f32; 4]; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let header_lines = 1
+            + usize::from(self.files_query_is_split(&geom))
+            + usize::from(self.files_actions_are_split(&geom));
+        let mut header_runs = self.panel_buffer.layout_runs().take(header_lines);
+        let header = header_runs.next()?;
+        let header_w = header_runs.fold(header.line_w, |width, run| width.max(run.line_w));
+        let footer = self.panel_buffer.layout_runs().find(|run| {
+            (run.text.starts_with("New document") || run.text.starts_with("› New document"))
+                && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)
+        })?;
+        let caret = self.overlay_query_caret_box(&geom, &plan)?;
+        Some([
+            [geom.text_left, geom.text_top, geom.text_w, geom.card_h],
+            [
+                self.overlay_head_left(&geom, &plan),
+                geom.text_top + header.line_top,
+                header_w,
+                header.line_height * header_lines as f32,
+            ],
+            [
+                geom.text_left,
+                geom.text_top + footer.line_top,
+                footer.line_w,
+                footer.line_height,
+            ],
+            caret,
+        ])
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_text_probe(&self) -> Option<(String, String)> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let header_lines = 1
+            + usize::from(self.files_query_is_split(&geom))
+            + usize::from(self.files_actions_are_split(&geom));
+        let header = self
+            .panel_buffer
+            .layout_runs()
+            .take(header_lines)
+            .map(|run| run.text.to_string())
+            .collect::<Vec<_>>()
+            .join(" | ");
+        let footer = self.panel_buffer.layout_runs().find(|run| {
+            (run.text.starts_with("New document") || run.text.starts_with("› New document"))
+                && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)
+        })?;
+        Some((header, footer.text.to_string()))
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_fit_attempts_probe(&self) -> (usize, usize, usize) {
+        (
+            self.overlay_files_split_measure_attempts,
+            self.overlay_files_title_fit_attempts,
+            self.overlay_files_hint_fit_attempts,
+        )
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_line_bounds_probe(
+        &self,
+        text: &str,
+    ) -> Option<[f32; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        self.panel_buffer
+            .layout_runs()
+            .find(|run| run.text == text)
+            .map(|run| {
+                [
+                    geom.text_left,
+                    geom.text_top + run.line_top,
+                    run.line_w,
+                    run.line_height,
+                ]
+            })
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_containing_line_bounds_probe(
+        &self,
+        text: &str,
+    ) -> Option<[f32; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        self.panel_buffer
+            .layout_runs()
+            .find(|run| run.text.contains(text))
+            .map(|run| {
+                [
+                    geom.text_left,
+                    geom.text_top + run.line_top,
+                    run.line_w,
+                    run.line_height,
+                ]
+            })
     }
 }

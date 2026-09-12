@@ -89,6 +89,8 @@ fn every_path_bearing_sidecar_field_is_home_relative() {
     let mut overlay = OverlayInfo {
         active: true,
         mode: "switch",
+        files_location: None,
+        files_query_focused: false,
         browse_dir: Some(browse_dir.to_string_lossy().to_string()),
         ..blank_overlay()
     };
@@ -213,6 +215,8 @@ fn blank_overlay() -> OverlayInfo {
         git: Vec::new(),
         selected_index: 0,
         hint: String::new(),
+        files_location: None,
+        files_query_focused: false,
         browse_dir: None,
         spell_target: None,
         table_dims: None,

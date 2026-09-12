@@ -297,6 +297,9 @@ pub(in crate::render) fn accessory_flow(pipeline: &TextPipeline) -> ColumnFlow {
 }
 
 pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalComposition> {
+    if pipeline.overlay_files_surface {
+        return None;
+    }
     match crate::render::effective_list_style() {
         theme::ListStyle::Diagonal(spine) => {
             Some(DiagonalComposition::resolve(spine, pipeline.metrics.scale))

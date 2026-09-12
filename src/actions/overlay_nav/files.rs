@@ -17,6 +17,9 @@ pub(super) fn intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     }
     let prior_focus = card.files_focus;
     match action {
+        Action::SelectAll if prior_focus == FilesFocus::Query => {
+            ctx.journey.card_mut()?.query.select_all();
+        }
         Action::InsertTab => ctx.journey.card_mut()?.files_focus_step(1),
         Action::Outdent => ctx.journey.card_mut()?.files_focus_step(-1),
         Action::InsertChar(_) => {
@@ -33,7 +36,16 @@ pub(super) fn intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
             FilesFocus::Files => ctx.journey.card_mut()?.focus_facet_id("files"),
             FilesFocus::Recent => ctx.journey.card_mut()?.focus_facet_id("recent"),
             FilesFocus::Up => ascend(ctx),
-            _ => return None,
+            FilesFocus::ChangeFolder => {
+                return Some(Effect::Surface(SurfaceEffect::OpenFolderChooser));
+            }
+            FilesFocus::NewDocument => {
+                let dest = ctx.journey.card()?.files_destination().unwrap_or_default();
+                ctx.journey.dismiss();
+                return Some(Effect::NewDocumentAt(dest));
+            }
+            FilesFocus::Query if ctx.journey.card()?.items.is_empty() => {}
+            FilesFocus::Query | FilesFocus::Choices => return None,
         },
         Action::ForwardChar | Action::BackwardChar => match prior_focus {
             FilesFocus::Query => {
@@ -115,17 +127,7 @@ pub(super) fn accept(ctx: &mut ActionCtx) -> Option<Effect> {
         }
         return Some(Effect::None);
     }
-    match selected_meta(card) {
-        Some(crate::overlay::RowMetaTag::FolderChooser) => {
-            Some(Effect::Surface(SurfaceEffect::OpenFolderChooser))
-        }
-        Some(crate::overlay::RowMetaTag::NewDocument) => {
-            let dest = card.files_destination().unwrap_or_default();
-            dispose_after_accept(ctx);
-            Some(Effect::NewDocumentAt(dest))
-        }
-        _ => None,
-    }
+    None
 }
 
 fn selected_meta(card: &OverlayState) -> Option<crate::overlay::RowMetaTag> {

@@ -6,14 +6,17 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks.** New review follow-ups: 657–659. Ready fixes: 656, 655, 654, 653, 650, 651, 646, 645 and 644.
-Read-only follow-up investigation: 652.
+**13 open numbered tasks.** Active integration: 659. Integrated work awaiting the
+combined verification: 658, 657, 656, 655, 654, 653, 650, 646, 645 and 644.
+Blocked direction: 651. Read-only follow-up investigation complete: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/files_657_658` (Codex), coordinated sequentially with
-658. Corrective follow-up to 637/628/640; prior completion does not establish fidelity.
+🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
+audit landed on local `main` at merge `ef344429`; combined gate and visible native
+review remain. Corrective follow-up to 637/628/640; prior completion did not
+establish fidelity.
 
 Evidence: the user's native screenshot shows a detached search strip, Change
 folder and New document as list rows, ambiguous `root/` scope, repeated folder
@@ -39,8 +42,9 @@ the public repo; native visual review remains owed before calling fidelity compl
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/files_657_658` (Codex), coordinated sequentially with
-657. Reproduce before treating observations as confirmed product defects.
+🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
+audit landed with 657 on local `main` at merge `ef344429`; combined gate and the
+required visible native review remain.
 
 Observed through the running app's accessibility state: Cmd-A then Backspace in a
 nonempty Files query removed only its last character on two attempts. An unmatched

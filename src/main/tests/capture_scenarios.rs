@@ -38,6 +38,133 @@ fn replay_files_query_keeps_deep_filename_candidates_content_free_before_accept(
     assert_eq!(overlay.item_bindings()[overlay.selected], "");
 }
 
+/// The real capture fold and the settled renderer must both retain Files'
+/// typed composition and its full destination. The two mutations separate the
+/// seams: clearing only the folded location must change the rendered header,
+/// while clearing only the Files lens must change the card composition. If
+/// either `overlay_capture_info` or `settled_viewstate` drops its field, that
+/// mutation becomes byte-identical to the control and this law fails.
+#[test]
+fn files_shared_fold_reaches_the_narrow_settled_capture() {
+    let _serial = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-files-settled-fold-{}", std::process::id())),
+    );
+    let root = dir.join("A Very Long Writing Root That Must Be Elided");
+    std::fs::create_dir_all(root.join("notes")).expect("seeded Files root");
+    let current = root.join("welcome.md");
+    std::fs::write(&current, "# Welcome\n\nA dense document behind Files.\n")
+        .expect("seed current file");
+    std::fs::write(root.join("notes/draft.md"), "draft\n").expect("seed nested file");
+    let corpus = crate::index::build_index(&root);
+    let config = Config::empty();
+    let mut buffer = Buffer::from_file(&current);
+    let mut keymap =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = ReplaySession::new(
+        ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        &root,
+        Some(root.as_path()),
+        &config,
+        None,
+        &mut keymap,
+    );
+    for chord in keyspec::parse_keys("s-o z z z").expect("Files chords") {
+        session.apply_chord(&chord).expect("Files chord applies");
+    }
+
+    let expected_location = root.file_name().unwrap().to_string_lossy().to_string();
+    let mut folded = fold_capture_state(&session, project_info(&root, &None, None, &config));
+    let overlay = folded.overlay.as_ref().expect("real Files fold");
+    assert_eq!(overlay.mode, "goto");
+    assert_eq!(overlay.lens, Some("files"));
+    assert!(
+        overlay.files_query_focused,
+        "the live/replay fold must retain Files' query focus"
+    );
+    assert_eq!(
+        overlay.files_location.as_deref(),
+        Some(expected_location.as_str()),
+        "the live/replay fold must keep the full destination; visual elision belongs downstream"
+    );
+
+    if capture::build_oracle(session.buffer(), &CaptureOpts::default()).is_none() {
+        eprintln!("skipping Files settled-fold pixels: no wgpu adapter");
+        return;
+    }
+    crate::theme::set_active_by_name("Potoroo").expect("Potoroo is enrolled");
+    folded.canvas = Some((720, 800));
+    folded.dpi = Some(2.0);
+    let control_png = dir.join("control.png");
+    capture::capture_with(&control_png, session.buffer(), &folded)
+        .expect("real folded Files capture");
+
+    let mut location_mutation = folded.clone();
+    location_mutation
+        .overlay
+        .as_mut()
+        .expect("Files overlay")
+        .files_location = None;
+    let location_png = dir.join("without-location.png");
+    capture::capture_with(&location_png, session.buffer(), &location_mutation)
+        .expect("location mutation capture");
+
+    let mut surface_mutation = folded.clone();
+    surface_mutation
+        .overlay
+        .as_mut()
+        .expect("Files overlay")
+        .lens = None;
+    let surface_png = dir.join("without-files-surface.png");
+    capture::capture_with(&surface_png, session.buffer(), &surface_mutation)
+        .expect("surface mutation capture");
+
+    let mut focus_mutation = folded.clone();
+    focus_mutation
+        .overlay
+        .as_mut()
+        .expect("Files overlay")
+        .files_query_focused = false;
+    let focus_png = dir.join("without-query-focus.png");
+    capture::capture_with(&focus_png, session.buffer(), &focus_mutation)
+        .expect("query-focus mutation capture");
+
+    let control = image::open(&control_png)
+        .expect("decode Files control")
+        .to_rgba8();
+    let location = image::open(&location_png)
+        .expect("decode location mutation")
+        .to_rgba8();
+    let surface = image::open(&surface_png)
+        .expect("decode surface mutation")
+        .to_rgba8();
+    let focus = image::open(&focus_png)
+        .expect("decode query-focus mutation")
+        .to_rgba8();
+    let changed = |other: &image::RgbaImage| {
+        control
+            .pixels()
+            .zip(other.pixels())
+            .filter(|(a, b)| a != b)
+            .count()
+    };
+    assert!(
+        changed(&location) > 100,
+        "settled_viewstate ignored the folded full Files location"
+    );
+    assert!(
+        changed(&surface) > 1_000,
+        "settled_viewstate ignored the folded typed Files surface"
+    );
+    assert!(
+        changed(&focus) > 4,
+        "settled_viewstate ignored the folded Files query focus"
+    );
+}
+
 #[test]
 fn both_capture_doors_report_provisional_fresh_identity_as_untitled() {
     let _serial = crate::testlock::serial();

@@ -262,6 +262,9 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> f32 {
+        if self.overlay_files_surface {
+            return geom.text_left;
+        }
         self.overlay_foot_placement(geom, plan)
             .map_or_else(|| geom.footer_text_left(), |foot| foot.left)
     }

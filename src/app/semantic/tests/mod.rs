@@ -474,6 +474,197 @@ fn contextual_command_and_link_cards_focus_their_editable_field_not_the_selected
 }
 
 #[test]
+fn files_semantics_separate_search_choices_and_header_footer_actions() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    let mut app = hermetic();
+    let mut files = OverlayState::new_files(
+        vec!["alpha.md".into(), "notes/draft.md".into()],
+        Vec::new(),
+        Vec::new(),
+        Some("notes".into()),
+    );
+    files.set_files_root_name("Writing".into());
+    files.set_query_text("draft");
+    files.query.select_all();
+    app.workspace_state.install_overlay_for_test(files);
+
+    let snapshot = app.semantic_snapshot();
+    let query = snapshot
+        .nodes
+        .iter()
+        .find(|node| node.id == "overlay.goto.query")
+        .expect("Files publishes its search field");
+    assert_eq!(query.name, "Search files");
+    assert_eq!(
+        query.selection,
+        Some(SemanticSelection {
+            anchor: 0,
+            focus: 5
+        })
+    );
+    for (id, name) in [
+        ("overlay.goto.files", "Files"),
+        ("overlay.goto.recent", "Recent"),
+        ("overlay.goto.up", "Up"),
+        ("overlay.goto.change-folder", "Change folder"),
+        ("overlay.goto.new-document", "New document in Writing/notes"),
+    ] {
+        let node = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("missing Files control {id}"));
+        assert_eq!(node.role, SemanticRole::Button);
+        assert_eq!(node.name, name);
+    }
+    assert!(
+        snapshot
+            .nodes
+            .iter()
+            .filter(|node| node.role == SemanticRole::Option)
+            .all(|node| {
+                !node.name.contains("Change folder") && !node.name.contains("New document")
+            })
+    );
+
+    assert!(app.apply_semantic_request(SemanticRequest::SetValue {
+        id: "overlay.goto.query".into(),
+        value: "nothing-here".into(),
+    }));
+    let empty = app.semantic_snapshot();
+    assert_eq!(empty.focus_id, "overlay.goto.query");
+    assert_eq!(
+        empty
+            .nodes
+            .iter()
+            .filter(|node| node.role == SemanticRole::Option)
+            .count(),
+        0,
+        "a no-match query must not publish an implicit action as a choice"
+    );
+
+    assert!(app.apply_semantic_request(SemanticRequest::SetValue {
+        id: "overlay.goto.query".into(),
+        value: "draft".into(),
+    }));
+    app.apply_semantic_action(Action::NextLine);
+    let matched = app.semantic_snapshot();
+    assert!(
+        !matched
+            .nodes
+            .iter()
+            .find(|node| node.id == "overlay.goto.query")
+            .expect("Files search field")
+            .focused,
+        "the search field must stop publishing focus while a choice owns it"
+    );
+    let choice = matched
+        .nodes
+        .iter()
+        .find(|node| node.role == SemanticRole::Option)
+        .expect("the matching file choice is published");
+    assert_eq!(choice.name, "notes/draft.md");
+    assert_eq!(choice.selected, Some(true));
+    assert!(choice.focused);
+
+    assert!(app.apply_semantic_request(SemanticRequest::Focus {
+        id: "overlay.goto.new-document".into(),
+    }));
+    let focused = app.semantic_snapshot();
+    assert_eq!(focused.focus_id, "overlay.goto.new-document");
+
+    let mut notice_app = hermetic();
+    let mut unsupported = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
+    unsupported.notice = "no supported files in this folder".into();
+    notice_app
+        .workspace_state
+        .install_overlay_for_test(unsupported);
+    let notice = notice_app.semantic_snapshot();
+    assert_eq!(
+        notice
+            .nodes
+            .iter()
+            .filter(|node| {
+                node.role == SemanticRole::Status
+                    && node.name == "no supported files in this folder"
+            })
+            .count(),
+        1,
+        "Files' one visual level notice must be published once"
+    );
+}
+
+#[test]
+fn every_files_control_advertises_and_routes_its_real_semantic_actions() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    let make = |browse: Option<&str>| {
+        let mut app = hermetic();
+        let mut files = OverlayState::new_files(
+            vec!["alpha.md".into(), "notes/draft.md".into()],
+            Vec::new(),
+            vec![1],
+            browse.map(str::to_string),
+        );
+        files.set_files_root_name("Writing".into());
+        app.workspace_state.install_overlay_for_test(files);
+        app
+    };
+
+    let root = make(None).semantic_snapshot();
+    assert!(
+        root.nodes.iter().all(|node| node.id != "overlay.goto.up"),
+        "Up must not be advertised at the root"
+    );
+
+    for (id, browse) in [
+        ("overlay.goto.query", Some("notes")),
+        ("overlay.goto.files", Some("notes")),
+        ("overlay.goto.recent", Some("notes")),
+        ("overlay.goto.up", Some("notes")),
+        ("overlay.goto.change-folder", Some("notes")),
+        ("overlay.goto.new-document", Some("notes")),
+    ] {
+        let advertised = make(browse)
+            .semantic_snapshot()
+            .nodes
+            .into_iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("missing Files semantic control {id}"))
+            .actions;
+        let expected = if id.ends_with(".query") {
+            vec![SemanticAction::Focus, SemanticAction::SetValue]
+        } else {
+            vec![SemanticAction::Focus, SemanticAction::Click]
+        };
+        assert_eq!(advertised, expected, "{id} advertised the wrong actions");
+
+        for action in advertised {
+            let mut app = make(browse);
+            let request = match action {
+                SemanticAction::Focus => SemanticRequest::Focus { id: id.into() },
+                SemanticAction::Click => SemanticRequest::Click { id: id.into() },
+                SemanticAction::SetValue => SemanticRequest::SetValue {
+                    id: id.into(),
+                    value: "draft".into(),
+                },
+                other => panic!("unexpected Files action {other:?} on {id}"),
+            };
+            assert!(
+                app.apply_semantic_request(request),
+                "{id} advertised {action:?} but did not route it"
+            );
+            if action == SemanticAction::Focus {
+                assert_eq!(app.semantic_snapshot().focus_id, id);
+            } else if action == SemanticAction::SetValue {
+                assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "draft");
+            }
+        }
+    }
+}
+
+#[test]
 fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions() {
     let _guard = crate::testlock::serial();
     let _restore = calm_globals_guarded();

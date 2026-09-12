@@ -111,7 +111,7 @@ impl App {
     /// press; click-away cancels through the shared path so previews revert.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
-        let (row_hit, lens_hit, rail_hit, query_hit, card, table_dims_hit) = self
+        let (row_hit, lens_hit, rail_hit, query_hit, files_hit, card, table_dims_hit) = self
             .frame
             .gpu()
             .map(|g| {
@@ -120,11 +120,12 @@ impl App {
                     g.pipeline.overlay_lens_at(px, py),
                     g.pipeline.workspace_rail_at(px, py),
                     g.pipeline.overlay_query_char_at(px, py),
+                    g.pipeline.files_surface_action_at(px, py),
                     g.pipeline.overlay_card_rect(),
                     g.pipeline.table_dims_cell_at(px, py),
                 )
             })
-            .unwrap_or((None, None, None, None, None, None));
+            .unwrap_or((None, None, None, None, None, None, None));
 
         // Grid cells commit through the same action as Enter.
         if let Some((row, col)) = table_dims_hit {
@@ -143,6 +144,24 @@ impl App {
                 ov.set_facet_lens(rail_idx);
             }
             self.workspace_state.focus_workspace_detail();
+            self.sync_view(true);
+            self.request_frame();
+            return;
+        }
+
+        if let Some(action) = files_hit {
+            if let Some(overlay) = self.workspace_state.overlay_mut() {
+                overlay.files_focus = match action {
+                    crate::render::FilesSurfaceAction::Up => crate::overlay::FilesFocus::Up,
+                    crate::render::FilesSurfaceAction::ChangeFolder => {
+                        crate::overlay::FilesFocus::ChangeFolder
+                    }
+                    crate::render::FilesSurfaceAction::NewDocument => {
+                        crate::overlay::FilesFocus::NewDocument
+                    }
+                };
+            }
+            self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
             self.sync_view(true);
             self.request_frame();
             return;

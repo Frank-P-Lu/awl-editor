@@ -263,6 +263,33 @@ impl TextPipeline {
     /// infer (History keeps `restore` + `close`; Settings keeps its edit/Back
     /// cells). The final cell is never omitted.
     pub(super) fn overlay_fitted_hint(&mut self, geom: &OverlayGeom) -> String {
+        if self.overlay_files_surface {
+            let marker = if self.overlay_hint.starts_with("› ") {
+                "› "
+            } else {
+                ""
+            };
+            let lead = format!("{marker}New document — ");
+            let location = self.overlay_files_location.clone();
+            let prepared = crate::overlay::PreparedDirectoryPath::new(&location);
+            let budgets = super::overlay_shape::files_location_fit_budgets(
+                prepared.len(),
+                prepared.leaf_identity_budget(),
+            );
+            self.overlay_files_hint_fit_attempts = 0;
+            for budget in budgets.iter().copied() {
+                let shown = prepared.elide(budget);
+                let candidate = format!("{lead}{shown}");
+                self.overlay_files_hint_fit_attempts += 1;
+                if self.measure_workspace_hint_text_px(&candidate) <= geom.footer_text_w() + 0.01 {
+                    return candidate;
+                }
+            }
+            return format!(
+                "{lead}{}",
+                prepared.elide(budgets.last().copied().unwrap_or_default())
+            );
+        }
         if !geom.workspace {
             return geom.hint.clone();
         }

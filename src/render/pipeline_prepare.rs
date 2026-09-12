@@ -106,6 +106,7 @@ impl TextPipeline {
     fn overlay_declines_takeover(&self) -> bool {
         self.overlay_crisp
             || self.overlay_retains_room
+            || self.overlay_files_surface
             || self.overlay_contextual()
             || self.overlay_table_dims.is_some()
     }
@@ -186,7 +187,7 @@ impl TextPipeline {
         // The Themes card is an opaque bordered surface over a sharp document.
         // Keep this typed distinction ahead of the shared crisp-picker rules:
         // Caret still owns its local footprint treatment.
-        if self.overlay_theme_picker {
+        if self.overlay_theme_picker || self.overlay_files_surface {
             return None;
         }
         // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge

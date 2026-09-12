@@ -99,13 +99,21 @@ impl SemanticView<'_> {
         let mut dialog = SemanticNode::new(&dialog_id, SemanticRole::Dialog, overlay.title());
         dialog.description = Some(self.workspace_state.journey().foot_hint());
 
-        let mut query = SemanticNode::new(&query_id, SemanticRole::TextInput, overlay.title());
+        let query_name = if overlay.files_mode {
+            "Search files".to_string()
+        } else {
+            overlay.title()
+        };
+        let mut query = SemanticNode::new(&query_id, SemanticRole::TextInput, query_name);
         query.value = Some(overlay.query.text().to_string());
         query.character_lengths = crate::semantic::grapheme_lengths(overlay.query.text());
-        let caret = crate::semantic::char_to_grapheme(overlay.query.text(), overlay.query.caret());
+        let (anchor, focus) = overlay
+            .query
+            .selection_range()
+            .unwrap_or_else(|| (overlay.query.caret(), overlay.query.caret()));
         query.selection = Some(SemanticSelection {
-            anchor: caret,
-            focus: caret,
+            anchor: crate::semantic::char_to_grapheme(overlay.query.text(), anchor),
+            focus: crate::semantic::char_to_grapheme(overlay.query.text(), focus),
         });
         query.focusable = true;
         query.editable = true;
@@ -132,12 +140,13 @@ impl SemanticView<'_> {
             list.children.push(row_id);
             nodes.push(row);
         }
-        if let Some(empty) = overlay.empty_notice() {
+        let empty_notice = overlay.empty_notice();
+        if let Some(empty) = empty_notice.as_deref() {
             let empty_id = format!("{dialog_id}.empty");
             list.children.push(empty_id.clone());
             nodes.push(SemanticNode::new(empty_id, SemanticRole::Status, empty));
         }
-        if !overlay.notice.is_empty() {
+        if !overlay.notice.is_empty() && empty_notice.as_deref() != Some(overlay.notice.as_str()) {
             let notice_id = format!("{dialog_id}.notice");
             dialog.children.push(notice_id.clone());
             nodes.push(SemanticNode::new(

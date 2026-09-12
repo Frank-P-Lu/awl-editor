@@ -2669,6 +2669,18 @@ pub struct TextPipeline {
     overlay_crisp: bool,
     /// Context retention, distinct from the preview-driven `overlay_crisp`.
     overlay_retains_room: bool,
+    /// Mirror of `ViewState::overlay_files_surface`.
+    overlay_files_surface: bool,
+    /// Mirror of `ViewState::overlay_files_location`.
+    overlay_files_location: String,
+    /// The current frame's measured-to-fit Files header prefix. Pointer and
+    /// caret geometry read this exact shaped value after preparation.
+    overlay_files_fitted_title_prefix: String,
+    overlay_files_split_header: bool,
+    overlay_files_split_actions: bool,
+    overlay_files_split_measure_attempts: usize,
+    overlay_files_title_fit_attempts: usize,
+    overlay_files_hint_fit_attempts: usize,
     /// The Themes chooser's stronger stable-chrome contract. Kept distinct
     /// from `overlay_crisp`, whose roster also includes the Caret audition.
     overlay_theme_picker: bool,
@@ -2889,6 +2901,14 @@ pub struct TextPipeline {
     /// headless `--keys` replay path calls (see `main/run.rs`'s `Effect::CopyPulse`
     /// no-op arm).
     copy_pulse_t: f32,
+}
+
+/// Pointer targets authored outside Files' candidate list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FilesSurfaceAction {
+    Up,
+    ChangeFolder,
+    NewDocument,
 }
 
 #[derive(Default)]

@@ -24,58 +24,112 @@ fn files_and_recent_are_the_exact_visible_views() {
             .collect::<Vec<_>>(),
         ["Files", "Recent"]
     );
-    assert_eq!(
-        ov.item_strings(),
-        [
-            "alpha.md",
-            "notes/  ›",
-            "Change folder…",
-            "New document — root/"
-        ]
-    );
+    assert_eq!(ov.item_strings(), ["alpha.md", "notes  ›"]);
 
     ov.focus_facet_id("recent");
-    assert_eq!(
-        ov.item_strings(),
-        [
-            "notes/deep/plan.md",
-            "notes/draft.md",
-            "Change folder…",
-            "New document — root/"
-        ]
-    );
+    assert_eq!(ov.item_strings(), ["notes/deep/plan.md", "notes/draft.md"]);
 }
 
 #[test]
 fn files_searches_the_whole_root_and_clear_restores_the_browse_level() {
     let mut ov = files_level(Some("notes"));
-    assert_eq!(
-        ov.item_strings(),
-        [
-            "draft.md",
-            "deep/  ›",
-            "Change folder…",
-            "New document — notes/"
-        ]
-    );
+    assert_eq!(ov.item_strings(), ["draft.md", "deep  ›"]);
 
     for c in "draft".chars() {
         ov.push(c);
     }
     assert_eq!(
         ov.item_strings(),
-        [
-            "notes/draft.md",
-            "notes/deep/draft.md",
-            "Change folder…",
-            "New document — notes/"
-        ],
+        ["notes/draft.md", "notes/deep/draft.md"],
         "duplicate names must retain root-relative path identity"
     );
     while !ov.query.is_empty() {
         ov.pop();
     }
-    assert_eq!(ov.item_strings()[..2], ["draft.md", "deep/  ›"]);
+    assert_eq!(ov.item_strings()[..2], ["draft.md", "deep  ›"]);
+}
+
+#[test]
+fn files_no_match_has_no_implicit_action_row() {
+    let mut ov = files_level(None);
+    for c in "nothing-here".chars() {
+        ov.push(c);
+    }
+    assert!(
+        ov.item_strings().is_empty(),
+        "a failed filename search must not silently select a different action"
+    );
+}
+
+#[test]
+fn files_no_match_enter_is_safe_and_keeps_the_query_open() {
+    use crate::actions::{ActionCtx, Effect, apply_transition};
+    use crate::keymap::Action;
+
+    let mut ov = files_level(None);
+    ov.set_query_text("nothing-here");
+    let mut journey = Journey::seeded(Some(ov));
+    let mut buffer = crate::buffer::Buffer::scratch();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make_overlay = |_| None;
+    let mut browse_to = |_, _| None;
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    assert_eq!(
+        apply_transition(&mut ctx, &Action::Newline, false).primary(),
+        Effect::None
+    );
+    assert_eq!(ctx.journey.card().unwrap().query.text(), "nothing-here");
+    assert!(ctx.journey.card().unwrap().items.is_empty());
+}
+
+#[test]
+fn files_select_all_is_an_action_level_query_edit() {
+    use crate::actions::{ActionCtx, Effect, apply_transition};
+    use crate::keymap::Action;
+
+    let mut journey = Journey::seeded(Some(files_level(None)));
+    for c in "alpha".chars() {
+        journey.card_mut().unwrap().push(c);
+    }
+    let mut buffer = crate::buffer::Buffer::from_str("document stays intact");
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make_overlay = |_| None;
+    let mut browse_to = |_, _| None;
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    assert_eq!(
+        apply_transition(&mut ctx, &Action::SelectAll, false).primary(),
+        Effect::None
+    );
+    assert_eq!(
+        apply_transition(&mut ctx, &Action::DeleteBackward, false).primary(),
+        Effect::None
+    );
+    assert_eq!(ctx.journey.card().unwrap().query.text(), "");
+    assert_eq!(ctx.buffer.text(), "document stays intact");
 }
 
 #[test]
@@ -113,7 +167,7 @@ fn folder_accept_descends_without_emitting_a_root_switch() {
     );
     assert_eq!(
         ctx.journey.card().unwrap().item_strings()[..2],
-        ["draft.md", "deep/  ›"]
+        ["draft.md", "deep  ›"]
     );
 }
 
@@ -204,11 +258,16 @@ fn files_tab_route_is_complete_reversible_and_keeps_selection_separate() {
 fn files_keeps_empty_directories_and_names_three_level_outcomes() {
     let mut ov = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
     ov.attach_file_directories(vec!["empty".into()]);
-    assert_eq!(ov.item_strings()[0], "empty/  ›");
+    assert_eq!(ov.item_strings()[0], "empty  ›");
 
     let mut empty = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
     empty.set_files_level_state(Some(&[]));
     assert_eq!(empty.notice, "this folder is empty");
+    assert_eq!(
+        empty.empty_notice().as_deref(),
+        Some("this folder is empty")
+    );
+    assert!(empty.foot_hint().starts_with("New document — "));
 
     let unsupported = [crate::index::DirEntry {
         name: "movie.bin".into(),
@@ -217,6 +276,11 @@ fn files_keeps_empty_directories_and_names_three_level_outcomes() {
     }];
     empty.set_files_level_state(Some(&unsupported));
     assert_eq!(empty.notice, "no supported files in this folder");
+    assert_eq!(
+        empty.empty_notice().as_deref(),
+        Some("no supported files in this folder")
+    );
+    assert!(empty.foot_hint().starts_with("New document — "));
     empty.set_files_level_state(None);
     assert_eq!(
         empty.notice,

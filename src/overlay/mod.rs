@@ -67,6 +67,7 @@ mod title;
 mod user_words;
 pub(crate) mod workspace;
 
+pub(crate) use build::PreparedDirectoryPath;
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
 pub use build::{
     BindingInputs, CommandInputs, GotoInputs, HERE_ACCEPT, HERE_LABEL, HistoryInputs, PickerInput,
