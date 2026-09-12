@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**7 open numbered tasks.** Ready: 647–649, 646, 645 and 644. Native candidate review: 640.
+**6 open numbered tasks.** Ready: 647–649, 646, 645 and 644.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 649 — consolidate shared folder-picker navigation (user request, 2026-09-12)
@@ -250,38 +250,6 @@ fidelity. Add regression-sensitive laws and the standing neighborhood audit and
 vision smoke. Rendering evidence remains outstanding; use an available GPU and
 the single integrated native/wasm gate under the verification policy.
 
----
-
-### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
-
-🟡 IN PROGRESS — `acceptance_640` (Codex), based on `38bc2139`.
-
-Build: review the combined native experience as one journey, remove obsolete parallel
-entry points/contradictory teaching, and update the existing contracts, GUIDE,
-Welcome/tour, keybinding reference and accessibility documentation to verified behavior.
-Keep stable user config compatibility deliberate; no silent binding migrations.
-The approved study is a design reference, not a shipped-behavior or performance receipt.
-
-Acceptance journey: no-document/Welcome → choose writing root → Files → enter
-subfolder → search/clear → open/edit → switch open documents → reopen/cancel → New
-document via button and actual shortcut → Move/Save a Copy/Export in hermetic paths →
-folder-content search → Settings → world preview/cancel → History compare/cancel.
-Include two roots, duplicate names, unsaved edits, unavailable/empty folders, narrow
-windows, and focus moved away from a still-selected row. Verify that path ownership,
-buffer identity and save behavior remain understandable throughout. Include a Mac
-menu-key-equivalent journey and real Linux fallback coverage; headless keys alone
-do not certify either. Preserve the screen-lock checks at both ends of live runs.
-
-Verify: follow docs/verification.md: cheap/targeted checks in each owning item, outcome
-audits and mutation proofs on the integrated candidate, then one full native gate
-and web smoke after commit/freeze. Use seeded captures, world/geometry/DPI coverage,
-pixel presence and legibility, and the standing five-shot vision smoke. Validate
-supported web behavior without claiming desktop chooser parity. Distinguish live
-feel/taste still owed to the user from mechanically proven state and geometry.
-Do not dispatch or claim implementation merely because this acceptance work is queued.
-
----
-
 ## Outstanding review of landed work
 
 These are follow-ups, not additional unimplemented build tasks. Completed work and
@@ -328,17 +296,17 @@ the resolved 584/626 investigation does not require another confirmation sitting
 
 ## Latest recorded verification
 
-The latest recorded native/wasm baseline is **`4e225355`** (633 and the aggregate
-perf documentation), already on main:
+The latest recorded native/wasm baseline is **`776dc1d0`** (640 integrated
+navigation/coherence acceptance), already on main:
 
 ```text
-native-gate-receipt commit=4e225355 health=pass:304s conventions=mac,linux scope=all-targets
-  menubar=full:on unit_tests=5123 unit_shards=6 integration_targets=18
+native-gate-receipt commit=776dc1d0bd903c2c5ffc21fa3def3f43dadec324 health=pass:281s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5176
+  unit_shards=6 integration_targets=18
 web-smoke: OK
 ```
 
-This is the original baseline receipt, not verification of later code. Subsequent
-queue/policy-only commits use diff/link checks under `docs/verification.md`.
+Subsequent queue/policy-only commits use diff/link checks under `docs/verification.md`.
 Older receipts, resolved CI investigations and completed train summaries are in Git
 history. Local hardware receipts do not establish hosted-GPU or live-journey results;
 check remote status before a future push rather than inheriting old push warnings.
