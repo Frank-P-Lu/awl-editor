@@ -30,6 +30,96 @@ const DOC: &str = concat!(
     "    - [x] nested checked task\n",
     "anchor\n",
 );
+const MIXED_LIST_DOC: &str = include_str!("../../../tests/fixtures/list-markers.md");
+
+fn assert_mixed_list_geometry(p: &mut TextPipeline, world: &crate::theme::Theme, dpi: f32) {
+    p.set_view(&view_md(
+        MIXED_LIST_DOC,
+        MIXED_LIST_DOC.lines().count() - 1,
+        0,
+    ));
+
+    let marks = p.list_marks();
+    assert_eq!(
+        marks.len(),
+        10,
+        "{} dpi {dpi}: fixture enrollment",
+        world.name
+    );
+    assert_eq!(
+        marks.iter().map(|mark| mark.kind).collect::<Vec<_>>(),
+        [
+            crate::render::rects::ListLineKind::Bullet,
+            crate::render::rects::ListLineKind::Bullet,
+            crate::render::rects::ListLineKind::Bullet,
+            crate::render::rects::ListLineKind::Task(false),
+            crate::render::rects::ListLineKind::Task(true),
+            crate::render::rects::ListLineKind::Bullet,
+            crate::render::rects::ListLineKind::Task(false),
+            crate::render::rects::ListLineKind::Bullet,
+            crate::render::rects::ListLineKind::Task(true),
+            crate::render::rects::ListLineKind::Bullet,
+        ],
+        "{} dpi {dpi}: tasks replace bullets, invalid stays ordinary, ordered stays out",
+        world.name
+    );
+    assert_eq!(
+        [
+            marks[3].glyph,
+            marks[4].glyph,
+            marks[6].glyph,
+            marks[8].glyph
+        ],
+        ['☐', '🗹', '☐', '🗹'],
+        "{} dpi {dpi}: every depth uses the shared Nishiki task pair",
+        world.name
+    );
+    let top_body_xs = [
+        p.line_glyph_xs(2)[2],
+        p.line_glyph_xs(3)[2],
+        p.line_glyph_xs(4)[2],
+        p.line_glyph_xs(5)[6],
+        p.line_glyph_xs(6)[6],
+    ];
+    let nested_body_xs = [p.line_glyph_xs(8)[4], p.line_glyph_xs(9)[8]];
+    let level_two_body_xs = [p.line_glyph_xs(10)[6], p.line_glyph_xs(11)[10]];
+    for (label, body_xs) in [
+        ("top", top_body_xs.as_slice()),
+        ("nested", nested_body_xs.as_slice()),
+        ("level two", level_two_body_xs.as_slice()),
+    ] {
+        let first = body_xs[0];
+        assert!(
+            body_xs.iter().all(|x| (*x - first).abs() < 0.51),
+            "{} dpi {dpi}: {label} ordinary/task bodies share one preview start: {body_xs:?}",
+            world.name
+        );
+    }
+    for mark in &marks {
+        assert!(
+            (mark.paint_width - mark.slot_width).abs() < 0.51,
+            "{} dpi {dpi}: every list mark paints in the one measured body gap: {mark:?}",
+            world.name
+        );
+    }
+    assert!(
+        p.visual_rows(8).len() > 1 && p.visual_rows(9).len() > 1,
+        "{} dpi {dpi}: ordinary and task neighbors genuinely wrap",
+        world.name
+    );
+}
+
+#[test]
+fn mixed_list_markers_share_one_preview_slot_and_body_start() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping mixed list-marker geometry law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    let world = crate::theme::active();
+    assert_mixed_list_geometry(&mut p, &world, 1.0);
+}
 
 fn isolated_marker_masks(
     p: &mut TextPipeline,
@@ -88,6 +178,25 @@ fn first_ink_column(
     })
 }
 
+fn ink_row_bounds(
+    pixels: &[Pixel],
+    width: u32,
+    height: u32,
+    rect: [i32; 4],
+    ground: Pixel,
+) -> Option<(i32, i32)> {
+    let [x0, y0, x1, y1] = rect;
+    let mut rows = (y0.max(0)..y1.min(height as i32)).filter(|&y| {
+        (x0.max(0)..x1.min(width as i32)).any(|x| {
+            let pixel = pixels[(y as u32 * width + x as u32) as usize];
+            (0..3)
+                .any(|channel| (i16::from(pixel[channel]) - i16::from(ground[channel])).abs() > 18)
+        })
+    });
+    let first = rows.next()?;
+    Some((first, rows.last().unwrap_or(first)))
+}
+
 fn assert_marker_enrolment(
     world: &crate::theme::Theme,
     dpi: f32,
@@ -115,22 +224,15 @@ fn assert_marker_enrolment(
         "{} dpi {dpi}: valid tasks replace bullets; `- []` remains an ordinary bullet",
         world.name
     );
-    assert_eq!(marks[0].glyphs, world.task_marker.glyphs(false));
-    assert_eq!(marks[1].glyphs, world.task_marker.glyphs(true));
+    assert_eq!(marks[0].glyph, crate::theme::task_marker(false));
+    assert_eq!(marks[1].glyph, crate::theme::task_marker(true));
+    assert_eq!(marks[2].glyph, world.bullets.0);
     assert_eq!(
-        marks[2].glyphs,
-        crate::theme::TaskMarkerGlyphs::Single(world.bullets.0)
-    );
-    assert_eq!(
-        marks[4].glyphs,
-        crate::theme::TaskMarkerGlyphs::Single(world.bullets.1),
+        marks[4].glyph, world.bullets.1,
         "{} dpi {dpi}: {marks:?}",
         world.name
     );
-    assert_eq!(
-        marks[5].glyphs,
-        crate::theme::TaskMarkerGlyphs::Single(world.bullets.2)
-    );
+    assert_eq!(marks[5].glyph, world.bullets.2);
 }
 
 fn task_body_positions(
@@ -160,13 +262,13 @@ fn task_body_positions(
             world.name,
         );
         assert!(
-            xs[body_col] - xs[marker_col + 5] > 1.0,
-            "{} dpi {dpi} line {line}: the source separator retains positive advance",
+            (xs[body_col] - xs[marker_col + 2]).abs() < 0.51,
+            "{} dpi {dpi} line {line}: checkbox and task-only separator collapse together",
             world.name,
         );
         assert!(
             (body_x - (mark.left + mark.paint_width)).abs() < 0.51,
-            "{} dpi {dpi} line {line}: retained separator follows the marker slot: \
+            "{} dpi {dpi} line {line}: task body follows the shared marker slot: \
              left={} width={} body={body_x}",
             world.name,
             mark.left,
@@ -205,6 +307,7 @@ fn assert_task_marker_pixels(
         "{} dpi {dpi}: open and checked task pixels must differ",
         world.name
     );
+    assert_marker_seating(p, &target, world, dpi, marks, &masks, &frame, body_xs);
     for (state, mark, mask, body_x) in [
         ("open", &marks[0], &masks[0], body_xs[0]),
         ("checked", &marks[1], &masks[1], body_xs[1]),
@@ -242,11 +345,63 @@ fn assert_task_marker_pixels(
             mark.left.floor() as i32 + left,
         );
     }
-    if matches!(world.task_marker, crate::theme::TaskMarkerStyle::Rounded) {
+}
+
+fn assert_marker_seating(
+    p: &TextPipeline,
+    target: &RenderTarget<'_>,
+    world: &crate::theme::Theme,
+    dpi: f32,
+    marks: &[crate::render::rects::ListMark],
+    masks: &[MarkerMask],
+    frame: &[Pixel],
+    body_xs: [f32; 4],
+) {
+    let body_by_mark = [
+        body_xs[0],
+        body_xs[1],
+        p.text_left() + p.line_glyph_xs(2)[2],
+        p.text_left() + p.line_glyph_xs(3)[2],
+        p.text_left() + p.line_glyph_xs(4)[4],
+        p.text_left() + p.line_glyph_xs(5)[6],
+        body_xs[2],
+        body_xs[3],
+    ];
+    for ((mark, mask), body_x) in marks.iter().zip(masks).zip(body_by_mark) {
+        let marker_left = mask.iter().map(|(x, _)| *x).min().unwrap();
+        let marker_right = mask.iter().map(|(x, _)| *x).max().unwrap();
+        let marker_top = mask.iter().map(|(_, y)| *y).min().unwrap();
+        let marker_bottom = mask.iter().map(|(_, y)| *y).max().unwrap();
+        let marker_center_x = (marker_left + marker_right) as f32 * 0.5;
         assert!(
-            masks[1].difference(&masks[0]).next().is_some(),
-            "{} dpi {dpi}: the rounded checked overlay adds visible tick ink",
-            world.name
+            (marker_center_x - mark.slot_width * 0.5).abs() <= mark.slot_width * 0.40,
+            "{} dpi {dpi}: {:?} ink centered: {marker_left}..{marker_right} in {}",
+            world.name,
+            mark.kind,
+            mark.slot_width
+        );
+        let row_y0 = mark.top.floor() as i32;
+        let row_y1 = (mark.top + p.metrics.line_height).ceil() as i32;
+        let (body_top, body_bottom) = ink_row_bounds(
+            &frame,
+            target.width,
+            target.height,
+            [
+                body_x.floor() as i32,
+                row_y0,
+                (body_x + 120.0 * dpi) as i32,
+                row_y1,
+            ],
+            world.base_100.rgba_bytes(),
+        )
+        .expect("list body paints real ink");
+        let marker_center_y = row_y0 as f32 + (marker_top + marker_bottom) as f32 * 0.5;
+        let body_center_y = (body_top + body_bottom) as f32 * 0.5;
+        assert!(
+            (marker_center_y - body_center_y).abs() <= p.metrics.line_height * 0.30,
+            "{} dpi {dpi}: {:?} vertical seat: marker={marker_center_y} body={body_center_y}",
+            world.name,
+            mark.kind
         );
     }
 }
@@ -292,13 +447,14 @@ fn every_world_and_dpi_paints_distinct_task_state_clear_of_the_body() {
                 &marks,
                 body_xs,
             );
+            assert_mixed_list_geometry(&mut p, world, dpi);
         }
     }
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
 #[test]
-fn task_conceal_retains_its_separator_and_hit_tests_to_source_columns() {
+fn task_conceal_collapses_its_separator_and_hit_tests_to_source_columns() {
     let _g = crate::testlock::serial();
     let Some(mut p) = super::headless_pipeline() else {
         eprintln!("skipping task conceal and hit-test law: no wgpu adapter");
@@ -315,13 +471,14 @@ fn task_conceal_retains_its_separator_and_hit_tests_to_source_columns() {
             "off-caret task source byte {byte} must be transparent beneath its one state marker"
         );
     }
-    assert!(
+    assert_eq!(
         p.buffer.lines[0]
             .attrs_list()
             .get_span(5)
             .color_opt
-            .is_none_or(|color| color.a() != 0),
-        "the retained task separator stays transparent-free"
+            .map(|color| color.a()),
+        Some(0),
+        "the task-only separator conceals with the checkbox"
     );
 
     for line in [0usize, 1, 6, 7] {
@@ -338,8 +495,8 @@ fn task_conceal_retains_its_separator_and_hit_tests_to_source_columns() {
             "line {line}: `[ ]`/`[x]` source collapses off-caret: {xs:?}"
         );
         assert!(
-            xs[marker_col + 6] - xs[marker_col + 5] > 1.0,
-            "line {line}: parser-owned separator keeps real advance: {xs:?}"
+            (xs[marker_col + 6] - xs[marker_col + 5]).abs() < 0.51,
+            "line {line}: parser-owned task separator collapses off-caret: {xs:?}"
         );
     }
 

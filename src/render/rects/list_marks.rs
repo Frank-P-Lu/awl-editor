@@ -21,12 +21,11 @@ pub(in crate::render) struct ListMark {
     pub(in crate::render) top: f32,
     pub(in crate::render) left: f32,
     pub(in crate::render) kind: ListLineKind,
-    pub(in crate::render) glyphs: crate::theme::TaskMarkerGlyphs,
+    pub(in crate::render) glyph: char,
     pub(in crate::render) scale: f32,
-    /// The raw unordered marker's retained advance, used to seat the glyph.
+    /// The normalized preview prefix's measured advance, used to seat the glyph.
     pub(in crate::render) slot_width: f32,
-    /// Source-derived room before body text: marker advance plus any retained
-    /// task separator. This is the visual containment boundary, not new layout.
+    /// The shared visual containment boundary before body text.
     pub(in crate::render) paint_width: f32,
     pub(in crate::render) ink: [u8; 4],
 }
@@ -34,7 +33,7 @@ pub(in crate::render) struct ListMark {
 impl TextPipeline {
     /// Visible unordered-list markers in document order. Text-derived membership
     /// is reshape-cached; each frame filters to visible, unrevealed lines and
-    /// resolves every indented marker through one batched row-geometry walk.
+    /// resolves every measured marker slot through one batched row-geometry walk.
     pub(in crate::render) fn list_marks(&self) -> Vec<ListMark> {
         self.list_marks_with_work().0
     }
@@ -66,9 +65,7 @@ impl TextPipeline {
             {
                 continue;
             }
-            if item.marker_col > 0 || matches!(item.kind, ListLineKind::Task(_)) {
-                geometry_lines.insert(li);
-            }
+            geometry_lines.insert(li);
             items.push((item, self.line_ornament_top(li)));
         }
         let rows_by_line = if geometry_lines.is_empty() {
@@ -80,50 +77,33 @@ impl TextPipeline {
         let marks = items
             .into_iter()
             .map(|(item, top)| {
-                let x = if item.marker_col == 0 {
-                    0.0
-                } else {
-                    rows_by_line
-                        .get(&item.line)
-                        .and_then(|rows| rows.first())
-                        .and_then(|row| row.xs.get(item.marker_col).copied())
-                        .unwrap_or(0.0)
-                };
-                let slot_width = match item.kind {
-                    ListLineKind::Task(_) => rows_by_line
-                        .get(&item.line)
-                        .and_then(|rows| rows.first())
-                        .and_then(|row| {
-                            let left = row.xs.get(item.marker_col)?;
-                            let right = row.xs.get(item.marker_col + 2)?;
-                            Some((right - left).max(1.0))
-                        })
-                        .unwrap_or((self.metrics.char_width * 2.0).max(1.0)),
-                    ListLineKind::Bullet => (self.metrics.char_width * 2.0).max(1.0),
-                };
-                let paint_width = match item.kind {
-                    ListLineKind::Task(_) => rows_by_line
-                        .get(&item.line)
-                        .and_then(|rows| rows.first())
-                        .and_then(|row| {
-                            let left = row.xs.get(item.marker_col)?;
-                            let body = row.xs.get(item.marker_col + 6)?;
-                            Some((body - left).max(slot_width))
-                        })
-                        .unwrap_or(slot_width),
-                    ListLineKind::Bullet => slot_width,
-                };
-                let (glyphs, scale, ink) = match item.kind {
+                let row = rows_by_line.get(&item.line).and_then(|rows| rows.first());
+                let x = row
+                    .and_then(|row| row.xs.get(item.marker_col).copied())
+                    .unwrap_or(0.0);
+                let body_col = item.marker_col
+                    + match item.kind {
+                        ListLineKind::Bullet => 2,
+                        ListLineKind::Task(_) => 6,
+                    };
+                let slot_width = row
+                    .and_then(|row| {
+                        let left = row.xs.get(item.marker_col)?;
+                        let body = row.xs.get(body_col)?;
+                        Some((body - left).max(1.0))
+                    })
+                    .unwrap_or((self.metrics.char_width * 2.0).max(1.0));
+                let (glyph, scale, ink) = match item.kind {
                     ListLineKind::Bullet => {
                         let ch = active.bullet_for_depth(item.depth);
                         (
-                            crate::theme::TaskMarkerGlyphs::Single(ch),
+                            ch,
                             active.bullet_scale_for(ch),
                             active.bullet_ink_for(ch).rgba_bytes(),
                         )
                     }
                     ListLineKind::Task(checked) => (
-                        active.task_marker.glyphs(checked),
+                        crate::theme::task_marker(checked),
                         crate::theme::TASK_MARKER_SCALE,
                         active.muted.rgba_bytes(),
                     ),
@@ -132,10 +112,10 @@ impl TextPipeline {
                     top,
                     left: text_left + x,
                     kind: item.kind,
-                    glyphs,
+                    glyph,
                     scale,
                     slot_width,
-                    paint_width,
+                    paint_width: slot_width,
                     ink,
                 }
             })
@@ -154,14 +134,9 @@ impl TextPipeline {
     pub(in crate::render) fn bullet_marks(&self) -> Vec<(f32, f32, char)> {
         self.list_marks()
             .into_iter()
-            .filter_map(|mark| match (mark.kind, mark.glyphs) {
-                (ListLineKind::Bullet, crate::theme::TaskMarkerGlyphs::Single(ch)) => {
-                    Some((mark.top, mark.left, ch))
-                }
-                (ListLineKind::Bullet, crate::theme::TaskMarkerGlyphs::Overlay { .. }) => {
-                    unreachable!("ordinary bullets are single glyphs")
-                }
-                (ListLineKind::Task(_), _) => None,
+            .filter_map(|mark| match mark.kind {
+                ListLineKind::Bullet => Some((mark.top, mark.left, mark.glyph)),
+                ListLineKind::Task(_) => None,
             })
             .collect()
     }

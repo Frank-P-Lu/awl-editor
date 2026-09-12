@@ -159,8 +159,7 @@ fn assert_bullet_pair_law(t: &Theme) {
         .chain(t.ornaments.underscore.chars())
         .collect();
     let bullet_set = std::collections::BTreeSet::from([t.bullets.0, t.bullets.1, t.bullets.2]);
-    let task_set: std::collections::BTreeSet<char> =
-        t.task_marker.codepoints().iter().copied().collect();
+    let task_set: std::collections::BTreeSet<char> = TASK_MARKERS.iter().copied().collect();
     assert!(
         bullet_set.is_disjoint(&divider_set),
         "{}: bullets and every divider component must be disjoint: \
@@ -177,12 +176,7 @@ fn assert_bullet_pair_law(t: &Theme) {
         "{}: dividers and task state must be disjoint: dividers={divider_set:?} tasks={task_set:?}",
         t.name
     );
-    assert_ne!(
-        t.task_marker.glyphs(false),
-        t.task_marker.glyphs(true),
-        "{}: open and checked task states must differ",
-        t.name
-    );
+    assert_ne!(task_marker(false), task_marker(true));
     for ch in [t.bullets.0, t.bullets.1, t.bullets.2] {
         let want = if ch == '\u{2638}' {
             t.bullet_scale * BULLET_WHEEL_OPTICAL_SCALE
@@ -210,8 +204,8 @@ fn assert_bullet_pair_law(t: &Theme) {
 }
 
 /// NEVER-DRIFT law (per-world LIST BULLETS): every world ships a three-glyph
-/// [`Theme::bullets`] triple and task-marker style. The approved roster is
-/// exact; bullets, divider components, and task glyphs are disjoint within
+/// [`Theme::bullets`] triple. The approved roster is exact; bullets, divider
+/// components, and the shared task glyphs are disjoint within
 /// every world. The font-DB half — that each glyph resolves — is
 /// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`.
 #[test]
@@ -233,115 +227,32 @@ fn every_world_has_a_bullet_pair() {
         "ornament bullets shape smaller than the plain body-size bullets"
     );
     let expected = [
-        (
-            "Tawny",
-            ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Mopoke",
-            ('\u{2606}', '\u{2601}', '\u{2604}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Currawong",
-            ('\u{2657}', '\u{2654}', '\u{2656}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Potoroo",
-            ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Gumtree",
-            ('\u{1F426}', '\u{1F98B}', '\u{1F343}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Bilby",
-            ('\u{2606}', '\u{2601}', '\u{2604}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Saltpan",
-            ('\u{25B3}', '\u{25C7}', '\u{25CB}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Quokka",
-            ('\u{1F377}', '\u{2615}', '\u{2694}'),
-            TaskMarkerStyle::Bold,
-        ),
-        (
-            "Bombora",
-            ('\u{2693}', '\u{26F5}', '\u{2638}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Bowerbird",
-            ('\u{2606}', '\u{2601}', '\u{2604}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Mulga",
-            ('\u{2160}', '\u{2161}', '\u{2162}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Mangrove",
-            ('\u{2693}', '\u{26F5}', '\u{2638}'),
-            TaskMarkerStyle::Bold,
-        ),
-        (
-            "Galah",
-            ('\u{2680}', '\u{2681}', '\u{2682}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Magpie",
-            ('\u{203B}', '\u{2301}', '\u{2234}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Brolga",
-            ('\u{273E}', '\u{2742}', '\u{273A}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Wagtail",
-            ('\u{266D}', '\u{266E}', '\u{266F}'),
-            TaskMarkerStyle::Rounded,
-        ),
-        (
-            "Firetail",
-            ('\u{2604}', '\u{2607}', '\u{2739}'),
-            TaskMarkerStyle::Bold,
-        ),
-        (
-            "Cassowary",
-            ('\u{2607}', '\u{2301}', '\u{2733}'),
-            TaskMarkerStyle::Bold,
-        ),
-        (
-            "Paperbark",
-            ('\u{270E}', '\u{2701}', '\u{2709}'),
-            TaskMarkerStyle::Native,
-        ),
-        (
-            "Kite",
-            ('\u{2606}', '\u{2601}', '\u{2604}'),
-            TaskMarkerStyle::Native,
-        ),
+        ("Tawny", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
+        ("Mopoke", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Currawong", ('\u{2657}', '\u{2654}', '\u{2656}')),
+        ("Potoroo", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
+        ("Gumtree", ('\u{1F426}', '\u{1F98B}', '\u{1F343}')),
+        ("Bilby", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Saltpan", ('\u{25B3}', '\u{25C7}', '\u{25CB}')),
+        ("Quokka", ('\u{1F377}', '\u{2615}', '\u{2694}')),
+        ("Bombora", ('\u{2693}', '\u{26F5}', '\u{2638}')),
+        ("Bowerbird", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Mulga", ('\u{2160}', '\u{2161}', '\u{2162}')),
+        ("Mangrove", ('\u{2693}', '\u{26F5}', '\u{2638}')),
+        ("Galah", ('\u{2680}', '\u{2681}', '\u{2682}')),
+        ("Magpie", ('\u{203B}', '\u{2301}', '\u{2234}')),
+        ("Brolga", ('\u{273E}', '\u{2742}', '\u{273A}')),
+        ("Wagtail", ('\u{266D}', '\u{266E}', '\u{266F}')),
+        ("Firetail", ('\u{2604}', '\u{2607}', '\u{2739}')),
+        ("Cassowary", ('\u{2607}', '\u{2301}', '\u{2733}')),
+        ("Paperbark", ('\u{270E}', '\u{2701}', '\u{2709}')),
+        ("Kite", ('\u{2606}', '\u{2601}', '\u{2604}')),
     ];
     assert_eq!(THEMES.len(), expected.len(), "every live world is enrolled");
-    for (t, (name, bullets, task_marker)) in THEMES.iter().zip(expected) {
+    assert_eq!(TASK_MARKERS, ['\u{2610}', '\u{1F5F9}']);
+    for (t, (name, bullets)) in THEMES.iter().zip(expected) {
         assert_eq!(t.name, name, "world roster order drifted");
         assert_eq!(t.bullets, bullets, "{name}: approved bullet triple drifted");
-        assert_eq!(
-            t.task_marker, task_marker,
-            "{name}: approved task pair drifted"
-        );
         assert_bullet_pair_law(t);
     }
     assert_eq!(MULGA.bullet_for_depth(0), '\u{2160}');

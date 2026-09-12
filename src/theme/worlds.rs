@@ -16,7 +16,7 @@ use super::model::{
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PAPER_TOOL, LIST_INDENT_SCALE_PLAIN,
-    LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI, ORNAMENT_SCALE_ORNATE, Ornaments, TaskMarkerStyle,
+    LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI, ORNAMENT_SCALE_ORNATE, Ornaments,
 };
 mod cassowary;
 pub use cassowary::CASSOWARY;
@@ -61,7 +61,6 @@ pub const GUMTREE: Theme = Theme {
     // Bird / butterfly / leaf keep bullets distinct from Riverbank's joined snake divider.
     bullets: ('\u{1F426}', '\u{1F98B}', '\u{1F343}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -111,7 +110,6 @@ pub const POTOROO: Theme = Theme {
     // Chestnut / seedling / butterfly: the approved living-depth sequence.
     bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -160,7 +158,6 @@ pub const BILBY: Theme = Theme {
     // Star / cloud / comet: the approved sky-depth sequence.
     bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -211,7 +208,6 @@ pub const SALTPAN: Theme = Theme {
     // Triangle / diamond / circle: the approved geometric-depth sequence.
     bullets: ('\u{25B3}', '\u{25C7}', '\u{25CB}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -266,7 +262,6 @@ pub const QUOKKA: Theme = Theme {
     // Wine / coffee / swords: the approved tavern-depth sequence.
     bullets: ('\u{1F377}', '\u{2615}', '\u{2694}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -326,7 +321,6 @@ pub const BOMBORA: Theme = Theme {
     // Anchor / sailboat / optically enlarged wheel: the approved nautical sequence.
     bullets: ('\u{2693}', '\u{26F5}', '\u{2638}'),
     bullet_scale: BULLET_SCALE_GARAMOND,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Night"),
@@ -374,7 +368,6 @@ pub const MULGA: Theme = Theme {
     // Roman numerals I / II / III: the approved stroke-depth sequence.
     bullets: ('\u{2160}', '\u{2161}', '\u{2162}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: None,
@@ -423,7 +416,6 @@ pub const TAWNY: Theme = Theme {
     // Chestnut / seedling / butterfly: the approved living-depth sequence.
     bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -472,7 +464,6 @@ pub const MOPOKE: Theme = Theme {
     // Star / cloud / comet: the approved sky-depth sequence.
     bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -523,7 +514,6 @@ pub const BOWERBIRD: Theme = Theme {
     // Star / cloud / comet: the approved sky-depth sequence.
     bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -570,7 +560,6 @@ pub const CURRAWONG: Theme = Theme {
     // Bishop / king / rook: the approved chess-depth sequence.
     bullets: ('\u{2657}', '\u{2654}', '\u{2656}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -630,7 +619,6 @@ pub const MANGROVE: Theme = Theme {
     // Anchor / sailboat / optically enlarged wheel: the approved nautical sequence.
     bullets: ('\u{2693}', '\u{26F5}', '\u{2638}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -697,7 +685,6 @@ pub const GALAH: Theme = Theme {
     // Dice one / two / three: the approved numbered-depth sequence.
     bullets: ('\u{2680}', '\u{2681}', '\u{2682}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -758,7 +745,6 @@ pub const MAGPIE: Theme = Theme {
     // Reference mark / electric arrow / therefore: the approved print sequence.
     bullets: ('\u{203B}', '\u{2301}', '\u{2234}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -823,7 +809,6 @@ pub const BROLGA: Theme = Theme {
     // Three florettes: the approved balanced floral-depth sequence.
     bullets: ('\u{273E}', '\u{2742}', '\u{273A}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Day"),
@@ -873,7 +858,6 @@ pub const WAGTAIL: Theme = Theme {
     // Flat / natural / sharp: the approved notation-depth sequence.
     bullets: ('\u{266D}', '\u{266E}', '\u{266F}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -966,7 +950,6 @@ pub const FIRETAIL: Theme = Theme {
     // Comet / lightning / twelve-point star: the approved energetic sequence.
     bullets: ('\u{2604}', '\u{2607}', '\u{2739}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -1038,7 +1021,6 @@ pub const PAPERBARK: Theme = Theme {
     // Pencil / scissors / envelope: the approved paper-tools sequence.
     bullets: ('\u{270E}', '\u{2701}', '\u{2709}'),
     bullet_scale: BULLET_SCALE_PAPER_TOOL,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -1160,7 +1142,6 @@ pub const KITE: Theme = Theme {
     // Star / cloud / comet: the approved sky-depth sequence.
     bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
-    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,

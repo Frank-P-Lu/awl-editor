@@ -124,9 +124,10 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
 /// cursor gate: when set (the caret is on a DIFFERENT line) a markdown horizontal-rule
 /// line's literal `---` are hidden via [`add_rule_conceal_span`] (leaving the centered
 /// fleuron), a bullet's raw `-`/`*`/`+` via [`add_bullet_conceal_span`] (leaving its
-/// depth glyph), and a task's raw checkbox via [`add_task_conceal_span`] (leaving its
-/// source-authored separator plus state glyph); when clear (the caret is on the line)
-/// the raw markup stays dim + editable and no ornament is drawn. `cursor_byte`
+/// depth glyph), and a task's raw checkbox plus task-only separator via
+/// [`add_task_conceal_span`] (leaving its shared state glyph); when clear (the
+/// caret is on the line) the raw markup stays dim + editable and no ornament is
+/// drawn. `cursor_byte`
 /// (the caret line's first document byte) additionally drives the WYSIWYG conceal
 /// ([`add_wysiwyg_conceal_spans`]) for
 /// its one BLOCK-scoped kind (a fenced code block's marker lines). `selection_touch`
@@ -240,7 +241,14 @@ pub(in crate::render) fn build_line_attrs(
     // drawn.
     if conceal_off_cursor && !line_selected {
         add_rule_conceal_span(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
-        add_bullet_conceal_span(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
+        add_bullet_conceal_span(
+            &mut al,
+            line_text,
+            line_doc_start,
+            &lb,
+            row_lh,
+            ctx.md_spans,
+        );
         add_task_conceal_span(
             &mut al,
             line_text,

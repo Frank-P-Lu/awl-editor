@@ -26,7 +26,6 @@ U+2303	UP ARROWHEAD	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2318	PLACE OF INTEREST SIGN	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2325	OPTION KEY	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+232B	ERASE TO THE LEFT	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
-U+25A2	WHITE SQUARE WITH ROUNDED CORNERS	task-marker	Geometric Shapes U+25A0-U+25FF
 U+25AA	BLACK SMALL SQUARE	chrome	Geometric Shapes U+25A0-U+25FF
 U+25B3	WHITE UP-POINTING TRIANGLE	list-bullet	Geometric Shapes U+25A0-U+25FF
 U+25C6	BLACK DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
@@ -40,7 +39,6 @@ U+2604	COMET	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2606	WHITE STAR	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2607	LIGHTNING	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2610	BALLOT BOX	task-marker	Miscellaneous Symbols U+2600-U+26FF
-U+2611	BALLOT BOX WITH CHECK	task-marker	Miscellaneous Symbols U+2600-U+26FF
 U+2615	HOT BEVERAGE	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2618	SHAMROCK	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2619	REVERSED ROTATED FLORAL HEART BULLET	chrome,symbol-span,ornament-536	Miscellaneous Symbols U+2600-U+26FF
@@ -70,7 +68,6 @@ U+26F5	SAILBOAT	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2701	UPPER BLADE SCISSORS	list-bullet	Dingbats U+2700-U+27BF
 U+2709	ENVELOPE	list-bullet	Dingbats U+2700-U+27BF
 U+270E	LOWER RIGHT PENCIL	list-bullet	Dingbats U+2700-U+27BF
-U+2713	CHECK MARK	task-marker	Dingbats U+2700-U+27BF
 U+2726	BLACK FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2727	WHITE FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2728	SPARKLES	ornament-536	Dingbats U+2700-U+27BF
