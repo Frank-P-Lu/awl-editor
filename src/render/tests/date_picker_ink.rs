@@ -136,6 +136,8 @@ fn capture_date_picker(
         git: Vec::new(),
         selected_index: selected,
         hint: crate::overlay::OverlayKind::Date.hint().to_string(),
+        files_location: None,
+        files_query_focused: false,
         browse_dir: None,
         return_to: None,
         spell_target: None,

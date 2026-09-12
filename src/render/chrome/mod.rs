@@ -100,6 +100,11 @@ fn set_float_quads(
 /// Named so a reader can size a term against the ring's own width without
 /// re-deriving it from the literal below.
 pub(in crate::render) const FLOAT_BORDER_RING_PX: Physical = Physical(1.0);
+/// Conservative physical-pixel guard inside a card silhouette. The fill shader
+/// antialiases its edge over roughly one pixel; two pixels keep pixel laws off
+/// that intentionally fractional boundary without weakening their interior.
+#[cfg(test)]
+pub(in crate::render) const CARD_SILHOUETTE_AA_GUARD_PX: Physical = Physical(2.0);
 
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads_rects(
@@ -385,9 +390,9 @@ impl OverlayGeom {
 /// geometry family that constructs a hint calls this ONE owner rather than
 /// re-deriving "one more row when there is a hint" three times; `push_overlay_hint_spans`
 /// is the matching DRAW-side owner, so the reserved row and the drawn row can't drift
-/// apart. Deliberately NOT run through [`TextPipeline::overlay_footer_reclaim`] —
-/// unlike the hint's own line, this is a genuine full blank row with no dead
-/// space under it to reclaim, exactly like the footer's own separator.
+/// apart. Files keeps this as a genuine full blank row. Other picker hints draw
+/// a compact beat and let [`TextPipeline::overlay_footer_reclaim`] recover the
+/// remainder, while preserving the one-row accounting on both sides.
 pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
     hint_rows
 }
@@ -437,6 +442,8 @@ mod overlay_selection;
 #[cfg(test)]
 mod overlay_selection_probe;
 mod overlay_shape;
+#[cfg(test)]
+pub(in crate::render) use overlay_shape::files_location_fit_budgets;
 mod placard_placement;
 use placard_placement::{apply_placard_placement, placard_origin};
 mod asset_preview;

@@ -90,6 +90,28 @@ fn directory_elision_keeps_path_identity_and_the_final_folder() {
 }
 
 #[test]
+fn prepared_directory_elision_matches_the_one_shot_owner_at_every_budget() {
+    let _guard = crate::testlock::serial();
+    for path in [
+        "Writing",
+        "Writing/notes",
+        "Writing/research/chapters/field-notes/interviews/september",
+        "Writing/research/",
+        "文書/調査/九月",
+    ] {
+        let prepared = crate::overlay::PreparedDirectoryPath::new(path);
+        assert_eq!(prepared.len(), path.chars().count());
+        for budget in 0..=prepared.len() + 2 {
+            assert_eq!(
+                prepared.elide(budget),
+                elide_directory_path(path, budget),
+                "{path:?} at {budget} chars"
+            );
+        }
+    }
+}
+
+#[test]
 fn browse_dir_flags_directories() {
     // One level: a folder (docs) and a file (README.md).
     let corpus = vec!["docs".to_string(), "README.md".to_string()];

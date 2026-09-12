@@ -126,7 +126,7 @@ impl TextPipeline {
     /// under its own line budget; it owns no policy of its own.
     fn theme_card_placement(&self, header_rows: usize, margin: f32) -> (usize, f32) {
         // The QUERY line and the lens STRIP each own a header box (so
-        // `strip_band()`/`docked_facet_band()` and every `line_i == 1` reader
+        // `strip_band()`/`docked_facet_band()` and every last-header-line reader
         // — the hit-test, the tab-mark spans, the clip carve — keep a strip
         // line to read), but under `FacetStyle::DockedTab` the strip draws
         // OUTSIDE the card (`docked_facet_band`), so its box charges no `lh`
@@ -143,7 +143,7 @@ impl TextPipeline {
     /// right-anchored card, the wide `CARD_MAX_W_FACETED` cap otherwise), its
     /// fill regime, and the text column the two shapers read. Split out of
     /// `theme_overlay_geometry` purely to keep it under its own line budget.
-    fn theme_card_box(&self, width: u32) -> (f32, f32, bool, f32, f32) {
+    pub(super) fn theme_card_box(&self, width: u32) -> (f32, f32, bool, f32, f32) {
         let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
         let card_narrow =
@@ -168,7 +168,10 @@ impl TextPipeline {
         // so a hint cannot sit flush against the last row in only one family.
         let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
             self.overlay_chrome_inventory(n_items);
-        let header_rows = 2;
+        let (card_x, card_w, card_narrow, hpad, text_w) = self.theme_card_box(width);
+        let header_rows = 2
+            + usize::from(self.overlay_files_split_header)
+            + usize::from(self.overlay_files_split_actions);
         let (billed_header_rows, card_y) = self.theme_card_placement(header_rows, margin);
         let header_gap = self.overlay_header_gap();
         let total_headers = full_plan.len() - n_items;
@@ -215,7 +218,6 @@ impl TextPipeline {
         // elided (the zoom-blind card bug).
         // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
-        let (card_x, card_w, card_narrow, hpad, text_w) = self.theme_card_box(width);
         hint = super::hint_yielding_explanation(&hint, text_w / self.metrics.dpi.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
@@ -342,7 +344,7 @@ impl TextPipeline {
             trailing,
             elide,
         );
-        let strip_w = self.theme_strip_px();
+        let strip_w = self.theme_strip_px(geom);
         if strip_w > geom.text_w {
             strip_scale = (geom.text_w / strip_w).max(0.5);
             self.shape_theme_spans(
@@ -430,7 +432,7 @@ impl TextPipeline {
             if dock_seat.is_some() {
                 span_of(&self.docked_facet_buffer, 0, r)
             } else {
-                span_of(&self.panel_buffer, 1, r)
+                span_of(&self.panel_buffer, geom.header_rows.saturating_sub(1), r)
             }
         };
         // The absolute canvas origin `mark_span`'s baseline is relative to:
@@ -666,14 +668,58 @@ impl TextPipeline {
             })
             .collect();
 
-        let title_prefix = self.overlay_title_prefix(geom);
-        let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
-        if title_prefix.is_empty() {
-            spans.push((sigil, mk(muted)));
+        let name_fs = self.overlay_metrics().font_size
+            * if self.overlay_files_surface && geom.card_narrow {
+                0.85
+            } else {
+                1.0
+            };
+        let header_lh = plan
+            .query_band()
+            .map_or_else(|| self.overlay_lh(), |field| field.height);
+        let title_prefix = if self.overlay_files_surface {
+            let fitted = self.fit_files_title_prefix(geom, name_fs, header_lh);
+            self.overlay_files_fitted_title_prefix = fitted.clone();
+            fitted
         } else {
-            spans.push((title_prefix.as_str(), chrome_attrs().color(muted)));
+            self.overlay_raw_title_prefix(geom)
+        };
+        let head = |c| {
+            let attrs = mk(c);
+            if self.overlay_files_surface {
+                attrs.metrics(GlyphMetrics::new(name_fs, header_lh))
+            } else {
+                attrs
+            }
+        };
+        let head_chrome = |c| {
+            let attrs = chrome_attrs().color(c);
+            if self.overlay_files_surface {
+                attrs.metrics(GlyphMetrics::new(name_fs, header_lh))
+            } else {
+                attrs
+            }
+        };
+        let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
+        let separated_actions = self
+            .files_actions_are_split(geom)
+            .then(|| self.files_action_suffix());
+        if self.files_query_is_split(geom) {
+            spans.push(("Search: ", head(muted)));
+            spans.push((self.overlay_query.as_str(), head(ink)));
+            spans.push(("\n", head(muted)));
+            spans.push((title_prefix.as_str(), head_chrome(muted)));
+            if let Some(actions) = separated_actions.as_deref() {
+                spans.push(("\n", head(muted)));
+                spans.push((actions, head_chrome(muted)));
+            }
+        } else if title_prefix.is_empty() {
+            spans.push((sigil, head(muted)));
+            spans.push((self.overlay_query.as_str(), head(ink)));
+        } else {
+            spans.push((title_prefix.as_str(), head_chrome(muted)));
+            spans.push((self.overlay_query.as_str(), head(ink)));
         }
-        spans.push((self.overlay_query.as_str(), mk(ink)));
         // Strip line: active label in full ink, others muted, separators + the "\n"
         // faint. One ordered pass over `strip_s` so the spans tile the line in byte
         // order (rich-text concatenates spans in push order). The label/separator
@@ -704,10 +750,9 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         // The BELOW-edge cue, directly under the last drawn line of
-        // `geom.plan` (or the empty-state notice, sharing that band —
-        // `content_rows`'s own ordering: rows, then the notice, then this;
-        // mutually exclusive in practice, since the reservation only ever
-        // fires while `n_items > 0`), ahead of the hint/footer that may
+        // `geom.plan` (or the level-status notice, which Files may
+        // intentionally show after existing folder rows — `content_rows`'s
+        // own ordering: rows, then the notice, then this), ahead of the hint/footer that may
         // follow it. Same reservation-vs-content split as above.
         let cue_below_text = geom.cue_below.map(|n| super::edge_cue_text(false, n));
         if geom.cue_reserved {
@@ -739,10 +784,11 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
     }
 
-    fn theme_strip_px(&self) -> f32 {
+    fn theme_strip_px(&self, geom: &OverlayGeom) -> f32 {
+        let strip_line = geom.header_rows.saturating_sub(1);
         let mut w = 0.0f32;
         for run in self.panel_buffer.layout_runs() {
-            if run.line_i == 1 {
+            if run.line_i == strip_line {
                 w = w.max(run.line_w);
             }
         }

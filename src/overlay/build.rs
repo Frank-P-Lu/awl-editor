@@ -369,6 +369,7 @@ pub fn browse_level(
 
 pub(in crate::overlay) mod recent;
 mod rowdisplay;
+pub(crate) use rowdisplay::PreparedDirectoryPath;
 pub(in crate::overlay) use rowdisplay::row_display;
 pub use rowdisplay::{
     HERE_ACCEPT, HERE_LABEL, elide_directory_path, elide_path, here_folder_label, row_split,

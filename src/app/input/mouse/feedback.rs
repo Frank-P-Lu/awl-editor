@@ -15,7 +15,8 @@ impl App {
             overlay_open && gpu.pipeline.overlay_row_at(px, py).is_some();
         let over_clickable_lens = overlay_open
             && (gpu.pipeline.overlay_lens_at(px, py).is_some()
-                || gpu.pipeline.workspace_rail_at(px, py).is_some());
+                || gpu.pipeline.workspace_rail_at(px, py).is_some()
+                || gpu.pipeline.files_surface_action_at(px, py).is_some());
         let over_table_dims_cell =
             overlay_open && gpu.pipeline.table_dims_cell_at(px, py).is_some();
         let over_query_input = overlay_open && gpu.pipeline.over_overlay_query(px, py);

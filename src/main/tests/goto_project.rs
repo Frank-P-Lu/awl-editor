@@ -172,11 +172,11 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "junk .git hidden: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s == "plain/  ›"),
+            shown.iter().any(|s| s == "plain  ›"),
             "plain shown: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s == "repo/  ›"),
+            shown.iter().any(|s| s == "repo  ›"),
             "repo shown: {shown:?}"
         );
         assert!(
@@ -209,7 +209,7 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         );
         let revealed = ov.item_strings();
         assert!(
-            revealed.iter().any(|s| s == ".claude/  ›"),
+            revealed.iter().any(|s| s == ".claude  ›"),
             "revealed: {revealed:?}"
         );
         assert!(

@@ -204,6 +204,10 @@ impl App {
             // Shared with capture, so the two doors cannot disagree.
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
             overlay_retains_room: ov.is_some_and(|o| o.kind.retains_readable_room()),
+            overlay_files_surface: ov.is_some_and(|o| o.files_mode),
+            overlay_files_location: ov
+                .and_then(crate::overlay::OverlayState::files_location)
+                .unwrap_or_default(),
             overlay_theme_picker: ov.is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
             overlay_theme_chrome: ov.and_then(|o| o.audition.theme_original()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
@@ -212,7 +216,10 @@ impl App {
             // question here goes through. `true` with no card up: nothing draws
             // a query caret then, so the inert answer is the one that leaves
             // every ordinary frame byte-identical.
-            overlay_query_field: ov.is_none_or(|o| o.kind.offers_query()),
+            overlay_query_field: ov.is_none_or(|o| {
+                o.kind.offers_query()
+                    && (!o.files_mode || o.files_focus == crate::overlay::FilesFocus::Query)
+            }),
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
             overlay_query_placeholder: ov
                 .and_then(|o| o.kind.field_placeholder().map(str::to_string)),

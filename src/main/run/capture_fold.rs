@@ -231,6 +231,8 @@ fn overlay_capture_info_optional(
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: journey.foot_hint(),
+        files_location: ov.files_location(),
+        files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
         browse_dir: ov.browse_dir.clone(),
         return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,

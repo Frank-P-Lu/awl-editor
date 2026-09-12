@@ -1,6 +1,36 @@
 use super::overlay_timeline::right_bind_lines;
 use super::*;
 
+const FILES_LOCATION_FIT_STEPS: usize = 6;
+
+/// A fixed-size, exponentially shrinking ladder from the full location to a
+/// four-character identity floor. Besides bounding shaping to nine probes, the
+/// geometric series plus one semantic `…/leaf` rung bounds all candidate
+/// materialization to less than twice the source length plus that leaf.
+pub(in crate::render) fn files_location_fit_budgets(
+    len: usize,
+    leaf_identity: Option<usize>,
+) -> Vec<usize> {
+    let floor = len.min(4);
+    let mut budgets = Vec::with_capacity(FILES_LOCATION_FIT_STEPS + 2);
+    for step in 0..=FILES_LOCATION_FIT_STEPS {
+        let budget = (len >> step).max(floor);
+        if budgets.last().copied() != Some(budget) {
+            budgets.push(budget);
+        }
+    }
+    if budgets.last().copied() != Some(floor) {
+        budgets.push(floor);
+    }
+    if let Some(identity) = leaf_identity
+        && !budgets.contains(&identity)
+    {
+        let at = budgets.partition_point(|budget| *budget > identity);
+        budgets.insert(at, identity);
+    }
+    budgets
+}
+
 mod names;
 
 // `right_bind_lines` preserves the secondary buffer's vertical contract:
@@ -242,7 +272,10 @@ impl TextPipeline {
     ) -> Option<(f32, f32, f32, f32)> {
         if geom.header_rows == 0
             || self.overlay_title.is_empty()
-            || !placard_style_applies(geom, self.overlay_retains_room)
+            || !placard_style_applies(
+                geom,
+                self.overlay_retains_room || self.overlay_files_surface,
+            )
         {
             return None;
         }
@@ -615,13 +648,187 @@ impl TextPipeline {
         true
     }
 
-    pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
-        let placard_drawn = placard_style_applies(geom, self.overlay_retains_room);
+    pub(super) fn overlay_raw_title_prefix(&self, geom: &OverlayGeom) -> String {
+        let placard_drawn = placard_style_applies(
+            geom,
+            self.overlay_retains_room || self.overlay_files_surface,
+        );
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
+        } else if self.overlay_files_surface {
+            format!("{}: ", self.overlay_title)
         } else {
             format!("{} › ", self.overlay_title)
         }
+    }
+
+    pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
+        if self.files_query_is_split(geom) {
+            return "Search: ".to_string();
+        }
+        if self.overlay_files_surface && !self.overlay_files_fitted_title_prefix.is_empty() {
+            self.overlay_files_fitted_title_prefix.clone()
+        } else {
+            self.overlay_raw_title_prefix(geom)
+        }
+    }
+
+    pub(super) fn files_query_is_split(&self, geom: &OverlayGeom) -> bool {
+        self.overlay_files_surface && geom.theme && self.overlay_files_split_header
+    }
+
+    pub(super) fn files_actions_are_split(&self, geom: &OverlayGeom) -> bool {
+        self.files_query_is_split(geom) && self.overlay_files_split_actions
+    }
+
+    pub(super) fn files_action_suffix(&self) -> String {
+        let suffix = self
+            .overlay_title
+            .strip_prefix(&self.overlay_files_location)
+            .unwrap_or(self.overlay_title.as_str());
+        suffix
+            .strip_suffix("  Search")
+            .unwrap_or(suffix)
+            .trim()
+            .to_string()
+    }
+
+    /// Decide the compact Files head from measured ink before geometry bills
+    /// its extra rows. The first probe decides whether query needs its own row;
+    /// once split, a second probe decides whether the semantic location plus
+    /// Up/Change-folder actions need separate rows too.
+    pub(in crate::render) fn resolve_files_header_split(&mut self, width: u32) {
+        self.overlay_files_split_header = false;
+        self.overlay_files_split_actions = false;
+        self.overlay_files_split_measure_attempts = 0;
+        if !self.overlay_files_surface || self.overlay_lens.is_empty() {
+            return;
+        }
+        let (_, _, card_narrow, _, text_w) = self.theme_card_box(width);
+        let name_fs = self.overlay_metrics().font_size * if card_narrow { 0.85 } else { 1.0 };
+        let location = self.overlay_files_location.clone();
+        let prepared = crate::overlay::PreparedDirectoryPath::new(&location);
+        let semantic_floor = prepared
+            .leaf_identity_budget()
+            .unwrap_or_else(|| prepared.len().min(4));
+        let shown = prepared.elide(semantic_floor);
+        let suffix = self
+            .overlay_title
+            .strip_prefix(&location)
+            .unwrap_or(self.overlay_title.as_str())
+            .to_string();
+        let prefix = format!("{shown}{suffix}: ");
+        let query = if self.overlay_query.is_empty() {
+            self.overlay_query_placeholder.clone().unwrap_or_default()
+        } else {
+            self.overlay_query.clone()
+        };
+        self.overlay_files_split_measure_attempts = 1;
+        let line_w = self.measure_files_header_px(&prefix, &query, name_fs, self.overlay_lh());
+        self.overlay_files_split_header = line_w + self.metrics.caret_w + 0.5 > text_w;
+        if self.overlay_files_split_header {
+            let action_line = format!("{shown}  {}", self.files_action_suffix());
+            self.overlay_files_split_measure_attempts += 1;
+            self.overlay_files_split_actions =
+                self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) > text_w;
+        }
+    }
+
+    /// Fit only Files' location cell. The three header actions and the query
+    /// remain verbatim; a long root or deep browse path yields a measured,
+    /// middle-elided location rather than clipping controls or the caret.
+    pub(super) fn fit_files_title_prefix(
+        &mut self,
+        geom: &OverlayGeom,
+        name_fs: f32,
+        header_lh: f32,
+    ) -> String {
+        let location = self.overlay_files_location.clone();
+        let prepared = crate::overlay::PreparedDirectoryPath::new(&location);
+        let mut suffix = self
+            .overlay_title
+            .strip_prefix(&location)
+            .unwrap_or(self.overlay_title.as_str())
+            .to_string();
+        let split = self.files_query_is_split(geom);
+        if split {
+            suffix = suffix
+                .strip_suffix("  Search")
+                .unwrap_or(&suffix)
+                .to_string();
+            if self.files_actions_are_split(geom) {
+                suffix.clear();
+            }
+        }
+        let query = if self.overlay_query.is_empty() {
+            self.overlay_query_placeholder.clone().unwrap_or_default()
+        } else {
+            self.overlay_query.clone()
+        };
+        let budgets = files_location_fit_budgets(prepared.len(), prepared.leaf_identity_budget());
+        self.overlay_files_title_fit_attempts = 0;
+        for budget in budgets.iter().copied() {
+            let shown = prepared.elide(budget);
+            let candidate = if split {
+                format!("{shown}{suffix}")
+            } else {
+                format!("{shown}{suffix}: ")
+            };
+            self.overlay_files_title_fit_attempts += 1;
+            let measured_query = if split { "" } else { query.as_str() };
+            let reserve = if split {
+                0.0
+            } else {
+                self.metrics.caret_w + 0.5
+            };
+            if self.measure_files_header_px(&candidate, measured_query, name_fs, header_lh)
+                <= geom.text_w - reserve
+            {
+                return candidate;
+            }
+        }
+        let shown = prepared.elide(budgets.last().copied().unwrap_or_default());
+        if split {
+            format!("{shown}{suffix}")
+        } else {
+            format!("{shown}{suffix}: ")
+        }
+    }
+
+    fn measure_files_header_px(
+        &mut self,
+        prefix: &str,
+        query: &str,
+        name_fs: f32,
+        header_lh: f32,
+    ) -> f32 {
+        let metrics = GlyphMetrics::new(name_fs, header_lh);
+        self.workspace_hint_measure_buffer
+            .set_metrics(&mut self.font_system, metrics);
+        self.workspace_hint_measure_buffer
+            .set_size(&mut self.font_system, None, None);
+        self.workspace_hint_measure_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
+        let ink = crate::render::overlay_chrome_theme()
+            .base_content
+            .to_glyphon();
+        let muted = crate::render::overlay_chrome_theme().muted.to_glyphon();
+        let attrs = overlay_panel_attrs().color(ink).metrics(metrics);
+        self.workspace_hint_measure_buffer.set_rich_text(
+            &mut self.font_system,
+            [
+                (prefix, chrome_attrs().color(muted).metrics(metrics)),
+                (query, attrs.clone()),
+            ],
+            &attrs,
+            Shaping::Advanced,
+            None,
+        );
+        self.workspace_hint_measure_buffer
+            .shape_until_scroll(&mut self.font_system, false);
+        self.workspace_hint_measure_buffer
+            .layout_runs()
+            .fold(0.0_f32, |width, run| width.max(run.line_w))
     }
 
     pub(super) fn push_overlay_hint_spans<'a>(
@@ -650,7 +857,9 @@ impl TextPipeline {
         // The blank separator row `overlay_hint_gap_rows` reserves — the
         // row-count owner every geometry family budgets this against, so the
         // reserved row and this drawn one can't drift apart. Its own
-        // (`overlay_hint_gap_h`, smaller still than the hint's own row) height:
+        // (`overlay_hint_gap_h`, smaller still than the hint's own row) height
+        // for ordinary hints. Files retains the full row because its destination
+        // action is not another candidate:
         // a glyph-free line still needs a real glyph to carry custom metrics
         // (`push_beat_spacer`'s own trick for the query beat), so this is a
         // single invisible space, not a bare second newline.
@@ -658,11 +867,16 @@ impl TextPipeline {
             if content_before {
                 spans.push(("\n", base.clone().color(muted)));
             }
+            let gap_h = if self.overlay_files_surface {
+                self.overlay_lh()
+            } else {
+                self.overlay_hint_gap_h()
+            };
             spans.push((
                 " ",
                 base.clone()
                     .color(muted)
-                    .metrics(GlyphMetrics::new(hint_fs, self.overlay_hint_gap_h())),
+                    .metrics(GlyphMetrics::new(hint_fs, gap_h)),
             ));
         }
         if gap_rows > 0 || content_before {
@@ -686,15 +900,26 @@ impl TextPipeline {
         let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
-        let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
-        let name_fs = self.overlay_metrics().font_size;
+        let name_fs = self.overlay_metrics().font_size
+            * if self.overlay_files_surface && geom.card_narrow {
+                0.85
+            } else {
+                1.0
+            };
         // The field's own PLANNED box height, read rather than re-summed.
         let header_lh = plan
             .query_band()
             .map_or_else(|| self.overlay_lh(), |field| field.height);
+        let title_prefix = if self.overlay_files_surface {
+            let fitted = self.fit_files_title_prefix(geom, name_fs, header_lh);
+            self.overlay_files_fitted_title_prefix = fitted.clone();
+            fitted
+        } else {
+            self.overlay_raw_title_prefix(geom)
+        };
         let hk = |c| {
-            if geom.header_gap > 0.0 {
+            if geom.header_gap > 0.0 || self.overlay_files_surface {
                 mk(c).metrics(GlyphMetrics::new(name_fs, header_lh))
             } else {
                 mk(c)
@@ -702,7 +927,7 @@ impl TextPipeline {
         };
         let hkc = |c| {
             let a = chrome_attrs().color(c);
-            if geom.header_gap > 0.0 {
+            if geom.header_gap > 0.0 || self.overlay_files_surface {
                 a.metrics(GlyphMetrics::new(name_fs, header_lh))
             } else {
                 a
@@ -760,8 +985,9 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         // The BELOW-EDGE cue sits directly under the last candidate row (or
-        // the empty-state notice, sharing that band — `content_rows`'s own
-        // ordering: rows, then the notice, then this), ahead of wherever the
+        // the level-status notice, which Files may intentionally show after
+        // existing folder rows — `content_rows`'s own ordering: rows, then the
+        // notice, then this), ahead of wherever the
         // hint/footer starts. Same reservation-vs-content split as above:
         // the LINE exists whenever `geom.cue_reserved`, blank when this
         // edge's own `cue_below` has nothing to say at the current scroll.

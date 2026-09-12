@@ -405,6 +405,14 @@ impl TextPipeline {
         }
         self.overlay_crisp = view.overlay_crisp;
         self.overlay_retains_room = view.overlay_retains_room;
+        self.overlay_files_surface = view.overlay_files_surface;
+        self.overlay_files_location = view.overlay_files_location.clone();
+        self.overlay_files_fitted_title_prefix.clear();
+        self.overlay_files_split_header = false;
+        self.overlay_files_split_actions = false;
+        self.overlay_files_split_measure_attempts = 0;
+        self.overlay_files_title_fit_attempts = 0;
+        self.overlay_files_hint_fit_attempts = 0;
         self.overlay_theme_picker = view.overlay_theme_picker;
         self.overlay_theme_chrome = view.overlay_theme_chrome;
         match (view.overlay_theme_chrome, view.overlay_theme_picker) {

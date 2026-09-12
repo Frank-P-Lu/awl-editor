@@ -9,7 +9,7 @@ use crate::overlay::OverlayKind;
 use crate::render::{self, TextPipeline, ViewState};
 
 use super::gpu::{headless_device, offscreen_target, read_frame};
-use super::opts::{CaptureOpts, ProjectInfo};
+use super::opts::{CaptureOpts, OverlayInfo, ProjectInfo};
 use super::sidecar::write_sidecar;
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, FORMAT};
 
@@ -199,6 +199,18 @@ async fn capture_async(
 /// (settle / motion inject / the film's free-running spring).
 ///
 /// The returned scroll is always normalized against shaped variable-row geometry.
+pub(super) fn files_overlay_projection(overlay: Option<&OverlayInfo>) -> (bool, String) {
+    let active = overlay.is_some_and(|overlay| {
+        OverlayKind::from_mode(overlay.mode) == Some(OverlayKind::Goto)
+            && overlay.lens == Some("files")
+    });
+    let location = active
+        .then(|| overlay.and_then(|overlay| overlay.files_location.clone()))
+        .flatten()
+        .unwrap_or_default();
+    (active, location)
+}
+
 pub(super) fn settled_viewstate(
     pipeline: &mut TextPipeline,
     buffer: &Buffer,
@@ -312,6 +324,8 @@ pub(super) fn settled_viewstate(
         .and_then(|o| OverlayKind::from_mode(o.mode));
     vstate.overlay_crisp = overlay_kind.is_some_and(OverlayKind::keeps_backdrop_crisp);
     vstate.overlay_retains_room = overlay_kind.is_some_and(OverlayKind::retains_readable_room);
+    (vstate.overlay_files_surface, vstate.overlay_files_location) =
+        files_overlay_projection(opts.overlay.as_ref());
     vstate.overlay_theme_picker = overlay_kind == Some(OverlayKind::Theme);
     vstate.overlay_query = opts
         .overlay
@@ -459,11 +473,11 @@ pub(super) fn settled_viewstate(
     // resolved through the same mode->kind door the shape above uses, never the
     // mode's own spelling, so a capture and the live App cannot answer it in two
     // vocabularies.
-    vstate.overlay_query_field = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .is_none_or(crate::overlay::OverlayKind::offers_query);
+    vstate.overlay_query_field = opts.overlay.as_ref().is_none_or(|o| {
+        crate::overlay::OverlayKind::from_mode(o.mode)
+            .is_none_or(crate::overlay::OverlayKind::offers_query)
+            && (!vstate.overlay_files_surface || o.files_query_focused)
+    });
     vstate.overlay_detail_focus = opts
         .overlay
         .as_ref()

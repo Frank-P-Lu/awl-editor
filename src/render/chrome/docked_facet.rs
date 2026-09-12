@@ -38,16 +38,16 @@ impl TextPipeline {
     /// breathing room on both sides of the ink rather than a symmetric split
     /// of a box that starts before the plate the reader actually sees.
     ///
-    /// `None` off [`split_seam_active`]'s own gate (a flat card, a workspace,
-    /// `DockedTab`, `Unified`, or a `Bars`/`Diagonal`/`Ruled` world with no
-    /// plate to seam) — every one of those keeps reading `strip_band()`
-    /// directly, unmoved.
+    /// `None` for Files' single opaque surface, or off
+    /// [`split_seam_active`]'s own gate (a flat card, a workspace, `DockedTab`,
+    /// `Unified`, or a `Bars`/`Diagonal`/`Ruled` world with no plate to seam) —
+    /// every one of those keeps reading `strip_band()` directly, unmoved.
     pub(in crate::render) fn floating_strip_band(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<crate::render::plan::PlannedHeader> {
-        if !split_seam_active(geom) {
+        if self.overlay_files_surface || !split_seam_active(geom) {
             return None;
         }
         let strip = plan.strip_band()?;
@@ -100,7 +100,8 @@ impl TextPipeline {
         // card) and a `Split` composition's own seam (past the lower surface's
         // rim) — never both on the same world (`floating_strip_band` excludes
         // `DockedTab` by construction), so one shaped pass covers either.
-        let relocated = facet_strip_is_docked() || split_seam_active(geom);
+        let relocated =
+            facet_strip_is_docked() || (!self.overlay_files_surface && split_seam_active(geom));
         let metrics = self.overlay_metrics();
         self.docked_facet_buffer
             .set_metrics(&mut self.font_system, metrics);
@@ -191,7 +192,7 @@ impl TextPipeline {
         for run in self
             .panel_buffer
             .layout_runs()
-            .filter(|run| run.line_i == 1)
+            .filter(|run| run.line_i == geom.header_rows.saturating_sub(1))
         {
             let mut text = String::from("\n");
             let mut ranges = Vec::new();

@@ -40,6 +40,7 @@ impl<'a> ReplayFilesBuilder<'a> {
     }
 
     fn attach_level(&self, mut overlay: OverlayState, rel: Option<&str>) -> OverlayState {
+        overlay.set_files_root_name(crate::project::folder_name(self.root));
         let prefix = rel
             .filter(|path| !path.is_empty())
             .map(|path| format!("{path}/"));

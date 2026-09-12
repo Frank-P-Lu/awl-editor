@@ -89,8 +89,8 @@ impl TextPipeline {
     ) -> Option<Vec<PanelBand>> {
         let slant = crate::render::overlay_slant();
         let cluster = self.diagonal_cluster;
-        let split_row_lane =
-            geom.row_text_left() != geom.text_left || geom.row_text_w() != geom.text_w;
+        let split_row_lane = !self.overlay_files_surface
+            && (geom.row_text_left() != geom.text_left || geom.row_text_w() != geom.text_w);
         if slant.is_none() && cluster.is_none() && !split_row_lane {
             return None;
         }

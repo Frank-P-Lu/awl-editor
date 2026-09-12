@@ -93,6 +93,9 @@ pub struct OverlayState {
     /// the compatibility shape used by the heading/line APIs.
     pub files_mode: bool,
     pub files_focus: FilesFocus,
+    /// The active root's human name, used by the Files header and destination
+    /// footer. Empty is the inert value for non-Files and bare test cards.
+    pub files_root_name: String,
     /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
     /// know this -- only the summon did -- so `title()` reads it to name the
     /// errand ("move welcome.md") instead of the generic kind title, and it
@@ -220,6 +223,7 @@ impl OverlayState {
             goto_outline_only: false,
             files_mode: false,
             files_focus: FilesFocus::Query,
+            files_root_name: String::new(),
             move_filename: None,
             subject_name: None,
             search_root: None,
@@ -270,6 +274,7 @@ impl OverlayState {
         self.goto_outline_only = prev.goto_outline_only;
         self.files_mode = prev.files_mode;
         self.files_focus = prev.files_focus;
+        self.files_root_name = prev.files_root_name.clone();
     }
 
     pub fn accepts(&self) -> Vec<&str> {
@@ -706,6 +711,9 @@ impl OverlayState {
         if let Some(cap) = &self.capture {
             return cap.prompt();
         }
+        if let Some(hint) = self.files_hint() {
+            return hint;
+        }
         if !self.notice.is_empty() {
             return self.notice.clone();
         }
@@ -751,9 +759,6 @@ impl OverlayState {
                 "type to filter   ↵ {}   → open   ← up",
                 route.commit_label()
             );
-        }
-        if let Some(hint) = self.files_hint() {
-            return hint;
         }
         self.kind.hint()
     }

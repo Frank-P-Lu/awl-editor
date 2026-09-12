@@ -10,6 +10,50 @@ use super::*;
 use crate::fs::FileSystem;
 use std::sync::Arc;
 
+#[cfg(target_os = "macos")]
+#[test]
+fn real_select_all_menu_action_edits_the_files_query_not_the_document() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(root.join("alpha.md"), "parked prose"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(Some(root.join("alpha.md")), root, Config::empty());
+        let mut files = crate::overlay::OverlayState::new_files(
+            vec!["alpha.md".into()],
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        files.set_query_text("alpha");
+        app.workspace_state.install_overlay_for_test(files);
+        let before = app.document.buffer().text().to_string();
+        let exit = crate::app::schedule::RecordingExit::default();
+
+        app.handle_menu_event("awl.select_all".to_string(), &exit);
+        assert_eq!(
+            app.workspace_state
+                .overlay()
+                .unwrap()
+                .query
+                .selection_range(),
+            Some((0, 5))
+        );
+        app.apply(
+            Action::DeleteBackward,
+            false,
+            &exit,
+            crate::stats::Door::Chord,
+        );
+
+        assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "");
+        assert_eq!(app.document.buffer().text(), before);
+    });
+}
+
 #[test]
 fn files_menu_action_creates_in_the_browsed_directory_without_switching_root() {
     let _guard = crate::testlock::serial();
