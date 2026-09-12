@@ -8,6 +8,7 @@
 
 #[path = "buffers_sidecar.rs"]
 pub(super) mod buffers_sidecar;
+mod fold;
 
 /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block: how many
 /// buffers a `--keys` replay left open (the active one + anything still
@@ -456,50 +457,4 @@ pub struct CaptureOpts {
     /// `false` on every single-buffer capture, which is what keeps the gallery
     /// byte-identical.
     pub set_wants_outline_rail: bool,
-}
-
-impl CaptureOpts {
-    /// Fold the driver's WORKING-SET facts into the capture's view state: the
-    /// persistent `changed elsewhere` affordance, the working set the bottom
-    /// identity widens into, the identity's own folder LABEL — the active file's
-    /// own remembered root, never the ambient project `base_viewstate` filled in
-    /// from `self.project` — and the outline rail's set-level reservation, which
-    /// places the writing COLUMN rather than anything in the margin.
-    ///
-    /// One door for all of them because they are one failure mode: a fact the
-    /// driving editor holds about the buffers BEHIND the one being rendered,
-    /// which this path would otherwise silently drop.
-    pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
-        view.set_wants_outline_rail = self.set_wants_outline_rail;
-        view.document_active = !self.document_absent;
-        if self.document_absent {
-            view.gutter_name.clear();
-            view.gutter_project.clear();
-            view.gutter_files.clear();
-            // The no-document start surface's own folder-naming line —
-            // `self.project` (the AMBIENT `--root`-derived block, unlike
-            // `gutter_project_root` above) is the right source here: with no
-            // active file, there is no per-file remembered root to prefer
-            // over it. `ProjectInfo::name` is already the folder's last path
-            // segment (`crate::project::folder_name`), so this never leaks
-            // more of the filesystem than that one component.
-            view.start_folder = self.project.as_ref().map(|p| p.name.clone());
-        } else {
-            view.gutter_files.clone_from(&self.working_set);
-            if let Some(root) = &self.gutter_project_root {
-                view.gutter_project = crate::project::folder_name(root);
-            }
-        }
-        view.gutter_changed = self.gutter_changed;
-    }
-
-    /// The `semantic` sidecar field: the live-App semantic tree serialized
-    /// verbatim, or JSON `null`. Lives beside the field rather than in the
-    /// writer so the one place that knows the field also knows its absence.
-    pub(super) fn semantic_json(&self) -> String {
-        self.semantic
-            .as_ref()
-            .map(|snapshot| serde_json::to_string(snapshot).expect("semantic snapshot serializes"))
-            .unwrap_or_else(|| "null".to_string())
-    }
 }

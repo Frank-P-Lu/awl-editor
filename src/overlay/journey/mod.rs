@@ -61,6 +61,7 @@
 use super::{AcceptDisposition, OverlayKind, OverlayState};
 
 mod parked;
+mod settings_focus;
 mod table;
 #[cfg(test)]
 mod tests;
@@ -68,9 +69,7 @@ mod tests;
 pub use parked::{Audition, Bind, Parked, Resume};
 pub use table::{Beneath, Event, Landing, State, Surface, landing_of};
 
-/// Which LADDER RUNG a journey occupies — the one fact
-/// `app::workspace::WorkspaceState::layer` reads out of the lifecycle, so the
-/// ladder never re-derives the phase.
+/// The lifecycle rung read by `WorkspaceState::layer`, never re-derived there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rung {
     /// No card is summoned.
@@ -431,57 +430,6 @@ impl Journey {
     /// Move focus between a workspace's primary list and its detail stage.
     pub fn toggle_detail(&mut self) -> Landing {
         self.advance(Event::ToggleDetail, &mut |_| None)
-    }
-
-    /// The exact Settings recipient, distinct within the lifecycle's coarse
-    /// primary/detail projection. `None` when Settings is not the active card.
-    pub fn settings_focus(&self) -> Option<super::workspace::SettingsFocus> {
-        self.card()
-            .is_some_and(|card| card.kind == OverlayKind::Settings)
-            .then_some(self.settings_focus)
-    }
-
-    /// Walk Settings' focus stops, skipping Controls when the filter has no
-    /// matches. Every writer stays beside the lifecycle projection it updates.
-    pub fn step_settings_focus(&mut self, delta: isize) -> bool {
-        let Some(card) = self.card() else {
-            return false;
-        };
-        if card.kind != OverlayKind::Settings {
-            return false;
-        }
-        let next = self.settings_focus.step(delta, !card.items.is_empty());
-        self.set_settings_focus(next)
-    }
-
-    /// Put Settings on one named recipient. A request for Controls with no
-    /// matching row lands on Search, the only useful input at that point.
-    pub fn focus_settings(&mut self, requested: super::workspace::SettingsFocus) -> bool {
-        let Some(card) = self.card() else {
-            return false;
-        };
-        if card.kind != OverlayKind::Settings {
-            return false;
-        }
-        let focus =
-            if requested == super::workspace::SettingsFocus::Controls && card.items.is_empty() {
-                super::workspace::SettingsFocus::Search
-            } else {
-                requested
-            };
-        self.set_settings_focus(focus)
-    }
-
-    fn set_settings_focus(&mut self, focus: super::workspace::SettingsFocus) -> bool {
-        let Some(card) = self.card_mut() else {
-            return false;
-        };
-        if card.kind != OverlayKind::Settings {
-            return false;
-        }
-        card.detail_focus = focus != super::workspace::SettingsFocus::Categories;
-        self.settings_focus = focus;
-        true
     }
 
     /// GO SOMEWHERE: the whole journey ends, parked parent included. You asked

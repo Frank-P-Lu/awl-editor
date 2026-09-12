@@ -116,6 +116,36 @@ impl App {
         (index < overlay.lens_strip().len()).then_some(index)
     }
 
+    /// Focus a summoned overlay's query through the owner for its finer focus
+    /// model, then publish that transition to rendering and accessibility.
+    fn focus_overlay_query(&mut self, id: &str) -> bool {
+        let focus_workspace_detail = {
+            let Some(overlay) = self.workspace_state.overlay_mut() else {
+                return false;
+            };
+            let expected = format!("overlay.{}.query", overlay.kind.as_str());
+            if id != expected {
+                return false;
+            }
+            if overlay.files_mode {
+                overlay.files_focus = crate::overlay::FilesFocus::Query;
+            }
+            overlay
+                .workspace_shape()
+                .is_some_and(|shape| !shape.rows_are_primary())
+        };
+        if !self
+            .workspace_state
+            .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Search)
+            && focus_workspace_detail
+        {
+            self.workspace_state.focus_workspace_detail();
+        }
+        self.sync_view(true);
+        self.request_frame();
+        true
+    }
+
     fn focus_semantic_node(&mut self, id: &str) -> bool {
         if id == START_NEW_ID || id == START_GOTO_ID {
             return !self.document.has_active();
@@ -147,47 +177,16 @@ impl App {
             return true;
         }
         if id.ends_with(".query") {
-            let focus_workspace_detail = {
-                let Some(overlay) = self.workspace_state.overlay_mut() else {
-                    return false;
-                };
-                let expected = format!("overlay.{}.query", overlay.kind.as_str());
-                if id != expected {
-                    return false;
-                }
-                if overlay.files_mode {
-                    overlay.files_focus = crate::overlay::FilesFocus::Query;
-                }
-                overlay
-                    .workspace_shape()
-                    .is_some_and(|shape| !shape.rows_are_primary())
-            };
-            if self
-                .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-            {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
-            } else if focus_workspace_detail {
-                self.workspace_state.focus_workspace_detail();
-            }
-            self.sync_view(true);
-            self.request_frame();
-            return true;
+            return self.focus_overlay_query(id);
         }
         if let Some(target) = self.workspace_rail_target_position(id) {
             if let Some(overlay) = self.workspace_state.overlay_mut() {
                 overlay.set_facet_lens(target);
             }
-            if self
+            if !self
                 .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Categories)
             {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Categories);
-            } else {
                 self.workspace_state.focus_workspace_primary();
             }
             self.sync_view(true);
@@ -216,14 +215,10 @@ impl App {
         {
             if shape.rows_are_primary() {
                 self.workspace_state.focus_workspace_primary();
-            } else if self
+            } else if !self
                 .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls)
             {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
-            } else {
                 self.workspace_state.focus_workspace_detail();
             }
         }
@@ -257,14 +252,10 @@ impl App {
             if let Some(overlay) = self.workspace_state.overlay_mut() {
                 overlay.set_facet_lens(target);
             }
-            if self
+            if !self
                 .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls)
             {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
-            } else {
                 self.workspace_state.focus_workspace_detail();
             }
             self.sync_view(true);
@@ -389,14 +380,8 @@ impl App {
                 overlay.files_focus = crate::overlay::FilesFocus::Query;
             }
             overlay.set_semantic_query_text(value);
-            if self
-                .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-            {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
-            }
+            self.workspace_state
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Search);
         } else {
             return false;
         }

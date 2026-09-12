@@ -101,13 +101,24 @@ impl App {
         if let Some(ov) = self.workspace_state.overlay_mut() {
             ov.query_set_caret(idx);
         }
-        if self
+        self.workspace_state
+            .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Search);
+        self.sync_view(true);
+        self.request_frame();
+    }
+
+    /// A rail press selects its category and enters that category's content.
+    /// Settings names Controls precisely; other workspaces keep their coarse
+    /// detail-stage transition.
+    fn focus_workspace_rail_at(&mut self, rail_idx: usize) {
+        if let Some(overlay) = self.workspace_state.overlay_mut() {
+            overlay.set_facet_lens(rail_idx);
+        }
+        if !self
             .workspace_state
-            .overlay()
-            .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
+            .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls)
         {
-            self.workspace_state
-                .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
+            self.workspace_state.focus_workspace_detail();
         }
         self.sync_view(true);
         self.request_frame();
@@ -145,24 +156,9 @@ impl App {
             self.request_frame();
             return;
         }
-
         // Rail clicks use the same lens and focus transitions as keyboard entry.
         if let Some(rail_idx) = rail_hit {
-            if let Some(ov) = self.workspace_state.overlay_mut() {
-                ov.set_facet_lens(rail_idx);
-            }
-            if self
-                .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-            {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
-            } else {
-                self.workspace_state.focus_workspace_detail();
-            }
-            self.sync_view(true);
-            self.request_frame();
+            self.focus_workspace_rail_at(rail_idx);
             return;
         }
 
@@ -215,20 +211,13 @@ impl App {
             {
                 ov.selected = idx;
             }
-            if self
-                .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-            {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
-            }
+            self.workspace_state
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls);
             // Range labels select only; Enter would open the numeric editor.
             let is_range = self
                 .workspace_state
                 .overlay()
-                .map(|ov| ov.range_of_item(idx).is_some())
-                .unwrap_or(false);
+                .is_some_and(|ov| ov.range_of_item(idx).is_some());
             if is_range {
                 self.sync_view(true);
                 self.request_frame();
@@ -242,14 +231,8 @@ impl App {
             if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.query_set_caret(char_idx);
             }
-            if self
-                .workspace_state
-                .overlay()
-                .is_some_and(|overlay| overlay.kind == crate::overlay::OverlayKind::Settings)
-            {
-                self.workspace_state
-                    .focus_settings(crate::overlay::workspace::SettingsFocus::Search);
-            }
+            self.workspace_state
+                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Search);
             self.input.pointer.query_drag = true;
         } else {
             let inside = card

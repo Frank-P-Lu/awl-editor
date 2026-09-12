@@ -309,14 +309,14 @@ impl WorkspaceState {
         }
     }
 
-    /// Focus one named Settings recipient through the shared lifecycle owner.
+    /// Focus one named Settings recipient when Settings is the live card.
     /// Pointer and accessibility requests do not pass through the key/action
-    /// seam, so this is their narrow mutation door.
-    pub(in crate::app) fn focus_settings(
+    /// seam, so this is their one kind-gated mutation door.
+    pub(in crate::app) fn focus_settings_if_open(
         &mut self,
         focus: crate::overlay::workspace::SettingsFocus,
-    ) {
-        self.journey.focus_settings(focus);
+    ) -> bool {
+        self.journey.focus_settings(focus)
     }
 
     /// Close the find/replace panel. Called on every buffer swap (opening a
