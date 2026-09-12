@@ -350,9 +350,11 @@ pub fn browse_level(
         corpus.push(e.name.clone());
         git.push(e.is_git);
         is_dir.push(e.is_dir);
-        let label = (kind == OverlayKind::Browse)
-            .then(|| crate::file_visibility::presentation_hint(&e.name, e.is_dir).secondary())
-            .unwrap_or_default();
+        let label = if kind == OverlayKind::Browse {
+            crate::file_visibility::presentation_hint(&e.name, e.is_dir).secondary()
+        } else {
+            String::new()
+        };
         secondary.push(label);
     }
     let mut ov = OverlayState::new_marked(kind, corpus, git, is_dir, Vec::new(), Vec::new(), rel);
