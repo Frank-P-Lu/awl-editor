@@ -6,8 +6,7 @@
 
 ## Open build and design tasks
 
-**6 open numbered tasks.** Ready: 647–649 and 646. Native candidate review: 640.
-User decision: 579.
+**7 open numbered tasks.** Ready: 647–649, 646, 645 and 644. Native candidate review: 640.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 649 — consolidate shared folder-picker navigation (user request, 2026-09-12)
@@ -111,6 +110,148 @@ or performance improvement.
 
 ---
 
+### 645 — distinct bullet, divider and task vocabularies (user direction, 2026-09-12)
+
+🟢 READY — queue only. User approved the revised Site symbol sets on 2026-09-12.
+Implement alongside 644; routine fitting does not require another taste approval.
+
+Finding: Gumtree's depth-zero bullet is U+F591, named `SNAKE-4 tail` in
+`assets/fonts/AwlMarks.roster.tsv`; the nearby world comment incorrectly calls
+it the head. The dash divider intentionally joins tail, two trunk pieces and
+head. The task-marker Site copied those assignments, but displayed the divider
+trios without syntax labels and at comparison sizes, not awl's actual sizes.
+`Ornaments::of` and `pick` map dash/star/underscore explicitly; different glyph
+strings alone do not establish perceptual distinction.
+
+Build: implement the approved bullet assignments below, preserving current divider
+assignments and the approved Nishiki checkbox
+mapping; its explicit checks supersede the Cabinet's older hollow/solid animal,
+flower, rook and other task proposals. Cross-world reuse is acceptable; within
+each world bullets, divider glyphs (including joining components) and task marks
+must be disjoint. Audit visual near-collisions with folds, quotes, footnote marks
+and other chrome as well as exact codepoint overlap. Bullet siblings must remain
+distinct at actual size and carry comparable ink weight.
+
+The current `assert_bullet_pair_law` in `src/theme/tests/ornament.rs` REQUIRES
+membership in the divider set. Replace that obsolete product rule with the new
+separation law, preserving font coverage, depth, geometry and scale guarantees;
+update matching contracts and exception handling. Do not simply remove the audit.
+Keep Gumtree's complete joined snake as a divider; no detached joining fragment
+is a suitable bullet. Include Bombora in that neighborhood review.
+
+Approved reference: [Ornament Cabinet](https://awl-task-marker-study.s84fzrm6tq.chatgpt.site/),
+version 7, source `e80a8c126adf799fb29a1f9c3557dcf5fb8259a0`.
+These are Nishiki-teki 4.0.5 drawings, never system emoji fallback. Adopt the
+needed glyphs into the verified bundled subset. Shared complete sets are deliberate.
+
+| World | Bullets, outer to inner depth (Unicode) |
+| --- | --- |
+| Potoroo | U+1F330, U+1F331, U+1F98B |
+| Tawny | U+1F330, U+1F331, U+1F98B |
+| Mopoke | U+2606, U+2601, U+2604 |
+| Currawong | U+2657, U+2654, U+2656 |
+| Gumtree | U+1F426, U+1F98B, U+1F343 |
+| Bilby | U+2606, U+2601, U+2604 |
+| Saltpan | U+25B3, U+25C7, U+25CB |
+| Quokka | U+1F377, U+2615, U+2694 |
+| Bombora | U+2693, U+26F5, U+2638 |
+| Bowerbird | U+2606, U+2601, U+2604 |
+| Mulga | U+2160, U+2161, U+2162 |
+| Mangrove | U+2693, U+26F5, U+2638 |
+| Galah | U+2680, U+2681, U+2682 |
+| Magpie | U+203B, U+2301, U+2234 |
+| Brolga | U+273E, U+2742, U+273A |
+| Wagtail | U+266D, U+266E, U+266F |
+| Firetail | U+2604, U+2607, U+2739 |
+| Cassowary | U+2607, U+2301, U+2733 |
+| Paperbark | U+270E, U+2701, U+2709 |
+| Kite | U+2606, U+2601, U+2604 |
+
+The nautical U+2638 wheel needs optical enlargement beside anchor and sailboat:
+the Site uses 30px versus 24px (1.25×), shared by Bombora and Mangrove. Fit this
+same intent in awl without changing indentation or row height. The user accepted
+the corrected monochrome rendering; earlier colour-emoji appearances were not
+the approved drawings. Preserve Mulga's approved stroke trio.
+
+Historical candidate notes live in `.orchestrator/ornament-cabinet-review.md`;
+the assignments above supersede them. Compare the three-depth bullets with
+syntax-labelled `---`, `***`, `___` dividers and the inline approved task rows
+in actual awl. Do not revive older Cabinet divider swaps.
+
+Verify: read docs/render.md, docs/markdown.md, docs/harness-reach.md and
+docs/verification.md. Check the glyph drawings and joining behavior, ordinary and
+nested bullets, divider syntax mapping and caret/selection reveal across worlds
+and DPI 1/2. Add a regression-sensitive law for the detached-piece defect and
+missing outcome coverage found by the neighborhood audit. Use real awl pixel
+evidence and the standing vision smoke; a browser specimen is a taste aid only.
+
+---
+
+### 644 — add visible open/completed task markers (design approved, 2026-09-12)
+
+🟢 READY — per-theme Nishiki picks approved by the user; enhancement, not an
+established regression. Implement the approved mapping below.
+
+Finding: a direct pulldown-cmark 0.13 probe with task lists enabled recognises
+`- [ ] task` and `- [x] task completed`, but not `- [] task`. Current rendering
+styles literal brackets (`src/render/spans/attrs.rs`) beside the world's list
+bullet; no dedicated themed checkbox renderer was found. Checked bodies dim.
+History inspected back to initial task styling (`a43b79c47`) yielded no evidence
+of a removed per-world checkbox design. Two existing parser/style unit tests
+passed in the prebuilt test binary; no fresh-build claim. The pixel test skipped
+and capture attempts failed because no GPU adapter was available to the agent.
+
+Build: give valid tasks one recognisable open/completed marker in preview,
+replacing the decorative bullet plus literal brackets. Use one shared mechanism
+with world data: quiet empty outline and unmistakable completion, no additional
+accent or motion. Preserve completed-body dimming, raw source on caret/selection
+reveal, indentation, hit geometry and unchanged file bytes. Keep `[]` ordinary
+text; neither parser shorthand nor automatic rewriting belongs to this change.
+Verify the approved treatment with real awl captures; routine fitting and
+verification do not require another design approval.
+
+Approved design: the Site's inline **Approved task pair** examples beside actual
+task sentences, reconfirmed 2026-09-12. The lower “Open / Completed” legend has
+inconsistent oversized boxes and a tiny tick; it is NOT the implementation
+reference. Preserve the mapping below, also shown in Site version 7 referenced
+in 645. User confirmed standard `- [ ] task` / `- [x] task` syntax, including the
+space inside an empty marker; `- [] task` remains ordinary text.
+
+| Pair | Worlds |
+| --- | --- |
+| Native: U+2610 open / U+2611 checked | Tawny, Currawong, Saltpan, Bombora, Mulga, Magpie, Brolga, Paperbark, Kite |
+| Bold: U+2610 open / U+1F5F9 checked | Quokka, Mangrove, Firetail, Cassowary |
+| Rounded: U+25A2 open / U+25A2 with U+2713 overlaid | Potoroo, Mopoke, Gumtree, Bilby, Bowerbird, Galah, Wagtail |
+
+The rounded check is an explicit two-glyph composition, not a precomposed font
+character. Share its fitting owner across the seven worlds. Add the five selected
+codepoints to the existing Awl Marks adoption roster and regenerate from the
+verified upstream font; do not substitute fallback glyphs. This approval covers
+task-marker pairs only, not the rejected snake bullet or unresolved divider
+choices in 645. Compare beside existing symbols during verification.
+
+Upstream inspection (2026-09-12): downloaded the author's full 4.0.5 font and
+verified its SHA-256 equals the pinned source in the adoption roster. The cmap
+contains U+2610/U+2611 (native empty/checked boxes), U+1F5F9 (boxed bold check),
+U+25A2 (rounded square), U+2713/U+2714 and U+1F5F8 (check weights). Embedded and
+archive OFL grants are present. Direct font specimens at 22px and larger favor
+the native U+2610/U+2611 pair as the starting point; U+2610/U+1F5F9 is the bolder
+alternative. U+25A2 plus U+2713 is a promising rounded COMPOSITION, not an existing
+single checked glyph. The bold-square composition crowds its tick; flower/star
+fill pairs blur task state with existing ornaments. These are taste findings,
+not awl render verification. Prefer a small expanded Awl Marks subset over
+shipping the full font; fit any selected pair in the real renderer before adoption.
+
+Done/Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
+docs/verification.md. Cover valid/invalid syntax, both task states, caret/selection,
+nested/wrapped tasks and ordinary lists across worlds and DPI 1/2. Require pixel
+presence, state distinction and absence of duplicate bullets, plus sidecar/source
+fidelity. Add regression-sensitive laws and the standing neighborhood audit and
+vision smoke. Rendering evidence remains outstanding; use an available GPU and
+the single integrated native/wasm gate under the verification policy.
+
+---
+
 ### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
 
 🟡 IN PROGRESS — `acceptance_640` (Codex), based on `38bc2139`.
@@ -140,60 +281,6 @@ feel/taste still owed to the user from mechanically proven state and geometry.
 Do not dispatch or claim implementation merely because this acceptance work is queued.
 
 ---
-
-### 579 — software rendering: profiled, and the answer is a product call (investigation complete, 2026-09-09)
-
-🟢 **PROFILED — awaiting the user's decision. No code change is proposed and none should be
-until this is answered.**
-
-The profile settles the engineering question. On the cited configuration — arm64, Debian 12,
-Mesa 22.3.6, `llvmpipe (LLVM 15.0.6, 128 bits)`, `PHYSICAL_DEVICE_TYPE_CPU`, reproduced in a
-pre-existing rig rather than a new one — every sample at every contention level has the same
-shape:
-
-```
-   queue.submit + device.poll |  81.296 ms | 98.9%
-   22 other CPU-side stages   |   ~0.7 ms  | <1%
-   TOTAL (median frame)       |  82.164 ms
-```
-
-**There is no hot spot in awl's code.** Text shaping, layout, ornaments, table grid, chrome,
-spell squiggles and render encode together cost under 1ms per frame, under 1.5% of the frame
-even in the cleanest run. Over 99% sits inside Mesa's own rasterisation of already-encoded draw
-calls. Document size barely matters — 1943 lines and 124 lines cost nearly the same — which is
-the O(visible) principle holding.
-
-**The item's own per-world spread did NOT reproduce.** The cited 82→184ms range across worlds
-became four worlds within 2ms of each other at ~83ms, including the originally cited fastest
-and slowest. The lane could not tell whether the original spread is contention-sensitive or
-whether its own best window (load ~45-60, never this host's ~5 idle) flattened real differences
-toward a floor. Named as an open gap rather than resolved.
-
-⚠️ The orchestrator told that lane it owned the measurement window and then ran a gate on top
-of it. The order-of-magnitude finding survives that easily — the signal is 99% against 1% — but
-the per-world question is exactly the kind a contended host destroys, and it should be re-asked
-on a genuinely idle machine before anyone concludes the spread was imaginary.
-
-**Not measurable from here:** CI's x86_64 lavapipe. This host is arm64, and a qemu-emulated
-x86_64 container would add emulation overhead indistinguishable from driver cost. Every number
-above is the arm64/Mesa-22.3.6 axis only.
-
-**THE DECISION, which is the user's:**
-
-1. **Documented non-target.** A line in RELEASING.md/WEB.md naming software rendering as
-   unsupported, stating what a person actually sees — roughly 5-12 fps at this canvas size,
-   usable for reading and light editing, visibly laggy while typing or scrolling — and pointing
-   at a working GPU driver. No code.
-2. **Supportable with named work.** A software-adapter-detected degraded mode: smaller internal
-   canvas, simplified backgrounds, fewer glyphs shaped. New mechanism, scoped as future work.
-
-The lane leans to (1) and so does this board: closing an 80-180ms gap needs a different render
-strategy, not a fix, and "more machinery for one degraded case" is the direction PHILOSOPHY.md
-leans away from. But a Linux user on a VM, a remote desktop, or a machine with no working
-Vulkan driver lands here, so it is a product-shape question and not an engineering one.
-
-Leftover: Docker volumes `awl579-cargo-registry` and `awl579-target` hold the built arm64 rig
-for a clean re-measurement without repaying the build.
 
 ## Outstanding review of landed work
 
