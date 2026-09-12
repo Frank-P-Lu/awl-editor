@@ -446,8 +446,10 @@ above). Repeated runs of the same storyboard produce a **byte-identical
 `trace.json` and frames** (`tests/storyboard_film.rs` pins this on the real
 binary, along with the abort fixture `scenarios/abort-unsupported.toml`).
 Each rendered step derives its project block from the replay session's current
-root, so a Switch Project step changes later sidecars without rewriting earlier
-ones (`scenarios/storyboard-project-fold.toml` pins the hermetic two-root case).
+root, so a Project root path pick through Settings changes later sidecars
+without rewriting earlier ones (`scenarios/storyboard-project-fold.toml` pins
+the hermetic two-root case). Files' Change folder row keeps its live-only native
+chooser boundary and is not a strict-storyboard route.
 Determinism is only claimed for trace + frames — the encoded films depend on
 the local ffmpeg build. The film is deterministic VISUAL REVIEW of motion on
 the virtual clock, NOT a claim about real compositor cadence (that stays a

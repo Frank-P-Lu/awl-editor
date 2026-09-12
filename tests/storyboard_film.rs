@@ -190,9 +190,10 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
 /// A storyboard is a sequence of CURRENT states, not one launch-state project
 /// block copied across the film. The document seed creates `proj-a`; the
 /// explicit config seed creates its sibling `proj-b` inside the same hermetic
-/// filesystem, so the real switch-project picker can move between them without
-/// reading any ambient directory. Step 0 precedes the switch, while steps 1 and
-/// 2 are rendered after it.
+/// filesystem, so Settings' real Project root path picker can move between them
+/// without reading any ambient directory. Files' Change folder row remains a
+/// live-only native chooser. Step 0 precedes the switch, while steps 1 and 2 are
+/// rendered after it.
 #[test]
 fn project_block_follows_the_replay_sessions_root_at_each_storyboard_step() {
     let out_dir = tmp_dir("project-fold");
@@ -215,6 +216,29 @@ fn project_block_follows_the_replay_sessions_root_at_each_storyboard_step() {
         out.status.success(),
         "project-fold run failed:\n{}",
         String::from_utf8_lossy(&out.stderr)
+    );
+
+    let trace_path = out_dir.join("trace.json");
+    let trace: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&trace_path)
+            .unwrap_or_else(|e| panic!("reading {}: {e}", trace_path.display())),
+    )
+    .unwrap_or_else(|e| panic!("parsing {}: {e}", trace_path.display()));
+    let switch_chords = trace["steps"][1]["chords"]
+        .as_array()
+        .expect("the switch step records its real chord stream");
+    assert!(
+        switch_chords.iter().any(|chord| {
+            chord["effect"].as_str() == Some("setting_path_pick")
+                && chord["class"].as_str() == Some("applied")
+        }),
+        "the switch step must enroll the isolated Settings path effect: {switch_chords:?}"
+    );
+    assert!(
+        switch_chords
+            .iter()
+            .all(|chord| chord["class"].as_str() != Some("unsupported")),
+        "the strict storyboard must not cross Files' live-only chooser: {switch_chords:?}"
     );
 
     let project = |step: usize| {

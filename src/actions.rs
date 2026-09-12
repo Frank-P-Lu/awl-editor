@@ -560,11 +560,11 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenGoto => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Goto));
         }
-        // THE TWO DOORS ONTO THE FLAT SWITCH-PROJECT PICKER. Both attach its own
-        // door row (`OverlayState::attach_browse_door` — the reach past the
-        // direct workspace children the flat roster deliberately stops at); the
-        // Settings folder-VALUE picker, which shares this kind's card shape and
-        // already walks the whole tree, deliberately does not.
+        // Project commands now enter the unified Files card. Changing its root
+        // is an explicit `Change folder…` terminal action owned by the live
+        // platform chooser; the Settings Project-root value picker remains the
+        // replay-drivable in-card path navigator.
+        // The two doors therefore share a card without sharing a root effect.
         Action::OpenProject => {
             let ov = (ctx.make_overlay)(OverlayKind::Goto);
             ctx.journey.enter(ov);

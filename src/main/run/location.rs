@@ -1,6 +1,6 @@
 //! WHERE AM I WORKING — the launch root, the workspace scope, the capture
 //! sidecar's project block, and `ReplaySession`'s own
-//! re-scope on a Switch-project accept. One owner each, lifted out of
+//! re-scope after any applied project-root effect. One owner each, lifted out of
 //! `run.rs` whole — this module IS the location-derivation owner, so a
 //! derivation belongs here even when the struct it mutates is declared in
 //! the parent file.
@@ -8,7 +8,7 @@
 //! The live `App` derives the same three facts in `App::resync_project_location`
 //! and shares [`resolve_workspace`] with this file. Keeping the capture's own
 //! derivation in ONE place here is what stops the two from drifting again — see
-//! [`project_info`], `docs/harness-reach.md`, and queue items 180/183/189.
+//! [`project_info`] and `docs/harness-reach.md`.
 
 use std::path::PathBuf;
 
@@ -73,8 +73,8 @@ pub(crate) fn resolve_launch_context(
 /// headless twin of `App::resync_project_location`, and for the same reason.
 ///
 /// A capture reports the project location TWICE: once from the launch root, and
-/// again if the replay accepts a Project-picker row (`Effect::OverlayAccept(
-/// Project, ..)` — the same effect that reaches `App::switch_project` live).
+/// again if replay applies a project-root effect (a Project navigator accept or
+/// an isolated Settings `SettingPathPick` for `project_root`).
 /// Those were two hand-rolled sites, and the second re-derived `name`/`branch`/
 /// `dirty` from the new root while carrying the OLD root's `workspace` forward:
 /// a stale workspace defect exactly, in the harness's own copy of the rule. A
@@ -116,7 +116,7 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
 impl<'a> ReplaySession<'a> {
     /// The capture sidecar's project block for this session's CURRENT location.
     /// A storyboard asks for this afresh at every rendered step, so a
-    /// Switch-project accept cannot leave later frames carrying the launch
+    /// project-root change cannot leave later frames carrying the launch
     /// root's identity. The free [`project_info`] builder remains the one owner
     /// of the derivation; this method only supplies the session-private inputs
     /// that were re-scoped together by [`Self::resync_project_location`].
@@ -142,10 +142,10 @@ impl<'a> ReplaySession<'a> {
     /// accept — a Cmd-O opening Goto against `corpus`, a Browse summon
     /// against `root`/`workspace` — silently kept testing the OLD tree.
     ///
-    /// Called ONLY from the `OverlayAccept(Project, ..)` arm in
-    /// `effect_interpreter.rs`, immediately before `self.accept` is set —
-    /// `pub(super)` rather than `pub`, so no consumer outside `run` can read
-    /// a stale copy of any of the three by reaching around it. `workspace_flag`
+    /// Called from the applied Project-accept interpreter and from the isolated
+    /// Settings `project_root` path interpreter. `pub(super)` rather than `pub`
+    /// keeps consumers outside `run` from reading a stale copy of any of the
+    /// three by reaching around it. `workspace_flag`
     /// re-runs the SAME [`resolve_workspace`] the constructor used, against
     /// the NEW root: an explicit `--workspace` stays pinned across the
     /// switch; an unset one re-derives the new root's parent, covering both
