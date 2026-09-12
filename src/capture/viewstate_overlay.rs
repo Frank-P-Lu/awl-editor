@@ -281,6 +281,7 @@ mod files_projection_tests {
 
     #[test]
     fn search_match_ranges_survive_capture_projection() {
+        let _guard = crate::testlock::serial();
         let mut overlay = goto(None, false);
         overlay.match_highlights = vec![Some((18, 28))];
         assert_eq!(
