@@ -141,8 +141,8 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
 /// simulation. Opens a real 40-row Goto picker, hovers a row via the oracle's
 /// real hit-test, drives a real
 /// keyboard scroll past the candidate window, then re-checks the SAME
-/// physical pixel: the row now under it (per the SAME real hit-test)
-/// must not steal the keyboard's selection. Proves the seam the scout
+/// physical pixel: neither the first hover nor the row now under it may steal
+/// the keyboard's selection. Proves the seam the scout
 /// named (`ReplaySession::cursor_px` + `apply_move`, sharing
 /// `TextPipeline::resolve_overlay_hover` with the live
 /// `App::overlay_hover`) actually reproduces the item's own named live
@@ -206,11 +206,12 @@ fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_
     };
     let py = find_row(&session, Some(3)).expect("row 3 must be found within the card");
 
+    let initial = session.overlay().unwrap().selected;
     session.apply_move(px, py);
     assert_eq!(
         session.overlay().unwrap().selected,
-        3,
-        "the real hover selected row 3"
+        initial,
+        "ordinary Files rows acknowledge hover without taking selection"
     );
 
     for chord in keyspec::parse_keys(&"Down ".repeat(22)).unwrap() {
@@ -218,8 +219,8 @@ fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_
     }
     assert_eq!(
         session.overlay().unwrap().selected,
-        25,
-        "keyboard nav landed on row 25"
+        initial + 21,
+        "the first Down focuses Files choices; the remaining 21 advance selection"
     );
     assert!(session.overlay().unwrap().scroll > 0, "the window scrolled");
 
@@ -235,7 +236,7 @@ fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_
     );
     assert_ne!(
         hit_now,
-        Some(25),
+        Some(initial + 21),
         "a different item now sits under the stationary pixel"
     );
 
@@ -248,20 +249,16 @@ fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_
     session.apply_move(px + 1.0, py);
     assert_eq!(
         session.overlay().unwrap().selected,
-        25,
+        initial + 21,
         "the keyboard's selection survives a 1px-jittered stationary pointer re-check"
     );
 
     session.sync_oracle_overlay();
     let py0 = find_row(&session, None).expect("display row 0 must be found");
-    let hit0 = session
-        .oracle()
-        .expect("oracle present")
-        .overlay_row_at(px, py0);
     session.apply_move(px, py0);
     assert_eq!(
         session.overlay().unwrap().selected,
-        hit0.unwrap(),
-        "a genuine pointer move to a different row takes over on the first event"
+        initial + 21,
+        "genuine travel only acknowledges a Files row; click remains the commit gesture"
     );
 }

@@ -229,29 +229,31 @@ fn empty_state_copy_is_calm_and_context_aware() {
         "no history yet"
     );
     assert_eq!(OverlayKind::Spell.empty_corpus_message(), "no suggestions");
-    // Jump-to-heading + recent-projects are LENS empty-states now (the folds):
+    // Compatibility heading/project refinements use the calm catch-all; the
+    // dedicated Files surface now owns only Files and Recent.
     assert_eq!(
         OverlayKind::Goto.empty_lens_message("headings"),
-        Some("no headings yet")
+        Some("nothing here")
     );
     assert_eq!(
         OverlayKind::Project.empty_lens_message("recent"),
         Some("no recent projects yet")
     );
 
-    // Every typed destination lens names the thing that is absent; `All` opts out.
+    // The dedicated Files lenses name their own absence; compatibility lenses
+    // use the calm catch-all and `All` opts out.
     assert_eq!(
         OverlayKind::Goto.empty_lens_message("recent"),
-        Some("no recent destinations"),
+        Some("no recent files yet"),
     );
     assert_eq!(
         OverlayKind::Goto.empty_lens_message("folders"),
-        Some("no folders here")
+        Some("nothing here")
     );
     assert_eq!(OverlayKind::Goto.empty_lens_message("all"), None);
 }
 
-/// A FRESH Go-to Recent lens (both MRUs empty) reads the calm
+/// A FRESH generic Go-to Recent lens (both MRUs empty) reads the calm
 /// "no recent destinations" line via `empty_message` — the
 /// context that matters most this pass. A query still overrides with "no matches".
 #[test]

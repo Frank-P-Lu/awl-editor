@@ -51,17 +51,17 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
         OverlayKind::Command.hint(),
         "type to filter   ↵ choose   ←/→ category   esc close"
     );
-    // The FLAT theme picker teaches ↵ keep + esc revert, and NO lens axis (its strip
+    // The FLAT theme picker teaches ↵ switch + esc cancel, and NO lens axis (its strip
     // was retired) — type to filter still leads.
     let th = OverlayKind::Theme.hint();
     assert!(
         th.starts_with("type to filter"),
         "theme hint leads with type to filter: {th}"
     );
-    assert!(th.contains("\u{21B5} keep"), "theme ↵ keeps: {th}");
+    assert!(th.contains("\u{21B5} switch"), "theme ↵ switches: {th}");
     assert!(
-        th.contains("esc") && th.contains("revert"),
-        "theme esc reverts: {th}"
+        th.contains("esc") && th.contains("cancel"),
+        "theme esc cancels: {th}"
     );
     assert!(
         !th.contains("lens"),
