@@ -6,14 +6,16 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks.** Ready: 660. Active integration: 659. Integrated work awaiting the
-combined verification: 658, 657, 656, 655, 654, 653, 650, 646, 645 and 644.
+**14 open numbered tasks.** Ready: none. Active integration: none. Integrated work awaiting the
+combined verification: 660, 659, 658, 657, 656, 655, 654, 653, 650, 646, 645 and 644.
 Blocked direction: 651. Read-only follow-up investigation complete: 652.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 660 — optically lower the star list bullet beside prose (user approved, 2026-09-13)
 
-🟢 READY — queue only; optical follow-up to 656, not a new horizontal alignment fix.
+🟠 INTEGRATED — implementation landed on local `main` at merge `e989b5a98`,
+followed by health-owner splits `f4c21a973` and `2a94c6c05`; the required Astra
+eight-cell visual review approved the placement. Combined native/web gate remains.
 
 Finding: after 655/656, the user confirms task rendering is fine but the hollow
 star U+2606 appears too high beside “add chinese”. Horizontal body starts are no
@@ -108,8 +110,10 @@ working document or rely on a stale screenshot to establish focus.
 
 ### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/settings_659` (Codex). Follow-up to 639/640; coordinate
-with 657 rather than introducing another panel framework.
+🟠 INTEGRATED — implementation landed on local `main` at merge `2dcdb1779`,
+followed by focus-owner, test-health and schema commits `210c60e36`, `be399d5f3`
+and `0e5e5d132`. Combined gate and the explicitly owed visible
+Settings/Find-Replace/Themes review remain.
 
 Observed: Settings opened on Categories; Tab entered the setting list, typing
 filtered while the setting row retained accessible focus, and Enter opened Themes.
@@ -270,7 +274,8 @@ release.
 ### 650 — Files listings use names, never file contents (user-approved scope, 2026-09-12)
 
 🟠 INTEGRATED — implementation + targeted/mutation evidence landed on local
-`main` at merge `1bb70883`; seeded live release smoke and the combined gate remain.
+`main` at merge `1bb70883`; the seeded live release smoke is complete and the
+combined gate remains.
 
 Finding: a three-second sample of the frozen live macOS app put every sampled main-thread
 stack in `App::apply` → `FilesOverlayBuilder::attach_level` →
