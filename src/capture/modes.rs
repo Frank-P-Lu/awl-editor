@@ -5,12 +5,12 @@ use glyphon::Cache;
 use std::path::Path;
 
 use crate::buffer::Buffer;
-use crate::overlay::OverlayKind;
 use crate::render::{self, TextPipeline, ViewState};
 
 use super::gpu::{headless_device, offscreen_target, read_frame};
-use super::opts::{CaptureOpts, OverlayInfo, ProjectInfo};
+use super::opts::{CaptureOpts, ProjectInfo};
 use super::sidecar::write_sidecar;
+use super::viewstate_overlay;
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, FORMAT};
 
 /// Build a capture [`ViewState`] on the canonical [`ViewState::base`] with the
@@ -199,18 +199,6 @@ async fn capture_async(
 /// (settle / motion inject / the film's free-running spring).
 ///
 /// The returned scroll is always normalized against shaped variable-row geometry.
-pub(super) fn files_overlay_projection(overlay: Option<&OverlayInfo>) -> (bool, String) {
-    let active = overlay.is_some_and(|overlay| {
-        OverlayKind::from_mode(overlay.mode) == Some(OverlayKind::Goto)
-            && overlay.lens == Some("files")
-    });
-    let location = active
-        .then(|| overlay.and_then(|overlay| overlay.files_location.clone()))
-        .flatten()
-        .unwrap_or_default();
-    (active, location)
-}
-
 pub(super) fn settled_viewstate(
     pipeline: &mut TextPipeline,
     buffer: &Buffer,
@@ -298,229 +286,7 @@ pub(super) fn settled_viewstate(
     // Synthetic capture options do not carry field carets, so use the end.
     vstate.search_query_caret = vstate.search_query.chars().count();
     vstate.search_replacement_caret = vstate.search_replacement.chars().count();
-    vstate.overlay_active = opts.overlay.as_ref().map(|o| o.active).unwrap_or(false);
-    // Preserve the alignment frozen when the overlay was summoned.
-    vstate.overlay_align = opts.overlay.as_ref().map(|o| o.align);
-    vstate.overlay_theme_chrome = opts.overlay.as_ref().and_then(|o| o.chrome_theme);
-    // Capture-only force summon for a live mouse gesture; keep the live gates.
-    if crate::popover::popover_on()
-        && !search_active
-        && !vstate.overlay_active
-        && (opts.force_popover || std::env::var_os("AWL_POPOVER").is_some())
-        && let Some(((l0, c0), (l1, c1))) = vstate.selection
-    {
-        let a = buffer.line_col_to_char(l0, c0);
-        let c = buffer.line_col_to_char(l1, c1);
-        vstate.popover =
-            crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
-    }
-    // Resolve the serialized mode once through the same owner as the live path.
-    // Preview, room retention, and the theme pin all read this one typed value,
-    // so an absent/malformed mode is inert and no two render decisions can parse
-    // the same sidecar differently.
-    let overlay_kind = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| OverlayKind::from_mode(o.mode));
-    vstate.overlay_crisp = overlay_kind.is_some_and(OverlayKind::keeps_backdrop_crisp);
-    vstate.overlay_retains_room = overlay_kind.is_some_and(OverlayKind::retains_readable_room);
-    (vstate.overlay_files_surface, vstate.overlay_files_location) =
-        files_overlay_projection(opts.overlay.as_ref());
-    vstate.overlay_theme_picker = overlay_kind == Some(OverlayKind::Theme);
-    vstate.overlay_query = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.query.clone())
-        .unwrap_or_default();
-    // `OverlayInfo::query_caret` is the real caret when the overlay came
-    // through the live replay path (`capture_fold`); a synthetic override
-    // built by hand still defaults to the end, matching `query`'s own default.
-    vstate.overlay_query_caret = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.query_caret)
-        .unwrap_or_else(|| vstate.overlay_query.chars().count());
-    vstate.overlay_query_selection = opts.overlay.as_ref().and_then(|o| o.query_selection);
-    vstate.overlay_query_placeholder = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .and_then(|k| k.field_placeholder().map(str::to_string));
-    // Modal prompts orient via `foot_hint`; unknown modes keep a visible title.
-    vstate.overlay_title = opts
-        .overlay
-        .as_ref()
-        .filter(|o| {
-            crate::overlay::OverlayKind::from_mode(o.mode).is_none_or(|k| k.draws_title_prefix())
-        })
-        .map(|o| o.title.clone())
-        .unwrap_or_default();
-    // Share the live path/URL figure-ground gate; unknown modes stay single-ink.
-    vstate.overlay_row_path_splits = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .map(|k| k.row_path_splits())
-        .unwrap_or(false);
-    vstate.overlay_items = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.items.clone())
-        .unwrap_or_default();
-    vstate.overlay_hug_roster = opts.overlay_hug_roster.clone();
-    vstate.overlay_empty = opts.overlay.as_ref().and_then(|o| o.empty.clone());
-    vstate.overlay_bindings = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.bindings.clone())
-        .unwrap_or_default();
-    // The rail fractions ride the sidecar's own `overlay.ranges` block, so
-    // a JSON-driven capture draws the same thumbs the live picker does.
-    vstate.overlay_ranges = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.ranges.clone())
-        .unwrap_or_default();
-    vstate.overlay_git = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.git.clone())
-        .unwrap_or_default();
-    vstate.overlay_selected = opts.overlay.as_ref().map(|o| o.selected_index).unwrap_or(0);
-    // Scroll window: keep the selection visible with the same min-scroll math
-    // `OverlayState::scroll_to_selected` uses, so a JSON-driven capture windows a
-    // long list identically to the live picker. The pipeline re-clamps to the item
-    // count, so this needs no `n_items` here.
-    let theme_panel = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| OverlayKind::from_mode(o.mode))
-        .is_some_and(|k| k == OverlayKind::Theme);
-    // Use the kind-owned row cap for both the window and its scroll hint.
-    let win = opts
-        .overlay
-        .as_ref()
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .map(|k| k.window_rows())
-        .unwrap_or(12);
-    vstate.overlay_window_rows = win;
-    // The THEME picker's item-space scroll is pinned at 0 (a valid window HINT — the
-    // grouped-path geometry converts it to a display line and then slides the display
-    // window to keep the selected row visible, bounding the card to the canvas even when
-    // a faceted corpus overflows).
-    vstate.overlay_scroll = if theme_panel {
-        0
-    } else {
-        vstate.overlay_selected.saturating_sub(win - 1)
-    };
-    vstate.overlay_hint = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.hint.clone())
-        .unwrap_or_default();
-    // THEME PICKER: the lens strip + per-row section labels (drives the faceted render).
-    vstate.overlay_lens = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.lens_strip.clone())
-        .unwrap_or_default();
-    // CHIP-VARIATIONS PROBE (capture-only, inert unless `AWL_THEME_LENS_DEMO` is set):
-    // the theme picker's runtime lens strip was RETIRED (facets.rs), so a live
-    // `--keys "Cmd-T"` capture carries an EMPTY strip and the chip skins have no
-    // labels to mark. This dev knob injects a representative strip (one active
-    // facet + neighbours) ONLY into the theme picker capture, so the six
-    // `AWL_FACET_STYLE_FORCE=chips:<variant>` shots have something to render. No-op
-    // unless the env is set; never compiled into any live-app path.
-    if theme_panel && vstate.overlay_lens.is_empty() && std::env::var("AWL_THEME_LENS_DEMO").is_ok()
-    {
-        vstate.overlay_lens = vec![
-            ("All".to_string(), false),
-            ("Warm".to_string(), true),
-            ("Cool".to_string(), false),
-            ("Light".to_string(), false),
-            ("Dark".to_string(), false),
-        ];
-    }
-    vstate.overlay_sections = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.sections.clone())
-        .unwrap_or_default();
-    // Rebuilt from the strip this snapshot already carries rather than added as a
-    // second serialized fact; held to the live owner's answer by a scheme sweep.
-    vstate.overlay_location =
-        crate::facets::strip_location(&vstate.overlay_lens).map(std::string::ToString::to_string);
-    // The SUMMONED WORKSPACE's presentation + focus stage. Set for
-    // every capture that carries an overlay, not only a previewing one: a
-    // workspace has two regions whether or not anything is previewed beneath it,
-    // and the focus stage is what says which of them is live.
-    vstate.overlay_workspace = opts.overlay.as_ref().map(|o| o.workspace).unwrap_or(false);
-    // …and WHICH SHAPE it is presented as, derived from the kind's own owner
-    // rather than carried as a second sidecar field: the sidecar names the mode,
-    // and a capture that re-declared the shape could disagree with the live App.
-    // Without this a replayed workspace draws the OTHER shape entirely.
-    vstate.overlay_rows_primary = opts
-        .overlay
-        .as_ref()
-        .filter(|o| o.workspace)
-        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
-        .and_then(|k| k.workspace_shape())
-        .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
-    // …and whether that region has prose in it — the capture's own `preview_text`,
-    // resolved through the SAME typed request the live App uses.
-    vstate.overlay_comparison = opts.preview_text.is_some();
-    // …and whether this card's head line is a search FIELD or only a title —
-    // resolved through the same mode->kind door the shape above uses, never the
-    // mode's own spelling, so a capture and the live App cannot answer it in two
-    // vocabularies.
-    vstate.overlay_query_field = opts.overlay.as_ref().is_none_or(|o| {
-        crate::overlay::OverlayKind::from_mode(o.mode)
-            .is_none_or(crate::overlay::OverlayKind::offers_query)
-    });
-    vstate.overlay_query_focused = opts.overlay.as_ref().is_none_or(|o| {
-        if o.mode == crate::overlay::OverlayKind::Settings.as_str() {
-            o.settings_focus == Some("search")
-        } else {
-            !vstate.overlay_files_surface || o.files_query_focused
-        }
-    });
-    vstate.overlay_detail_focus = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.detail_focus)
-        .unwrap_or(false);
-    vstate.overlay_rows_focused = opts.overlay.as_ref().is_none_or(|o| {
-        if o.mode == crate::overlay::OverlayKind::Settings.as_str() {
-            o.settings_focus == Some("controls")
-        } else if vstate.overlay_files_surface {
-            !o.files_query_focused
-        } else {
-            true
-        }
-    });
-    // Spell and context cards retain their real pointer/text anchors.
-    vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
-    vstate.overlay_table_dims = opts.overlay.as_ref().and_then(|o| o.table_dims);
-    vstate.overlay_context_anchor = opts.overlay.as_ref().and_then(|o| o.context_anchor);
-    // The Asset Cleaner's live preview panel reads the same still-open
-    // overlay's highlighted-row path a `--keys` replay resolved.
-    vstate.overlay_asset_preview = opts.overlay.as_ref().and_then(|o| o.asset_preview.clone());
-    // CARET-STYLE PICKER preview: when the still-open overlay is the caret picker,
-    // map its highlighted row label back to the look so the headless capture renders
-    // that look's SETTLED preview caret (the loop is live-only; see settle_caret_preview).
-    // WHICH kind that is comes from the same mode->kind door every other per-kind
-    // question here uses, never the mode's own spelling: `App::sync_view` gates this
-    // field on `o.kind == OverlayKind::Caret`, and two doors that answer one question
-    // in two vocabularies are the drift the crisp-backdrop merge was written to end.
-    vstate.caret_preview = opts
-        .overlay
-        .as_ref()
-        .filter(|o| OverlayKind::from_mode(o.mode) == Some(OverlayKind::Caret))
-        .and_then(|o| {
-            o.items
-                .get(o.selected_index)
-                .and_then(|name| crate::caret::CaretMode::from_label(name))
-        });
+    viewstate_overlay::fold(&mut vstate, buffer, opts, search_active);
     // HISTORY TIMELINE live preview: the still-open History overlay's highlighted
     // row previews THAT VERSION in the document itself — override the snapshot's
     // text BEFORE the first `set_view`, so the scroll math below shapes the

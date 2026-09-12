@@ -97,6 +97,7 @@ pub(crate) mod redact;
 mod replay_sidecar;
 mod scroll_sidecar;
 mod sidecar;
+mod viewstate_overlay;
 
 pub use animated::{HeldDir, capture_held, capture_timeline};
 pub use film::{FRAME_MS, FilmRenderer};
