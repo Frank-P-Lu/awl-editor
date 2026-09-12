@@ -139,6 +139,11 @@ impl TextPipeline {
         (billed_header_rows, card_y)
     }
 
+    fn theme_header_rows(&self) -> usize {
+        2 + usize::from(self.overlay_files_split_header)
+            + usize::from(self.overlay_files_split_actions)
+    }
+
     /// The grouped card's own box: its x/width (content-hugging on a
     /// right-anchored card, the wide `CARD_MAX_W_FACETED` cap otherwise), its
     /// fill regime, and the text column the two shapers read. Split out of
@@ -169,9 +174,7 @@ impl TextPipeline {
         let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
             self.overlay_chrome_inventory(n_items);
         let (card_x, card_w, card_narrow, hpad, text_w) = self.theme_card_box(width);
-        let header_rows = 2
-            + usize::from(self.overlay_files_split_header)
-            + usize::from(self.overlay_files_split_actions);
+        let header_rows = self.theme_header_rows();
         let (billed_header_rows, card_y) = self.theme_card_placement(header_rows, margin);
         let header_gap = self.overlay_header_gap();
         let total_headers = full_plan.len() - n_items;
@@ -620,6 +623,33 @@ impl TextPipeline {
         self.metrics.ui().px(DOCKED_TAB_SEAM_OVERLAP)
     }
 
+    fn fitted_theme_rows(&self, geom: &OverlayGeom, elide: bool) -> Vec<Option<String>> {
+        let slant_tax = crate::render::overlay_slant()
+            .map(|slant| crate::render::slant_max_offset(&slant, geom.plan.len()))
+            .unwrap_or(0.0);
+        let char_w = self.overlay_char_width();
+        let total_chars = if char_w > 0.0 {
+            (((geom.text_w - slant_tax).max(0.0)) / char_w).floor() as usize
+        } else {
+            usize::MAX
+        };
+        let row_budget = rowlayout::full_budget(total_chars);
+        geom.plan
+            .iter()
+            .map(|line| match line {
+                PlanLine::Location(_) | PlanLine::Header(_) => None,
+                PlanLine::Item(index) => {
+                    let name = self.overlay_items.get(*index).map_or("", String::as_str);
+                    Some(if elide {
+                        rowlayout::fit_primary(name, row_budget).to_string()
+                    } else {
+                        name.to_string()
+                    })
+                }
+            })
+            .collect()
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn shape_theme_spans(
         &mut self,
@@ -641,32 +671,7 @@ impl TextPipeline {
         let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let sigil = "› ";
-        let slant = crate::render::overlay_slant();
-        let slant_tax = slant
-            .map(|s| crate::render::slant_max_offset(&s, geom.plan.len()))
-            .unwrap_or(0.0);
-        let char_w = self.overlay_char_width();
-        let total_chars = if char_w > 0.0 {
-            (((geom.text_w - slant_tax).max(0.0)) / char_w).floor() as usize
-        } else {
-            usize::MAX
-        };
-        let row_budget = rowlayout::full_budget(total_chars);
-        let fitted: Vec<Option<String>> = geom
-            .plan
-            .iter()
-            .map(|line| match line {
-                PlanLine::Location(_) | PlanLine::Header(_) => None,
-                PlanLine::Item(i) => {
-                    let name = self.overlay_items.get(*i).map(|s| s.as_str()).unwrap_or("");
-                    Some(if elide {
-                        rowlayout::fit_primary(name, row_budget).to_string()
-                    } else {
-                        name.to_string()
-                    })
-                }
-            })
-            .collect();
+        let fitted = self.fitted_theme_rows(geom, elide);
 
         let name_fs = self.overlay_metrics().font_size
             * if self.overlay_files_surface && geom.card_narrow {

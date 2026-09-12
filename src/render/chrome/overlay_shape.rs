@@ -885,6 +885,54 @@ impl TextPipeline {
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }
 
+    fn push_flat_overlay_query_spans<'a>(
+        spans: &mut Vec<(&'a str, glyphon::Attrs)>,
+        geom: &OverlayGeom,
+        files_surface: bool,
+        has_query: bool,
+        title_prefix: &'a str,
+        name_fs: f32,
+        header_lh: f32,
+        query: &'a str,
+        placeholder: Option<&'a str>,
+        ink: glyphon::Color,
+        muted: glyphon::Color,
+    ) {
+        if !has_query {
+            return;
+        }
+        let base = overlay_panel_attrs();
+        let mk = |c| base.clone().color(c);
+        let hk = |c| {
+            if geom.header_gap > 0.0 || files_surface {
+                mk(c).metrics(GlyphMetrics::new(name_fs, header_lh))
+            } else {
+                mk(c)
+            }
+        };
+        let hkc = |c| {
+            let attrs = chrome_attrs().color(c);
+            if geom.header_gap > 0.0 || files_surface {
+                attrs.metrics(GlyphMetrics::new(name_fs, header_lh))
+            } else {
+                attrs
+            }
+        };
+        if title_prefix.is_empty() {
+            spans.push(("› ", hk(muted)));
+        } else {
+            spans.push((title_prefix, hkc(muted)));
+        }
+        // GHOST TEXT: an empty field with something to say about it (today
+        // only Insert-link's URL field) shows it dim in the field's own
+        // place, never a second line — a query text still overrides it the
+        // instant it exists, matching the plain text-field convention.
+        match (query.is_empty(), placeholder) {
+            (true, Some(placeholder)) => spans.push((placeholder, hk(muted))),
+            _ => spans.push((query, hk(ink))),
+        }
+    }
+
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
@@ -900,7 +948,6 @@ impl TextPipeline {
         let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
-        let sigil = "› ";
         let name_fs = self.overlay_metrics().font_size
             * if self.overlay_files_surface && geom.card_narrow {
                 0.85
@@ -918,39 +965,19 @@ impl TextPipeline {
         } else {
             self.overlay_raw_title_prefix(geom)
         };
-        let hk = |c| {
-            if geom.header_gap > 0.0 || self.overlay_files_surface {
-                mk(c).metrics(GlyphMetrics::new(name_fs, header_lh))
-            } else {
-                mk(c)
-            }
-        };
-        let hkc = |c| {
-            let a = chrome_attrs().color(c);
-            if geom.header_gap > 0.0 || self.overlay_files_surface {
-                a.metrics(GlyphMetrics::new(name_fs, header_lh))
-            } else {
-                a
-            }
-        };
-        if has_query {
-            if title_prefix.is_empty() {
-                spans.push((sigil, hk(muted)));
-            } else {
-                spans.push((title_prefix.as_str(), hkc(muted)));
-            }
-            // GHOST TEXT: an empty field with something to say about it (today
-            // only Insert-link's URL field) shows it dim in the field's own
-            // place, never a second line — a query text still overrides it the
-            // instant it exists, matching the plain text-field convention.
-            match (
-                self.overlay_query.is_empty(),
-                self.overlay_query_placeholder.as_deref(),
-            ) {
-                (true, Some(ph)) => spans.push((ph, hk(muted))),
-                _ => spans.push((self.overlay_query.as_str(), hk(ink))),
-            }
-        }
+        Self::push_flat_overlay_query_spans(
+            &mut spans,
+            geom,
+            self.overlay_files_surface,
+            has_query,
+            title_prefix.as_str(),
+            name_fs,
+            header_lh,
+            self.overlay_query.as_str(),
+            self.overlay_query_placeholder.as_deref(),
+            ink,
+            muted,
+        );
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands
         // alone (every ordinary flat query card), and only a card with NO
