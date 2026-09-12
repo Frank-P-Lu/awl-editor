@@ -357,6 +357,7 @@ fn a_child_returns_the_workspace_to_the_exact_row_it_left() {
         "the filter landed on a non-first row"
     );
     let corpus = journey.card().unwrap().selected_corpus_index();
+    assert!(journey.focus_settings(super::super::workspace::SettingsFocus::Controls));
 
     assert_eq!(
         journey.descend(card(OverlayKind::Theme, &["Tawny"]), Bind::Value),
@@ -384,6 +385,11 @@ fn a_child_returns_the_workspace_to_the_exact_row_it_left() {
     );
     assert_eq!(back.query.text(), "type", "and with the filter it left");
     assert_eq!(
+        journey.settings_focus(),
+        Some(super::super::workspace::SettingsFocus::Controls),
+        "and on the exact Settings recipient it left"
+    );
+    assert_eq!(
         journey.parked_kind(),
         None,
         "single-level: the resumed parent parks nothing itself"
@@ -396,6 +402,7 @@ fn a_child_returns_the_workspace_to_the_exact_row_it_left() {
 fn a_cancelled_child_also_returns_to_the_exact_row() {
     let mut journey = Journey::seeded(Some(card(OverlayKind::Settings, SETTINGS_ROWS)));
     journey.card_mut().unwrap().move_sel(3);
+    assert!(journey.focus_settings(super::super::workspace::SettingsFocus::Controls));
     let left_on = journey
         .card()
         .unwrap()
@@ -407,6 +414,10 @@ fn a_cancelled_child_also_returns_to_the_exact_row() {
     assert_eq!(
         journey.card().unwrap().selected_value(),
         Some(left_on.as_str())
+    );
+    assert_eq!(
+        journey.settings_focus(),
+        Some(super::super::workspace::SettingsFocus::Controls)
     );
 }
 
@@ -672,6 +683,37 @@ fn the_workspace_focus_stage_is_written_only_by_the_lifecycle() {
         owned >= 3,
         "the scanner found only {owned} lifecycle writes of the focus stage — \
          the needle stopped matching, and this law is vacuous"
+    );
+}
+
+/// The fine-grained Settings recipient is lifecycle state too. A direct writer
+/// outside Journey could make the coarse `detail_focus` projection disagree
+/// with which field actually receives typing while the older ownership law
+/// above stayed green.
+#[test]
+fn the_settings_focus_recipient_is_written_only_by_the_lifecycle() {
+    let writes = scan(&[".settings_focus", "="].concat());
+    let compares = scan(&[".settings_focus", "=="].concat());
+    let mut owned = 0usize;
+    let mut leaked: Vec<(String, usize)> = Vec::new();
+    for (file, n) in &writes {
+        let n = n - compares.get(file).copied().unwrap_or(0);
+        if n == 0 {
+            continue;
+        }
+        if file.starts_with("overlay/journey/") {
+            owned += n;
+        } else {
+            leaked.push((file.clone(), n));
+        }
+    }
+    assert!(
+        leaked.is_empty(),
+        "the Settings focus recipient is written outside its lifecycle: {leaked:?}"
+    );
+    assert!(
+        owned >= 2,
+        "the Settings focus ownership scan is vacuous: {owned}"
     );
 }
 

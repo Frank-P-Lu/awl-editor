@@ -54,6 +54,9 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
     if !has_content {
         return None;
     }
+    if ov.kind == crate::overlay::OverlayKind::Settings {
+        return settings_workspace_intercept(ctx, action);
+    }
     // Tab AND Shift-Tab move focus between the two regions at any width, in
     // either shape. Both do the same thing because there are exactly two
     // regions; `Shift-Tab` — which is `Action::Outdent` in the document — has to
@@ -143,6 +146,112 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
     }
 }
 
+/// Settings has three focus recipients inside the workspace's two lifecycle
+/// stages. Categories is the primary stage; Search and Controls are distinct
+/// recipients in detail. This intercept owns their complete route before the
+/// generic picker keyboard gets a chance to reinterpret text motion as row or
+/// facet navigation.
+fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    use crate::overlay::workspace::SettingsFocus;
+
+    if matches!(action, Action::InsertTab | Action::Outdent) {
+        let delta = if matches!(action, Action::InsertTab) {
+            1
+        } else {
+            -1
+        };
+        ctx.journey.step_settings_focus(delta);
+        return Some(Effect::None);
+    }
+
+    let focus = ctx
+        .journey
+        .settings_focus()
+        .unwrap_or(SettingsFocus::Categories);
+    let focus_search = |ctx: &mut ActionCtx| {
+        ctx.journey.focus_settings(SettingsFocus::Search);
+    };
+    match focus {
+        SettingsFocus::Categories => {
+            let rail = |ctx: &mut ActionCtx, delta: isize| {
+                ctx.journey.card_mut().unwrap().rail_move(delta);
+                Some(Effect::None)
+            };
+            match action {
+                Action::NextLine | Action::PageScrollDown => rail(ctx, 1),
+                Action::PreviousLine | Action::PageScrollUp => rail(ctx, -1),
+                Action::LineEnd | Action::BufferEnd => rail(ctx, isize::MAX / 2),
+                Action::LineStart | Action::BufferStart => rail(ctx, isize::MIN / 2),
+                Action::ForwardChar | Action::Newline | Action::AcceptAlternate => {
+                    ctx.journey.focus_settings(SettingsFocus::Controls);
+                    Some(Effect::None)
+                }
+                Action::BackwardChar => Some(Effect::None),
+                Action::SelectAll => {
+                    focus_search(ctx);
+                    ctx.journey.card_mut().unwrap().query.select_all();
+                    Some(Effect::None)
+                }
+                Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteWordBackward => {
+                    focus_search(ctx);
+                    None
+                }
+                _ => None,
+            }
+        }
+        SettingsFocus::Search => match action {
+            Action::SelectAll => {
+                ctx.journey.card_mut().unwrap().query.select_all();
+                Some(Effect::None)
+            }
+            Action::ForwardChar => {
+                ctx.journey.card_mut().unwrap().query_char_right();
+                Some(Effect::None)
+            }
+            Action::BackwardChar => {
+                ctx.journey.card_mut().unwrap().query_char_left();
+                Some(Effect::None)
+            }
+            Action::LineStart | Action::BufferStart => {
+                ctx.journey.card_mut().unwrap().query_home();
+                Some(Effect::None)
+            }
+            Action::LineEnd | Action::BufferEnd => {
+                ctx.journey.card_mut().unwrap().query_end();
+                Some(Effect::None)
+            }
+            Action::NextLine | Action::Newline | Action::AcceptAlternate => {
+                ctx.journey.focus_settings(SettingsFocus::Controls);
+                Some(Effect::None)
+            }
+            Action::PreviousLine => {
+                ctx.journey.focus_settings(SettingsFocus::Categories);
+                Some(Effect::None)
+            }
+            _ => None,
+        },
+        SettingsFocus::Controls => match action {
+            Action::SelectAll => {
+                focus_search(ctx);
+                ctx.journey.card_mut().unwrap().query.select_all();
+                Some(Effect::None)
+            }
+            Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteWordBackward => {
+                focus_search(ctx);
+                None
+            }
+            Action::BackwardChar if ctx.journey.card().unwrap().selected_range().is_none() => {
+                ctx.journey.focus_settings(SettingsFocus::Categories);
+                Some(Effect::None)
+            }
+            Action::ForwardChar if ctx.journey.card().unwrap().selected_range().is_none() => {
+                Some(Effect::None)
+            }
+            _ => None,
+        },
+    }
+}
+
 /// The primary-rows arm, reached through `rows_primary` rather than a kind
 /// check. Diff-paging (`PageUp`/`PageDown`) always pages the comparison,
 /// focused on it or not. `CompareVersion`/`Tab` are handled by the caller
@@ -226,7 +335,8 @@ pub(super) fn deep_link_settings(ctx: &mut ActionCtx, row: crate::settings::Sett
     ctx.journey.descend(card, crate::overlay::Bind::Value);
     // The row is the destination, so the content pane is what should hold the
     // keyboard — routed through the lifecycle, never by writing the focus bit.
-    ctx.journey.toggle_detail();
+    ctx.journey
+        .focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
     ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Settings)
 }
 
