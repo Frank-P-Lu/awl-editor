@@ -6,40 +6,108 @@
 
 ## Open build and design tasks
 
-**3 open numbered tasks.** Ready: 646. Native candidate review: 640.
+**6 open numbered tasks.** Ready: 647–649 and 646. Native candidate review: 640.
 User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
 
-### 646 — shorten historical commentary in tests (user request, 2026-09-12)
+### 649 — consolidate shared folder-picker navigation (user request, 2026-09-12)
+
+🟢 READY — queue only. Coordinate overlapping files with 640 and 646.
+
+Build: inspect repeated directory descent and acceptance in
+`src/actions/overlay_nav.rs` against the existing policy owner
+`src/overlay/location.rs`. Share only the common selected-directory navigation
+and relevel bookkeeping. Keep typed commit effects and consumer-specific handling
+explicit: Browse, MoveDest, ExportDest/Save Copy, Project and ProjectBrowse have
+different final operations. Preserve MoveHere/NewFolder rows, cancel/back behavior,
+root scope and filesystem effects. Avoid a generic dialog framework; if the
+current tree already shares a candidate, report that rather than forcing a change.
+
+Verify: read docs/render.md, docs/platform.md and docs/verification.md. Use focused
+route tests covering folder/leaf/contextual rows, accept/back/cancel and root
+boundaries for every affected consumer; preserve the distinct final effects.
+Prove the shared navigation rule with a regression-sensitive law. Report actual
+net source savings. Workers run targeted checks; the integrated candidate gets
+one native/wasm gate under the verification policy.
+
+---
+
+### 648 — share retained-line cache splice bookkeeping (user request, 2026-09-12)
+
+🟢 READY — queue only. Sequence overlapping edits with 646.
+
+Build: inspect `NitProjection::refresh` and `HanEvidenceProjection::refresh` in
+`src/render/rects.rs`. Extract a small private helper for genuinely identical
+changed-band validation and prefix/replacement/suffix bookkeeping. Keep eligibility,
+line analysis and Han evidence removal/addition in their existing owners. Preserve
+full reseeding on state mismatch. Do not absorb spell/squiggle caches with different
+invalidation semantics or introduce a generic projection framework for line savings.
+
+Verify: read docs/render.md and docs/verification.md. Cover insertion, deletion,
+replacement, unchanged bands, empty input, invalid bands, eligibility changes and
+buffer swaps; compare incremental results with full recomputation. Preserve work
+bounds and count changed-line analysis. Mutation-prove the shared splice law and
+report actual net source savings. Use targeted worker checks, then the integrated
+native/wasm gate; apply rendering outcome checks if behavior or geometry changes.
+
+---
+
+### 647 — share concealed replacement-slot mechanics (user request, 2026-09-12)
+
+🟢 READY — queue only. Sequence overlapping edits with 646.
+
+Build: inspect the repeated leading-scalar reservation and remainder concealment
+in `src/render/spans/conceal/footnotes.rs`, `bare_url.rs` and `smart_punct.rs`.
+Extract one private helper for the identical span-writing mechanism. Keep footnote
+number lookup, bare-URL tail eligibility/fallthrough, and smart-punctuation spacing
+calibration distinct. Preserve UTF-8 boundaries, actual glyph advances, caret/hit
+geometry, reveal behavior and output. Do not expand into glyph-cache unification.
+
+Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
+docs/verification.md. Target all three constructs and their reveal/selection,
+heading/body and multi-digit/multibyte boundaries. Prove the helper preserves span
+ranges and reserved advances, with a regression-sensitive law. Use applicable
+world/DPI pixel checks and the standing render vision smoke. Report actual net
+source savings; targeted worker checks precede one integrated native/wasm gate.
+
+---
+
+### 646 — shorten historical commentary in tests and production source (user request, 2026-09-12)
 
 🟢 READY — queued cleanup only; implementation is not dispatched.
 
-Build: shorten test comments that recount previous bugs, implementation rounds,
-queue items, superseded designs or repeated proof narratives. Keep concise,
-present-tense explanations of each test's purpose, the defect it catches, its
-non-obvious invariant, configuration coverage and why its oracle is meaningful.
+Build: shorten comments in tests and live code that recount previous bugs,
+implementation rounds, queue items, superseded designs or repeated narratives.
+Keep concise, present-tense explanations of non-obvious behavior, ownership,
+correctness constraints and each test's purpose, defect, coverage and oracle.
 Preserve calibration evidence and mutation rationale needed to maintain a law.
-Git retains the history; do not relocate the removed narrative into another
-large document or create a new history file.
+Git retains history; do not move the removed narrative into another large document.
 
-Scope: test modules and test-only sections, starting with
+Scope: inventory `src/` and work in bounded batches. Starting samples are
 `src/render/tests/chrome_panels.rs`, `src/render/tests/list_surfaces.rs`,
-`src/capture/tests/panels.rs`, `src/app_icon/tests.rs` and
-`src/render/tests/caret_transition.rs`. Inventory and work in bounded batches.
-Leave test bodies, names, attributes, assertions, fixtures, thresholds, enrollment,
-skips and product behavior unchanged. Test-helper consolidation and production
-source cleanup are separate work. The preliminary suggestion of tens of thousands
-of removable lines is a hypothesis, not a quota; report measured savings and
-retain useful rationale even when that reduces the total.
+`src/capture/tests/panels.rs`, `src/app_icon/tests.rs`,
+`src/render/tests/caret_transition.rs`, `src/actions/workspace_nav.rs`,
+`src/app/apply.rs` and `src/main/args/flags.rs`. Keep executable code, test names,
+attributes, assertions, fixtures, thresholds, enrollment and skips unchanged.
+Implementation refactoring is separate work (647–649); sequence overlapping files
+so commentary savings remain independently measurable. There is no deletion quota.
 
-Done/Verify: read docs/verification.md. Review the exact diff and prove executable
-Rust tokens and test enrollment unchanged with syntax-aware comparison, preserving
-doc-test code and source-audit-sensitive comments. Check relevant source audits,
-formatting and affected documentation links; use the verification policy for the
-integrated candidate, including the required native/wasm gate for source changes.
-Do not weaken an audit merely to permit comment deletion. Report changed files,
-comment-line savings and checks performed; distinguish readability improvement
-from executable-code or application-size reduction.
+Done/Verify: follow docs/verification.md. Prove executable Rust tokens and test
+enrollment unchanged with syntax-aware comparison; preserve doc-test code,
+license notices and source-audit-sensitive comments. Review the diff, relevant
+source audits, formatting and documentation links; use the required integrated
+native/wasm gate for source changes. Never weaken an audit to delete commentary.
+
+Required user report: name the before/after commits, counting tool/method and exact
+file scope. Give physical lines before and after, gross lines removed and added,
+and net lines removed, both per batch and cumulatively. Separate comment-only,
+blank and executable-code changes, and test-only versus production sections;
+executable-code changes must be zero. Report mixed code/comment lines separately
+rather than counting them twice. Include a plain headline, “Removed N net lines
+of historical commentary,” with blank-line savings separate. Count only this
+cleanup, excluding unrelated concurrent edits and refactors. Useful rationale is
+retained even if savings are small; do not present source reduction as binary-size
+or performance improvement.
 
 ---
 
