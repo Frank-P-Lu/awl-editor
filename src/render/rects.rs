@@ -6,6 +6,8 @@ type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
 mod ranges;
 #[cfg(test)]
 pub(super) use ranges::intersecting_rows;
+mod retained_line_splice;
+use retained_line_splice::splice_retained_line_band;
 
 /// [`TextPipeline::wash_rects`]'s triple: comment-span, string-span, and
 /// syntax-highlight-span wash rects, in that order.
@@ -345,29 +347,20 @@ impl NitProjection {
             self.slots.clear();
             return 0;
         }
-        if let Some((prefix, old_end, new_end)) = change
-            && self.eligible
-            && prefix <= old_end
-            && new_end <= lines.len()
+        if self.eligible
+            && let Some(retokenized) = splice_retained_line_band(
+                &mut self.slots,
+                lines.len(),
+                change,
+                |_, current_band| {
+                    lines[current_band]
+                        .iter()
+                        .map(|&line| crate::nits::line_nits(line))
+                        .collect()
+                },
+            )
         {
-            let old_len = old_end + (lines.len() - new_end);
-            if self.slots.len() == old_len {
-                // Splice: the SAME prefix/replace/suffix shape
-                // `splice_changed_lines` uses to retain glyphon's unaffected
-                // rows, for the identical reason — only the band's own TEXT
-                // could have changed; everything outside it is untouched byte
-                // for byte (`unchanged_band`'s own guarantee).
-                let mut next = Vec::with_capacity(lines.len());
-                next.extend_from_slice(&self.slots[..prefix]);
-                let mut retokenized = 0u64;
-                for &line in &lines[prefix..new_end] {
-                    next.push(crate::nits::line_nits(line));
-                    retokenized += 1;
-                }
-                next.extend_from_slice(&self.slots[old_end..]);
-                self.slots = next;
-                return retokenized;
-            }
+            return retokenized;
         }
         // First activation, a state mismatch defensive fallback, or nothing
         // has reshaped through this cache yet: seed every line once.
@@ -419,34 +412,37 @@ impl HanEvidenceProjection {
         self.counts.resolve()
     }
 
+    #[cfg(test)]
+    pub(super) fn line_evidence(&self) -> &[crate::script::LineEvidence] {
+        &self.per_line
+    }
+
     /// Bring the retained per-line evidence up to date with `lines` (the
     /// CURRENT document, one entry per logical line). `change` is the exact
     /// changed-line band the reshape that produced `lines` reports (`prefix`,
     /// old end, new end). Returns the number of lines actually rescanned (0
     /// on a pure retain — the common single-line-edit case).
     pub(super) fn refresh(&mut self, lines: &[&str], change: Option<(usize, usize, usize)>) -> u64 {
-        if let Some((prefix, old_end, new_end)) = change
-            && prefix <= old_end
-            && new_end <= lines.len()
-        {
-            let old_len = old_end + (lines.len() - new_end);
-            if self.per_line.len() == old_len {
-                for &ev in &self.per_line[prefix..old_end] {
-                    self.counts.remove(ev);
+        let counts = &mut self.counts;
+        if let Some(rescanned) = splice_retained_line_band(
+            &mut self.per_line,
+            lines.len(),
+            change,
+            |removed, current_band| {
+                for &ev in removed {
+                    counts.remove(ev);
                 }
-                let mut next = Vec::with_capacity(lines.len());
-                next.extend_from_slice(&self.per_line[..prefix]);
-                let mut rescanned = 0u64;
-                for &line in &lines[prefix..new_end] {
-                    let ev = crate::script::line_evidence(line);
-                    self.counts.add(ev);
-                    next.push(ev);
-                    rescanned += 1;
-                }
-                next.extend_from_slice(&self.per_line[old_end..]);
-                self.per_line = next;
-                return rescanned;
-            }
+                lines[current_band]
+                    .iter()
+                    .map(|&line| {
+                        let ev = crate::script::line_evidence(line);
+                        counts.add(ev);
+                        ev
+                    })
+                    .collect()
+            },
+        ) {
+            return rescanned;
         }
         // First activation, a state mismatch defensive fallback (including
         // an unrelated buffer swap sharing no line with the prior document —
