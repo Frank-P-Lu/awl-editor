@@ -193,34 +193,9 @@ pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 /// [`Metrics::px`] on the CPU and passed per-instance to the shader.
 pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 
-/// Zoom clamps and step. Effective metrics = base metric * zoom. 1.0 is the
-/// default — but NOT, despite what this comment used to claim, the only zoom the
-/// `--screenshot` path ever sees: `--zoom` sets it, and STICKY ZOOM folds
-/// `config.zoom` in behind that flag for captures too (`main/args.rs`). A
-/// capture-based test whose arithmetic uses BASE constants must still pin
-/// `--zoom`; capture tests should instead read the sidecar's EFFECTIVE
-/// `font.size` / `font.line_height`, which report this effective metric
-/// scale. Believing this comment once made a personal `zoom = 1.5` turn a pixel
-/// test red with no product change behind it.
-///
-/// The band/step/default no longer live here AT ALL. The former
-/// `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts were deleted rather than re-pointed —
-/// an alias is a drift risk, and there is now exactly ONE place zoom's authored
-/// numbers exist: [`crate::range::ZOOM`] (`.min`/`.max`/`.step`/`.default`), the
-/// same spec the Settings rail, the ⌘± keys, the ⌘-wheel, `--zoom` and a typed
-/// `125%` all read. Every former reader was updated to read the spec.
-/// Clamp + round a zoom factor to a sane stepped value. Rounding to the nearest
-/// step keeps Cmd+= / Cmd+- / Ctrl+wheel landing on stable factors (so repeated
-/// presses don't drift into ugly fractions) and keeps captures reproducible.
-/// FINITE GUARD: NaN would sail straight through the step arithmetic AND
-/// `f32::clamp` (clamp returns NaN for NaN) and poison every zoom-derived metric,
-/// so it falls back to the 1.0 default; ±inf saturates through the normal clamp.
-/// The result is always finite in `[ZOOM.min, ZOOM.max]`.
-///
-/// A ONE-LINE DELEGATE to [`crate::range::RangeSpec::quantize`]: this is
-/// still the door every zoom caller knocks on, but the arithmetic behind it now
-/// lives with the rest of the range rule (bit-identical to the formula that used
-/// to sit here — `range::tests::quantize_reproduces_the_historical_zoom_clamp_formula`).
+/// Clamp and quantize zoom through the shared authored range specification.
+/// The result is finite and within `ZOOM.min..=ZOOM.max`; captures should use
+/// sidecar effective metrics rather than base constants unless they pin `--zoom`.
 pub fn clamp_zoom(z: f32) -> f32 {
     crate::range::ZOOM.quantize(z)
 }
@@ -468,30 +443,10 @@ pub const ORNAMENT_WEIGHT: glyphon::Weight = glyphon::Weight::MEDIUM;
 /// world's display face.
 pub const SYMBOL_FAMILY: &str = "Awl Marks";
 
-/// Every per-theme display face, embedded so a theme switch reskins the glyph
-/// SHAPES with zero runtime font discovery. Each is loaded into the glyphon
-/// `FontSystem` at startup (see [`TextPipeline::new`]); a theme selects its face
-/// by the exact registered family name recorded in `Theme::font`, shaped via
-/// `Family::Name` — so the name a world records must be the family FONTDB
-/// registers, which is not always the file's stem. "Newsreader 16pt 16pt" is
-/// where the two part company: the static Newsreader master registers under its
-/// optical-size name. The default face is not in this list; it lives in
-/// [`FONT_DATA`], and [`bundled_display_faces`] is the seam that joins them.
-///
-/// Every face here is a static Regular/400 (Monaspace Xenon was instanced from
-/// its variable master at `wght=400`), so no `mono_safe_weight` exception is
-/// needed beyond IBM Plex Mono's Light.
-///
-/// EACH FACE DECLARES ITS PITCH. The second tuple field is the
-/// face's [`facepitch::Pitch`] — the tuple type is the point: a new
-/// `include_bytes!` here CANNOT COMPILE without a conscious Mono/Proportional
-/// call, which is what the caret's mono/proportional fork used to get wrong by
-/// omission (a hardcoded three-name list in `caret::font_is_mono` silently missed
-/// Iosevka, so Currawong and Cassowary lost the uniform caret grid). The
-/// declaration does not DRIVE the caret — [`facepitch`] measures each face's own
-/// advance widths and the caret rides the measurement — it exists so a wrong or
-/// missing call FAILS `render::tests::facepitch` instead of quietly changing how
-/// the caret looks.
+/// Per-theme display faces, loaded at startup with no runtime discovery. Themes
+/// name their registered family, which need not match a file stem. Each face
+/// declares pitch so additions require a deliberate caret classification; tests
+/// measure the actual advances. [`bundled_display_faces`] adds [`FONT_DATA`].
 pub static FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
     (
         include_bytes!("../assets/fonts/Literata-Regular.ttf"),
@@ -551,55 +506,15 @@ pub static FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
     ),
 ];
 
-/// THE ONE ROSTER of bundled DISPLAY faces + their declared pitch: [`FONT_DATA`]
-/// (loaded separately, as the `Family::Monospace` fallback) spliced in front of
-/// [`FONT_THEME_FACES`]. Every consumer that wants "the faces a `Theme::font` can
-/// name" reads this rather than remembering that the default face lives in its own
-/// const — the exact shape of forgetting this round is fixing.
+/// Bundled display faces plus the default monospace fallback and declared pitch.
 pub fn bundled_display_faces() -> impl Iterator<Item = (&'static [u8], facepitch::Pitch)> {
     std::iter::once((FONT_DATA, FONT_DATA_PITCH)).chain(FONT_THEME_FACES.iter().copied())
 }
 
-/// BUNDLED BOLD (700) display faces — the WYSIWYG-pivot bold round. awl's bundled
-/// display faces were Regular-only, so `**bold**` (whose `MdKind::Bold` arm in
-/// `render/spans.rs` requests `Weight::BOLD`) fell into cosmic-text's
-/// `weight_diff == 0` fallback trap: with only the 400 Regular present,
-/// `|400-700| = 300` drops it during fallback filtering and the request lands in
-/// the ugly MONO fallback (bold-as-monospace). Registering a real 700 face under
-/// the SAME family name each Regular uses gives `weight_diff == 0` for the BOLD
-/// request, so it survives name-matching and resolves to the bold FILE — no new
-/// family, no wiring beyond this list (the `MdKind::Bold` arm is unchanged).
-///
-/// EVERY bundled display face gets a bold, MONOSPACE ONES INCLUDED. A mono
-/// without a 700 trips the same trap and falls into a FOREIGN proportional sans
-/// (the user's "weird fi-ligature" report) — worse than the proportional case,
-/// because it also breaks the fixed grid. A real 700 mono keeps the advance AND
-/// gives true emphasis. Each face
-/// is sourced exactly like the bundled CJK faces: a static upstream Bold where one
-/// ships (Fira Sans, IBM Plex Sans, Zilla Slab, iA Writer Quattro S, IBM Plex Mono,
-/// Iosevka), else instanced from the OFL variable source at `wght=700`
-/// (`fonttools varLib.instancer`, pinning the Regular's optical size — Literata
-/// `opsz=12`, Newsreader `opsz=16`, Fraunces `opsz=9` — and, for Monaspace Xenon,
-/// its width/slant axes to the Regular's `wdth=100 slnt=0`; JetBrains Mono has a
-/// lone `wght` axis), then name-fixed so family(1) EXACTLY matches the Regular's
-/// registered family and subset to that Regular's own code-point set. All OFL 1.1
-/// (see `assets/fonts/LICENSES.md`).
-///
-/// IBM Plex Mono is the one weight-asymmetric pair: awl ships its Regular as the
-/// Light/300 weight (`mono_safe_weight` — the documented Plex-Light trap), but its
-/// Bold is the genuine upstream 700. The `MdKind::Bold` arm requests a plain
-/// `Weight::BOLD` (700), NOT the mono-safe weight, so it resolves to this 700 file
-/// with `weight_diff == 0` and a bold span visibly jumps Light→Bold. A code buffer
-/// still requests `mono_safe_weight` (300) and matches the Light face exactly (the
-/// 700 is farther, never wins the 300 request), so code shaping is untouched.
-///
-/// DOCUMENTED GAP: `Fraunces9pt-Bold.ttf` covers 624 of the Regular's 637
-/// code-points — 13 rare transliteration/combining marks (Ṅ Ṡ Ṧ Ṩ Ẏ + combining
-/// hook/ring-above, dot-below) are absent from the upstream Fraunces VARIABLE
-/// source itself (the shipped Regular was built from a fuller source), so no
-/// `wght=700` instance can carry them; a bold occurrence of one of those 13
-/// characters falls back like any missing glyph. Every other bold (including all
-/// four monos) matches its Regular's coverage exactly.
+/// Bundled 700 companions register under their Regular families, so `Weight::BOLD`
+/// resolves locally and mono worlds retain their grid. All are OFL 1.1; see
+/// `assets/fonts/LICENSES.md`. `Fraunces9pt-Bold.ttf` lacks 13 Regular glyphs, so
+/// those bold runs use ordinary missing-glyph fallback.
 pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/Literata-Bold.ttf"),
     include_bytes!("../assets/fonts/Newsreader-Bold.ttf"),
@@ -612,9 +527,7 @@ pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/FiraSans-Bold.ttf"),
     include_bytes!("../assets/fonts/Bitter-Bold.ttf"),
     include_bytes!("../assets/fonts/SourGummy-Bold.ttf"),
-    // Mono display faces — the mono-bolds round. Same-family 700 companions so a
-    // `**bold**` span in a mono-display world keeps its grid instead of falling
-    // into a foreign proportional sans (see the module doc above).
+    // Same-family 700 companions preserve the mono grid in bold spans.
     include_bytes!("../assets/fonts/IBMPlexMono-Bold.ttf"),
     include_bytes!("../assets/fonts/JetBrainsMono-Bold.ttf"),
     include_bytes!("../assets/fonts/MonaspaceXenon-Bold.ttf"),
@@ -641,27 +554,9 @@ pub static FONT_CHROME_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/AbrilFatface-Regular.ttf"),
 ];
 
-/// BUNDLED HEAVY-WEIGHT CANDIDATE — Sour Gummy at `wght=900`
-/// ("Black"), registered under the SAME family "Sour Gummy" as the Regular
-/// ([`FONT_THEME_FACES`]) and the real Bold companion
-/// ([`FONT_THEME_BOLD_FACES`]'s `SourGummy-Bold.ttf`, subfamily "Bold",
-/// `usWeightClass 700`) — both a
-/// 700-weight AND a 900-weight real instance (not relabelled weight
-/// metadata) so a human taste pass can pick the heavy companion, rather than
-/// silently deciding in code. Both files share the Regular's exact 335-glyph
-/// coverage (see `assets/fonts/LICENSES.md`).
-///
-/// NORMAL operation (no env set): a plain `Weight::BOLD` (700) request
-/// (`**bold**` / Quokka's `heading_bold`) resolves to the 700 file
-/// (`weight_diff == 0` beats this 900 file's `weight_diff == 200` — the
-/// SAME nearest-weight fallback rule every other bundled Bold companion
-/// relies on) — this face stays bundled + addressable, never selected by
-/// default. `AWL_SOURGUMMY_HEAVY_FORCE=900` (dev-only, mirrors
-/// [`awl_cjk_force`]'s "total no-op unless set" contract — no config key, no
-/// CLI flag) prunes the 700 file from the font DB after load
-/// ([`apply_sourgummy_heavy_force`]), so the SAME `Weight::BOLD` request
-/// falls through to THIS file instead — a true in-app A/B capture of the
-/// heavy candidate, not a synthetic side-by-side image.
+/// Sour Gummy's bundled 900 candidate. Normal 700 requests select the real 700
+/// companion; `AWL_SOURGUMMY_HEAVY_FORCE=900` selects this face for dev-only A/B
+/// captures. Both share the Regular's coverage; see `assets/fonts/LICENSES.md`.
 pub static FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
     include_bytes!("../assets/fonts/SourGummy-Black.ttf");
 
@@ -2560,9 +2455,6 @@ pub struct TextPipeline {
     /// token on an ordinary (`Fill`) world so amber stays reserved for the
     /// caret, or solid `base_content` (white) on a true 1-bit world, where the
     /// the shaper (`selected_ink`) so the pair reads as crisp black-on-white.
-    /// That solid-fill + recolor SUPERSEDED an earlier framebuffer invert of the
-    /// row (retired), whose gamma-limited flip of the antialiased row text read
-    /// as a faint grey — see [`theme::HighlightTreatment::InverseFill`].
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
     /// The `Bars` FOOTER PLATE's rim — that plate's own rect grown one pixel on
@@ -2625,8 +2517,8 @@ pub struct TextPipeline {
     /// same lens held across many frames) re-uploads no texture.
     rotated_location_mask: Option<crate::rotated_label::mask::LabelMask>,
     overlay_theme_underline: Option<[f32; 4]>,
-    /// V6 P5 round — the INACTIVE ghost-pill rects `[x, y, w, h]` recorded during
-    /// theme-strip shaping under [`theme::FacetStyle::Chips`] (one per non-active
+    /// Inactive ghost-pill rects `[x, y, w, h]` recorded during theme-strip shaping
+    /// under [`theme::FacetStyle::Chips`] (one per non-active
     /// facet label, from the SAME shaped glyphs the active pill reads, so the
     /// skin can't disagree with the hit-test). Consumed by `overlay_draw_card`
     /// into `overlay_facet_ghost`. EMPTY under `Text`/`Band` and off the theme
