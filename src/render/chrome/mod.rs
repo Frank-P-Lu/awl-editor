@@ -431,6 +431,7 @@ mod workspace_column;
 mod workspace_rail;
 // Card draw/upload/composite; `overlay` owns its geometry and hit-test.
 mod overlay_draw;
+mod overlay_files;
 mod overlay_ink;
 mod overlay_material;
 mod overlay_query_field;

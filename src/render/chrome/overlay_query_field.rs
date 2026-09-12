@@ -1,10 +1,112 @@
-//! The query field's glyph-run lookup, caret box, and selection box —
-//! split out of `overlay_draw` to keep that file under its file-size mark.
-//! Same `TextPipeline` impl target, own file, no ownership change.
+//! The query field's shared pointer bounds, glyph-run lookup, caret box, and
+//! selection box. Every interaction reads the same planned band and shaped run.
 
 use super::*;
 
 impl TextPipeline {
+    /// Left edge of the editable query span. Files reserves the shaped title
+    /// prefix for header controls; ordinary cards retain their full-row field.
+    fn overlay_query_input_x(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
+        if !self.overlay_files_surface {
+            return geom.card_x;
+        }
+        let prefix = self.overlay_title_prefix(geom);
+        let origin = self.overlay_head_left(geom, plan);
+        self.panel_buffer
+            .layout_runs()
+            .next()
+            .and_then(|run| {
+                run.glyphs
+                    .iter()
+                    .find(|glyph| glyph.start >= prefix.len())
+                    .map(|glyph| origin + glyph.x)
+                    .or(Some(origin + run.line_w))
+            })
+            .unwrap_or(origin)
+    }
+
+    /// Hit-test a pointer at PHYSICAL `(px, py)` against the SUMMONED overlay's
+    /// editable QUERY-INPUT line — the `› query` filter field every flat/nav/theme
+    /// picker draws on top. Returns `true` when the pointer sits inside the
+    /// field's own PLANNED line box, within the card's x-bounds. The contextual
+    /// SPELL panel has NO query line (`header_rows == 0`), so the plan carries no
+    /// query band and this always returns `false`. Used by
+    /// `input.rs::sync_cursor_icon` to give the field the I-beam.
+    ///
+    /// **THE DRIFT THIS CLOSES.** Reading the bare row pitch here — `text_top ..
+    /// text_top + lh` — describes the wrong box on the FLAT family, whose field
+    /// is `lh + header_gap` tall (the beat is the BOTTOM of the field's own box,
+    /// not a row after it) with its ink half-led LOW inside it. On the shipping
+    /// default at 1200x800 the field draws `[64.0, 133.2]`, caret at 98.6 and
+    /// baseline at 106.0, against a pointer band ending at 91.2: the I-beam sat
+    /// in empty air above the text, missing by 7.4px at 1x and 14.8px at 2x. The
+    /// GROUPED family was right by accident (its beat inflates the lens strip
+    /// instead), which is how a parallel calculation survives review — it agrees
+    /// on the arm somebody looked at.
+    pub fn over_overlay_query(&self, px: f32, py: f32) -> bool {
+        if !self.overlay_active {
+            return false;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let Some(field) = plan.query_band() else {
+            return false;
+        };
+        let x0 = self.overlay_query_input_x(&geom, &plan);
+        px >= x0 && px <= geom.card_x + geom.card_w && field.contains(py)
+    }
+
+    /// The CHAR index into the raw query text nearest pointer `(px, py)` — the
+    /// click-to-place counterpart to [`Self::over_overlay_query`]'s I-beam gate:
+    /// same box (same `query_x`/card-right/`field.contains`), so a click can
+    /// only place a caret where the I-beam already promised one. `None` off the
+    /// field.
+    ///
+    /// Walks the SAME shaped run [`Self::overlay_query_caret_box`] reads a
+    /// caret's x from, skipping the prefix (title / `› ` sigil) by byte offset
+    /// so the first placeable column sits right after it, never inside it. A
+    /// press at or before the first glyph's center resolves to 0; past the
+    /// last glyph's center resolves to the query's own length — "round to the
+    /// nearer glyph edge", the plain text-field rule.
+    pub fn overlay_query_char_at(&self, px: f32, py: f32) -> Option<usize> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let field = plan.query_band()?;
+        let query_x = self.overlay_query_input_x(&geom, &plan);
+        if !(px >= query_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
+            return None;
+        }
+        let title_prefix = self.overlay_title_prefix(&geom);
+        let prefix_len = if title_prefix.is_empty() {
+            "› ".len()
+        } else {
+            title_prefix.len()
+        };
+        let query_len = self.overlay_query.chars().count();
+        let Some(run) = self.panel_buffer.layout_runs().next() else {
+            return Some(query_len);
+        };
+        for g in run.glyphs.iter() {
+            if g.start < prefix_len {
+                continue;
+            }
+            let Some(char_idx) = self
+                .overlay_query
+                .get(..g.start - prefix_len)
+                .map(|s| s.chars().count())
+            else {
+                continue;
+            };
+            if px < self.overlay_head_left(&geom, &plan) + g.x + g.w * 0.5 {
+                return Some(char_idx);
+            }
+        }
+        Some(query_len)
+    }
+
     /// THE QUERY FIELD's glyph-run X for CHAR index `char_idx` — the ONE
     /// shaped-text lookup both [`Self::overlay_query_caret_box`] and
     /// [`Self::overlay_query_selection_box`] read, so the caret and a
