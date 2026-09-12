@@ -274,8 +274,11 @@ gate after the candidate is committed and frozen.
 
 ### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
 
-🟡 IN PROGRESS — `/root/search_folder_budgets` (Codex), branch
-`codex/651-search-folder-budgets`. Separate from 650 and based on its landed owner.
+🔴 BLOCKED on browser-backend direction after independent audit. Native/loading/UI
+work is committed at `7764e7ea`, but is not mergeable as complete: synchronous
+`localStorage.getItem` cannot bound a cross-tab replacement before materializing it.
+Transactional IndexedDB chunks preserve parity but expand the storage architecture;
+failing browser folder search closed is safe but a user-visible degradation.
 
 Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
 `search_folder::load_corpus` synchronously with whole-file `read_to_string` before
