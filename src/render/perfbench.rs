@@ -21,7 +21,6 @@
 //!     emitted faces.
 
 use glyphon::Cache;
-use std::path::Path;
 
 use crate::actions::LayoutOracle;
 use crate::buffer::Buffer;
@@ -50,10 +49,10 @@ fn bench_view(buffer: &Buffer, cursor: (usize, usize)) -> ViewState {
     }
 }
 
-/// Load a fixture buffer from `benches/fixtures/<name>`, resolved relative to the
-/// crate manifest dir so the bench works from any cwd.
+/// Load a fixture buffer from `benches/fixtures/<name>` through render's
+/// cfg-aware root owner.
 fn fixture(name: &str) -> Buffer {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+    let path = super::benchmark_repo_root()
         .join("benches/fixtures")
         .join(name);
     Buffer::from_file(&path)

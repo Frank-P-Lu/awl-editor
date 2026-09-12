@@ -5,7 +5,6 @@ mod warp;
 
 use anyhow::{Context as _, ensure};
 use glyphon::{Cache, Resolution};
-use std::path::Path;
 
 use crate::buffer::Buffer;
 use crate::capture::FORMAT;
@@ -244,7 +243,7 @@ fn profile_doc(
     spell: &crate::spell::SpellChecker,
     name: &str,
 ) -> anyhow::Result<()> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
+    let path = super::benchmark_repo_root().join(name);
     let buffer = Buffer::from_file(&path);
     let text = buffer.text();
     let misspelled = spell.misspellings_for(&text, buffer.syntax_lang());
@@ -464,7 +463,7 @@ fn burst_doc(
     doc: &str,
 ) -> anyhow::Result<()> {
     crate::theme::set_active_by_name("Mangrove");
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(doc);
+    let path = super::benchmark_repo_root().join(doc);
     let buffer = Buffer::from_file(&path);
     let text = buffer.text();
     let misspelled = spell.misspellings_for(&text, buffer.syntax_lang());
@@ -616,7 +615,7 @@ fn zoom_burst_doc(
     spell: &crate::spell::SpellChecker,
     doc: &str,
 ) -> anyhow::Result<()> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(doc);
+    let path = super::benchmark_repo_root().join(doc);
     let buffer = Buffer::from_file(&path);
     let text = buffer.text();
     let misspelled = spell.misspellings_for(&text, buffer.syntax_lang());
@@ -803,7 +802,7 @@ fn frost_world(
     world: &str,
 ) -> anyhow::Result<()> {
     crate::theme::set_active_by_name(world);
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(FROST_DOC);
+    let path = super::benchmark_repo_root().join(FROST_DOC);
     let buffer = Buffer::from_file(&path);
     let text = buffer.text();
     let misspelled = spell.misspellings_for(&text, buffer.syntax_lang());

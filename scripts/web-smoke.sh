@@ -74,6 +74,9 @@ echo "==> RUSTC_WRAPPER bypassed for this entire script; wasm builds do not use 
 echo "==> L0: scripts/site-links.sh (repo-relative site links resolve)"
 "$SCRIPT_DIR/site-links.sh"
 
+echo "==> L0.5: scripts/check-web-site-assembly.sh (generated editor stays untracked)"
+"$SCRIPT_DIR/check-web-site-assembly.sh"
+
 # L1 — the whole crate must still compile to wasm.
 echo "==> L1: cargo build --target wasm32-unknown-unknown"
 cargo build --target wasm32-unknown-unknown

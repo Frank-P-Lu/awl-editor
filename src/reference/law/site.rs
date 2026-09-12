@@ -156,7 +156,7 @@ fn readme_and_llms_name_supported_markdown() {
 /// eight, and a hand-maintained count is wrong the first time a page is added.
 /// Two copies are deliberately outside this sweep and named in that README: the
 /// repo-root `index.html` (the Trunk SOURCE, where the tag lives so it survives
-/// `trunk build`) and its emitted `site/editor/index.html`.
+/// `trunk build`) and its emitted scratch-assembly editor page.
 #[test]
 fn every_authored_site_page_carries_the_same_analytics_beacon() {
     let pages = site_pages();

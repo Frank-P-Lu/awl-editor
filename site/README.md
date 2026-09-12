@@ -99,30 +99,33 @@ eight, and a hand-kept count is wrong the first time a page is added:
   nothing to update here.
 - the repo-root `index.html` — the **Trunk source** for the editor. The beacon is
   here so it **survives `trunk build`** (Trunk passes the `<script>` through into
-  the emitted `site/editor/index.html`); re-check it after each rebuild.
-- `site/editor/index.html` — that emitted wasm editor page. Both of these sit
-  outside the law's sweep, which covers authored pages only.
+  the emitted editor page); re-check it after each rebuild.
+
+The emitted editor page is generated only in the scratch deploy/preview
+assembly, so it is outside the law's sweep, which covers authored pages only.
 
 ## `/editor/` — the wasm build
 
 The `Try it →` CTA points at `/editor/`, where the **Trunk** `wasm32` / WebGPU
 browser build is mounted (a *separate* build from this static landing — see
-`WEB.md`). The built bundle lives in `site/editor/` (committed as the deployable
-artifact): the wasm-bindgen `.js` glue, the `_bg.wasm`, and its own `index.html`
-whose asset URLs are all rooted at `/editor/`.
+`WEB.md`). The wasm-bindgen `.js` glue, `_bg.wasm`, and generated `index.html`
+are never committed. Deploy and preview assemble a fresh bundle under
+`editor/` in an untracked scratch site; its asset URLs remain rooted at
+`/editor/`.
 
 Rebuild it (from the worktree/repo root — NOT `trunk serve`, per `WEB.md`):
 
 ```sh
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
 scripts/with-remap.sh trunk build --release --public-url /editor/   # emits dist/ with /editor/-rooted paths
-rm -rf site/editor && cp -R dist site/editor  # mount it at the sub-path
+PREVIEW="$(mktemp -d "${TMPDIR:-/tmp}/awl-site-preview.XXXXXX")"
+scripts/assemble-web-site.sh "$PREVIEW"
 ```
 
 `scripts/with-remap.sh` is required, not optional: a bare `trunk build` bakes the
-builder's `$HOME` into the wasm (rustc embeds compile-time source paths), and a
-committed `site/editor/` is public. The wrapper reads `$HOME` at build time and
-maps it out (`--remap-path-prefix`), so no personal path ships. The
+builder's `$HOME` into the wasm (rustc embeds compile-time source paths). The
+wrapper reads `$HOME` at build time and maps it out (`--remap-path-prefix`), so
+no personal path ships. The
 `--public-url /editor/` flag is what makes the generated `index.html`
 reference its wasm/js under `/editor/` instead of the root `/`. The wasm is
 ~27 MB (release, no `wasm-opt`; the bundled Latin + CJK font faces dominate) —
@@ -136,13 +139,17 @@ load. Use the bundled one-line static server (do **not** use `trunk serve`; that
 is the editor's dev watch loop, not this page):
 
 ```sh
-bash site/serve.sh          # default port 8080
+PREVIEW="$(mktemp -d "${TMPDIR:-/tmp}/awl-site-preview.XXXXXX")"
+scripts/with-remap.sh trunk build --release --public-url /editor/
+scripts/assemble-web-site.sh "$PREVIEW"
+(cd "$PREVIEW" && python3 -m http.server 8080)
 # Landing: http://localhost:8080/
 # Editor:  http://localhost:8080/editor/
 ```
 
-`site/serve.sh` is just `python3 -m http.server` rooted at `site/`. Any static
-file server works equally well; the only hard requirement is HTTP, not `file://`.
+Any static file server works equally well; the only hard requirement is HTTP,
+not `file://`. The scratch directory can be removed after previewing; it is
+never copied back into `site/`.
 Chrome is the recommended browser for the editor (WebGPU on by default).
 
 ## Check for updates (`check.html` + `check.js` + `version.json`)

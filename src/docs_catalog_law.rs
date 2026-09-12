@@ -52,8 +52,8 @@
 //! [`sibling_site_pages_carry_no_chord_glyphs`] pins that fact so a FUTURE
 //! stray chord mention in one of them fails loudly instead of shipping
 //! unverified — the same "grep-law" shape as the markdown docs' own glyph
-//! ban. `site/editor/index.html` is the Trunk-generated wasm app shell (no
-//! hand-written prose) and is out of scope entirely.
+//! ban. The Trunk-generated wasm app shell exists only in the scratch web-site
+//! assembly (no hand-written prose) and is out of scope entirely.
 #![cfg(test)]
 
 use std::collections::{HashMap, HashSet};

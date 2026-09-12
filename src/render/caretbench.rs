@@ -26,7 +26,6 @@
 //! shaping path with no public shims. Dev-only; never on the render path.
 
 use glyphon::Cache;
-use std::path::Path;
 
 use crate::buffer::Buffer;
 use crate::capture::FORMAT;
@@ -71,7 +70,7 @@ fn bench_view(buffer: &Buffer, cursor: (usize, usize)) -> ViewState {
 }
 
 fn fixture(name: &str) -> Buffer {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+    let path = super::benchmark_repo_root()
         .join("benches/fixtures")
         .join(name);
     Buffer::from_file(&path)
