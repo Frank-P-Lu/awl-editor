@@ -1,6 +1,6 @@
 //! Files card construction, presentation, and directory-level outcomes.
 
-use std::{collections::BTreeSet, path::Path};
+use std::collections::BTreeSet;
 
 use super::{OverlayKind, OverlayRow, OverlayState, RowMeta};
 
@@ -20,7 +20,6 @@ pub enum FilesFocus {
 /// out of the Text listing. This is pure; acceptance-time content validation
 /// remains in `openable::classify`.
 pub(crate) fn non_text_level_files(
-    _root: &Path,
     rel: Option<&str>,
     entries: &[crate::index::DirEntry],
 ) -> BTreeSet<String> {
@@ -35,8 +34,7 @@ pub(crate) fn non_text_level_files(
                 Some(prefix) => format!("{prefix}{}", entry.name),
                 None => entry.name.clone(),
             };
-            !crate::file_visibility::presentation_hint(&entry.name, entry.is_dir)
-                .text_visible()
+            (!crate::file_visibility::presentation_hint(&entry.name, entry.is_dir).text_visible())
                 .then_some(relative)
         })
         .collect()

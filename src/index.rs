@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 mod files_facets;
 mod level;
 pub use files_facets::FILES_FACETS;
-pub use level::{DirEntry, list_dir_level, resolve_dir_level, try_list_dir_level};
+pub use level::{DirEntry, list_dir_level, try_list_dir_level};
 
 /// Directory names pruned from EVERY index (git and non-git alike). These are
 /// build output / vendored deps / VCS internals — never go-to targets, and
