@@ -288,7 +288,9 @@ impl TextPipeline {
             regions.content_visible()
         };
         let hint = self.overlay_hint.clone();
-        let hint_rows = usize::from(!hint.is_empty() && show_rows);
+        let rail_carries_hint =
+            !self.overlay_rows_primary && regions.primary_visible() && !regions.content_visible();
+        let hint_rows = usize::from(!hint.is_empty() && !rail_carries_hint);
         let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let empty = (n_items == 0).then(|| self.overlay_empty.clone()).flatten();
         let header_rows = self.workspace_header_rows();
@@ -457,7 +459,7 @@ impl TextPipeline {
             visible,
             top_idx,
             n_items,
-            hint: if show_rows { hint } else { String::new() },
+            hint: if hint_rows > 0 { hint } else { String::new() },
             hint_rows,
             hint_gap_rows: fit.hint_gap_rows,
             header_rows,
@@ -477,9 +479,7 @@ impl TextPipeline {
             text_top: card_y + pad,
             text_w,
             row_text: Some([row_text_left, row_text_w]),
-            // A workspace is never in the card's fill regime: it already fills.
-            // Saying so explicitly keeps the placard's own narrow-card rule
-            // (`overlay_shape_placard`) reading a fact rather than a coincidence.
+            // A workspace already fills, so it never enters the placard's narrow-card regime.
             card_narrow: false,
             workspace: true,
             rail,

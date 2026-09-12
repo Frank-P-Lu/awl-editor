@@ -512,8 +512,8 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
     );
 }
 
-/// THE WORKSPACE'S FOOTER FITS ITS OWN CARD — every world, every stage, the
-/// narrow canvases included.
+/// THE WORKSPACE'S FOOTER HAS EXACTLY ONE VISIBLE CARRIER AND FITS IT — every
+/// workspace kind, world, focus stage, width regime, menu-bar branch and DPI.
 ///
 /// The general footer no-clip law (`chrome_panels`'s
 /// `jump_hint_is_present_and_never_clips_for_every_kind`) measures the FLAT
@@ -525,9 +525,140 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
 /// that: a footer cell added to the rows line ran off the card on Firetail at
 /// 900x520 while the whole suite stayed green. This is the law that was missing.
 ///
-/// Both STAGES are graded, because they carry different sentences (the rail's
-/// `rail_hint_actions`, the rows pane's `hint_actions`), and the measurement is
-/// the shaped run through the ONE footer-measure owner, never the hint STRING.
+/// Both STAGES are graded, because they carry different sentences (the primary
+/// list's `rail_hint_actions`, the detail region's own actions), and the
+/// measurement is the shaped run in whichever buffer the frame actually
+/// uploads, never the hint STRING. On a narrow Settings primary stage that is
+/// the rail buffer; elsewhere it is the panel buffer. This distinction is part
+/// of the oracle: reading only the panel made a correctly-shaped Tawny rail
+/// footer look absent, while also missing a genuinely absent timeline-detail
+/// footer because that stage has no rows.
+fn representative_workspace_card(kind: OverlayKind, detail: bool) -> OverlayState {
+    let card = match kind {
+        OverlayKind::Settings => workspace_card(0, false),
+        OverlayKind::Conflict => OverlayState::new_conflict(
+            std::path::PathBuf::from("/notes/a.md"),
+            Some("disk version\n".to_string()),
+        ),
+        OverlayKind::Credits => OverlayState::new_credits(),
+        // Footer composition only needs real rows and the kind's real lifecycle;
+        // the History constructor's timestamp metadata does not enter shaping.
+        _ => OverlayState::new(
+            kind,
+            vec!["a representative row".to_string()],
+            Vec::new(),
+            Vec::new(),
+        ),
+    };
+    let mut journey = crate::overlay::Journey::seeded(Some(card));
+    if detail {
+        journey.toggle_detail();
+    }
+    journey.card().expect("the workspace card is up").clone()
+}
+
+#[derive(Clone, Copy)]
+struct FooterCell {
+    logical_w: u32,
+    logical_h: u32,
+    dpi: f32,
+    kind: OverlayKind,
+    detail: bool,
+    menu_bar: bool,
+    world: &'static str,
+    zoom: f32,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+struct FooterOutcome {
+    geometry: (f32, f32, f32, f32),
+    panel_carrier: bool,
+    wide: bool,
+}
+
+fn grade_footer_cell(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    cell: FooterCell,
+) -> FooterOutcome {
+    let card = representative_workspace_card(cell.kind, cell.detail);
+    let mut v = workspace_view(&card);
+    let rows_primary = card
+        .workspace_shape()
+        .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
+    v.overlay_comparison = rows_primary;
+    assert!(v.overlay_active && v.overlay_workspace);
+    assert_eq!(v.overlay_detail_focus, cell.detail);
+    assert_eq!(v.overlay_selected, card.selected);
+    assert_eq!(v.overlay_hint, card.foot_hint());
+    assert!(
+        !v.overlay_hint.is_empty(),
+        "{} detail={}: the lifecycle promised no teaching line",
+        cell.kind.as_str(),
+        cell.detail
+    );
+
+    let (cw, ch) = (
+        (cell.logical_w as f32 * cell.dpi) as u32,
+        (cell.logical_h as f32 * cell.dpi) as u32,
+    );
+    p.set_dpi(cell.dpi);
+    p.set_size(cw as f32, ch as f32);
+    v.zoom = cell.zoom;
+    p.set_view(&v);
+    p.prepare(device, queue, cw, ch).unwrap();
+    let (panel_px, panel_w, rail_px, rail_w) = p.workspace_footer_carriers_probe(cw);
+    let carriers = usize::from(panel_px > 1.0) + usize::from(rail_px > 1.0);
+    let wide = p.workspace_is_wide(cw);
+    let regime = if wide { "wide" } else { "staged" };
+    let stage = if cell.detail { "detail" } else { "primary" };
+    let ctx = format!(
+        "{}/{}/{}x{}/{regime}/{stage}/menu={}/dpi={}/zoom={}",
+        cell.world,
+        cell.kind.as_str(),
+        cell.logical_w,
+        cell.logical_h,
+        cell.menu_bar,
+        cell.dpi,
+        cell.zoom,
+    );
+    assert_eq!(
+        carriers, 1,
+        "{ctx}: exactly one visible buffer must shape the promised footer; \
+         panel={panel_px:.1}px rail={rail_px:.1}px"
+    );
+    let (footer_px, text_w) = if panel_px > 1.0 {
+        (panel_px, panel_w)
+    } else {
+        (rail_px, rail_w)
+    };
+    assert!(
+        footer_px <= text_w + 0.01,
+        "{ctx}: the workspace footer shapes {footer_px:.1}px but its visible carrier is \
+         {text_w:.1}px wide — the line is clipped, and the footer is awl's only statement \
+         of what a key does"
+    );
+    if rows_primary && cell.detail && !wide {
+        let (_, _, footer_bottom) = p
+            .overlay_hint_gap_probe(cw)
+            .unwrap_or_else(|| panic!("{ctx}: the detail footer has no shaped band"));
+        let [_, comparison_top, _, _] = p
+            .comparison_viewport()
+            .unwrap_or_else(|| panic!("{ctx}: the detail comparison has no viewport"));
+        assert!(
+            comparison_top >= footer_bottom - 0.01,
+            "{ctx}: comparison prose starts at {comparison_top:.1}, under its footer ending at \
+             {footer_bottom:.1}"
+        );
+    }
+    FooterOutcome {
+        geometry: (panel_px, panel_w, rail_px, rail_w),
+        panel_carrier: panel_px > 1.0,
+        wide,
+    }
+}
+
 #[test]
 fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
     let _g = crate::testlock::serial();
@@ -535,46 +666,93 @@ fn the_workspace_footer_fits_its_card_on_every_world_at_every_stage() {
         eprintln!("skipping the_workspace_footer_fits_its_card: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     let mut graded = 0usize;
-    for world in crate::theme::THEMES {
-        crate::theme::set_active_by_name(world.name).expect("a roster world");
-        p.sync_theme();
-        for (cw, ch) in [(1200u32, 800u32), (900, 520), (760, 620), (1600, 1000)] {
-            for detail in [false, true] {
-                p.set_size(cw as f32, ch as f32);
-                // The card is built through the real lifecycle, so each stage's
-                // own sentence comes from `foot_hint` rather than a literal.
-                let mut v = workspace_view(&workspace_card(0, detail));
-                // A BELOW-DEFAULT STRESS ZOOM. Launch and capture now share the
-                // authored 1.0 default; retaining 0.8 here proves a footer-width
-                // result at one zoom is not silently carried onto another.
-                v.zoom = 0.8;
-                p.set_view(&v);
-                p.prepare(&device, &queue, cw, ch).unwrap();
-                let (footer_px, text_w) = p.overlay_footer_fit_probe(cw);
-                let stage = if detail { "rows" } else { "rail" };
-                assert!(
-                    footer_px > 1.0,
-                    "{}/{cw}x{ch}/{stage}: precondition — the footer must shape real glyphs",
-                    world.name
-                );
-                assert!(
-                    footer_px <= text_w,
-                    "{}/{cw}x{ch}/{stage}: the workspace footer shapes {footer_px:.1}px but \
-                     its own region is {text_w:.1}px wide — the line is clipped, and the \
-                     footer is awl's only statement of what a key does",
-                    world.name
-                );
-                graded += 1;
+    let mut panel_carriers = 0usize;
+    let mut rail_carriers = 0usize;
+    let mut wide = 0usize;
+    let mut staged = 0usize;
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    let workspace_kinds: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| kind.workspace_shape().is_some())
+        .collect();
+    assert!(
+        !workspace_kinds.is_empty(),
+        "the workspace roster must enroll at least one kind"
+    );
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        for world in crate::theme::THEMES {
+            crate::theme::set_active_by_name(world.name).expect("a roster world");
+            p.sync_theme();
+            for &(logical_w, logical_h) in
+                &[(1200u32, 800u32), (900, 520), (760, 620), (1600, 1000)]
+            {
+                for dpi in [1.0f32, 2.0] {
+                    for kind in &workspace_kinds {
+                        for detail in [false, true] {
+                            let mut zoom_outcome = None;
+                            for zoom in [0.8f32, 1.6] {
+                                let outcome = grade_footer_cell(
+                                    &device,
+                                    &queue,
+                                    &mut p,
+                                    FooterCell {
+                                        logical_w,
+                                        logical_h,
+                                        dpi,
+                                        kind: *kind,
+                                        detail,
+                                        menu_bar,
+                                        world: world.name,
+                                        zoom,
+                                    },
+                                );
+                                if outcome.wide {
+                                    wide += 1;
+                                } else {
+                                    staged += 1;
+                                }
+                                if outcome.panel_carrier {
+                                    panel_carriers += 1;
+                                } else {
+                                    rail_carriers += 1;
+                                }
+                                if let Some(expected) = zoom_outcome {
+                                    assert_eq!(
+                                        outcome.geometry,
+                                        expected,
+                                        "{}/{logical_w}x{logical_h}/detail={detail}/dpi={dpi}: \
+                                         document zoom changed UI-metric footer geometry",
+                                        kind.as_str()
+                                    );
+                                } else {
+                                    zoom_outcome = Some(outcome.geometry);
+                                }
+                                graded += 1;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    p.set_dpi(1.0);
     p.set_size(1200.0, 800.0);
     assert_eq!(
         graded,
-        crate::theme::THEMES.len() * 8,
-        "every world x canvas x stage cell must be graded"
+        crate::theme::THEMES.len() * workspace_kinds.len() * 64,
+        "every menu x world x canvas x DPI x kind x stage x zoom cell must be graded"
+    );
+    assert!(
+        panel_carriers > 0 && rail_carriers > 0,
+        "both real footer carriers must enroll (panel={panel_carriers}, rail={rail_carriers})"
+    );
+    assert!(
+        wide > 0 && staged > 0,
+        "the sweep must cross the workspace threshold (wide={wide}, staged={staged})"
     );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
