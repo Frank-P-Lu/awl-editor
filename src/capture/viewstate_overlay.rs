@@ -103,6 +103,7 @@ fn fold_roster(view: &mut ViewState, opts: &CaptureOpts, kind: Option<OverlayKin
         .as_ref()
         .map(|o| o.ranges.clone())
         .unwrap_or_default();
+    view.overlay_match_highlights = match_highlights_projection(opts.overlay.as_ref());
     view.overlay_git = opts
         .overlay
         .as_ref()
@@ -123,6 +124,12 @@ fn fold_roster(view: &mut ViewState, opts: &CaptureOpts, kind: Option<OverlayKin
         .map(|o| o.hint.clone())
         .unwrap_or_default();
     fold_facets(view, opts, kind == Some(OverlayKind::Theme));
+}
+
+fn match_highlights_projection(overlay: Option<&OverlayInfo>) -> Vec<Option<(usize, usize)>> {
+    overlay
+        .map(|o| o.match_highlights.clone())
+        .unwrap_or_default()
 }
 
 fn fold_facets(view: &mut ViewState, opts: &CaptureOpts, theme_panel: bool) {
@@ -215,6 +222,7 @@ mod files_projection_tests {
             empty: None,
             bindings: Vec::new(),
             ranges: Vec::new(),
+            match_highlights: Vec::new(),
             git: Vec::new(),
             selected_index: 0,
             hint: String::new(),
@@ -269,5 +277,17 @@ mod files_projection_tests {
                 "generic Go to {lens:?} must not acquire the dedicated Files header"
             );
         }
+    }
+
+    #[test]
+    fn search_match_ranges_survive_capture_projection() {
+        let mut overlay = goto(None, false);
+        overlay.match_highlights = vec![Some((18, 28))];
+        assert_eq!(
+            match_highlights_projection(Some(&overlay)),
+            vec![Some((18, 28))],
+            "the final capture view must retain the live row match range"
+        );
+        assert!(match_highlights_projection(None).is_empty());
     }
 }

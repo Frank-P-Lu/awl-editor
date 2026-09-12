@@ -133,6 +133,7 @@ fn capture_date_picker(
         empty: None,
         bindings: labels,
         ranges: Vec::new(),
+        match_highlights: Vec::new(),
         git: Vec::new(),
         selected_index: selected,
         hint: crate::overlay::OverlayKind::Date.hint().to_string(),

@@ -228,6 +228,7 @@ fn overlay_capture_info_optional(
         empty: ov.empty_notice(),
         bindings: ov.item_bindings(),
         ranges: ov.item_range_fracs(),
+        match_highlights: ov.item_match_highlights(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: journey.foot_hint(),
@@ -336,4 +337,50 @@ pub(super) fn comparison_preview_for(
         buffer.is_unnamed_fresh(),
         &buffer.text(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_folder_match_ranges_survive_the_live_capture_projection() {
+        let _guard = crate::testlock::serial();
+        let mut journey = crate::overlay::Journey::default();
+        let mut search = crate::overlay::OverlayState::new_search_folder(
+            std::path::PathBuf::from("fixture"),
+            vec![(
+                "hit.md".into(),
+                "quiet quiet quiet ambermatch quiet quiet quiet".into(),
+            )],
+        );
+        for c in "ambermatch".chars() {
+            search.push(c);
+        }
+        journey.enter(Some(search));
+        let (info, _, _) = overlay_capture_info_optional(&journey, None).expect("open card");
+        assert_eq!(info.match_highlights, vec![Some((18, 28))]);
+
+        let mut opts = CaptureOpts {
+            overlay: Some(info),
+            ..CaptureOpts::default()
+        };
+        let mut view = crate::render::ViewState::base();
+        let buffer = Buffer::from_str("");
+        crate::capture::fold_overlay_view_for_test(&mut view, &buffer, &opts, false);
+        assert_eq!(view.overlay_match_highlights, vec![Some((18, 28))]);
+
+        let mut ordinary = crate::overlay::Journey::default();
+        ordinary.enter(Some(crate::overlay::OverlayState::new(
+            crate::overlay::OverlayKind::Goto,
+            vec!["ordinary".into()],
+            Vec::new(),
+            Vec::new(),
+        )));
+        let (info, _, _) = overlay_capture_info_optional(&ordinary, None).expect("open card");
+        assert!(info.match_highlights.is_empty());
+        opts.overlay = Some(info);
+        crate::capture::fold_overlay_view_for_test(&mut view, &buffer, &opts, false);
+        assert!(view.overlay_match_highlights.is_empty());
+    }
 }

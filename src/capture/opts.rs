@@ -118,6 +118,10 @@ pub struct OverlayInfo {
     /// [`crate::overlay::OverlayState::item_range_fracs`], which derives it through
     /// the range spec from the row's own quantized step.
     pub ranges: Vec<Option<f32>>,
+    /// Search-in-folder only: each visible result's match byte range, parallel
+    /// to `items`. Empty for every other overlay so capture projection cannot
+    /// invent a search split.
+    pub match_highlights: Vec<Option<(usize, usize)>>,
     /// Project / Browse pickers only: a dim `"git"` tag parallel to `items` for each
     /// row that is itself a git repo (`""` otherwise); EMPTY when no row is a git repo.
     /// From the one owner [`crate::overlay::OverlayState::item_git_tags`]; emitted as a

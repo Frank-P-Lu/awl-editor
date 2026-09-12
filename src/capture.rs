@@ -99,6 +99,16 @@ mod scroll_sidecar;
 mod sidecar;
 mod viewstate_overlay;
 
+#[cfg(test)]
+pub(crate) fn fold_overlay_view_for_test(
+    view: &mut crate::render::ViewState,
+    buffer: &crate::buffer::Buffer,
+    opts: &CaptureOpts,
+    search_active: bool,
+) {
+    viewstate_overlay::fold(view, buffer, opts, search_active);
+}
+
 pub use animated::{HeldDir, capture_held, capture_timeline};
 pub use film::{FRAME_MS, FilmRenderer};
 #[cfg(not(target_arch = "wasm32"))]

@@ -214,6 +214,7 @@ fn blank_overlay() -> OverlayInfo {
         empty: None,
         bindings: Vec::new(),
         ranges: Vec::new(),
+        match_highlights: Vec::new(),
         git: Vec::new(),
         selected_index: 0,
         hint: String::new(),

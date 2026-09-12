@@ -63,6 +63,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
         ranges: ov.item_range_fracs(),
+        match_highlights: ov.item_match_highlights(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: ov.foot_hint(),

@@ -45,6 +45,7 @@ fn insert_link_opts(query: &str) -> CaptureOpts {
             empty: None,
             bindings: vec![String::new()],
             ranges: Vec::new(),
+            match_highlights: Vec::new(),
             git: Vec::new(),
             selected_index: 0,
             hint: "esc cancel".to_string(),
