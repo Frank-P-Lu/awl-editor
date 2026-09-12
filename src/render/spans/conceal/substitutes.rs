@@ -275,6 +275,34 @@ impl TextPipeline {
     }
 }
 
+/// Reserve a concealed span's first UTF-8 scalar, then hide its remainder.
+/// Callers own eligibility and spacing; this owns the shared byte partition.
+pub(super) fn add_reserved_conceal_spans(
+    al: &mut glyphon::cosmic_text::AttrsList,
+    line_text: &str,
+    line_doc_start: usize,
+    range: std::ops::Range<usize>,
+    hidden: &Attrs<'static>,
+    letter_spacing: f32,
+) {
+    let local_start = range.start - line_doc_start;
+    let local_end = range.end - line_doc_start;
+    let first_end = line_text[local_start..]
+        .chars()
+        .next()
+        .map_or(range.start, |first| range.start + first.len_utf8())
+        .min(range.end);
+    if first_end > range.start {
+        al.add_span(
+            local_start..(first_end - line_doc_start),
+            &hidden.clone().letter_spacing(letter_spacing),
+        );
+    }
+    if first_end < range.end {
+        al.add_span((first_end - line_doc_start)..local_end, hidden);
+    }
+}
+
 /// THE THREE PAINTED-SUBSTITUTE KINDS — a footnote's number, a tamed bare
 /// URL's "…", and the smart-punctuation roster — each collapse their source
 /// and force its first scalar to the reserved advance the mark is painted at
@@ -339,6 +367,66 @@ pub(super) fn add_substitute_conceal_spans(
                 heading_level,
             );
             true
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The shared writer's subject is its exact byte partition, not merely the
+    /// final width: a one-byte split passes for ASCII yet bisects a multibyte
+    /// scalar, while forcing the whole source gives its hidden remainder room.
+    #[test]
+    fn forced_first_scalar_reservation_is_utf8_local_and_leaves_the_remainder_collapsed() {
+        let _w = crate::testlock::serial();
+        let line_text = "前αβ後";
+        let line_doc_start = 41;
+        let local_start = "前".len();
+        let local_end = local_start + "αβ".len();
+        let range = (line_doc_start + local_start)..(line_doc_start + local_end);
+        let base = Attrs::new().metadata(7);
+        let hidden = base
+            .clone()
+            .metadata(19)
+            .color(RULE_CONCEAL_COLOR)
+            .metrics(GlyphMetrics::new(CONCEAL_ZERO_WIDTH_FONT_SIZE, 23.0));
+        let forced_spacing = 317.25;
+        let mut attrs = glyphon::cosmic_text::AttrsList::new(&base);
+
+        add_reserved_conceal_spans(
+            &mut attrs,
+            line_text,
+            line_doc_start,
+            range,
+            &hidden,
+            forced_spacing,
+        );
+
+        for byte in 0..local_start {
+            assert_eq!(attrs.get_span(byte).metadata, 7, "prefix byte {byte}");
+        }
+        let first_end = local_start + 'α'.len_utf8();
+        for byte in local_start..first_end {
+            let got = attrs.get_span(byte);
+            assert_eq!(got.metadata, 19, "first-scalar byte {byte}");
+            assert_eq!(
+                got.letter_spacing_opt.map(|spacing| spacing.0),
+                Some(forced_spacing),
+                "only the complete leading scalar owns the reserved spacing"
+            );
+        }
+        for byte in first_end..local_end {
+            let got = attrs.get_span(byte);
+            assert_eq!(got.metadata, 19, "remainder byte {byte}");
+            assert_eq!(
+                got.letter_spacing_opt, None,
+                "the hidden remainder must not reserve another slot"
+            );
+        }
+        for byte in local_end..line_text.len() {
+            assert_eq!(attrs.get_span(byte).metadata, 7, "suffix byte {byte}");
         }
     }
 }

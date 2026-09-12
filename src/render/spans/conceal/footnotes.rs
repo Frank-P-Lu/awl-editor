@@ -41,23 +41,13 @@ pub(super) fn add_footnote_conceal_spans(
     // two-digit number on six worlds and over-reserved a heading row on all of
     // them, because the number always paints at BODY size whatever row it lands
     // on.
-    let first_len = line_text[(lo - line_doc_start)..]
-        .chars()
-        .next()
-        .map_or(0, char::len_utf8);
-    let first_end = (lo + first_len).min(hi);
-    if first_end > lo {
-        let slot = advances.footnote_slot(number);
-        let forcing = hidden
-            .clone()
-            .letter_spacing(slot / CONCEAL_ZERO_WIDTH_FONT_SIZE);
-        al.add_span(
-            (lo - line_doc_start)..(first_end - line_doc_start),
-            &forcing,
-        );
-    }
-    if first_end < hi {
-        al.add_span((first_end - line_doc_start)..(hi - line_doc_start), hidden);
-    }
+    super::substitutes::add_reserved_conceal_spans(
+        al,
+        line_text,
+        line_doc_start,
+        lo..hi,
+        hidden,
+        advances.footnote_slot(number) / CONCEAL_ZERO_WIDTH_FONT_SIZE,
+    );
     true
 }
