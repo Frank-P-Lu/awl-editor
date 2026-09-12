@@ -76,7 +76,7 @@ gh run watch   # or check the Actions tab
 
 Builds a fresh `trunk build --release --public-url /editor/`, assembles it
 over a copy of `site/`, and `flyctl deploy`s that assembled directory. Never
-touches or commits `site/editor/`'s checked-in bundle (legacy — see below).
+writes generated output into `site/editor/` or commits it.
 
 **Downloadable artifacts (Linux):**
 
