@@ -3,6 +3,15 @@ use super::*;
 
 const FILES_LOCATION_FIT_STEPS: usize = 6;
 
+struct FlatQuerySpans<'a> {
+    files_surface: bool,
+    title_prefix: &'a str,
+    font_size: f32,
+    line_height: f32,
+    query: &'a str,
+    placeholder: Option<&'a str>,
+}
+
 /// A fixed-size, exponentially shrinking ladder from the full location to a
 /// four-character identity floor. Besides bounding shaping to nine probes, the
 /// geometric series plus one semantic `…/leaf` rung bounds all candidate
@@ -888,16 +897,19 @@ impl TextPipeline {
     fn push_flat_overlay_query_spans<'a>(
         spans: &mut Vec<(&'a str, glyphon::Attrs)>,
         geom: &OverlayGeom,
-        files_surface: bool,
-        has_query: bool,
-        title_prefix: &'a str,
-        name_fs: f32,
-        header_lh: f32,
-        query: &'a str,
-        placeholder: Option<&'a str>,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
+        query: FlatQuerySpans<'a>,
+        inks: OverlaySpanInks,
     ) {
+        let FlatQuerySpans {
+            files_surface,
+            title_prefix,
+            font_size,
+            line_height,
+            query,
+            placeholder,
+        } = query;
+        let OverlaySpanInks { ink, muted, .. } = inks;
+        let has_query = geom.header_rows > 0;
         if !has_query {
             return;
         }
@@ -905,7 +917,7 @@ impl TextPipeline {
         let mk = |c| base.clone().color(c);
         let hk = |c| {
             if geom.header_gap > 0.0 || files_surface {
-                mk(c).metrics(GlyphMetrics::new(name_fs, header_lh))
+                mk(c).metrics(GlyphMetrics::new(font_size, line_height))
             } else {
                 mk(c)
             }
@@ -913,7 +925,7 @@ impl TextPipeline {
         let hkc = |c| {
             let attrs = chrome_attrs().color(c);
             if geom.header_gap > 0.0 || files_surface {
-                attrs.metrics(GlyphMetrics::new(name_fs, header_lh))
+                attrs.metrics(GlyphMetrics::new(font_size, line_height))
             } else {
                 attrs
             }
@@ -968,15 +980,15 @@ impl TextPipeline {
         Self::push_flat_overlay_query_spans(
             &mut spans,
             geom,
-            self.overlay_files_surface,
-            has_query,
-            title_prefix.as_str(),
-            name_fs,
-            header_lh,
-            self.overlay_query.as_str(),
-            self.overlay_query_placeholder.as_deref(),
-            ink,
-            muted,
+            FlatQuerySpans {
+                files_surface: self.overlay_files_surface,
+                title_prefix: title_prefix.as_str(),
+                font_size: name_fs,
+                line_height: header_lh,
+                query: self.overlay_query.as_str(),
+                placeholder: self.overlay_query_placeholder.as_deref(),
+            },
+            inks,
         );
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands

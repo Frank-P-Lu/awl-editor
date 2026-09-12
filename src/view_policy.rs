@@ -188,6 +188,9 @@ mod tests {
             "capture/layout_sidecar.rs",
             "capture/modes.rs",
             "capture/opts.rs",
+            // Replays fold state into already-owned capture options and makes
+            // no identifier-level view-policy decision of its own.
+            "capture/opts/fold.rs",
             "capture/oracle.rs",
             // Projects the search panel's already-planned card, row bands and
             // toggle span into JSON and decides nothing: it holds none of the
@@ -208,6 +211,9 @@ mod tests {
             "capture/replay_sidecar.rs",
             "capture/scroll_sidecar.rs",
             "capture/sidecar.rs",
+            // Projects overlay state into the capture ViewState; the shared
+            // policy owners remain upstream of this field-only projection.
+            "capture/viewstate_overlay.rs",
         ];
         assert_eq!(
             sources.keys().map(String::as_str).collect::<Vec<_>>(),

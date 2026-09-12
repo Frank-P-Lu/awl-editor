@@ -155,7 +155,7 @@ fn fold_workspace_focus(view: &mut ViewState, opts: &CaptureOpts, kind: Option<O
         .overlay
         .as_ref()
         .filter(|o| o.workspace)
-        .and_then(|_| kind)
+        .and(kind)
         .and_then(OverlayKind::workspace_shape)
         .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
     view.overlay_comparison = opts.preview_text.is_some();
