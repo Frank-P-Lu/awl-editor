@@ -160,8 +160,9 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
         assert!(
-            shown.iter().any(|s| s == "Change folder…"),
-            "platform folder fallback kept: {shown:?}"
+            ov.title().contains("Change folder"),
+            "the Files header keeps its platform folder action: {}",
+            ov.title(),
         );
         assert!(
             !shown.iter().any(|s| s.starts_with(".claude")),
@@ -213,8 +214,9 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "revealed: {revealed:?}"
         );
         assert!(
-            revealed.iter().any(|s| s == "Change folder…"),
-            "the platform folder fallback is still present after reveal"
+            ov.title().contains("Change folder"),
+            "the platform folder action is still present after reveal: {}",
+            ov.title(),
         );
     });
     crate::file_visibility::set_all_on(saved);
@@ -329,7 +331,7 @@ fn replay_keys_a_cancelled_settings_child_resumes_on_the_row_it_left() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET RET Esc").unwrap();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET Esc").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
 
@@ -366,7 +368,7 @@ fn replay_keys_the_sidecar_reports_the_parked_workspace_under_a_child() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET RET").unwrap();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(

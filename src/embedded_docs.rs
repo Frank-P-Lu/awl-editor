@@ -117,6 +117,10 @@ pub const THEMES_MD: &str = include_str!("../THEMES.md");
 #[cfg(test)]
 pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");
 
+/// Test fixture covering mixed list/task marker syntax.
+#[cfg(test)]
+pub const LIST_MARKERS_FIXTURE_MD: &str = include_str!("../tests/fixtures/list-markers.md");
+
 /// THE STARTING DOCS — every document written through the
 /// `{{key:}}`/`{{cmd:}}`/`{{count:}}` substitution seam (`keytoken.rs`):
 /// `welcome.md`/`tour.md` at SEED time (`firstrun.rs`, `fs::SEED_SAMPLES`).

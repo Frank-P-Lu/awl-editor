@@ -199,37 +199,7 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
                 _ => None,
             }
         }
-        SettingsFocus::Search => match action {
-            Action::SelectAll => {
-                ctx.journey.card_mut().unwrap().query.select_all();
-                Some(Effect::None)
-            }
-            Action::ForwardChar => {
-                ctx.journey.card_mut().unwrap().query_char_right();
-                Some(Effect::None)
-            }
-            Action::BackwardChar => {
-                ctx.journey.card_mut().unwrap().query_char_left();
-                Some(Effect::None)
-            }
-            Action::LineStart | Action::BufferStart => {
-                ctx.journey.card_mut().unwrap().query_home();
-                Some(Effect::None)
-            }
-            Action::LineEnd | Action::BufferEnd => {
-                ctx.journey.card_mut().unwrap().query_end();
-                Some(Effect::None)
-            }
-            Action::NextLine | Action::Newline | Action::AcceptAlternate => {
-                ctx.journey.focus_settings(SettingsFocus::Controls);
-                Some(Effect::None)
-            }
-            Action::PreviousLine => {
-                ctx.journey.focus_settings(SettingsFocus::Categories);
-                Some(Effect::None)
-            }
-            _ => None,
-        },
+        SettingsFocus::Search => settings_search_intercept(ctx, action),
         SettingsFocus::Controls => match action {
             Action::SelectAll => {
                 focus_search(ctx);
@@ -249,6 +219,62 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
             }
             _ => None,
         },
+    }
+}
+
+/// Search owns text motion until a key crosses its useful edge into a matching
+/// control. The handoff and the control's action share that one key; without a
+/// match there is no phantom Controls stop and the key is consumed here.
+fn settings_search_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    use crate::overlay::workspace::SettingsFocus;
+
+    let card = ctx.journey.card().unwrap();
+    let has_controls = !card.items.is_empty();
+    let right_hands_off =
+        has_controls && card.query_at_rest() && card.query.selection_range().is_none();
+    match action {
+        Action::SelectAll => {
+            ctx.journey.card_mut().unwrap().query.select_all();
+            Some(Effect::None)
+        }
+        // At the field's resting edge, Right continues into the selected
+        // control. A range row then handles this SAME press below; an ordinary
+        // row has nothing further right and consumes it here.
+        Action::ForwardChar if right_hands_off => {
+            ctx.journey.focus_settings(SettingsFocus::Controls);
+            if ctx.journey.card().unwrap().selected_range().is_some() {
+                None
+            } else {
+                Some(Effect::None)
+            }
+        }
+        Action::ForwardChar => {
+            ctx.journey.card_mut().unwrap().query_char_right();
+            Some(Effect::None)
+        }
+        Action::BackwardChar => {
+            ctx.journey.card_mut().unwrap().query_char_left();
+            Some(Effect::None)
+        }
+        Action::LineStart | Action::BufferStart => {
+            ctx.journey.card_mut().unwrap().query_home();
+            Some(Effect::None)
+        }
+        Action::LineEnd | Action::BufferEnd => {
+            ctx.journey.card_mut().unwrap().query_end();
+            Some(Effect::None)
+        }
+        Action::NextLine | Action::Newline | Action::AcceptAlternate if has_controls => {
+            ctx.journey.focus_settings(SettingsFocus::Controls);
+            // Let the ordinary picker move or accept on this same key.
+            None
+        }
+        Action::NextLine | Action::Newline | Action::AcceptAlternate => Some(Effect::None),
+        Action::PreviousLine => {
+            ctx.journey.focus_settings(SettingsFocus::Categories);
+            Some(Effect::None)
+        }
+        _ => None,
     }
 }
 

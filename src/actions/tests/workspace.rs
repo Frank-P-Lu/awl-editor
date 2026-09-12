@@ -228,6 +228,109 @@ fn settings_focus_route_is_complete_in_both_directions_and_skips_absent_controls
     assert_eq!(typed_from_controls.card().unwrap().query.caret(), 1);
 }
 
+fn filtered_settings(query: &str) -> crate::overlay::Journey {
+    let mut journey = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    for c in query.chars() {
+        settings_drive(&mut journey, &Action::InsertChar(c));
+    }
+    assert_eq!(journey.settings_focus(), Some(SettingsFocus::Search));
+    journey
+}
+
+/// A matching Search handoff and the selected control's accept are one key.
+#[test]
+fn settings_search_accepts_on_the_handoff_key() {
+    let _g = crate::testlock::serial();
+    for action in [Action::Newline, Action::AcceptAlternate] {
+        let mut journey = filtered_settings("theme");
+        assert_eq!(journey.card().unwrap().selected_value(), Some("Theme"));
+        assert_eq!(settings_drive(&mut journey, &action), Effect::None);
+        assert_eq!(
+            journey.card().unwrap().kind,
+            OverlayKind::Theme,
+            "{action:?} crosses once without accepting the child too"
+        );
+    }
+}
+
+/// Down and resting Right hand their same press to the matching control.
+#[test]
+fn settings_search_moves_and_steps_on_the_handoff_key() {
+    let _g = crate::testlock::serial();
+    let mut down = filtered_settings("page");
+    let selected = down.card().unwrap().selected;
+    assert_eq!(settings_drive(&mut down, &Action::NextLine), Effect::None);
+    assert_eq!(down.settings_focus(), Some(SettingsFocus::Controls));
+    assert_eq!(down.card().unwrap().selected, selected + 1);
+
+    let mut right = filtered_settings("zoom");
+    let mut zoom = 1.0;
+    assert_eq!(
+        settings_drive_zoom(&mut right, &Action::ForwardChar, &mut zoom),
+        Effect::SettingRangeStep {
+            key: "zoom".to_string()
+        }
+    );
+    assert_eq!(right.settings_focus(), Some(SettingsFocus::Controls));
+
+    let mut ordinary = filtered_settings("page mode");
+    let selected = ordinary.card().unwrap().selected;
+    let lens = ordinary.card().unwrap().facet_lens;
+    assert_eq!(
+        settings_drive(&mut ordinary, &Action::ForwardChar),
+        Effect::None
+    );
+    assert_eq!(ordinary.settings_focus(), Some(SettingsFocus::Controls));
+    assert_eq!(ordinary.card().unwrap().selected, selected);
+    assert_eq!(ordinary.card().unwrap().facet_lens, lens);
+}
+
+/// Right remains query motion until an unselected caret reaches the field edge.
+#[test]
+fn settings_search_right_respects_query_selection_and_caret() {
+    let _g = crate::testlock::serial();
+    let mut selection = filtered_settings("page");
+    let selected = selection.card().unwrap().selected;
+    let lens = selection.card().unwrap().facet_lens;
+    selection.card_mut().unwrap().query.select_all();
+    settings_drive(&mut selection, &Action::ForwardChar);
+    assert_eq!(selection.settings_focus(), Some(SettingsFocus::Search));
+    assert_eq!(selection.card().unwrap().query.selection_range(), None);
+    assert_eq!(selection.card().unwrap().selected, selected);
+    assert_eq!(selection.card().unwrap().facet_lens, lens);
+
+    let mut middle = filtered_settings("zoom");
+    middle.card_mut().unwrap().query.set_caret(1);
+    settings_drive(&mut middle, &Action::ForwardChar);
+    assert_eq!(middle.settings_focus(), Some(SettingsFocus::Search));
+    assert_eq!(middle.card().unwrap().query.caret(), 2);
+    middle.card_mut().unwrap().query_end();
+    let mut zoom = 1.0;
+    assert!(matches!(
+        settings_drive_zoom(&mut middle, &Action::ForwardChar, &mut zoom),
+        Effect::SettingRangeStep { key } if key == "zoom"
+    ));
+    assert_eq!(middle.settings_focus(), Some(SettingsFocus::Controls));
+}
+
+/// With no match, Search has no phantom Controls recipient to move or act on.
+#[test]
+fn settings_search_no_match_handoffs_are_inert() {
+    let _g = crate::testlock::serial();
+    for action in [
+        Action::NextLine,
+        Action::Newline,
+        Action::AcceptAlternate,
+        Action::ForwardChar,
+    ] {
+        let mut empty = filtered_settings("zzzz");
+        assert!(empty.card().unwrap().items.is_empty());
+        assert_eq!(settings_drive(&mut empty, &action), Effect::None);
+        assert_eq!(empty.card().unwrap().kind, OverlayKind::Settings);
+        assert_eq!(empty.settings_focus(), Some(SettingsFocus::Search));
+    }
+}
+
 /// Settings' fine focus recipient never changes the workspace-level close:
 /// one Esc from every ordinary stop restores the editor immediately. Inline
 /// value edit is intentionally separate; its first Esc cancels that edit.

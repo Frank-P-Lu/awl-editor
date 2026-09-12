@@ -30,7 +30,7 @@ const DOC: &str = concat!(
     "    - [x] nested checked task\n",
     "anchor\n",
 );
-const MIXED_LIST_DOC: &str = include_str!("../../../tests/fixtures/list-markers.md");
+const MIXED_LIST_DOC: &str = crate::embedded_docs::LIST_MARKERS_FIXTURE_MD;
 
 fn assert_mixed_list_geometry(p: &mut TextPipeline, world: &crate::theme::Theme, dpi: f32) {
     p.set_view(&view_md(

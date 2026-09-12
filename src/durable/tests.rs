@@ -327,13 +327,13 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // buys them nothing.
         // `main/tests.rs` split seven ways; same 21 sites, unmoved.
         ("main/tests/buffer_switching.rs", 8),
-        // Eight sites seed source/config inputs under ScratchDir, including
-        // the current and nested files for the faceted-hug fold. The ninth
-        // seeds the language-toast screenshot law, and the tenth and eleventh
-        // the headed/heading-free pair the outline rail's cross-door law drives
-        // through both capture doors. All are disposable harness inputs rather
-        // than durable user stores.
-        ("main/tests/capture_scenarios.rs", 11),
+        // Ten sites seed source/config inputs under ScratchDir, including the
+        // current/nested pairs for the faceted-hug and settled Files folds.
+        // The eleventh seeds the language-toast screenshot law; the twelfth
+        // and thirteenth are the headed/heading-free pair the outline rail's
+        // cross-door law drives through both capture doors. All are disposable
+        // harness inputs rather than durable user stores.
+        ("main/tests/capture_scenarios.rs", 13),
         ("main/tests/credits_capture.rs", 1), // disposable ScratchDir fixture
         ("main/tests/headless_safety.rs", 1),
         ("main/tests/launch_context.rs", 2),

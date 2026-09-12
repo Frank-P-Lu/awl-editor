@@ -76,8 +76,7 @@ fn fold_popover(view: &mut ViewState, buffer: &Buffer, opts: &CaptureOpts, searc
 
 fn files_projection(overlay: Option<&OverlayInfo>) -> (bool, String) {
     let active = overlay.is_some_and(|overlay| {
-        OverlayKind::from_mode(overlay.mode) == Some(OverlayKind::Goto)
-            && overlay.lens == Some("files")
+        OverlayKind::from_mode(overlay.mode) == Some(OverlayKind::Goto) && overlay.files_surface
     });
     let location = active
         .then(|| overlay.and_then(|overlay| overlay.files_location.clone()))
@@ -197,4 +196,78 @@ fn fold_anchors_and_preview(view: &mut ViewState, opts: &CaptureOpts, kind: Opti
                 .get(o.selected_index)
                 .and_then(|name| crate::caret::CaretMode::from_label(name))
         });
+}
+
+#[cfg(test)]
+mod files_projection_tests {
+    use super::*;
+
+    fn goto(lens: Option<&'static str>, files_surface: bool) -> OverlayInfo {
+        OverlayInfo {
+            active: true,
+            mode: "goto",
+            align: crate::theme::CardAnchor::TopCenter,
+            chrome_theme: None,
+            query: String::new(),
+            query_caret: 0,
+            query_selection: None,
+            items: Vec::new(),
+            empty: None,
+            bindings: Vec::new(),
+            ranges: Vec::new(),
+            git: Vec::new(),
+            selected_index: 0,
+            hint: String::new(),
+            files_location: Some("project/notes".into()),
+            files_surface,
+            files_query_focused: true,
+            settings_focus: None,
+            browse_dir: None,
+            spell_target: None,
+            table_dims: None,
+            context_anchor: None,
+            asset_preview: None,
+            capture: None,
+            notice: String::new(),
+            lens,
+            lens_strip: Vec::new(),
+            sections: Vec::new(),
+            preview_id: None,
+            preview_view: None,
+            workspace: false,
+            detail_focus: false,
+            diff_scroll: 0,
+            show_hidden: false,
+            return_to: None,
+            title: "go to".into(),
+        }
+    }
+
+    #[test]
+    fn dedicated_files_identity_not_a_shared_lens_name_controls_projection() {
+        for lens in ["files", "recent"] {
+            let overlay = goto(Some(lens), true);
+            assert_eq!(
+                files_projection(Some(&overlay)),
+                (true, "project/notes".into()),
+                "dedicated Files {lens} lens carries its header and focus surface"
+            );
+        }
+
+        for lens in [
+            None,
+            Some("all"),
+            Some("files"),
+            Some("headings"),
+            Some("folders"),
+            Some("recent"),
+        ] {
+            let overlay = goto(lens, false);
+            assert_eq!(
+                files_projection(Some(&overlay)),
+                (false, String::new()),
+                "generic Go to {lens:?} must not acquire the dedicated Files header"
+            );
+        }
+    }
 }

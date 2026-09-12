@@ -104,6 +104,10 @@ fn files_shared_fold_reaches_the_narrow_settled_capture() {
     assert_eq!(overlay.mode, "goto");
     assert_eq!(overlay.lens, Some("files"));
     assert!(
+        overlay.files_surface,
+        "the live/replay fold must retain the dedicated Files identity"
+    );
+    assert!(
         overlay.files_query_focused,
         "the live/replay fold must retain Files' query focus"
     );
@@ -139,7 +143,13 @@ fn files_shared_fold_reaches_the_narrow_settled_capture() {
         "without-files-surface.png",
         session.buffer(),
         &folded,
-        |mutation| mutation.overlay.as_mut().expect("Files overlay").lens = None,
+        |mutation| {
+            mutation
+                .overlay
+                .as_mut()
+                .expect("Files overlay")
+                .files_surface = false;
+        },
     );
     let focus = files_capture_variant(
         &dir,
@@ -645,13 +655,19 @@ fn keys_capture_files_change_folder_reaches_the_typed_platform_fallback() {
             .iter()
             .map(|row| row.as_str().unwrap())
             .collect();
-        assert!(rows.contains(&"Change folder…"));
+        assert!(
+            open["overlay"]["title"]
+                .as_str()
+                .is_some_and(|title| title.contains("Change folder")),
+            "the Files header keeps its platform folder action: {}",
+            open["overlay"]["title"],
+        );
         assert!(!rows.iter().any(|row| row.contains("nested")));
 
         let fallback = folder_capture(
             &dir,
             convention,
-            &format!("{chord} c h a n g e Space f o l d e r Enter"),
+            &format!("{chord} Tab Tab Tab Tab Enter"),
             Some(dir.join("old-ws/proj-a")),
         );
         assert_eq!(

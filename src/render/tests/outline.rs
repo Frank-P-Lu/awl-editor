@@ -1889,12 +1889,12 @@ fn the_rail_appetite_question_has_exactly_the_named_deciders() {
     assert_eq!(
         set_reads.keys().collect::<Vec<_>>(),
         vec![
-            "capture/opts.rs",
+            "capture/opts/fold.rs",
             "render/geometry.rs",
             "render/pipeline_geometry.rs"
         ],
         "the working set's claim is READ only by `outline_wants_rail` \
-         (render/geometry.rs); capture/opts.rs mirrors the driver's answer onto \
+         (render/geometry.rs); capture/opts/fold.rs mirrors the driver's answer onto \
          the ViewState and render/pipeline_geometry.rs mirrors the ViewState \
          onto the pipeline. Found: {set_reads:?}"
     );

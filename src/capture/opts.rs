@@ -132,6 +132,9 @@ pub struct OverlayInfo {
     /// Files only: the complete named destination. The render may elide its
     /// visible copy, but capture state retains the full value.
     pub files_location: Option<String>,
+    /// Dedicated Files/Recent surface identity. This cannot be reconstructed
+    /// from `mode` plus `lens`: bare Go to also has `files` and `recent` lenses.
+    pub files_surface: bool,
     /// Files only: whether the Search field owns focus. This is a render fact,
     /// kept beside the full location so a settled capture cannot revive the
     /// query caret while a file choice or header/footer control owns focus.

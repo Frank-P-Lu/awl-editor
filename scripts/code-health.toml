@@ -995,15 +995,22 @@ reason = "Existing end-to-end scenario with no coherent setup/assertion split. R
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
-message = "this function has too many lines (143/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field. +1: asserts the new `overlay.asset_preview` field stays absent/null for this unrelated overlay kind."
+message = "this function has too many lines (144/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field. +1: asserts the new `overlay.asset_preview` field stays absent/null for this unrelated overlay kind. +1: the exhaustive capture literal records the dedicated Files-surface identity as false."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "command_and_history_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (176/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field. +1: asserts `overlay.asset_preview` stays absent for these faceted, non-Assets pickers."
+message = "this function has too many lines (177/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field. +1: asserts `overlay.asset_preview` stays absent for these faceted, non-Assets pickers. +1: the exhaustive capture literal records whether it came from the dedicated Files surface."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/tests/pickers_faceted.rs"
+function = "a_history_preview_leaves_the_card_figures_over_the_users_document"
+message = "this function has too many lines (101/100)"
+reason = "Cohesive end-to-end History capture law whose setup, rendered figures, and document-vs-preview assertions share one fixture lifetime. The single line over the trigger is the exhaustive `OverlayInfo` field proving this non-Files surface does not acquire Files composition; extracting it would hide the identity decision without shortening the scenario's mechanism."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"

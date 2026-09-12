@@ -49,6 +49,7 @@ fn insert_link_opts(query: &str) -> CaptureOpts {
             selected_index: 0,
             hint: "esc cancel".to_string(),
             files_location: None,
+            files_surface: false,
             files_query_focused: false,
             settings_focus: None,
             browse_dir: None,
