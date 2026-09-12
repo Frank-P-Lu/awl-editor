@@ -6,9 +6,42 @@
 
 ## Open build and design tasks
 
-**2 open numbered tasks.** Ready: none. Native candidate review: 640.
+**3 open numbered tasks.** Ready: 646. Native candidate review: 640.
 User decision: 579.
 Outstanding review of landed work and hardware checks are listed separately below.
+
+### 646 — shorten historical commentary in tests (user request, 2026-09-12)
+
+🟢 READY — queued cleanup only; implementation is not dispatched.
+
+Build: shorten test comments that recount previous bugs, implementation rounds,
+queue items, superseded designs or repeated proof narratives. Keep concise,
+present-tense explanations of each test's purpose, the defect it catches, its
+non-obvious invariant, configuration coverage and why its oracle is meaningful.
+Preserve calibration evidence and mutation rationale needed to maintain a law.
+Git retains the history; do not relocate the removed narrative into another
+large document or create a new history file.
+
+Scope: test modules and test-only sections, starting with
+`src/render/tests/chrome_panels.rs`, `src/render/tests/list_surfaces.rs`,
+`src/capture/tests/panels.rs`, `src/app_icon/tests.rs` and
+`src/render/tests/caret_transition.rs`. Inventory and work in bounded batches.
+Leave test bodies, names, attributes, assertions, fixtures, thresholds, enrollment,
+skips and product behavior unchanged. Test-helper consolidation and production
+source cleanup are separate work. The preliminary suggestion of tens of thousands
+of removable lines is a hypothesis, not a quota; report measured savings and
+retain useful rationale even when that reduces the total.
+
+Done/Verify: read docs/verification.md. Review the exact diff and prove executable
+Rust tokens and test enrollment unchanged with syntax-aware comparison, preserving
+doc-test code and source-audit-sensitive comments. Check relevant source audits,
+formatting and affected documentation links; use the verification policy for the
+integrated candidate, including the required native/wasm gate for source changes.
+Do not weaken an audit merely to permit comment deletion. Report changed files,
+comment-line savings and checks performed; distinguish readability improvement
+from executable-code or application-size reduction.
+
+---
 
 ### 640 — integrated navigation/coherence acceptance and documentation (user approval, 2026-09-10)
 
