@@ -74,8 +74,8 @@ visual smoke; human taste remains separate from numeric alignment evidence.
 
 ### 654 — remove retired floating-card shadow machinery (user request, 2026-09-12)
 
-🟢 READY TO MERGE — branch `codex/654-remove-dead-shadow-pipelines`, commit
-`4e8668a0` (based on `c4f9496a0`).
+🟠 INTEGRATED — implementation, repair and independent audit landed on local
+`main` at merge `51290c84`; real-GPU appearance checks and the combined gate remain.
 
 Finding: the July 22 visual fix stopped emitting drop-shadow geometry but deliberately
 left five complete `SelectionPipeline` instances wired through construction, theme
