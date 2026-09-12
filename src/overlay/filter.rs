@@ -248,7 +248,7 @@ impl OverlayState {
                     let here = self.browse_dir.as_deref().unwrap_or("");
                     ranked.retain(|&i| {
                         let row = &self.rows[i];
-                        if matches!(row.meta, RowMeta::FolderChooser | RowMeta::NewDocument) {
+                        if matches!(row.meta, RowMeta::FolderChooser) {
                             return true;
                         }
                         let parent = std::path::Path::new(&row.accept)

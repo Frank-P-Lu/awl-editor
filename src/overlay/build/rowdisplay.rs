@@ -43,7 +43,7 @@ pub(in crate::overlay) fn row_display(
         } else {
             row.accept.rsplit('/').next().unwrap_or(&row.accept)
         };
-        return format!("{name}/  ›");
+        return format!("{name}  ›");
     }
     if kind == OverlayKind::Goto && matches!(row.meta, RowMeta::GotoFile { .. }) {
         return if show_path {
@@ -204,6 +204,100 @@ pub fn elide_directory_path(path: &str, max: usize) -> String {
     }
     let leaf_budget = max - 2; // `…/` is the path-identity prefix.
     format!("…/{}", elide_middle(leaf, leaf_budget))
+}
+
+/// A directory readout prepared once for repeated measured-fit probes. The
+/// source is decoded to Unicode scalar values once; each probe copies only the
+/// characters it can actually show instead of rescanning the whole path.
+pub(crate) struct PreparedDirectoryPath {
+    chars: Vec<char>,
+    last_slash: Option<usize>,
+    leaf: std::ops::Range<usize>,
+}
+
+impl PreparedDirectoryPath {
+    pub(crate) fn new(path: &str) -> Self {
+        let chars: Vec<char> = path.chars().collect();
+        let trimmed_end = chars
+            .iter()
+            .rposition(|ch| *ch != '/')
+            .map_or(0, |index| index + 1);
+        let leaf_start = chars[..trimmed_end]
+            .iter()
+            .rposition(|ch| *ch == '/')
+            .map_or(0, |index| index + 1);
+        let last_slash = chars.iter().rposition(|ch| *ch == '/');
+        Self {
+            chars,
+            last_slash,
+            leaf: leaf_start..trimmed_end,
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.chars.len()
+    }
+
+    /// Character budget that preserves `…/leaf` whole. A root has no shorter
+    /// leaf identity, so it contributes no extra fit candidate.
+    pub(crate) fn leaf_identity_budget(&self) -> Option<usize> {
+        let budget = self.leaf.len() + 2;
+        (self.leaf.start > 0 && budget < self.chars.len()).then_some(budget)
+    }
+
+    pub(crate) fn elide(&self, max: usize) -> String {
+        if self.chars.len() <= max {
+            return self.chars.iter().collect();
+        }
+        if max == 0 {
+            return String::new();
+        }
+        if max == 1 {
+            return "…".to_string();
+        }
+        if max == 2 {
+            return "…/".to_string();
+        }
+
+        let leaf = &self.chars[self.leaf.clone()];
+        if leaf.len() + 2 <= max {
+            return match self.last_slash {
+                Some(slash) => {
+                    let file = &self.chars[slash + 1..];
+                    if file.len() + 1 > max {
+                        elide_middle_chars(file, max)
+                    } else {
+                        let mut shown = elide_middle_chars(&self.chars[..=slash], max - file.len());
+                        shown.extend(file.iter().copied());
+                        shown
+                    }
+                }
+                None => elide_middle_chars(&self.chars, max),
+            };
+        }
+        let mut shown = "…/".to_string();
+        shown.push_str(&elide_middle_chars(leaf, max - 2));
+        shown
+    }
+}
+
+fn elide_middle_chars(chars: &[char], max: usize) -> String {
+    if chars.len() <= max {
+        return chars.iter().collect();
+    }
+    if max == 0 {
+        return String::new();
+    }
+    if max == 1 {
+        return "…".to_string();
+    }
+    let remaining = max - 1;
+    let tail = remaining / 2 + remaining % 2;
+    let head = remaining - tail;
+    let mut shown: String = chars[..head].iter().collect();
+    shown.push('…');
+    shown.extend(chars[chars.len() - tail..].iter().copied());
+    shown
 }
 
 /// The figure/ground split of a (possibly elided) picker row: the byte index just PAST

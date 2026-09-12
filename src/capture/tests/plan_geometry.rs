@@ -66,6 +66,8 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: ov.foot_hint(),
+        files_location: ov.files_location(),
+        files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
         browse_dir: ov.browse_dir.clone(),
         return_to: None,
         spell_target: None,

@@ -1,7 +1,7 @@
 //! Accessibility projection for Files' focusable regions.
 
 use super::*;
-use crate::overlay::{FilesFocus, OverlayState, RowMeta};
+use crate::overlay::{FilesFocus, OverlayState};
 
 pub(super) fn query_focused(overlay: &OverlayState) -> bool {
     if contextual_text_field_owns_focus(overlay) {
@@ -24,15 +24,7 @@ pub(super) fn row_focused(overlay: &OverlayState, corpus: usize, visible: usize)
     if !overlay.files_mode {
         return true;
     }
-    match overlay.files_focus {
-        FilesFocus::Choices => !matches!(
-            overlay.rows[corpus].meta,
-            RowMeta::FolderChooser | RowMeta::NewDocument
-        ),
-        FilesFocus::ChangeFolder => matches!(overlay.rows[corpus].meta, RowMeta::FolderChooser),
-        FilesFocus::NewDocument => matches!(overlay.rows[corpus].meta, RowMeta::NewDocument),
-        _ => false,
-    }
+    overlay.files_focus == FilesFocus::Choices && corpus < overlay.rows.len()
 }
 
 /// Publish the category rail Settings actually draws. Its active category and
@@ -75,15 +67,48 @@ pub(super) fn append_controls(
     if !overlay.files_mode {
         return;
     }
+    let root = if overlay.files_root_name.is_empty() {
+        "folder"
+    } else {
+        &overlay.files_root_name
+    };
+    let destination = overlay
+        .browse_dir
+        .as_deref()
+        .filter(|dir| !dir.is_empty())
+        .map(|dir| format!("{root}/{dir}"))
+        .unwrap_or_else(|| root.to_string());
     for (id, name, target, active) in [
-        ("files", "Files", FilesFocus::Files, overlay.facet_lens == 0),
+        (
+            "files",
+            "Files".to_string(),
+            FilesFocus::Files,
+            overlay.facet_lens == 0,
+        ),
         (
             "recent",
-            "Recent",
+            "Recent".to_string(),
             FilesFocus::Recent,
             overlay.facet_lens == 1,
         ),
-        ("up", "Up", FilesFocus::Up, overlay.browse_dir.is_some()),
+        (
+            "up",
+            "Up".to_string(),
+            FilesFocus::Up,
+            overlay.browse_dir.is_some(),
+        ),
+        (
+            "change-folder",
+            "Change folder".to_string(),
+            FilesFocus::ChangeFolder,
+            true,
+        ),
+        (
+            "new-document",
+            format!("New document in {destination}"),
+            FilesFocus::NewDocument,
+            true,
+        ),
     ] {
         if id == "up" && !active {
             continue;
@@ -92,7 +117,7 @@ pub(super) fn append_controls(
         let mut node = SemanticNode::new(&node_id, SemanticRole::Button, name);
         node.focusable = true;
         node.focused = overlay.files_focus == target;
-        node.selected = (id != "up").then_some(active);
+        node.selected = matches!(id, "files" | "recent").then_some(active);
         node.actions = vec![SemanticAction::Focus, SemanticAction::Click];
         dialog.children.push(node_id);
         nodes.push(node);
@@ -109,7 +134,9 @@ pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String
             FilesFocus::Files => format!("{dialog_id}.files"),
             FilesFocus::Recent => format!("{dialog_id}.recent"),
             FilesFocus::Up => format!("{dialog_id}.up"),
-            _ => selected_row_id(overlay, dialog_id).unwrap_or(query_id),
+            FilesFocus::ChangeFolder => format!("{dialog_id}.change-folder"),
+            FilesFocus::NewDocument => format!("{dialog_id}.new-document"),
+            FilesFocus::Choices => selected_row_id(overlay, dialog_id).unwrap_or(query_id),
         }
     } else if let Some(shape) = overlay.workspace_shape() {
         if overlay.detail_focus && shape.rows_are_primary() {
@@ -122,6 +149,21 @@ pub(super) fn focus_id(overlay: &OverlayState, dialog_id: &str, query_id: String
     } else {
         selected_row_id(overlay, dialog_id).unwrap_or(query_id)
     }
+}
+
+pub(super) fn control_focus(id: &str, overlay: &OverlayState) -> Option<FilesFocus> {
+    if !overlay.files_mode {
+        return None;
+    }
+    let prefix = format!("overlay.{}.", overlay.kind.as_str());
+    Some(match id.strip_prefix(&prefix)? {
+        "files" => FilesFocus::Files,
+        "recent" => FilesFocus::Recent,
+        "up" if overlay.browse_dir.is_some() => FilesFocus::Up,
+        "change-folder" => FilesFocus::ChangeFolder,
+        "new-document" => FilesFocus::NewDocument,
+        _ => return None,
+    })
 }
 
 pub(super) fn workspace_rail_row_id(dialog_id: &str, index: usize) -> String {

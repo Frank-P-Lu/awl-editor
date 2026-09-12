@@ -128,6 +128,13 @@ pub struct OverlayInfo {
     /// [`crate::overlay::format_hint`] owner. Surfaced to the sidecar so the
     /// discoverability hint is agent-verifiable.
     pub hint: String,
+    /// Files only: the complete named destination. The render may elide its
+    /// visible copy, but capture state retains the full value.
+    pub files_location: Option<String>,
+    /// Files only: whether the Search field owns focus. This is a render fact,
+    /// kept beside the full location so a settled capture cannot revive the
+    /// query caret while a file choice or header/footer control owns focus.
+    pub files_query_focused: bool,
     /// Browse only: the root-relative directory the current level lists (`None` =
     /// the root). Surfaced so a `--keys` descend/ascend is verifiable; emitted as
     /// JSON null for the goto/switch modes.

@@ -72,12 +72,12 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        // A WORKSPACE IS ONE SURFACE. The split composition
+        // A WORKSPACE AND FILES ARE EACH ONE SURFACE. The split composition
         // carves a card's query beat into a separate upper plate; that is a
         // small-card gesture, and run across a workspace it would cut the
-        // navigation rail in half at an arbitrary height. A room does not have a
-        // seam through its wall.
-        if geom.workspace {
+        // navigation rail in half at an arbitrary height. Files likewise owns
+        // one opaque surface, so a seam would expose the document it replaced.
+        if geom.workspace || self.overlay_files_surface {
             return vec![full];
         }
         if !matches!(
@@ -112,6 +112,15 @@ impl TextPipeline {
         self.overlay_pane_fills(&geom, &plan)
     }
 
+    /// The card silhouette's shared safe interior, clear of chamfered corners
+    /// and the fill shader's antialiased boundary. Pixel opacity laws use this
+    /// rather than pretending every corner of the placement box is filled.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_card_opaque_inset_probe(&self, card: [f32; 4]) -> f32 {
+        let (chamfer, _) = self.card_shape_texture(&[card]);
+        chamfer.top.max(chamfer.bottom) + super::CARD_SILHOUETTE_AA_GUARD_PX.0
+    }
+
     pub(super) fn overlay_draw_card(&mut self, surface: OverlayCardSurface, vis: &VisualSelection) {
         let OverlayCardSurface {
             device,
@@ -124,7 +133,11 @@ impl TextPipeline {
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        let backing = list_style.list_backing(spell);
+        let backing = if self.overlay_files_surface {
+            theme::ListBacking::Card
+        } else {
+            list_style.list_backing(spell)
+        };
         self.overlay_prepare_card_backing(surface, backing, spell, card_rect);
         self.overlay_prepare_selection(surface, list_style, backing, vis);
         self.prepare_diagonal_spine(device, queue, width, height, plan, vis);

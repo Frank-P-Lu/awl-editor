@@ -90,17 +90,6 @@ impl OverlayState {
             })
             .collect::<Vec<_>>();
         rows.extend(file_ancestors(&files).into_iter().map(folder_row));
-        let mut change = OverlayRow::plain("Change folder…".to_string());
-        change.meta = RowMeta::FolderChooser;
-        rows.push(change);
-        let destination = browse_dir
-            .as_deref()
-            .filter(|dir| !dir.is_empty())
-            .unwrap_or("root");
-        let mut new_doc = OverlayRow::plain(format!("New document — {destination}/"));
-        new_doc.meta = RowMeta::NewDocument;
-        rows.push(new_doc);
-
         let mut state = Self::new_marked(
             OverlayKind::Goto,
             Vec::new(),
@@ -112,11 +101,18 @@ impl OverlayState {
         );
         state.rows = rows;
         state.files_mode = true;
+        state.files_root_name = "folder".into();
         state.open = open;
         state.recent = recent;
         state.refilter();
         state.refresh_hug_roster();
         state
+    }
+
+    pub fn set_files_root_name(&mut self, name: String) {
+        if self.files_mode {
+            self.files_root_name = name;
+        }
     }
 
     /// Add level-reader identities so genuinely empty directories remain visible.
@@ -152,13 +148,43 @@ impl OverlayState {
         (self.kind == OverlayKind::Goto).then(|| self.browse_dir.clone().unwrap_or_default())
     }
 
-    pub(super) fn files_title(&self) -> Option<String> {
+    /// The complete user-facing destination, kept independently of any
+    /// width-dependent visual elision in the renderer.
+    pub fn files_location(&self) -> Option<String> {
         (self.kind == OverlayKind::Goto).then(|| {
+            let root = if self.files_root_name.is_empty() {
+                "folder"
+            } else {
+                &self.files_root_name
+            };
             self.browse_dir
                 .as_deref()
                 .filter(|dir| !dir.is_empty())
-                .map(|dir| format!("files  /  {}/", dir.replace('/', "  /  ")))
-                .unwrap_or_else(|| "files  /".to_string())
+                .map(|dir| format!("{root}/{dir}"))
+                .unwrap_or_else(|| root.to_string())
+        })
+    }
+
+    pub(super) fn files_title(&self) -> Option<String> {
+        (self.kind == OverlayKind::Goto).then(|| {
+            let place = self.files_location().unwrap_or_else(|| "folder".into());
+            let up = self
+                .browse_dir
+                .as_ref()
+                .map(|_| {
+                    if self.files_focus == FilesFocus::Up {
+                        "  › Up"
+                    } else {
+                        "  Up"
+                    }
+                })
+                .unwrap_or("");
+            let change = if self.files_focus == FilesFocus::ChangeFolder {
+                "› Change folder"
+            } else {
+                "Change folder"
+            };
+            format!("{place}{up}  {change}  Search")
         })
     }
 
@@ -167,32 +193,13 @@ impl OverlayState {
             return None;
         }
         use FilesFocus::*;
-        match self.files_focus {
-            Files => return Some("Files view   ↵ show   tab next   esc close".into()),
-            Recent if self.recent.is_empty() => {
-                return Some("no recent files yet   tab next   esc close".into());
-            }
-            Recent => return Some("Recent view   ↵ show   tab next   esc close".into()),
-            Up => return Some("Up   ↵ ascend   tab next   esc close".into()),
-            Query | Choices | ChangeFolder | NewDocument => {}
-        }
-        let verb = self
-            .selected_corpus_index()
-            .and_then(|index| self.rows.get(index))
-            .map(|row| match row.meta {
-                RowMeta::GotoFolder => "enter folder",
-                RowMeta::GotoFile { .. } => "open file",
-                RowMeta::FolderChooser => "change folder",
-                RowMeta::NewDocument => "new document",
-                _ => "choose",
-            })
-            .unwrap_or("choose");
-        let up = if self.browse_dir.is_some() {
-            "   ← up"
+        let destination = self.files_location().unwrap_or_else(|| "folder".into());
+        let new_document = format!("New document — {destination}");
+        Some(if self.files_focus == NewDocument {
+            format!("› {new_document}")
         } else {
-            ""
-        };
-        Some(format!("type to search   ↵ {verb}{up}   esc close"))
+            new_document
+        })
     }
 
     pub fn focus_headings(&mut self) {
@@ -265,7 +272,6 @@ fn folder_row(path: String) -> OverlayRow {
     let mut row = OverlayRow::plain(path);
     row.is_dir = true;
     row.meta = RowMeta::GotoFolder;
-    row.secondary = "folder".into();
     row
 }
 

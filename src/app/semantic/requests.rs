@@ -178,6 +178,18 @@ impl App {
             self.request_frame();
             return true;
         }
+        if let Some(focus) = self
+            .workspace_state
+            .overlay()
+            .and_then(|overlay| files_overlay::control_focus(id, overlay))
+        {
+            if let Some(overlay) = self.workspace_state.overlay_mut() {
+                overlay.files_focus = focus;
+            }
+            self.sync_view(true);
+            self.request_frame();
+            return true;
+        }
         let Some(target) = self.overlay_target_position(id) else {
             return false;
         };
@@ -225,6 +237,16 @@ impl App {
             self.workspace_state.focus_workspace_detail();
             self.sync_view(true);
             self.request_frame();
+            return true;
+        }
+        if self
+            .workspace_state
+            .overlay()
+            .and_then(|overlay| files_overlay::control_focus(id, overlay))
+            .is_some()
+        {
+            self.focus_semantic_node(id);
+            self.apply_semantic_action(Action::Newline);
             return true;
         }
         let search_control = match id {
@@ -331,6 +353,9 @@ impl App {
             let Some(overlay) = self.workspace_state.overlay_mut() else {
                 return false;
             };
+            if overlay.files_mode {
+                overlay.files_focus = crate::overlay::FilesFocus::Query;
+            }
             overlay.set_semantic_query_text(value);
         } else {
             return false;

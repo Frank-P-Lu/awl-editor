@@ -18,6 +18,7 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         self.overlay_remetric();
+        self.resolve_files_header_split(width);
         let chrome = crate::render::overlay_chrome_theme();
         self.panel_border
             .set_color(theme::surface_selected_for(chrome).rgba_bytes());
@@ -77,7 +78,11 @@ impl TextPipeline {
             &vis,
             true,
         );
-        self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan, &vis);
+        self.diagonal_cluster = if self.overlay_files_surface {
+            None
+        } else {
+            self.resolve_diagonal_cluster(&geom, &plan, &vis)
+        };
         plan.complete_row_extent(self.diagonal_row_extent()); // completed, not rebuilt
         // The strip's mark rects were recorded buffer-local by
         // `overlay_shape_text` above — before this frame's cluster existed to

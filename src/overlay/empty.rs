@@ -44,6 +44,9 @@ impl OverlayState {
     }
 
     pub fn empty_notice(&self) -> Option<String> {
+        if self.files_mode && !self.notice.is_empty() {
+            return Some(self.notice.clone());
+        }
         self.items.is_empty().then(|| self.empty_message())
     }
 }

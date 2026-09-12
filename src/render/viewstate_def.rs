@@ -79,6 +79,13 @@ pub struct ViewState {
     /// [`crate::overlay::OverlayKind::retains_readable_room`]; distinct from
     /// `overlay_crisp`, whose rows preview live document state.
     pub overlay_retains_room: bool,
+    /// The approved Files composition is an opaque contextual surface. This is
+    /// state-gated rather than kind-gated because bare Goto still owns the
+    /// headings/line compatibility card.
+    pub overlay_files_surface: bool,
+    /// Complete Files destination. The renderer may elide its visible copy to
+    /// fit, while state, capture, and accessibility retain this full value.
+    pub overlay_files_location: String,
     /// The open card is the Themes chooser. Unlike the broader `overlay_crisp`
     /// class (which also includes Caret), this projection lets the renderer
     /// apply the chooser's reviewed fixed-composition and no-frost contract
@@ -398,6 +405,8 @@ impl ViewState {
             overlay_align: None,
             overlay_crisp: false,
             overlay_retains_room: false,
+            overlay_files_surface: false,
+            overlay_files_location: String::new(),
             overlay_theme_picker: false,
             overlay_theme_chrome: None,
             overlay_query: String::new(),
