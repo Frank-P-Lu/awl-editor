@@ -15,22 +15,30 @@ impl OverlayKind {
 }
 
 impl OverlayState {
+    /// The empty copy a specific lens would show in this card's current mode.
+    /// The right-hug roster and the live empty row both read this owner so a
+    /// width can never be measured without one of the strings it may display.
+    pub(super) fn empty_message_for_lens(&self, lens: &str) -> &'static str {
+        if self.kind == OverlayKind::Goto && !self.files_mode {
+            return match lens {
+                "files" => "no files here",
+                "headings" => "no headings yet",
+                "folders" => "no folders here",
+                "recent" => "no recent destinations",
+                _ => self.kind.empty_corpus_message(),
+            };
+        }
+        self.kind
+            .empty_lens_message(lens)
+            .unwrap_or_else(|| self.kind.empty_corpus_message())
+    }
+
     pub fn empty_message(&self) -> String {
         if !self.query.is_empty() {
             return "no matches".to_string();
         }
-        if self.kind == OverlayKind::Goto && !self.files_mode {
-            return match self.active_facet_id() {
-                Some("files") => "no files here",
-                Some("headings") => "no headings yet",
-                Some("folders") => "no folders here",
-                Some("recent") => "no recent destinations",
-                _ => self.kind.empty_corpus_message(),
-            }
-            .to_string();
-        }
         self.active_facet_id()
-            .and_then(|lens| self.kind.empty_lens_message(lens))
+            .map(|lens| self.empty_message_for_lens(lens))
             .unwrap_or_else(|| self.kind.empty_corpus_message())
             .to_string()
     }

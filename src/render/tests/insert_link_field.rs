@@ -32,7 +32,10 @@ fn insert_link_opts(query: &str) -> CaptureOpts {
             align: crate::render::effective_card_anchor(),
             chrome_theme: None,
             query: query.to_string(),
-            query_caret: query.chars().count(),
+            // Hold the caret at the same cell in the empty and typed frames.
+            // The pixel diff can then isolate the field ink without admitting
+            // the accent-coloured caret as a false dominant cluster.
+            query_caret: 0,
             query_selection: None,
             // The card's one row is the fixed click-to-commit label, never the
             // URL itself (`OverlayState::new_link_edit`'s own doc) — this law
@@ -89,10 +92,9 @@ fn capture_insert_link(
         .to_rgba8()
 }
 
-/// The FIELD line's own pixel region — `header_rows == 1`, so it is the
-/// card's very first line, at `card_y + CARD_PAD` (the same `12.0` device-px
-/// pad `date_row_regions` reads off, one row up from its first CANDIDATE
-/// row). Geometry-only probe pipeline; never sampled for pixels itself.
+/// The query header's real ink box. This follows rotated/raked header
+/// compositions too; the differential sampler below removes the unchanged
+/// title prefix and retains only the value that differs between frames.
 fn field_region(world: &str) -> (f32, f32, f32, f32) {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         return (0.0, 0.0, 0.0, 0.0);
@@ -101,16 +103,16 @@ fn field_region(world: &str) -> (f32, f32, f32, f32) {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
     v.overlay_title = crate::overlay::OverlayKind::InsertLink.title().to_string();
+    v.overlay_query_placeholder = Some(PLACEHOLDER.to_string());
     v.overlay_items = vec!["\u{21B5}  insert link".to_string()];
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    let [card_x, card_y, card_w, _] = p
-        .overlay_card_rect()
-        .expect("the overlay card must be open");
-    let hpad = p.overlay_text_hpad();
-    let text_left = card_x + hpad;
-    let lh = p.overlay_lh();
-    (text_left, card_y + 12.0, card_w - 2.0 * hpad, lh)
+    let geom = p.overlay_geometry(1200);
+    let plan = p.overlay_row_plan(&geom);
+    let [x, y, w, h] = p
+        .overlay_head_band_ink(&geom, &plan)
+        .expect("Insert link has shaped header ink");
+    (x, y, w, h)
 }
 
 /// The single most-common pixel color over the region — the row's own
@@ -130,13 +132,12 @@ fn region_mode_color(img: &image::RgbaImage, x0: i64, y0: i64, x1: i64, y1: i64)
         .unwrap_or([0, 0, 0, 0])
 }
 
-/// Every pixel whose max-channel distance from `bg` clears the low noise
-/// floor (24 of 255 — `date_picker_ink.rs`'s own tuned value; low enough that
-/// a genuinely low-contrast ink still enters the population), plus the
-/// DOMINANT color among them and how many there are — the presence count and
-/// the ink oracle a distinctness check reads.
-fn dominant_ink(
-    img: &image::RgbaImage,
+/// Dominant non-ground ink in `source` at pixels that differ from `other`.
+/// The unchanged title prefix is therefore excluded even when it shares the
+/// placeholder's muted role.
+fn dominant_changed_ink(
+    source: &image::RgbaImage,
+    other: &image::RgbaImage,
     region: (f32, f32, f32, f32),
     bg: [u8; 4],
 ) -> ([u8; 4], usize) {
@@ -144,9 +145,12 @@ fn dominant_ink(
     let (x0, y0, x1, y1) = (x as i64, y as i64, (x + w) as i64, (y + h) as i64);
     let mut counts: HashMap<[u8; 4], usize> = HashMap::new();
     let mut n = 0usize;
-    for py in y0.max(0)..y1.min(img.height() as i64) {
-        for px in x0.max(0)..x1.min(img.width() as i64) {
-            let p = img.get_pixel(px as u32, py as u32).0;
+    for py in y0.max(0)..y1.min(source.height() as i64) {
+        for px in x0.max(0)..x1.min(source.width() as i64) {
+            let p = source.get_pixel(px as u32, py as u32).0;
+            if p == other.get_pixel(px as u32, py as u32).0 {
+                continue;
+            }
             let d = p[0]
                 .abs_diff(bg[0])
                 .max(p[1].abs_diff(bg[1]))
@@ -159,8 +163,8 @@ fn dominant_ink(
     }
     let dom = counts
         .into_iter()
-        .max_by_key(|(_, c)| *c)
-        .map(|(c, _)| c)
+        .max_by_key(|(_, count)| *count)
+        .map(|(color, _)| color)
         .unwrap_or([0, 0, 0, 0]);
     (dom, n)
 }
@@ -209,8 +213,9 @@ fn insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds()
             (region.0 + region.2) as i64,
             (region.1 + region.3) as i64,
         );
+        let typed_img = capture_insert_link(&dir, world, TYPED_URL, "typed");
         let bg = region_mode_color(&empty_img, ex0, ey0, ex1, ey1);
-        let (ph_ink, ph_n) = dominant_ink(&empty_img, region, bg);
+        let (ph_ink, ph_n) = dominant_changed_ink(&empty_img, &typed_img, region, bg);
         assert!(
             ph_n >= MIN_INK_PIXELS,
             "{world}: placeholder {PLACEHOLDER:?} found only {ph_n} ink pixels in the field \
@@ -238,10 +243,9 @@ fn insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds()
             );
         }
 
-        let typed_img = capture_insert_link(&dir, world, TYPED_URL, "typed");
         let (dx0, dy0, dx1, dy1) = (ex0, ey0, ex1, ey1);
         let bg_typed = region_mode_color(&typed_img, dx0, dy0, dx1, dy1);
-        let (typed_ink, typed_n) = dominant_ink(&typed_img, region, bg_typed);
+        let (typed_ink, typed_n) = dominant_changed_ink(&typed_img, &empty_img, region, bg_typed);
         assert!(
             typed_n >= MIN_INK_PIXELS,
             "{world}: typed URL found only {typed_n} ink pixels in the field region \

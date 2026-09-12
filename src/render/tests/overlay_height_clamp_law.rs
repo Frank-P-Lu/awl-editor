@@ -1,24 +1,11 @@
 //! THE HEIGHT-CLAMP LAW.
 //!
-//! The defect: the GROUPED/faceted geometry (`theme_overlay_geometry`) divided
-//! its own available pixels by the row pitch to bound its item window; the
-//! FLAT geometry (`overlay_geometry`) capped its window only at a per-kind row
-//! COUNT (`OverlayKind::window_rows`) that knows nothing about the canvas. A
-//! flat picker whose count is its whole corpus — the theme picker,
-//! `window_rows() == theme::THEMES.len()`, once its runtime lens strip retired
-//! (making it flat, `docs/render.md`'s "Overlay personality" section) — drew a
-//! card taller than the canvas at its own default size (`card_h: 934` against
-//! `canvas_h: 800`, reproduced verbatim below before this law existed).
-//!
-//! `render::plan::fit_item_rows` is now the one clamp owner both families
-//! read (see its doc in `render/plan/overlay_rows.rs`). This file is the
-//! device-level proof, over the WHOLE `OverlayKind` roster (classified by the
-//! SAME no-wildcard match production already uses, `facets::scheme` —
-//! `overlay_plan_law.rs`'s own hand-copied `family()` classifier drifted from
-//! it: it calls `Assets` grouped, but `facets::scheme(OverlayKind::Assets)` is
-//! `None`, so production actually routes it through the FLAT path. Reusing the
-//! real function instead of a second hand-maintained copy is exactly the
-//! "same behavior ⇒ same code" a hand-copied classifier keeps failing at).
+//! `render::plan::fit_item_rows` is the one canvas clamp owner for flat and
+//! grouped cards. Grouped fitting also accounts for the compact footer slack
+//! that final card sizing reclaims, so a reachable section header + item pair
+//! is never rejected by charging the hint separator as a full row. This file
+//! proves both properties at the device seam over the complete overlay-kind
+//! roster and over the real canvas, DPI, list-style and menu-bar axes.
 //!
 //! TWO INDEPENDENT ORACLES per swept cell, plus a third pixel-level check:
 //!  - STATE — the sidecar's own `card_h`/`canvas_h` (`overlay_window_report`).
@@ -39,23 +26,9 @@
 //! so every cell is a genuinely reachable live window — never a physical
 //! canvas that DPI happens to shrink below `app::lifecycle`'s own enforced
 //! minimum, `MIN_COLS`x`MIN_LINES` — see the module doc below on the swept
-//! bound), and four points across the documented zoom range (0.5..3.0).
-//!
-//! The GROUPED family's own arm of this clamp was still
-//! incomplete at the zoom ceiling: a picker cycled onto a sectioned lens
-//! carries extra fixed header overhead (the lens strip + real section
-//! headers) this clamp did not shrink, and at zoom 3.0 on a short canvas that
-//! overhead ALONE — before a single item is counted — could still exceed
-//! `avail_px` (`card_h: 535.4` against `canvas_h: 460`, the command palette
-//! on its File lens, confirmed present on unmodified pre-184 code via `git
-//! stash`. `fit_item_rows` gained a
-//! `min_items` parameter (its own doc): the FLAT family and the spell popup
-//! keep `min_items: 1` (byte-identical), while the GROUPED family now passes
-//! `min_items: 0` — when its fixed chrome overhead alone cannot fit, the card
-//! answers with an empty candidate band rather than a forced row that
-//! overruns the canvas. A no-op everywhere the floor did not bind, proven —
-//! not merely asserted — by
-//! `already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix`.
+//! bound), and four points across the documented document-zoom range
+//! (0.5..3.0). Chrome is expressed in UI metrics, so zoom is an invariance
+//! axis here: the document changes size while the summoned furniture does not.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -363,25 +336,14 @@ fn no_card_exceeds_its_canvas_for_any_overlay_kind() {
 /// picker (the reported regression, a FLAT card whose per-kind cap is its
 /// whole world roster), the command palette on its "All" home lens (an
 /// already-clamped GROUPED card, its established sibling, in the state a
-/// grouped picker spends the vast majority of its open time in), and — ITEM
-/// 184 — the command palette CYCLED onto a sectioned lens, the shape whose
-/// extra fixed header overhead (`sectioned: true`
-/// below). The clamp arithmetic is identical code for every kind — only the
+/// grouped picker spends the vast majority of its open time in), and the
+/// command palette CYCLED onto a sectioned lens (`sectioned: true`). The
+/// clamp arithmetic is identical code for every kind — only the
 /// corpus and the per-kind cap differ — so stressing it here across the
 /// documented zoom range (0.5..3.0) at both DPIs, on every logical canvas,
-/// covers the axis the headline law (fixed at zoom 1.0) cannot: the
-/// query-beat/row-pitch growth that only zoom drives.
-///
-/// The grouped-family arm closes the gap this test once carved out ("NOT SWEPT HERE"):
-/// at the documented zoom ceiling on a short canvas the sectioned grouped
-/// card's own fixed overhead (query line + lens strip + the section headers
-/// its window carries) can still exceed `avail_px` before a single item is
-/// counted — `fit_item_rows`'s `min_items: 0` floor for the grouped family
-/// (see its doc) means the card answers with an EMPTY candidate band rather
-/// than a forced row that overruns the canvas. `zero_rows_engaged` is the
-/// NON-VACUITY floor for that arm: without it, this test could pass just as
-/// well if the sectioned case never actually reached the pathological
-/// corner.
+/// covers the axis the headline law (fixed at zoom 1.0) cannot. Because chrome
+/// uses UI metrics rather than document metrics, every fixed canvas/DPI cell
+/// must keep the same card geometry and item window across the zoom sweep.
 #[test]
 fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     let _g = crate::testlock::serial();
@@ -393,7 +355,7 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     };
 
     let mut checked = 0usize;
-    let mut zero_rows_engaged = 0usize;
+    let mut zoom_invariant_cells = 0usize;
     for (kind, sectioned) in [
         (OverlayKind::Theme, false),
         (OverlayKind::Command, false),
@@ -404,6 +366,7 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
             for (lw, lh) in LOGICAL_CANVASES {
                 let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
                 p.set_size(cw as f32, ch as f32);
+                let mut baseline = None;
                 for &zoom in &ZOOMS {
                     let mut v = overlay_view(kind, kind.window_rows() + 25, sectioned);
                     v.zoom = zoom;
@@ -415,8 +378,17 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
                         .overlay_window_report()
                         .expect("an open card must report a window");
                     checked += 1;
-                    if plan.candidate_rows() == 0 {
-                        zero_rows_engaged += 1;
+                    let [card_x, _, card_w, _] = p.overlay_card_rect().unwrap();
+                    let fingerprint = (card_x, card_w, card_h, plan.candidate_rows());
+                    if let Some(baseline) = baseline {
+                        assert_eq!(
+                            fingerprint, baseline,
+                            "{kind:?} sectioned={sectioned} dpi={dpi} logical={lw}x{lh}: \
+                             document zoom resized or re-windowed UI chrome"
+                        );
+                        zoom_invariant_cells += 1;
+                    } else {
+                        baseline = Some(fingerprint);
                     }
                     assert!(
                         card_h <= canvas_h + 0.01,
@@ -433,28 +405,20 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
         "the zoom sweep graded too few cells: {checked}"
     );
     assert!(
-        zero_rows_engaged > 0,
-        "the sectioned grouped arm never actually reached the pathological corner (empty \
-         candidate band) — this law would pass just as well with `min_items: 0` \
-         floor deleted"
+        zoom_invariant_cells >= 72,
+        "too few zoom comparisons: {zoom_invariant_cells}"
     );
 }
 
-/// **THE FLOOR'S OTHER HALF — an empty candidate band must be FORCED.** The law
-/// above proves the sectioned card never overruns its canvas; on its own, that
-/// is satisfiable by a card that shows nothing at all. The grouped family's
-/// `min_items: 0`
-/// is licensed only where no row can fit; a card that plans zero rows while the
-/// canvas beneath it still has room for a section header and an item row is not
-/// degrading, it is mis-billing its own budget.
+/// **THE FLOOR'S OTHER HALF — an empty candidate band must be forced by the
+/// canvas.** The law above proves the sectioned card never overruns; on its own
+/// that is satisfiable by showing nothing. A zero-row result is licensed only
+/// where the remaining canvas cannot fit a section header and one item.
 ///
-/// **THE DEFECT THIS NAMES:** the grouped family charged a header row for every
-/// section in the LIST rather than for the window it was about to draw. At a
-/// 900x460 canvas with the menu bar's vertical reserve taken out of the budget,
-/// seven display lines fit, four went to the query line, the lens strip, the
-/// hint and its separator, and three more were billed to sections the window
-/// had no room to reach — leaving zero item rows in a card 192px tall inside a
-/// 460px canvas, with 180px of it free below the card.
+/// **THE DEFECT THIS NAMES:** grouped fitting charged the compact hint and its
+/// separator as full row pitches but reclaimed their unused line-box slack only
+/// after choosing the window. The final card therefore had room that the fitter
+/// could not see and could reject every candidate on a reachable canvas.
 ///
 /// **SWEPT OVER THE MENU BAR** for the same reason `overlay_plan_law`'s
 /// headline law is: `menubar::MENU_BAR_ON` starts `false` on macOS and `true`
@@ -471,7 +435,7 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
 fn an_empty_candidate_band_is_forced_by_the_canvas_never_by_its_own_header_bill() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping an_empty_candidate_band_is_forced_by_the_canvas: no wgpu adapter");
+        eprintln!("skipping empty-candidate-band canvas law: no wgpu adapter");
         return;
     };
     // The AMBIENT value, never `cfg!(target_os = ...)`: a `cfg!` here reports
@@ -541,22 +505,19 @@ fn an_empty_candidate_band_is_forced_by_the_canvas_never_by_its_own_header_bill(
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
     p.set_dpi(1.0);
     assert!(checked >= 128, "the sweep graded too few cells: {checked}");
-    // NON-VACUITY, both ends. Without an empty band the assertion body never
-    // runs at all; without a TIGHT-but-populated cell the sweep only ever
-    // grades roomy cards, which are not where the floor lives.
-    assert!(
-        empty > 0,
-        "no swept cell ever reached an empty candidate band, so the floor above was never \
-         evaluated — this law would pass with the degradation arm deleted"
+    // UI chrome no longer grows with document zoom, so every canvas in this
+    // roster is reachable and can retain at least one result. The tight-cell
+    // floor keeps this from being a sweep of roomy cards only.
+    assert_eq!(
+        empty, 0,
+        "a reachable canvas lost its whole candidate band despite compact-footer slack"
     );
     assert!(
         tight > 0,
         "no swept cell landed within two candidate rows of empty, so the sweep never came \
          near the floor it grades"
     );
-    eprintln!(
-        "empty-band floor: {checked} cells, {empty} empty bands, {tight} at two rows or fewer"
-    );
+    eprintln!("candidate-band floor: {checked} cells, {tight} at two rows or fewer");
 }
 
 /// THE EXACT REPORTED REGRESSION, pinned by name and by number: the theme
@@ -588,15 +549,9 @@ fn the_reported_theme_picker_regression_stays_fixed() {
     assert!(sel < lines, "the selected world must stay on screen");
 }
 
-/// THE GROUPED-PALETTE REGRESSION: the command palette
-/// cycled onto a sectioned lens, 900x460, zoom 3.0 — used to report `card_h:
-/// 535.4` against `canvas_h: 460` verbatim (measured on the unmodified
-/// prior code. After the `min_items: 0` floor for the grouped
-/// family, the same view reports `card_h: 372.2`, an EMPTY candidate band
-/// (`plan.candidate_rows() == 0`) rather than the one forced, overrunning row
-/// the old `min_items: 1` floor demanded. This is the smallest possible
-/// non-vacuity witness for this item — reverting the grouped `min_items` to
-/// `1` reproduces the exact reported failure, watched red in the report.
+/// The former high-document-zoom starvation cell. Chrome now uses UI metrics,
+/// so 900x460 at document zoom 3 must be identical to zoom 1 and retain a real
+/// sectioned candidate band rather than degrading to an empty card.
 #[test]
 fn the_900x460_zoom3_sectioned_command_case_now_fits() {
     let _g = crate::testlock::serial();
@@ -623,21 +578,23 @@ fn the_900x460_zoom3_sectioned_command_case_now_fits() {
         "the sectioned command palette's card_h {card_h} exceeds its canvas_h {canvas_h} at \
          900x460/zoom3.0 — this is the grouped-palette regression itself, reproduced verbatim"
     );
-    assert_eq!(
-        lines, 0,
-        "this exact cell's own fixed chrome overhead (query line + strip + the section \
-         header its one surviving item would need) already exceeds `avail_px` before any \
-         item is counted — an empty band is the correct, honest answer here, not a forced \
-         row that overruns the canvas; got {lines} lines"
+    assert!(lines > 0, "the reachable canvas must retain candidate rows");
+    assert_eq!(plan.candidate_rows(), lines, "planner and report disagree");
+    assert!(
+        sel_row < lines,
+        "the selected row must remain inside the window"
     );
+    let [card_x, _, card_w, _] = p.overlay_card_rect().unwrap();
+    let zoom3 = (card_x, card_w, card_h, lines, sel_row);
+    v.zoom = 1.0;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 900, 460).unwrap();
+    let (_, lines1, sel1, card_h1, _) = p.overlay_window_report().unwrap();
+    let [card_x1, _, card_w1, _] = p.overlay_card_rect().unwrap();
     assert_eq!(
-        plan.candidate_rows(),
-        0,
-        "the planner's own row count must agree with the sidecar's `lines`"
-    );
-    assert_eq!(
-        sel_row, 0,
-        "no row is selectable, so the sidecar reports the default 0"
+        zoom3,
+        (card_x1, card_w1, card_h1, lines1, sel1),
+        "document zoom must not resize UI chrome"
     );
     p.set_dpi(1.0);
 }
@@ -800,27 +757,15 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (700, 800),
                 zoom: 2.0,
             },
-            // THE CELL WHERE LOGICAL-VS-PHYSICAL BITES HARDEST. Three logical
-            // lengths bind here at zoom 2, and a physical number left sitting
-            // beside doubled text is the defect this cell catches. The card's edge-inset
-            // FLOOR resolves to 20px rather than 10 (the span narrows 10..690 ->
-            // 20..680); the grouped card's own pad and its drop from the canvas
-            // top resolve to 24 and 80 rather than 12 and 40, which is 84px less
-            // vertical room, so the height clamp seats six item rows where it
-            // used to seat eight (694.0 -> 609.2). At 200% zoom a card whose
-            // padding stayed at 100% was the defect, not the baseline.
-            // The hint's own gap row costs this cell one visible
-            // candidate row (6 -> 5): the window was already binding on
-            // `avail_px` here, so the extra row of overhead is absorbed by
-            // showing one fewer item, exactly as any other overhead addition
-            // already would be. `card_h` ALSO drops (609.2 -> 578.8): the
-            // gap row is shorter than a full row (`OVERLAY_HINT_GAP_ROW`),
-            // and reclaiming that slack now outweighs `avail_px`'s own
-            // clamp, so the card is content-derived here rather than
-            // window-clamped. `OVERLAY_HINT_GAP_ROW`'s own magnitude then
-            // moves only how much of that compact row's slack survives the
-            // reclaim — never the row count this cell fits.
-            (573.8, (20.0, 680.0), 3, Some((34, 3, 2, 573.8, 800.0))),
+            // Document zoom affects the writing, not interface furniture.
+            // This therefore retains the same 600-logical-pixel cap and
+            // candidate window as zoom 1 on this canvas.
+            (
+                532.199_95,
+                (50.0, 650.0),
+                12,
+                Some((25, 12, 11, 532.199_95, 800.0)),
+            ),
         ),
         // `History` does not belong in this cell: it is not a GROUPED picker
         // either, but a summoned workspace, so its numbers here would be
@@ -835,17 +780,13 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1400, 1600),
                 zoom: 0.5,
             },
-            // The SUB-1 companion: at zoom 0.5 the same lengths resolve DOWN,
-            // so the card is 13px shorter (261 -> 248) at the same thirteen
-            // rows — the footer's 2px pad reclaims one pixel more, and the
-            // grouped card's own 12px pad is 6. Enrolling chrome in `zoom * dpi`
-            // moves it at every scale away from 1, not only on retina; the
-            // card_x span is untouched because the edge floor never binds here.
+            // The sub-1 companion: chrome again remains at its authored UI
+            // size rather than shrinking with the document.
             (
-                280.199_98,
+                559.399_96,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 280.199_98, 1600.0)),
+                Some((25, 13, 12, 559.399_96, 1600.0)),
             ),
         ),
         // `Settings` does not belong in this fifth cell: it is not a GROUPED

@@ -79,8 +79,8 @@ fn assert_goto_lens_captures(
     );
 
     let cases: [(&str, &str, usize); 5] = [
-        ("all", "All", 7),
-        ("files", "Files", 3),
+        ("all", "All", 8),
+        ("files", "Files", 4),
         ("headings", "Headings", 2),
         ("folders", "Folders", 3),
         ("recent", "Recent", 2),
@@ -107,7 +107,8 @@ fn assert_goto_lens_captures(
         assert_eq!(
             sidecar["overlay"]["items"].as_array().unwrap().len(),
             item_count,
-            "{id} enrolls its own typed destination rows"
+            "{id} enrolls its own typed destination and terminal rows: {:?}",
+            sidecar["overlay"]["items"]
         );
         let sections = sidecar["overlay"]["sections"].as_array().unwrap();
         if id == "all" {

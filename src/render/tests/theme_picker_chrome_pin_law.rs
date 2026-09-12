@@ -34,18 +34,22 @@ struct ChromeSnapshot {
 }
 
 fn snapshot(p: &mut TextPipeline, ov: &OverlayState) -> ChromeSnapshot {
+    snapshot_with_theme_identity(p, ov, true)
+}
+
+fn snapshot_with_theme_identity(
+    p: &mut TextPipeline,
+    ov: &OverlayState,
+    theme_picker: bool,
+) -> ChromeSnapshot {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_theme_picker = true;
+    v.overlay_theme_picker = theme_picker;
     v.overlay_items = ov.item_strings();
     v.overlay_selected = ov.selected;
     v.overlay_lens = ov.lens_strip();
     v.overlay_sections = ov.item_sections();
     v.overlay_align = Some(ov.align);
-    assert!(
-        v.overlay_theme_picker,
-        "the sweep must exercise the typed Themes path"
-    );
     p.sync_theme();
     p.set_view(&v);
     let card_rect = p.overlay_card_rect().expect("theme picker card");
@@ -316,15 +320,15 @@ fn the_ground_outside_the_card_really_does_repaint_across_the_sweep() {
     crate::render::set_card_anchor_test_override(None);
 }
 
-/// MUTATION PROOF: unpinning the picker's chrome mid-sweep (bypassing
-/// `pin_picker_chrome`, exactly the pre-item-609 behaviour) makes the very
-/// same crossing move the card — proving the laws above hold because of the
-/// pin, not because this fixture never really crosses compositions.
+/// MUTATION PROOF: withholding the typed Themes identity makes the same
+/// crossing move the card — proving the laws above hold because the render
+/// path enrols this card in the pin, not because the fixture never crosses
+/// compositions.
 #[test]
-fn without_the_pin_the_sweep_would_move_the_card() {
+fn without_the_typed_theme_identity_the_sweep_would_move_the_card() {
     let _g = crate::testlock::serial();
     let Some((_device, _queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping without_the_pin_the_sweep_would_move_the_card: no wgpu adapter");
+        eprintln!("skipping typed-Theme-identity mutation law: no wgpu adapter");
         return;
     };
     crate::render::set_card_anchor_test_override(None);
@@ -347,19 +351,14 @@ fn without_the_pin_the_sweep_would_move_the_card() {
         .expect("the roster carries at least one non-Pane world")
         .name;
 
-    // THE MUTATION: drop the pin the same way `preview_move` would if
-    // `pin_picker_chrome` had never been wired up (never call it again after
-    // this — the point is to observe the picker's composition WITHOUT it).
-    // Captured BEFORE the mutation and restored on `Drop` — including while
-    // unwinding — so a panicking assertion below cannot leave this thread's
-    // pin unset for whatever the harness schedules here next; see
-    // `PickerChromePinRestore`'s own doc for why this manual span (not the
-    // ordinary overlay-construction lifecycle) is the one place that needs it.
+    // THE MUTATION: withhold the typed identity which makes `set_view`
+    // reassert the picker pin. The restore guard keeps the direct unpin below
+    // local even if the assertion unwinds.
     let _pin_restore = crate::render::PickerChromePinRestore::capture();
     crate::render::unpin_picker_chrome();
 
     step_to(&mut ov, target);
-    let unpinned = snapshot(&mut p, &ov);
+    let unpinned = snapshot_with_theme_identity(&mut p, &ov, false);
 
     assert_ne!(
         unpinned, summoned,
@@ -424,5 +423,27 @@ fn dismissing_themes_releases_its_font_and_palette_pin() {
         crate::render::picker_chrome_pin_probe(),
         None,
         "a no-overlay frame must restore ordinary chrome to the active world's font and palette"
+    );
+}
+
+#[test]
+fn a_direct_non_theme_view_cannot_inherit_an_earlier_themes_pin() {
+    let _g = crate::testlock::serial();
+    let _pin = crate::render::PickerChromePinRestore::capture();
+    let Some((_device, _queue, mut pipeline)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping non-theme pin reset: no wgpu adapter");
+        return;
+    };
+    crate::render::set_picker_chrome_pin_for_test(Some(0));
+    let mut ordinary = view("document\n", 0, 0);
+    ordinary.overlay_active = true;
+    ordinary.overlay_items = vec!["ordinary command".into()];
+    ordinary.overlay_theme_picker = false;
+    ordinary.overlay_theme_chrome = None;
+    pipeline.set_view(&ordinary);
+    assert_eq!(
+        crate::render::picker_chrome_pin_probe(),
+        None,
+        "a raw non-Theme ViewState must clear stale Themes composition"
     );
 }
