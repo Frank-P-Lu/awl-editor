@@ -24,6 +24,10 @@ fn changed_pixels(control: &image::RgbaImage, other: &image::RgbaImage) -> usize
         .count()
 }
 
+fn disable_files_surface(opts: &mut CaptureOpts) {
+    opts.overlay.as_mut().expect("Files overlay").files_surface = false;
+}
+
 #[test]
 fn replay_files_query_keeps_deep_filename_candidates_content_free_before_accept() {
     use crate::fs::{FileSystem, InMemoryFs};
@@ -63,9 +67,10 @@ fn replay_files_query_keeps_deep_filename_candidates_content_free_before_accept(
 /// The real capture fold and the settled renderer must both retain Files'
 /// typed composition and its full destination. The two mutations separate the
 /// seams: clearing only the folded location must change the rendered header,
-/// while clearing only the Files lens must change the card composition. If
-/// either `overlay_capture_info` or `settled_viewstate` drops its field, that
-/// mutation becomes byte-identical to the control and this law fails.
+/// while clearing only the dedicated Files identity must change the card
+/// composition. If either `overlay_capture_info` or `settled_viewstate` drops
+/// its field, that mutation becomes byte-identical to the control and this law
+/// fails.
 #[test]
 fn files_shared_fold_reaches_the_narrow_settled_capture() {
     let _serial = crate::testlock::serial();
@@ -143,13 +148,7 @@ fn files_shared_fold_reaches_the_narrow_settled_capture() {
         "without-files-surface.png",
         session.buffer(),
         &folded,
-        |mutation| {
-            mutation
-                .overlay
-                .as_mut()
-                .expect("Files overlay")
-                .files_surface = false;
-        },
+        disable_files_surface,
     );
     let focus = files_capture_variant(
         &dir,
