@@ -473,10 +473,7 @@ fn contextual_command_and_link_cards_focus_their_editable_field_not_the_selected
     }
 }
 
-#[test]
-fn files_semantics_separate_search_choices_and_header_footer_actions() {
-    let _guard = crate::testlock::serial();
-    let _restore = calm_globals_guarded();
+fn files_semantic_app() -> App {
     let mut app = hermetic();
     let mut files = OverlayState::new_files(
         vec!["alpha.md".into(), "notes/draft.md".into()],
@@ -488,8 +485,10 @@ fn files_semantics_separate_search_choices_and_header_footer_actions() {
     files.set_query_text("draft");
     files.query.select_all();
     app.workspace_state.install_overlay_for_test(files);
+    app
+}
 
-    let snapshot = app.semantic_snapshot();
+fn assert_files_search_and_header_actions(snapshot: &SemanticSnapshot) {
     let query = snapshot
         .nodes
         .iter()
@@ -527,6 +526,34 @@ fn files_semantics_separate_search_choices_and_header_footer_actions() {
                 !node.name.contains("Change folder") && !node.name.contains("New document")
             })
     );
+}
+
+fn assert_files_level_notice_is_published_once() {
+    let mut app = hermetic();
+    let mut unsupported = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
+    unsupported.notice = "no supported files in this folder".into();
+    app.workspace_state.install_overlay_for_test(unsupported);
+    let snapshot = app.semantic_snapshot();
+    assert_eq!(
+        snapshot
+            .nodes
+            .iter()
+            .filter(|node| {
+                node.role == SemanticRole::Status
+                    && node.name == "no supported files in this folder"
+            })
+            .count(),
+        1,
+        "Files' one visual level notice must be published once"
+    );
+}
+
+#[test]
+fn files_semantics_separate_search_choices_and_header_footer_actions() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    let mut app = files_semantic_app();
+    assert_files_search_and_header_actions(&app.semantic_snapshot());
 
     assert!(app.apply_semantic_request(SemanticRequest::SetValue {
         id: "overlay.goto.query".into(),
@@ -574,25 +601,7 @@ fn files_semantics_separate_search_choices_and_header_footer_actions() {
     let focused = app.semantic_snapshot();
     assert_eq!(focused.focus_id, "overlay.goto.new-document");
 
-    let mut notice_app = hermetic();
-    let mut unsupported = OverlayState::new_files(Vec::new(), Vec::new(), Vec::new(), None);
-    unsupported.notice = "no supported files in this folder".into();
-    notice_app
-        .workspace_state
-        .install_overlay_for_test(unsupported);
-    let notice = notice_app.semantic_snapshot();
-    assert_eq!(
-        notice
-            .nodes
-            .iter()
-            .filter(|node| {
-                node.role == SemanticRole::Status
-                    && node.name == "no supported files in this folder"
-            })
-            .count(),
-        1,
-        "Files' one visual level notice must be published once"
-    );
+    assert_files_level_notice_is_published_once();
 }
 
 #[test]
@@ -664,24 +673,20 @@ fn every_files_control_advertises_and_routes_its_real_semantic_actions() {
     }
 }
 
-#[test]
-fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions() {
-    let _guard = crate::testlock::serial();
-    let _restore = calm_globals_guarded();
+fn assert_one_semantic_focus(snapshot: &SemanticSnapshot) {
+    let focused: Vec<_> = snapshot.nodes.iter().filter(|node| node.focused).collect();
+    assert_eq!(focused.len(), 1, "focused nodes: {focused:?}");
+    assert_eq!(focused[0].id, snapshot.focus_id);
+}
 
-    let one_focus = |snapshot: &SemanticSnapshot| {
-        let focused: Vec<_> = snapshot.nodes.iter().filter(|node| node.focused).collect();
-        assert_eq!(focused.len(), 1, "focused nodes: {focused:?}");
-        assert_eq!(focused[0].id, snapshot.focus_id);
-    };
-
+fn assert_settings_workspace_focus_round_trip() {
     let mut settings = hermetic();
     settings
         .workspace_state
         .install_overlay_for_test(seeded_overlay(OverlayKind::Settings));
     let rail0 = "overlay.settings.rail.0".to_string();
     let primary = settings.semantic_snapshot();
-    one_focus(&primary);
+    assert_one_semantic_focus(&primary);
     assert_eq!(primary.focus_id, rail0);
     let rail = primary.nodes.iter().find(|node| node.id == rail0).unwrap();
     assert_eq!(rail.role, SemanticRole::Option);
@@ -698,7 +703,7 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
         id: query_id.clone(),
     }));
     let search = settings.semantic_snapshot();
-    one_focus(&search);
+    assert_one_semantic_focus(&search);
     assert_eq!(search.focus_id, query_id);
     assert_eq!(
         settings.workspace_state.journey().settings_focus(),
@@ -716,7 +721,7 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
 
     assert!(settings.apply_semantic_request(SemanticRequest::Click { id: rail0 }));
     let detail = settings.semantic_snapshot();
-    one_focus(&detail);
+    assert_one_semantic_focus(&detail);
     let detail_row = detail
         .nodes
         .iter()
@@ -733,14 +738,16 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
     let rail1 = "overlay.settings.rail.1".to_string();
     assert!(settings.apply_semantic_request(SemanticRequest::Focus { id: rail1.clone() }));
     let returned = settings.semantic_snapshot();
-    one_focus(&returned);
+    assert_one_semantic_focus(&returned);
     assert_eq!(returned.focus_id, rail1);
     assert!(!settings.workspace_state.overlay().unwrap().detail_focus);
     assert_eq!(
         settings.workspace_state.journey().settings_focus(),
         Some(crate::overlay::workspace::SettingsFocus::Categories)
     );
+}
 
+fn assert_history_workspace_focus_round_trip() {
     let mut history = hermetic();
     let mut card = OverlayState::new_history(
         vec![crate::history::TimelineRow {
@@ -758,7 +765,7 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
     card.subject_name = Some("September.md".to_string());
     history.workspace_state.install_overlay_for_test(card);
     let timeline = history.semantic_snapshot();
-    one_focus(&timeline);
+    assert_one_semantic_focus(&timeline);
     let timeline_row = timeline
         .nodes
         .iter()
@@ -779,7 +786,7 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
         id: DOCUMENT_ID.to_string(),
     }));
     let comparison = history.semantic_snapshot();
-    one_focus(&comparison);
+    assert_one_semantic_focus(&comparison);
     assert_eq!(comparison.focus_id, DOCUMENT_ID);
     assert!(history.workspace_state.overlay().unwrap().detail_focus);
 
@@ -787,9 +794,17 @@ fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions
         id: timeline_row.id.clone(),
     }));
     let returned = history.semantic_snapshot();
-    one_focus(&returned);
+    assert_one_semantic_focus(&returned);
     assert_eq!(returned.focus_id, timeline_row.id);
     assert!(!history.workspace_state.overlay().unwrap().detail_focus);
+}
+
+#[test]
+fn workspace_regions_publish_distinct_focus_and_drive_the_real_focus_transitions() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    assert_settings_workspace_focus_round_trip();
+    assert_history_workspace_focus_round_trip();
 }
 
 /// The card fold is the one passive surface whose content only the render

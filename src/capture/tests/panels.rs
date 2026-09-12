@@ -1541,6 +1541,46 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
 /// no live preview (a re-parse is real work, so it happens once, on Enter — see
 /// `overlay/`). A subsequent commit (mirroring the real `apply_transition` seam)
 /// DOES flip it, and the switch is picked up by a fresh capture with no flags.
+fn dictionary_overlay_info(overlay: &crate::overlay::OverlayState) -> OverlayInfo {
+    OverlayInfo {
+        align: crate::render::effective_card_anchor(),
+        chrome_theme: None,
+        active: true,
+        mode: overlay.kind.as_str(),
+        title: overlay.kind.title().to_string(),
+        query: overlay.query.text().to_string(),
+        query_caret: overlay.query.caret(),
+        query_selection: None,
+        items: overlay.item_strings(),
+        bindings: overlay.item_bindings(),
+        ranges: overlay.item_range_fracs(),
+        git: overlay.item_git_tags(),
+        selected_index: overlay.selected,
+        hint: overlay.foot_hint(),
+        files_location: overlay.files_location(),
+        files_query_focused: false,
+        settings_focus: None,
+        browse_dir: None,
+        return_to: None,
+        spell_target: None,
+        table_dims: None,
+        context_anchor: None,
+        asset_preview: None,
+        capture: None,
+        notice: String::new(),
+        lens: None,
+        lens_strip: Vec::new(),
+        sections: Vec::new(),
+        preview_id: None,
+        preview_view: None,
+        workspace: false,
+        detail_focus: false,
+        diff_scroll: 0,
+        empty: None,
+        show_hidden: false,
+    }
+}
+
 #[test]
 fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     if !adapter_available() {
@@ -1577,44 +1617,7 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
         ..CaptureOpts::default()
     };
     // The capture literal layers optional overlay state for readable scenario setup.
-    opts.overlay = Some(OverlayInfo {
-        // Reproduce the live-resolved anchor for this capture literal.
-        align: crate::render::effective_card_anchor(),
-        chrome_theme: None,
-        active: true,
-        mode: ov.kind.as_str(),
-        title: ov.kind.title().to_string(),
-        query: ov.query.text().to_string(),
-        query_caret: ov.query.caret(),
-        query_selection: None,
-        items: ov.item_strings(),
-        bindings: ov.item_bindings(),
-        ranges: ov.item_range_fracs(),
-        git: ov.item_git_tags(),
-        selected_index: ov.selected,
-        hint: ov.foot_hint(),
-        files_location: ov.files_location(),
-        files_query_focused: ov.files_mode && ov.files_focus == crate::overlay::FilesFocus::Query,
-        settings_focus: None,
-        browse_dir: None,
-        return_to: None,
-        spell_target: None,
-        table_dims: None,
-        context_anchor: None,
-        asset_preview: None,
-        capture: None,
-        notice: String::new(),
-        lens: None,
-        lens_strip: Vec::new(),
-        sections: Vec::new(),
-        preview_id: None,
-        preview_view: None,
-        workspace: false,
-        detail_focus: false,
-        diff_scroll: 0,
-        empty: None,
-        show_hidden: false,
-    });
+    opts.overlay = Some(dictionary_overlay_info(&ov));
     let nav_png = dir.join("nav.png");
     capture_with(&nav_png, &buf, &opts).expect("nav capture");
     let nav: serde_json::Value =

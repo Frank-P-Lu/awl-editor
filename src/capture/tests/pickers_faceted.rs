@@ -1143,60 +1143,46 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
 /// value TEXT (`bindings`) and as its RAIL FRACTION (`ranges`) — and the two must
 /// agree, because both come from the one range spec. Every non-range row reports
 /// `null`, so no other picker gains a rail.
-#[test]
-fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
-    assert!(
-        adapter_available(),
-        "range sidecar law requires a wgpu adapter"
-    );
-    let _tg = crate::testlock::serial();
-    let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id())),
-    );
-    let mut buf = Buffer::from_str("preview me\n");
-    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
-
+fn settings_zoom_overlay(spec: &crate::range::RangeSpec) -> crate::overlay::OverlayState {
     let values = crate::settings::SettingsValues {
         zoom: spec.default,
         today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         ..Default::default()
     };
-    let mut ov = crate::overlay::OverlayState::new(
+    let mut overlay = crate::overlay::OverlayState::new(
         crate::overlay::OverlayKind::Settings,
         crate::settings::visible_names(),
         vec![],
         vec![],
     );
-    ov.set_secondaries(crate::settings::visible_value_cells(&values));
-    ov.set_range_cells(crate::settings::visible_range_cells(&values));
-    let zi = ov
+    overlay.set_secondaries(crate::settings::visible_value_cells(&values));
+    overlay.set_range_cells(crate::settings::visible_range_cells(&values));
+    overlay.selected = overlay
         .items
         .iter()
-        .position(|&i| ov.rows[i].accept == "Zoom")
-        .unwrap();
-    ov.selected = zi;
+        .position(|&index| overlay.rows[index].accept == "Zoom")
+        .expect("Settings includes Zoom");
+    overlay
+}
 
-    // The value lands in the core (hence replay-`Applied`), so a
-    // headless session observes it exactly as the live app does.
-    let mut zoom = spec.default;
-    let mut overlay = crate::overlay::Journey::seeded(Some(ov));
-    // Settings is a summoned WORKSPACE: a fresh summon stands on its
-    // navigation rail, and the rail's `→` enters the content pane. `→` on a
-    // range ROW is the rail step this law is about, so put the card where a user
-    // pressing this chord would be, through the lifecycle's own transition.
-    overlay.focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
+fn step_settings_zoom(
+    buf: &mut Buffer,
+    overlay: &mut crate::overlay::Journey,
+    zoom: &mut f32,
+) -> f32 {
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     let mut shift = false;
     let mut search = None;
-    let mut make = |_k: crate::overlay::OverlayKind| None;
-    let mut browse = |_k: crate::overlay::OverlayKind, _p: Option<String>| None;
-    let eff = {
+    let mut make = |_kind: crate::overlay::OverlayKind| None;
+    let mut browse = |_kind: crate::overlay::OverlayKind, _path: Option<String>| None;
+    let effect = {
         let mut ctx = crate::actions::ActionCtx {
-            buffer: &mut buf,
+            buffer: buf,
             shift_selecting: &mut shift,
-            zoom: &mut zoom,
+            zoom,
             search: &mut search,
             scroll_page_lines: 10,
-            journey: &mut overlay,
+            journey: overlay,
             make_overlay: &mut make,
             browse_to: &mut browse,
             oracle: None,
@@ -1204,38 +1190,24 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         actions::apply_transition(&mut ctx, &Action::ForwardChar, false).primary()
     };
     assert_eq!(
-        eff,
+        effect,
         crate::actions::Effect::SettingRangeStep {
             key: "zoom".to_string()
         }
     );
     let stepped = spec.stepped(spec.default, 1);
     assert_eq!(
-        zoom, stepped,
+        *zoom, stepped,
         "the replay session's own zoom scalar moved one step"
     );
+    stepped
+}
 
-    // Fold + render through the SAME owner the one-shot `--keys` capture uses.
-    let (info, _preview, _diff) =
-        crate::run::overlay_capture_info(&overlay, &buf).expect("the menu is still open");
-    let mut opts = CaptureOpts {
-        ..CaptureOpts::default()
-    };
-    opts.overlay = Some(info);
-    let png = dir.join("range.png");
-    capture_with(&png, &buf, &opts).expect("the settings range row captures");
-    let j: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
-            .unwrap();
-    let o = &j["overlay"];
-    assert_eq!(o["mode"], serde_json::json!("settings"));
-    assert_eq!(o["settings_focus"], serde_json::json!("controls"));
-    // …and the CARD'S OWN FOOT LINE, through the same `foot_hint` seam the live card
-    // draws, advertises what ←/→ just did here — step the value, NOT cycle the lens.
-    // The footer is awl's only statement of what a key does and there is no
-    // accessibility tree behind it (ACCESSIBILITY.md), so this is agent-verifiable on
-    // the sidecar rather than only in the pixels.
-    let hint = o["hint"].as_str().expect("hint is text");
+fn assert_settings_range_sidecar(overlay: &serde_json::Value, stepped: f32) {
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    assert_eq!(overlay["mode"], serde_json::json!("settings"));
+    assert_eq!(overlay["settings_focus"], serde_json::json!("controls"));
+    let hint = overlay["hint"].as_str().expect("hint is text");
     for cell in [
         "↑/↓ control",
         "←/→ adjust",
@@ -1250,27 +1222,26 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         );
     }
     assert_eq!(
-        o["lens_strip"][0][1],
+        overlay["lens_strip"][0][1],
         serde_json::json!(true),
         "the lens did NOT move"
     );
 
-    let items: Vec<String> = o["items"]
+    let items: Vec<String> = overlay["items"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|v| v.as_str().unwrap().to_string())
+        .map(|value| value.as_str().unwrap().to_string())
         .collect();
-    let ranges = o["ranges"].as_array().unwrap();
-    let bindings = o["bindings"].as_array().unwrap();
+    let ranges = overlay["ranges"].as_array().unwrap();
+    let bindings = overlay["bindings"].as_array().unwrap();
     assert!(ranges.iter().any(serde_json::Value::is_number));
     assert_eq!(
         ranges.len(),
         items.len(),
         "the rail column is parallel to the rows"
     );
-    let row = items.iter().position(|n| n == "Zoom").unwrap();
-    // The VALUE TEXT and the RAIL FRACTION are the same stepped value.
+    let row = items.iter().position(|name| name == "Zoom").unwrap();
     assert_eq!(bindings[row], serde_json::json!(spec.format(stepped)));
     let frac = ranges[row]
         .as_f64()
@@ -1279,15 +1250,56 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         (frac - spec.frac_of(stepped) as f64).abs() < 1e-3,
         "the reported thumb ({frac}) must be the spec's fraction for {stepped}"
     );
-    // Every range row reports its own rail; every other row is railless.
-    for (i, name) in items.iter().enumerate() {
-        let is_range = super::settings_name_is_range(name);
+    for (index, name) in items.iter().enumerate() {
         assert_eq!(
-            ranges[i].is_number(),
-            is_range,
+            ranges[index].is_number(),
+            super::settings_name_is_range(name),
             "{name}: range identity and sidecar cell must agree"
         );
     }
+}
+
+#[test]
+fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
+    assert!(
+        adapter_available(),
+        "range sidecar law requires a wgpu adapter"
+    );
+    let _tg = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id())),
+    );
+    let mut buf = Buffer::from_str("preview me\n");
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let ov = settings_zoom_overlay(spec);
+
+    // The value lands in the core (hence replay-`Applied`), so a
+    // headless session observes it exactly as the live app does.
+    let mut zoom = spec.default;
+    let mut overlay = crate::overlay::Journey::seeded(Some(ov));
+    // Settings is a summoned WORKSPACE: a fresh summon stands on its
+    // navigation rail, and the rail's `→` enters the content pane. `→` on a
+    // range ROW is the rail step this law is about, so put the card where a user
+    // pressing this chord would be, through the lifecycle's own transition.
+    overlay.focus_settings(crate::overlay::workspace::SettingsFocus::Controls);
+    let stepped = step_settings_zoom(&mut buf, &mut overlay, &mut zoom);
+
+    // Fold + render through the SAME owner the one-shot `--keys` capture uses.
+    let (info, _preview, _diff) =
+        crate::run::overlay_capture_info(&overlay, &buf).expect("the menu is still open");
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
+    opts.overlay = Some(info);
+    let png = dir.join("range.png");
+    capture_with(&png, &buf, &opts).expect("the settings range row captures");
+    let sidecar = read_sidecar(&png);
+    // …and the CARD'S OWN FOOT LINE, through the same `foot_hint` seam the live card
+    // draws, advertises what ←/→ just did here — step the value, NOT cycle the lens.
+    // The footer is awl's only statement of what a key does and there is no
+    // accessibility tree behind it (ACCESSIBILITY.md), so this is agent-verifiable on
+    // the sidecar rather than only in the pixels.
+    assert_settings_range_sidecar(&sidecar["overlay"], stepped);
 }
 
 /// `overlay.query_caret` (schema `/209`) round-trips from the query field's
