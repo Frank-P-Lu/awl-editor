@@ -128,10 +128,6 @@ past verification reports remain in `git log -p -- .orchestrator/queue.md`.
   legible (sampled contrast 13.46:1, 5.23:1, 13.46:1). Evidence is in the ignored
   `gallery/landed-visual-review/588-bullets/`. Keeping it is recommended; a different
   glyph or wider box is a separate mechanism decision only the user can authorize.
-- **553 — folder-search highlight review.** Real-pixel match-highlight legibility
-  remains unverified. Retain the known boundaries: results use summon-time disk
-  contents, grouping differs from lens headers, and CRLF matches can retain a
-  cosmetic trailing carriage return.
 - **561 / 618 — mechanically complete; blocked on user taste.** The requested
   reduction is merged (`760f4f43`, merge `b3e8d2aa`) and remeasured at 15.02%.
   Fresh release and live-headless-App captures show every Gumtree ornament present
@@ -149,11 +145,11 @@ the resolved 584/626 investigation does not require another confirmation sitting
 ## Latest recorded verification
 
 The latest recorded native/wasm baseline is
-**`943981bf26117d14ddbf1420d3b4f60368e7897c`**:
+**`6e76d6b59ddfa8c2816a4ea61d88eb194ba7a601`**:
 
 ```text
-native-gate-receipt commit=943981bf26117d14ddbf1420d3b4f60368e7897c health=pass:281s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5215
+native-gate-receipt commit=6e76d6b59ddfa8c2816a4ea61d88eb194ba7a601 health=pass:283s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5218
   unit_shards=6 integration_targets=18
 web-smoke: OK
 ```
