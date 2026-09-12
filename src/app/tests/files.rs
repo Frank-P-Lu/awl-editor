@@ -78,32 +78,6 @@ impl crate::fs::FileSystem for CountingFs {
     }
 }
 
-fn deep_status_fs(cap: usize) -> CountingFs {
-    use crate::fs::FileSystem;
-
-    let mem = crate::fs::InMemoryFs::new().with_file("/proj/keep.md", "current\n");
-    for (path, bytes) in [
-        (
-            "/proj/deep/needle-a.png",
-            b"\x89PNG\r\n\x1a\n\0asset".to_vec(),
-        ),
-        ("/proj/deep/needle-b.txt", vec![b'x'; cap]),
-        ("/proj/deep/deferred.txt", vec![b'x'; cap + 1]),
-    ] {
-        mem.write(std::path::Path::new(path), &bytes).unwrap();
-    }
-    for dir in 0..24 {
-        for file in 0..12 {
-            mem.write(
-                &PathBuf::from(format!("/proj/archive-{dir}/unrelated-{file}.blob")),
-                b"\0binary",
-            )
-            .unwrap();
-        }
-    }
-    CountingFs::new(mem)
-}
-
 // ── GOTO FILE-INDEX FRESHNESS (queue: "file picker freshness") ──────────
 //
 // The go-to overlay (`C-x f`) corpus comes from `App.file_index`, a CACHED
@@ -185,27 +159,23 @@ fn every_files_entry_action_rescans_before_building_its_goto_corpus() {
     }
 }
 
-/// THE SCALE LAW: summoning Files indexes the root recursively, but only
-/// classifies file bytes for the directory currently on screen. The root has
-/// two visible leaves; the deliberately large deep corpus is raw-index-only.
-/// A whole-corpus `files_corpus` pass fails the exact-read assertion below.
+/// Files only consumes names and directory entries before an explicit accept.
+/// The candidate roster deliberately includes every filename class the picker
+/// must present or hide by its shared pure hint.
 #[test]
-fn files_summon_reads_only_the_displayed_directory_not_every_deep_candidate() {
+fn files_listing_is_names_only_and_preserves_filename_outcomes() {
     use crate::fs::{FileSystem, InMemoryFs};
 
     let mem = InMemoryFs::new();
-    mem.write(std::path::Path::new("/proj/visible.md"), b"visible\n")
-        .unwrap();
-    mem.write(std::path::Path::new("/proj/visible.bin"), b"\0binary")
-        .unwrap();
-    for dir in 0..24 {
-        for file in 0..12 {
-            mem.write(
-                &PathBuf::from(format!("/proj/deep-{dir}/binary-{file}.blob")),
-                b"\0deep binary",
-            )
-            .unwrap();
-        }
+    for (path, bytes) in [
+        ("/proj/note.md", b"ordinary text".as_slice()),
+        ("/proj/movie.mp4", b"large video".as_slice()),
+        ("/proj/archive.zip", b"archive".as_slice()),
+        ("/proj/empty", b"".as_slice()),
+        ("/proj/mystery.xyzzy", b"unknown".as_slice()),
+        ("/proj/misleading.md", b"\0binary under markdown".as_slice()),
+    ] {
+        mem.write(std::path::Path::new(path), bytes).unwrap();
     }
     let fs = CountingFs::new(mem);
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
@@ -216,52 +186,103 @@ fn files_summon_reads_only_the_displayed_directory_not_every_deep_candidate() {
     app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
 
     let reads = fs.reads();
-    assert_eq!(
-        reads,
-        vec![
-            PathBuf::from("/proj/visible.bin"),
-            PathBuf::from("/proj/visible.md"),
-        ],
-        "Files may classify two displayed leaves, never the {} deep raw-index candidates: \
-         {reads:?}",
-        24 * 12,
-    );
     assert!(
-        !app.workspace_state
-            .overlay()
-            .unwrap()
-            .item_strings()
-            .iter()
-            .any(|row| row == "visible.bin"),
-        "the visible binary is classified and excluded rather than offered"
+        reads.is_empty(),
+        "Files summon must not read file contents: {reads:?}"
     );
+    let listed = app.workspace_state.overlay().unwrap().accepts();
+    for name in ["note.md", "empty", "mystery.xyzzy", "misleading.md"] {
+        assert!(
+            listed.contains(&name),
+            "{name} remains an offered filename candidate"
+        );
+    }
+    for name in ["movie.mp4", "archive.zip"] {
+        assert!(
+            !listed.contains(&name),
+            "Text hides known non-text hint {name}"
+        );
+    }
 }
 
-/// Deep filename/path results disclose their capability before commitment,
-/// while classification remains one selected candidate at a time. The exact
-/// byte ceiling is enrolled on both sides, and every unrelated deep candidate
-/// is a mutation tripwire against an eager whole-index pass.
 #[test]
-fn deep_result_status_is_selected_bounded_and_reconciled_across_input_doors() {
-    let cap = crate::overlay::DEEP_FILE_CHECK_MAX_BYTES as usize;
-    let fs = deep_status_fs(cap);
+fn browse_text_and_all_are_filename_hints_without_content_reads() {
+    use crate::fs::FileSystem;
+
+    let _serial = crate::testlock::serial();
+    let before = crate::file_visibility::all_on();
+    let mem = crate::fs::InMemoryFs::new();
+    for (path, bytes) in [
+        ("/proj/note.md", b"text".as_slice()),
+        ("/proj/movie.mp4", b"video".as_slice()),
+        ("/proj/empty", b"".as_slice()),
+        ("/proj/mystery.xyzzy", b"unknown".as_slice()),
+        ("/proj/misleading.md", b"\0binary".as_slice()),
+    ] {
+        mem.write(std::path::Path::new(path), bytes).unwrap();
+    }
+    let fs = CountingFs::new(mem);
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    for (all, expected, absent) in [
+        (
+            false,
+            vec!["note.md", "empty", "mystery.xyzzy", "misleading.md"],
+            vec!["movie.mp4"],
+        ),
+        (
+            true,
+            vec![
+                "note.md",
+                "empty",
+                "mystery.xyzzy",
+                "misleading.md",
+                "movie.mp4",
+            ],
+            vec![],
+        ),
+    ] {
+        crate::file_visibility::set_all_on(all);
+        fs.clear_reads();
+        let overlay = crate::overlay::browse_level(
+            crate::overlay::OverlayKind::Browse,
+            None,
+            std::path::Path::new("/proj"),
+            None,
+            &[],
+        )
+        .unwrap();
+        let listed = overlay.accepts();
+        for name in expected {
+            assert!(listed.contains(&name), "all={all}: expected {name}");
+        }
+        for name in absent {
+            assert!(!listed.contains(&name), "all={all}: hides {name}");
+        }
+        assert!(
+            fs.reads().is_empty(),
+            "all={all}: Browse read contents: {:?}",
+            fs.reads()
+        );
+    }
+    crate::file_visibility::set_all_on(before);
+}
+
+/// Every mutation-free input door can select and filter deep candidates without
+/// reading them. `sync_overlay_after_core` covers keyboard and pointer; wheel,
+/// semantic accessibility, and replay have independent dispatch seams.
+#[test]
+fn files_input_doors_never_read_deep_candidates_before_acceptance() {
+    use crate::fs::FileSystem;
+    let mem = crate::fs::InMemoryFs::new().with_file("/proj/keep.md", "current\n");
+    mem.write(std::path::Path::new("/proj/deep/needle.md"), b"\0binary")
+        .unwrap();
+    let fs = CountingFs::new(mem);
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
     let mut app = app_on(
         Some(PathBuf::from("/proj/keep.md")),
         "/proj",
         Config::empty(),
     );
-    let raw_corpus = app.project_location.file_index.clone();
-
-    // MUTATION WITNESS: a raw query without the reconciliation seam has no
-    // status at all, which is the pre-change behavior this law rejects.
-    let mut raw = crate::overlay::OverlayState::new_files(raw_corpus, vec![], vec![], None);
-    for ch in "needle".chars() {
-        raw.push(ch);
-    }
-    assert_eq!(raw.selected_value(), Some("deep/needle-a.png"));
-    assert_eq!(raw.item_bindings()[raw.selected], "");
-
     let exit = crate::app::schedule::RecordingExit::new();
     app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
     fs.clear_reads();
@@ -273,70 +294,29 @@ fn deep_result_status_is_selected_bounded_and_reconciled_across_input_doors() {
             crate::stats::Door::Chord,
         );
     }
-    let overlay = app.workspace_state.overlay().unwrap();
-    assert_eq!(overlay.selected_value(), Some("deep/needle-a.png"));
     assert_eq!(
-        overlay.item_bindings()[overlay.selected],
-        "PNG \u{b7} not editable",
-        "the selected binary is classified before Enter"
+        app.workspace_state.overlay().unwrap().selected_value(),
+        Some("deep/needle.md")
     );
-    assert_eq!(
-        fs.reads(),
-        vec![PathBuf::from("/proj/deep/needle-a.png")],
-        "querying {} deep bystanders reads only the selected result",
-        24 * 12,
-    );
-
-    // Wheel is a separate live input door. It must restore the old row's
-    // authored secondary and classify the newly selected exact-boundary file.
     app.overlay_wheel(-1.0);
-    let overlay = app.workspace_state.overlay().unwrap();
-    assert_eq!(overlay.selected_value(), Some("deep/needle-b.txt"));
-    assert_eq!(
-        overlay.item_bindings()[overlay.selected],
-        "text \u{b7} ready"
-    );
-    assert_eq!(
-        overlay
-            .rows
-            .iter()
-            .find(|row| row.accept == "deep/needle-a.png")
-            .unwrap()
-            .secondary,
-        "",
-        "leaving a result restores its original secondary"
-    );
-    assert_eq!(
-        fs.reads(),
-        vec![
-            PathBuf::from("/proj/deep/needle-a.png"),
-            PathBuf::from("/proj/deep/needle-b.txt"),
-        ],
-        "a file exactly at the declared ceiling is classified"
-    );
-
-    // The semantic text-input door refilters without App::apply. Its shared
-    // reconciliation still runs, while cap+1 remains explicitly deferred.
     #[cfg(not(target_arch = "wasm32"))]
     {
         assert!(
             app.apply_semantic_request(crate::semantic::SemanticRequest::SetValue {
                 id: "overlay.goto.query".to_string(),
-                value: "deferred".to_string(),
+                value: "needle".to_string(),
             })
         );
-        let overlay = app.workspace_state.overlay().unwrap();
-        assert_eq!(overlay.selected_value(), Some("deep/deferred.txt"));
         assert_eq!(
-            overlay.item_bindings()[overlay.selected],
-            "large file \u{b7} checked when opened"
-        );
-        assert_eq!(
-            fs.reads().len(),
-            2,
-            "cap+1 is not read before explicit acceptance"
+            app.workspace_state.overlay().unwrap().selected_value(),
+            Some("deep/needle.md")
         );
     }
+    assert!(
+        fs.reads().is_empty(),
+        "query, wheel, and accessibility must not read: {:?}",
+        fs.reads()
+    );
 }
 
 /// A deep binary can remain a raw-index search candidate until later loading

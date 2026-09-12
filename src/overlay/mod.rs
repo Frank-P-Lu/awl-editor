@@ -80,10 +80,8 @@ pub(crate) use route::picker_kind_for;
 pub(crate) use build::recent::is_remembered_root;
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
-#[cfg(test)]
-pub(crate) use files::DEEP_FILE_CHECK_MAX_BYTES;
 pub use files::FilesFocus;
-pub(crate) use files::unsupported_level_files;
+pub(crate) use files::non_text_level_files;
 #[allow(unused_imports)]
 // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use hint::{ARROWS_LR, ARROWS_UD, HINT_SEP, HintAction, PIN_TAG, RANGE_LR_LABEL, format_hint};

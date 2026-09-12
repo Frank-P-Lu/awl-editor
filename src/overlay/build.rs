@@ -339,13 +339,6 @@ pub fn browse_level(
     // folder), Browse lists files + folders.
     let folders_only = super::navigator_for(kind).is_some_and(|route| route.folders_only());
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
-    // Browse alone classifies each FILE entry's openability up front
-    // (bounded to ONE directory level — see `crate::openable::classify`'s doc
-    // for why this is scoped here rather than the whole project's Goto index),
-    // so `refilter`'s Text-mode filter can hide it and an "All" listing can
-    // label it, with no second disk read on open.
-    let dir_path = (kind == OverlayKind::Browse)
-        .then(|| crate::index::resolve_dir_level(active_root, rel.as_deref()));
     let mut corpus = Vec::new();
     let mut git = Vec::new();
     let mut is_dir = Vec::new();
@@ -357,13 +350,9 @@ pub fn browse_level(
         corpus.push(e.name.clone());
         git.push(e.is_git);
         is_dir.push(e.is_dir);
-        let label = match (&dir_path, e.is_dir) {
-            (Some(dir), false) => match crate::openable::classify(&dir.join(&e.name)) {
-                crate::openable::Openable::Unsupported { label } => label,
-                crate::openable::Openable::Text => String::new(),
-            },
-            _ => String::new(),
-        };
+        let label = (kind == OverlayKind::Browse)
+            .then(|| crate::file_visibility::presentation_hint(&e.name, e.is_dir).secondary())
+            .unwrap_or_default();
         secondary.push(label);
     }
     let mut ov = OverlayState::new_marked(kind, corpus, git, is_dir, Vec::new(), Vec::new(), rel);

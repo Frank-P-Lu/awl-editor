@@ -4,13 +4,11 @@
 //!
 //! Two states:
 //!   * **Text** (default) — the Browse file picker lists normal, non-hidden
-//!     files awl can actually decode and edit (see [`crate::openable`]), plus
-//!     every folder. Hidden entries (dotfiles) AND unsupported/binary files
-//!     stay out of the listing.
-//!   * **All** — reveals BOTH hidden entries and unsupported/binary files, so
-//!     one switch answers "show me the complete project". An unsupported row
-//!     stays VISIBLE for context but is never openable (see [`crate::openable`],
-//!     the SEPARATE capability owner that decision belongs to).
+//!     files whose *names* do not identify a known non-text format, plus every
+//!     folder. Unfamiliar, extensionless, and misleading names remain offered
+//!     and can still be refused on open.
+//!   * **All** — also reveals dotfiles and known non-text filename hints. The
+//!     actual open decision remains [`crate::openable`]'s content-validation gate.
 //!
 //! A process-global [`AtomicBool`] (DEFAULT OFF = Text), mirroring the
 //! `page`/`spell`/`nits` sticky-toggle pattern: the Settings menu's "File
@@ -20,6 +18,94 @@
 //! shape being retired; this is a sticky, app-wide preference instead.
 
 use crate::toggle::Toggle;
+
+/// The listing-only answer shared by Files and Browse. It is intentionally a
+/// pure name-and-entry-kind hint: no listing or selection path may infer an
+/// openability verdict from file contents.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum PresentationHint {
+    Folder,
+    Candidate,
+    KnownNonText { label: String },
+}
+
+impl PresentationHint {
+    pub(crate) fn secondary(&self) -> String {
+        match self {
+            Self::KnownNonText { label } => label.clone(),
+            Self::Folder | Self::Candidate => String::new(),
+        }
+    }
+
+    pub(crate) fn text_visible(&self) -> bool {
+        !matches!(self, Self::KnownNonText { .. })
+    }
+}
+
+/// Produce a presentation hint from an entry's leaf name and kind. This is a
+/// filename convention, not an allow-list and not a capability check.
+pub(crate) fn presentation_hint(name: &str, is_dir: bool) -> PresentationHint {
+    if is_dir {
+        return PresentationHint::Folder;
+    }
+    let extension = std::path::Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .filter(|extension| !extension.is_empty())
+        .map(str::to_ascii_lowercase);
+    let known_non_text = matches!(
+        extension.as_deref(),
+        Some(
+            "7z" | "avi"
+                | "bin"
+                | "bmp"
+                | "bz2"
+                | "class"
+                | "dmg"
+                | "doc"
+                | "docx"
+                | "exe"
+                | "gif"
+                | "gz"
+                | "heic"
+                | "icns"
+                | "ico"
+                | "iso"
+                | "jar"
+                | "jpeg"
+                | "jpg"
+                | "m4a"
+                | "mkv"
+                | "mov"
+                | "mp3"
+                | "mp4"
+                | "odp"
+                | "ods"
+                | "odt"
+                | "pdf"
+                | "png"
+                | "ppt"
+                | "pptx"
+                | "rar"
+                | "so"
+                | "tar"
+                | "tiff"
+                | "wav"
+                | "webm"
+                | "webp"
+                | "xls"
+                | "xlsx"
+                | "xz"
+                | "zip"
+        )
+    );
+    match known_non_text {
+        true => PresentationHint::KnownNonText {
+            label: extension.expect("known extension").to_ascii_uppercase(),
+        },
+        false => PresentationHint::Candidate,
+    }
+}
 
 /// Whether "All" is active (dotfiles + unsupported files both revealed).
 /// DEFAULT `false` (Text) — the calm, curated default a new install opens to.
@@ -56,6 +142,29 @@ pub fn label() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn presentation_hints_are_pure_and_never_promise_content_readiness() {
+        assert_eq!(presentation_hint("folder", true), PresentationHint::Folder);
+        assert_eq!(
+            presentation_hint("notes.md", false),
+            PresentationHint::Candidate
+        );
+        assert_eq!(
+            presentation_hint("README", false),
+            PresentationHint::Candidate
+        );
+        assert_eq!(
+            presentation_hint("mystery.xyzzy", false),
+            PresentationHint::Candidate
+        );
+        assert_eq!(
+            presentation_hint("movie.MP4", false),
+            PresentationHint::KnownNonText {
+                label: "MP4".to_string()
+            }
+        );
+    }
 
     #[test]
     fn defaults_to_text_and_toggles_both_ways() {

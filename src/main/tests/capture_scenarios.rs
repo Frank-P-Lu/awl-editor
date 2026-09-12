@@ -3,7 +3,7 @@ use super::keyspec;
 use crate::testscratch::ScratchDir;
 
 #[test]
-fn replay_files_query_publishes_the_same_preaccept_deep_status_as_live_app() {
+fn replay_files_query_keeps_deep_filename_candidates_content_free_before_accept() {
     use crate::fs::{FileSystem, InMemoryFs};
 
     let _serial = crate::testlock::serial();
@@ -35,11 +35,7 @@ fn replay_files_query_publishes_the_same_preaccept_deep_status_as_live_app() {
     }
     let overlay = session.overlay().expect("Files stays open before Enter");
     assert_eq!(overlay.selected_value(), Some("deep/needle.png"));
-    assert_eq!(
-        overlay.item_bindings()[overlay.selected],
-        "PNG \u{b7} not editable",
-        "the replay/capture door exposes the live App's same selected-result verdict"
-    );
+    assert_eq!(overlay.item_bindings()[overlay.selected], "");
 }
 
 #[test]

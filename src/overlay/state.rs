@@ -18,12 +18,6 @@ pub struct HugRoster {
     pub candidate_rows: usize,
 }
 
-#[derive(Debug, Clone)]
-pub(super) struct DeepFileCheck {
-    pub row: usize,
-    pub original_secondary: String,
-}
-
 pub use super::add_to_dictionary_label;
 
 #[derive(Debug, Clone)]
@@ -99,9 +93,6 @@ pub struct OverlayState {
     /// the compatibility shape used by the heading/line APIs.
     pub files_mode: bool,
     pub files_focus: FilesFocus,
-    /// The one deep filename/path result whose bytes were preview-classified.
-    /// Its ordinary secondary is restored before another result is checked.
-    pub(super) deep_file_check: Option<DeepFileCheck>,
     /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
     /// know this -- only the summon did -- so `title()` reads it to name the
     /// errand ("move welcome.md") instead of the generic kind title, and it
@@ -229,7 +220,6 @@ impl OverlayState {
             goto_outline_only: false,
             files_mode: false,
             files_focus: FilesFocus::Query,
-            deep_file_check: None,
             move_filename: None,
             subject_name: None,
             search_root: None,

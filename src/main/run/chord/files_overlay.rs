@@ -44,12 +44,12 @@ impl<'a> ReplayFilesBuilder<'a> {
             .filter(|path| !path.is_empty())
             .map(|path| format!("{path}/"));
         let level = crate::index::try_list_dir_level(self.root, rel);
-        let unsupported = crate::overlay::unsupported_level_files(
+        let non_text = crate::overlay::non_text_level_files(
             self.root,
             rel,
             level.as_deref().unwrap_or_default(),
         );
-        overlay.exclude_files(&unsupported);
+        overlay.exclude_files(&non_text);
         overlay.attach_file_directories(
             level
                 .clone()

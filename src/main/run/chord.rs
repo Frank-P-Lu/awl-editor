@@ -327,9 +327,6 @@ impl ReplaySession<'_> {
             oracle: self.oracle.as_deref().map(|oracle| oracle.as_oracle()),
         };
         let transition = actions::apply_transition(&mut ctx, &action, shift);
-        if let Some(overlay) = self.journey.card_mut() {
-            overlay.refresh_selected_deep_file_status(&self.root);
-        }
         let primary = transition.primary();
         self.record_action_trace(chord, &action, &primary);
         self.journey.attribute_launch(pending_return_to.take());
