@@ -642,17 +642,20 @@ is the one where a live-`App` capture is the only sidecar there will ever be.
 `setting_range_step` was already Applied before this item, because the value
 change itself already happened in the core.
 
-**`overlay_accept:Project` is Applied, no residue (closed — item 189).** The
-accepted root re-derives the sidecar's whole project block through one builder
+**`overlay_accept:Project` is Applied, no residue.** An accepted Project
+navigator root re-derives the sidecar's whole project block through one builder
 (`run::project_info`), so a capture reports the new root *and* the new
-workspace. `ReplaySession` used to hold its `root`, `workspace`, and file-index
-`corpus` fixed for the session's whole lifetime, so a chord that ran **after**
-the accept still read the launch root's tree: a `Cmd-O` following a
-Switch-project listed the launch root's files even though the sidecar's own
-accepted-location block was already correct. `ReplaySession::
-resync_project_location` (`main/run/location.rs` — the module item 183
-already carries the rest of this exact derivation in) is now the one owner
-invoked the moment the accept fires — it rebuilds `corpus`
+workspace. The Settings `Project root` path row reaches the same owner through
+an isolated replay's Applied `setting_path_pick`; this is the strict-storyboard
+door. The unified Files card deliberately does not emit either effect: its
+`Change folder…` row requests the live-only native chooser and remains
+Unsupported at tier 1.
+
+`ReplaySession` once held its `root`, `workspace`, and file-index `corpus` fixed
+for the session's whole lifetime, so a chord that ran **after** either applied
+root effect still read the launch root's tree. `ReplaySession::
+resync_project_location` (`main/run/location.rs`) is now the one owner invoked
+by both applied routes — it rebuilds `corpus`
 (`crate::index::build_index`) and re-resolves `workspace`
 (`resolve_workspace`, against the SAME raw `--workspace` flag the constructor
 used) before `root` itself moves, so a
@@ -815,16 +818,17 @@ Named here rather than quietly absorbed:
    hooks that OVERRIDE replayed state, are deliberately not folded in, because on
    this door the App owns that state and an override would be the harness lying
    about the editor it is photographing.
-2. ~~**`ReplaySession` re-scoping.**~~ Closed by item 189 — see
-   `overlay_accept:Project`'s entry above. **The storyboard runner's per-step
+2. ~~**`ReplaySession` re-scoping.**~~ Closed — see the applied Project and
+   isolated Settings-path routes above. **The storyboard runner's per-step
    fold is closed too.** `ReplaySession::
    current_project_info` supplies the session-private current root and raw
    workspace flag to the existing `run::project_info` builder at every rendered
    step; `run::fold_capture_state` remains the one owner of the rest of the
    frame. The hermetic two-root fixture
-   `scenarios/storyboard-project-fold.toml` proves that the pre-switch sidecar
-   keeps project A while both post-switch sidecars report project B and its
-   freshly derived location.
+   `scenarios/storyboard-project-fold.toml` drives Settings' `Project root`
+   picker, proves its `setting_path_pick` effect was Applied rather than
+   Unsupported, and proves that the pre-switch sidecar keeps project A while
+   both post-switch sidecars report project B and its freshly derived location.
 3. ~~**No capture tier reaches an EXTERNAL-CHANGE CONFLICT.**~~ **Closed by item
    204 slice 2 — `--seed-data DIR`.** The measurement slice 1 recorded here was
    right and is kept, because it is what the fix was designed against.

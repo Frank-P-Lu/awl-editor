@@ -423,19 +423,13 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     assert!(!strict.exists() && !strict.with_extension("json").exists());
 }
 
-/// THE PRIMARY LAW: `ReplaySession` used to resolve `root` /
-/// `workspace` / `corpus` ONCE before replay and hold them fixed for its whole
-/// lifetime. The *accepted* sidecar location (`run::project_info`
-/// re-derives it whole on a Project accept), but a chord applied AFTER the
-/// accept still read the LAUNCH root's file index — a `Cmd-O` following a
-/// Switch-project quietly listed the wrong tree while the capture reported
-/// success. Drives the REAL `capture_screenshot` door in BOTH conventions,
-/// mirroring `app::files::tests::
-/// switch_project_driven_by_real_chords_through_apply_repoints_the_workspace`
-/// (the model this test follows) — mac `s-S-p`, linux `C-S-p`, then Goto's own
-/// `s-o`/`C-o`.
+/// The compatibility Project shortcut now opens the unified Files card in both
+/// conventions. Navigating to `Change folder…` reaches the live-only chooser,
+/// which ordinary replay records and skips; a following Goto/Files summon must
+/// therefore still list the launch project's corpus. Strict storyboards use the
+/// isolated Settings Project-root path instead.
 #[test]
-fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
+fn keys_capture_project_shortcut_then_goto_stays_on_the_current_root() {
     let _fs = crate::testlock::serial();
     for convention in [
         crate::convention::Convention::Mac,
@@ -454,10 +448,9 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
             crate::convention::Convention::Mac => ("s-S-p", "s-o"),
             crate::convention::Convention::Linux => ("C-S-p", "C-o"),
         };
-        // The switch-project picker is flat over the workspace's direct
-        // children only, so there is no folder to descend into — Down moves
-        // off `proj-a` onto `sibling` and Enter switches to it immediately,
-        // one chord. The final chord opens Goto in the re-scoped session.
+        // The compatibility shortcut opens Files; Down Down reaches Change
+        // folder, whose live-only chooser ordinary replay skips. The final
+        // chord summons Files again from the unchanged project.
         let spec = format!("{switch_project} Down Down Enter {open_goto}");
         let keys = keyspec::parse_keys(&spec).unwrap();
         let out = dir.join("cap.png");
