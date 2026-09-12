@@ -251,7 +251,11 @@ fn browse_text_and_all_are_filename_hints_without_content_reads() {
             &[],
         )
         .unwrap();
-        let listed = overlay.accepts();
+        let listed: Vec<&str> = overlay
+            .items
+            .iter()
+            .map(|&index| overlay.rows[index].accept.as_str())
+            .collect();
         for name in expected {
             assert!(listed.contains(&name), "all={all}: expected {name}");
         }
