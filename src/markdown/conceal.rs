@@ -15,7 +15,7 @@ enum_with_all! {
     /// [`Fence`](Self::Fence)
     /// is LINE-scoped: it reveals when the caret sits on the span's OWN line (or
     /// the selection touches that line), exactly mirroring the pre-existing
-    /// hr/bullet reveal-on-cursor, itself widened the same way. `Fence` is
+    /// rule/list-marker reveal-on-cursor, itself widened the same way. `Fence` is
     /// BLOCK-scoped: a fenced code block's marker lines reveal only when the caret
     /// is ANYWHERE inside the whole block, or the selection touches ANY line
     /// inside it, because the PANEL (drawn from the same span's byte range, always

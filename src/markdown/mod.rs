@@ -31,7 +31,7 @@
 //! actual markdown; otherwise show the preview." A settled markdown line already
 //! dims its markup and styles its content; WYSIWYG goes one step further and
 //! CONCEALS the markup entirely (transparent ink, same trick as the pre-existing
-//! hr/bullet reveal-on-cursor) for headings, bold/italic, inline code, and
+//! rule/list-marker reveal-on-cursor) for headings, bold/italic, inline code, and
 //! `==highlight==` off the caret's line, plus a fenced code block's marker lines
 //! off the caret's whole BLOCK — seed [`MdKind::ConcealMarkup`] / [`ConcealKind`]
 //! for which spans qualify and `render::spans::add_wysiwyg_conceal_spans` for the
@@ -183,10 +183,10 @@ pub use refs::{
 };
 #[allow(unused_imports)] // ListItem/READING_WPM: public API surface, no in-crate caller today
 pub use spans::{
-    BreakKind, LIST_INDENT, ListItem, MdKind, READING_WPM, SmartPunctKind, apply_smart_punct,
-    break_kind, emphasis_content_spans, equals_runs, fence_line_lang, frontmatter_end,
-    is_fence_line, is_thematic_break, list_item, reading_time_min, spans, strike_engaged,
-    word_count,
+    BreakKind, LIST_INDENT, ListItem, MdKind, READING_WPM, RichListItem, SmartPunctKind,
+    apply_smart_punct, break_kind, emphasis_content_spans, equals_runs, fence_line_lang,
+    frontmatter_end, is_fence_line, is_thematic_break, list_item, reading_time_min,
+    rich_unordered_list_item, spans, strike_engaged, word_count,
 };
 pub(crate) use table_caret::{locate_table_caret, table_caret_col};
 pub(crate) use table_edit::{TableRefusal, TableVerb, table_splice};

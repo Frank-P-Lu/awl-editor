@@ -1447,6 +1447,33 @@ fn list_item_detects_ordered_and_empty_and_rejects_non_lists() {
 }
 
 #[test]
+fn rich_list_preview_enrolment_requires_parsed_unordered_membership() {
+    let cases = [
+        ("- item\n", 0, Some(None)),
+        ("* [ ] open\n", 0, Some(Some(false))),
+        ("+ [X] done\n", 0, Some(Some(true))),
+        ("- [] invalid\n", 0, Some(None)),
+        ("- [y] invalid\n", 0, Some(None)),
+        ("1. [ ] ordered\n", 0, None),
+        ("> - [ ] quoted\n", 0, None),
+        ("    - indented code\n", 0, None),
+        ("```\n- fenced code\n```\n", 4, None),
+    ];
+    for (text, line_start, expected_task) in cases {
+        let line_end = text[line_start..]
+            .find('\n')
+            .map_or(text.len(), |offset| line_start + offset);
+        let parsed = spans(text);
+        let got = rich_unordered_list_item(&text[line_start..line_end], line_start, parsed.iter());
+        assert_eq!(
+            got.map(|item| item.task),
+            expected_task,
+            "rich-list enrolment for {text:?}: {parsed:?}"
+        );
+    }
+}
+
+#[test]
 fn list_nesting_level_is_two_spaces() {
     // The list STRUCTURE ratio lives here; the depth→glyph mapping moved to the
     // theme (per-world bullets) — see `theme::tests::every_world_has_a_bullet_pair`.

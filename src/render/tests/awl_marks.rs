@@ -74,7 +74,19 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
         !roster.is_empty(),
         "the adoption roster must enroll real marks"
     );
-    for role in ["chrome", "symbol-span", "ornament-536", "reference-537"] {
+    assert_eq!(
+        roster.len(),
+        138,
+        "the generated subset has one exact cmap roster"
+    );
+    for role in [
+        "chrome",
+        "symbol-span",
+        "ornament-536",
+        "reference-537",
+        "list-bullet",
+        "task-marker",
+    ] {
         assert!(
             !role_codepoints(role).is_empty(),
             "the declared {role:?} purpose has no enrolled mark"
@@ -95,7 +107,12 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
             !mark.roles.is_empty()
                 && mark.roles.iter().all(|role| matches!(
                     *role,
-                    "chrome" | "symbol-span" | "ornament-536" | "reference-537"
+                    "chrome"
+                        | "symbol-span"
+                        | "ornament-536"
+                        | "reference-537"
+                        | "list-bullet"
+                        | "task-marker"
                 )),
             "U+{:04X} has an unknown role: {:?}",
             mark.codepoint,
@@ -321,6 +338,34 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
     assert!(
         enrolled_worlds.len() == theme::THEMES.len() && !consumed_ornaments.is_empty(),
         "no live Awl Marks world/consumer enrolled in the roster sweep"
+    );
+
+    let bullet_role = role_codepoints("list-bullet");
+    let consumed_bullets: BTreeSet<u32> = theme::THEMES
+        .iter()
+        .flat_map(|world| [world.bullets.0, world.bullets.1, world.bullets.2])
+        .map(|ch| ch as u32)
+        .collect();
+    assert_eq!(bullet_role.len(), 41, "the approved bullet union is exact");
+    assert_eq!(
+        consumed_bullets, bullet_role,
+        "the live bullet consumers and list-bullet roster role must match both ways"
+    );
+
+    let task_role = role_codepoints("task-marker");
+    let consumed_tasks: BTreeSet<u32> = theme::THEMES
+        .iter()
+        .flat_map(|world| world.task_marker.codepoints().iter().copied())
+        .map(|ch| ch as u32)
+        .collect();
+    assert_eq!(
+        task_role.len(),
+        5,
+        "the approved task-marker union is exact"
+    );
+    assert_eq!(
+        consumed_tasks, task_role,
+        "the live task consumers and task-marker roster role must match both ways"
     );
 }
 

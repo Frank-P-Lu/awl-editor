@@ -26,7 +26,7 @@ pub enum MdKind {
     /// markdown; otherwise show the preview" (the PHILOSOPHY.md WYSIWYG
     /// amendment) — see [`ConcealKind`] for exactly which scope reveals which
     /// kind, and `render::spans::add_wysiwyg_conceal_spans` for the mechanism
-    /// (mirrors the pre-existing `Rule`/bullet-marker conceal, generalized).
+    /// (mirrors the line-level rule/list-marker conceal, generalized).
     /// Gated on `wysiwyg_on()`: OFF, this renders EXACTLY like plain `Markup`
     /// (dim, never concealed) — the sidecar tag is `"markup"` for both, so
     /// `md_spans` stays unchanged; the WYSIWYG state is reported separately.

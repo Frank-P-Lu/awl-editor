@@ -6,6 +6,9 @@ type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
 mod ranges;
 #[cfg(test)]
 pub(super) use ranges::intersecting_rows;
+mod list_marks;
+use list_marks::ListLine;
+pub(in crate::render) use list_marks::{ListLineKind, ListMark};
 mod retained_line_splice;
 use retained_line_splice::splice_retained_line_band;
 
@@ -45,17 +48,17 @@ pub(super) enum QuoteSide {
 
 /// CACHED ORNAMENT LINE LISTS — the cursor-INDEPENDENT set of logical lines that
 /// carry a markdown thematic-break `Rule` span, and the set of unordered-list
-/// (bullet) lines. Both are a pure function of the shaped TEXT, so they are rebuilt
+/// bullet/task lines. Both are a pure function of the shaped TEXT, so they are rebuilt
 /// only when the document reshapes (keyed by [`TextPipeline::reshape_count`], the
 /// pipeline's text version) rather than re-scanned every frame. Each frame the
 /// ornament pass just FILTERS these to the visible row range (+ excludes the caret
 /// line) — turning the old O(lines × md_spans) per-frame scan into O(visible).
-/// Interior-mutable so the read-only `rule_lines` / `bullet_marks` can lazily fill
+/// Interior-mutable so the read-only `rule_lines` / `list_marks` can lazily fill
 /// it. Dropped implicitly on the next reshape (the version key no longer matches).
 pub(super) struct OrnamentCache {
     version: std::cell::Cell<Option<u64>>,
     rule_lines: std::cell::RefCell<Vec<usize>>,
-    bullet_lines: std::cell::RefCell<Vec<usize>>,
+    list_lines: std::cell::RefCell<Vec<ListLine>>,
     table_blocks: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
     /// `(first line, last line)` per contiguous blockquote BLOCK — the two ends the
     /// hanging pull-quote pair hangs from (see [`QuoteSide`]).
@@ -83,7 +86,7 @@ impl OrnamentCache {
         Self {
             version: std::cell::Cell::new(None),
             rule_lines: std::cell::RefCell::new(Vec::new()),
-            bullet_lines: std::cell::RefCell::new(Vec::new()),
+            list_lines: std::cell::RefCell::new(Vec::new()),
             table_blocks: std::cell::RefCell::new(Vec::new()),
             quote_blocks: std::cell::RefCell::new(Vec::new()),
             fence_lang_blocks: std::cell::RefCell::new(Vec::new()),
@@ -141,9 +144,8 @@ pub(super) struct OwnerScanWork {
     pub(super) ornament_scan_ms: std::cell::Cell<f64>,
     /// Logical lines walked by the last `ensure_ornament_lists` cache MISS.
     pub(super) ornament_scan_lines: std::cell::Cell<u64>,
-    /// `md_spans.len()` at the time of that same miss — multiplied by
-    /// `ornament_scan_lines`, the floor on span comparisons the per-line loop
-    /// performs (two of its four passes over `md_spans` never short-circuit).
+    /// `md_spans.len()` at the time of that same miss — the sweep-index input
+    /// cardinality reported beside the logical-line count.
     pub(super) ornament_scan_spans: std::cell::Cell<u64>,
     pub(super) destination_join_ms: std::cell::Cell<f64>,
     /// Number of times `destination_ranges` actually joined + parsed the whole
@@ -648,7 +650,7 @@ impl TextPipeline {
                 .set(self.md_spans.len() as u64);
         }
         let mut rules = Vec::new();
-        let mut bullets = Vec::new();
+        let mut list_lines = Vec::new();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
         let mut quotes: Vec<(usize, usize)> = Vec::new();
         let mut prev_quote = false;
@@ -759,13 +761,20 @@ impl TextPipeline {
             {
                 rules.push(li);
             }
-            if crate::markdown::list_item(text).is_some_and(|it| !it.ordered) {
-                bullets.push(li);
+            if let Some(item) =
+                crate::markdown::rich_unordered_list_item(text, start, active.iter().copied())
+            {
+                list_lines.push(ListLine {
+                    line: li,
+                    marker_col: item.marker_col,
+                    depth: item.depth,
+                    kind: item.task.map_or(ListLineKind::Bullet, ListLineKind::Task),
+                });
             }
             start = end + 1;
         }
         *self.ornament_cache.rule_lines.borrow_mut() = rules;
-        *self.ornament_cache.bullet_lines.borrow_mut() = bullets;
+        *self.ornament_cache.list_lines.borrow_mut() = list_lines;
         *self.ornament_cache.table_blocks.borrow_mut() = tables;
         *self.ornament_cache.quote_blocks.borrow_mut() = quotes;
         *self.ornament_cache.fence_lang_blocks.borrow_mut() = fence_langs;
@@ -924,71 +933,6 @@ impl TextPipeline {
     #[cfg(test)]
     pub(super) fn rule_tops(&self) -> Vec<f32> {
         self.rule_marks().into_iter().map(|(t, _)| t).collect()
-    }
-
-    pub(super) fn bullet_marks(&self) -> Vec<(f32, f32, char)> {
-        if !self.md_enabled {
-            return Vec::new();
-        }
-        // CACHE + CULL (mirrors `rule_lines`): the bullet-line SET is cached by reshape
-        // version; each frame we walk only those, skip every REVEALED line (the
-        // caret's own, or one a selection touches — `line_is_revealed`, the same
-        // owner `rule_lines` reads) and the OFF-SCREEN lines. Ascending order +
-        // identical membership on the visible rows => byte-identical to the old
-        // whole-document scan.
-        self.ensure_ornament_lists();
-        let text_left = self.text_left();
-        let selection_touch = self.selection_touch();
-        // Resolve each visible, non-caret unordered-bullet line to its
-        // (line, top, indent, glyph), DEFERRING the marker x: an UNINDENTED bullet's
-        // marker sits at column 0 (x == 0), needing no shaped-x lookup at all — the
-        // overwhelmingly common case. Only genuinely INDENTED bullets need the shaped
-        // x of their marker cell, and those are resolved below in ONE batched
-        // `visual_rows_for_lines` walk, NOT a per-line O(li) `line_glyph_xs` (an
-        // O(doc) run walk each) — so this pass is O(visible), the same discipline the
-        // sibling `rule_marks` honours (cached row-geometry) and the fix `range_rects`
-        // already applied for selections.
-        let mut items: Vec<(usize, f32, usize, char)> = Vec::new();
-        let mut indented: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
-        for &li in self.ornament_cache.bullet_lines.borrow().iter() {
-            if self.line_is_revealed(li, selection_touch.as_ref()) {
-                continue; // caret's own line, or a selection touching it: raw marker shows
-            }
-            if !self.line_ornament_visible(li) {
-                continue; // off-screen: the glyph would be clipped to nothing
-            }
-            let Some(it) = crate::markdown::list_item(self.buffer.lines[li].text()) else {
-                continue;
-            };
-            if it.ordered {
-                continue; // ordered lists keep their number, no bullet glyph
-            }
-            let glyph = crate::theme::active().bullet_for_depth(it.depth());
-            let top = self.line_ornament_top(li);
-            if it.indent > 0 {
-                indented.insert(li);
-            }
-            items.push((li, top, it.indent, glyph));
-        }
-        let rows_by_line = if indented.is_empty() {
-            std::collections::HashMap::new()
-        } else {
-            self.visual_rows_for_lines(&indented)
-        };
-        let mut out = Vec::with_capacity(items.len());
-        for (li, top, indent, glyph) in items {
-            let x = if indent == 0 {
-                0.0 // the marker sits at column 0 (text_left), no shaped-x lookup
-            } else {
-                rows_by_line
-                    .get(&li)
-                    .and_then(|rows| rows.first())
-                    .and_then(|row| row.xs.get(indent).copied())
-                    .unwrap_or(0.0)
-            };
-            out.push((top, text_left + x, glyph));
-        }
-        out
     }
 
     /// The visible hanging pull-quote marks: `(row top, side, logical line)`, TWO

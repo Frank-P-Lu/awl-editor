@@ -94,7 +94,7 @@ pub(super) struct RowGeom {
     doc_height: std::cell::Cell<f32>,
     /// Per LOGICAL line: the buffer-relative top y of that line's FIRST visual row
     /// (`line_first_top`). Built in the SAME `layout_runs()` walk as `tops`, so the
-    /// ornament CULL can read a rule/bullet line's top in O(1) instead of calling
+    /// ornament CULL can read a rule/list-marker line's top in O(1) instead of calling
     /// the whole-doc `visual_rows(li)` per candidate. Indexed by logical line;
     /// dropped with the rest by [`Self::invalidate`].
     line_tops: std::cell::RefCell<Option<Vec<f32>>>,

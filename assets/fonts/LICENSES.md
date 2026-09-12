@@ -232,9 +232,10 @@ full SIL OFL 1.1 grant and URL. The release's separate `OFL.txt` records
 Reserved Font Name. No editable design sources have been found or claimed.
 
 [`AwlMarks.roster.tsv`](./AwlMarks.roster.tsv) is the one adoption roster. It
-contains the deduplicated 94-codepoint union: the existing 34 chrome marks,
-item 536's decided 64-glyph ornament cabinet, and the six-mark traditional
-reference ladder (`* † ‡ § ‖ ¶`, including U+2016). The generator verifies the
+contains the deduplicated 138-codepoint union: the existing chrome and divider
+marks, the six-mark traditional reference ladder (`* † ‡ § ‖ ¶`, including
+U+2016), the 41-glyph list-bullet vocabulary, and the five task-marker glyphs.
+The generator verifies the
 recorded upstream hash before reading it, subsets the cmap to that roster
 exactly, keeps the private family name **Awl Marks**, normalises OS/2 weight 500
 to Regular/400, and preserves Nishiki-teki's embedded copyright, version, and

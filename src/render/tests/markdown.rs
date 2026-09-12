@@ -306,7 +306,7 @@ fn every_approved_ornament_trio_reaches_the_real_rule_pipeline() {
 
 #[test]
 fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
-    // Pin the world explicitly (Tawny's own Autumn triple is what this test is
+    // Pin the world explicitly (Tawny's approved triple is what this test is
     // about, independent of whichever world happens to be the launch DEFAULT)
     // and hold the theme lock, since this reads the process-global active theme.
     let _g = crate::testlock::serial();
@@ -322,7 +322,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     // to the level-1 glyph (was a two-level wrap pre-item-15).
     let text = "- top\n  * mid\n    + deep\n      - deeper\n";
 
-    // Tawny → its own Autumn triple (🍁 maple / 🍃 fluttering / 🍂 fallen leaf),
+    // Tawny → chestnut / seedling / butterfly,
     // cycling every THREE levels. CARET OFF every list line (on the trailing
     // blank line 4): each bullet draws its depth glyph and its raw marker is
     // concealed (transparent ink).
@@ -331,8 +331,8 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     p.set_view(&off);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['🍁', '🍃', '🍂', '🍁'],
-        "depth 0/1/2/3 => 🍁 🍃 🍂 🍁 (triple cycles every 3) regardless of the -,*,+ typed: {:?}",
+        vec!['\u{1F330}', '\u{1F331}', '\u{1F98B}', '\u{1F330}'],
+        "depth 0/1/2/3 cycles Tawny's approved triple regardless of the -,*,+ typed: {:?}",
         p.bullet_glyphs()
     );
     for li in 0..4 {
@@ -344,14 +344,14 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
 
     // CARET ON the second bullet (line 1, depth 1): its raw `*` REVEALS
     // (editable) and no glyph draws for it; the other three keep their
-    // depth-0/2/3 glyphs (🍁, 🍂, 🍁).
+    // depth-0/2/3 glyphs.
     let mut on = view(text, 1, 3);
     on.is_markdown = true;
     p.set_view(&on);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['🍁', '🍂', '🍁'],
-        "caret on the depth-1 bullet suppresses only its 🍃 (lines 0/2/3 keep 🍁/🍂/🍁): {:?}",
+        vec!['\u{1F330}', '\u{1F98B}', '\u{1F330}'],
+        "caret on the depth-1 bullet suppresses only its glyph: {:?}",
         p.bullet_glyphs()
     );
     assert!(
@@ -388,7 +388,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
 /// SELECTION REVEAL, the bullet ORNAMENT half: the legacy bullet CONCEAL
 /// (`build_line_attrs`'s `line_selected` gate) widens to "caret line OR
 /// selection touch" — the raw marker correctly reveals — but the bullet
-/// ORNAMENT painter (`bullet_marks`) reads `line_is_revealed`, the exact
+/// ORNAMENT painter (`list_marks`) reads `line_is_revealed`, the exact
 /// owner `rule_lines` already reads, so a selection merely touching a bullet
 /// row (caret elsewhere) drops its depth glyph instead of drawing it over the
 /// now-revealed raw `-`/`*`/`+`: the ornament set and the conceal set are the
@@ -609,10 +609,9 @@ fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
 }
 
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
-/// [`theme::Theme::bullets`] triple (drawn in its ornament face) — every world
-/// but one (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`) now draws a
-/// characterful triple derived from the exact ornament set it already wears
-/// for `---`/`***`/`___`. Reveal-on-cursor is unchanged (off-caret only).
+/// [`theme::Theme::bullets`] triple (drawn in its ornament face). The bullet
+/// vocabulary is deliberately disjoint from `---`/`***`/`___` dividers and
+/// task markers. Reveal-on-cursor remains off-caret only.
 /// Proves the glyph is theme-DATA, not a fixed geometric triple hardcoded in
 /// the renderer — AND that the per-level rotation composes with the
 /// per-world pick.
@@ -630,12 +629,11 @@ fn bullet_glyphs_swap_per_world() {
     // (line 3).
     let text = "- top\n  - sub\n    - deep\n";
     let cases = [
-        ("Tawny", ('🍁', '🍃', '🍂')), // Autumn: maple / fluttering / fallen leaf
-        // Arabesque: white / black pair heads + scroll
-        ("Bombora", ('\u{F814}', '\u{F827}', '\u{F81C}')),
-        ("Gumtree", ('\u{F591}', '🐟', '🐌')), // Riverbank: snake head / fish / snail
-        ("Bilby", ('🌸', '🌼', '🌷')),         // Hanami: cherry blossom / blossom / tulip
-        ("Mopoke", ('🌝', '🌛', '🌚')), // Moonfaces: full / first-quarter / new moon with face
+        ("Tawny", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
+        ("Bombora", ('\u{2693}', '\u{26F5}', '\u{2638}')),
+        ("Gumtree", ('\u{1F426}', '\u{1F98B}', '\u{1F343}')),
+        ("Bilby", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Mopoke", ('\u{2606}', '\u{2601}', '\u{2604}')),
     ];
     for (world, (g0, g1, g2)) in cases {
         theme::set_active_by_name(world).unwrap();
@@ -668,10 +666,10 @@ fn bullet_glyphs_swap_per_world() {
 /// [`theme::Theme::bullet_face`] — the font-DB half of the structural
 /// `theme::tests::every_world_has_a_bullet_pair` law, mirroring
 /// `ornament_glyphs_resolve_in_each_worlds_assigned_face` for the section
-/// trio. Since every world's bullet triple now draws from the same Nishiki
-/// register as its own section-break trio, this is largely the same coverage
-/// proof over the same face — kept as its own test because `bullet_face` and
-/// `ornament_face` remain two separate fields a future world could diverge on.
+/// trio. Every world's bullet triple draws from the same Nishiki register as
+/// section breaks while using a separate vocabulary. This remains its own test
+/// because `bullet_face` and `ornament_face` are separate fields a future world
+/// could diverge on.
 #[test]
 fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
     let _g = crate::testlock::serial();
@@ -717,9 +715,9 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
 /// proven over bytes, never inferred from state — a mechanism can report the
 /// "right" x while the glyph visually merges into the text, exactly the shape
 /// of the reported Bombora bug). NO-WILDCARD sweep of `theme::THEMES`: every
-/// world — plain `•`/`◦` and every hedera/fleuron/manicule pair alike — gets
-/// the same real-pixel check, so a future world's bullet pick is enrolled
-/// automatically. A single un-indented bullet line keeps the geometry simple
+/// world and every Nishiki-derived depth triple gets the same real-pixel check,
+/// so a future world's bullet pick is enrolled automatically. A single
+/// un-indented bullet line keeps the geometry simple
 /// (marker at column 0) and short content ("a") keeps the row well clear of
 /// the wrap width, so the background-reference sample (taken far right on the
 /// same row) is never itself inside the writing column's text.
@@ -1061,12 +1059,29 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
         "precondition: the cursor-line row memo is warm"
     );
 
-    let tall_marks = p.bullet_marks();
+    let cached = p.cached_list_line_count();
+    assert_eq!(cached, N, "the cache enrolls the whole list corpus");
+    let expected_candidates = (0..N).filter(|line| p.line_ornament_visible(*line)).count();
+    let (all_marks, visits) = p.list_marks_with_work();
+    let tall_marks: Vec<_> = all_marks
+        .iter()
+        .filter_map(|mark| match (mark.kind, mark.glyphs) {
+            (
+                crate::render::rects::ListLineKind::Bullet,
+                crate::theme::TaskMarkerGlyphs::Single(ch),
+            ) => Some((mark.top, mark.left, ch)),
+            _ => None,
+        })
+        .collect();
     assert!(!tall_marks.is_empty(), "the visible bullets must be placed");
+    assert_eq!(
+        visits, expected_candidates,
+        "the production loop visits exactly the screen-space candidate band"
+    );
+    assert!(visits > 0, "the candidate-visit witness is non-vacuous");
     assert!(
-        tall_marks.len() < 100,
-        "only the visible band's bullets, got {} of {N}",
-        tall_marks.len()
+        visits < N / 4,
+        "the frame visited {visits} of {N} cached list rows"
     );
     // WITNESS THE WORK: an INDENTED bullet is in the visible band (some x sits
     // right of column 0), so `visual_rows_for_lines` genuinely ran — and it left

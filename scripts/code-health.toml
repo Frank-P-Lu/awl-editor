@@ -244,8 +244,8 @@ reason = "Item 527/528's config_keymap_flavor threads through the headless repla
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
-lines = 26
-reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic. +2: a `#[cfg(test)]` re-export of `bare_url_ranges`/`bare_url_split` for the bare-URL detector's own unit tests, mirroring `push_highlight_spans`'s existing test-export pattern. Item 530's re-export of SmartPunctKind/smart_punct_ranges/smart_punct_runs/apply_smart_punct from spans/detect.rs, beside the module's other public re-exports. +1: `bare_url_split` becomes production-visible so the go-to label and the rendered line tame a URL through one owner."
+lines = 29
+reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic. +2: a `#[cfg(test)]` re-export of `bare_url_ranges`/`bare_url_split` for the bare-URL detector's own unit tests, mirroring `push_highlight_spans`'s existing test-export pattern. Item 530's re-export of SmartPunctKind/smart_punct_ranges/smart_punct_runs/apply_smart_punct from spans/detect.rs, beside the module's other public re-exports. +1: `bare_url_split` becomes production-visible so the go-to label and the rendered line tame a URL through one owner. +3: the rich unordered-list classifier moved to its own focused module and is re-exported beside the other span detectors."
 
 [[file_size_mark]]
 file = "src/mas.rs"
@@ -301,7 +301,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3199
+lines = 3198
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
 # `TextPipeline`; the row treatment reads this state beside selection geometry.
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
@@ -443,7 +443,7 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 2064
+lines = 2008
 reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns. +45: the table x-ray selection-band branch in `range_rects`, rebuilding the selection quad against the revealed row's real advances instead of the concealed geometry that collapsed it to a sliver. +20: `rule_lines` computes `selection_touch_bytes` once and widens its per-line filter with `selection_touches`, so a selection touching a thematic-break line drops out of the ornament draw set exactly as the caret's own line already does — the shape `footnote_marks`/`bare_url_marks` use, so the reveal keeps ONE owner instead of a second per-layer derivation. +13: `panel_glyph_x`, the ONE panel x lookup — the amber caret's own glyph scan, lifted out of `panel_layout` so the field's selection band cannot be placed by a different rule than the caret beside it. +47: blockquote blocks recorded as (first, last) via `push_or_grow_quote_block` keyed on the previous quote row, `QuoteSide`, the wrap-aware `line_ornament_last_top`, and `quote_marks` emitting a per-end pair whose two ends cull independently. +3: `bullet_marks` reads the shared `selection_touch`/`line_is_revealed` owner `rule_lines` already reads, dropping its own ad hoc caret-only skip so the bullet ornament and the legacy bullet conceal agree on the same reveal by construction. +6 net: `quote_marks` now returns each mark's own logical line alongside `(top, side)` so the closing mark's x and y can be resolved per-block; `line_ornament_last_baseline` and `quote_close_row_end_x` read the block's own last-row real baseline and shaped ink-right straight off the wrap-aware row geometry, the same seam `line_ornament_last_top` already reads. Item 633: the `squiggle_lines_rebuilt` `OwnerScanWork` field and its doc comment, beside the two existing retention projections' own witness fields; `SquigglePending`/`SquiggleProjection` themselves moved out to `rects/squiggle_projection.rs` rather than raising this file's own frozen ceiling further."
 
 [[file_size_mark]]
@@ -539,13 +539,13 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 773
-reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square. +18: `LocationStyle::needs_plan_row` is the one exhaustive answer to whether the row planner reserves a display line for a world's location cue -- `RotatedRail` composes off-card against the room's own wordmark margin and needs no row, `Raked` still anchors its rotated run to that row's own geometry and does, so a future style is a conscious decision here rather than a silently vacated or silently extra row. +13: `Theme::fold_mark()` derives the fold-chevron glyph from `ornament_face` via `theme::ornament::fold_mark_for` — no per-world literal, a new world inherits from its existing ornament classification alone. +3: `bullet_face` preserves each world's approved list bullets while the Nishiki section-break cabinet changes independently."
+lines = 799
+reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square. +18: `LocationStyle::needs_plan_row` is the one exhaustive answer to whether the row planner reserves a display line for a world's location cue -- `RotatedRail` composes off-card against the room's own wordmark margin and needs no row, `Raked` still anchors its rotated run to that row's own geometry and does, so a future style is a conscious decision here rather than a silently vacated or silently extra row. +13: `Theme::fold_mark()` derives the fold-chevron glyph from `ornament_face` via `theme::ornament::fold_mark_for` — no per-world literal, a new world inherits from its existing ornament classification alone. +3: `bullet_face` preserves each world's approved list bullets while the Nishiki section-break cabinet changes independently. +26: the typed per-world task-marker style and bullet ink/scale resolvers keep all list ornament choices in world data while the shared renderer owns composition."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1214
-reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki. +5: Kite authors its WarpedGrid roam/motion profile (fold, twist, forward drift, ribs) as one instance of the reusable typed data model, beside its other ground authoring."
+lines = 1220
+reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki. +5: Kite authors its WarpedGrid roam/motion profile (fold, twist, forward drift, ribs) as one instance of the reusable typed data model, beside its other ground authoring. +6 net: every world authors its approved bullet triple and task-marker style in the one exhaustive theme roster."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -691,7 +691,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/rects.rs"
 function = "TextPipeline::ensure_ornament_lists"
-message = "this function has too many lines (124/100)"
+message = "this function has too many lines (131/100)"
 reason = "The sweep-line walk that replaced four O(lines x spans) passes: spans sorted by start, entering and leaving one active set as the line cursor advances, so a line pays only for spans that can overlap it. The length is the four ornament families it serves in one pass, not branching depth -- splitting it would give each family its own cursor over the same sorted spans, which is the four passes it just replaced."
 
 [[clippy_exception]]
@@ -1432,6 +1432,13 @@ file = "src/render/tests/facet_strip_seat_law.rs"
 function = "active_lens_mark_sits_under_the_active_labels_own_glyphs"
 message = "this function has too many lines (107/100)"
 reason = "One roster sweep over every world, classifying upright vs. banded via the same gate the emitter itself uses and reading the active label's glyph span independently off the panel buffer -- splitting the sweep from its own independent oracle would let the two drift apart, which is the exact class of bug this law exists to catch."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/theme/tests/ornament.rs"
+function = "every_world_has_a_bullet_pair"
+message = "this function has too many lines (138/100)"
+reason = "The one exact no-wildcard roster pairs all twenty shipping worlds with their approved three-depth bullet set and typed task-marker style, then checks shared depth cycling and the detached-snake regression. Most lines are the product table itself; splitting it would separate the enrollment data from the law that proves every live world appears exactly once."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

@@ -621,17 +621,16 @@ pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/Iosevka-Bold.ttf"),
 ];
 
-/// BUNDLED LEGACY BULLET face — a tiny ornament-only subset registered under its
-/// authentic family name for honest attribution. Section breaks and the About
-/// end-mark now use the Nishiki-derived `Awl Marks`; Junicode remains registered
-/// only while the separate list-bullet fitting round is pending.
+/// BUNDLED LEGACY ORNAMENT face — a tiny subset registered under its authentic
+/// family name for honest attribution. Live section breaks, bullets, task marks
+/// and the About end-mark use the Nishiki-derived `Awl Marks`; Junicode remains
+/// registered for the exhaustive fold-mark vocabulary.
 ///  - Junicode ornaments (fleurons ☙ ❦ ❧, asterisms ⁂ ⁑, + Caslon PUA fleuron
-///    clusters). SIL OFL, github.com/psb1558/Junicode-font. The antique/slab
-///    worlds' transitional bullet face ([`crate::theme::ORNAMENT_JUNICODE`]).
+///    clusters). SIL OFL, github.com/psb1558/Junicode-font
+///    ([`crate::theme::ORNAMENT_JUNICODE`]).
 ///
-/// The other two bullet faces are registered ELSEWHERE, not here: EB Garamond
-/// is already a display face in `FONT_THEME_FACES`, and [`crate::theme::ORNAMENT_MARKS`]
-/// IS the derived `SYMBOL_FAMILY` face. (The dud
+/// EB Garamond is registered elsewhere as a display face in `FONT_THEME_FACES`,
+/// and [`crate::theme::ORNAMENT_MARKS`] IS the derived `SYMBOL_FAMILY` face. (The dud
 /// `Vollkorn-Ornaments.ttf` — it ships NO classic fleurons, only ¶ ‸ ‽ … — was
 /// dropped: no world could use it for a section break.)
 pub static FONT_ORNAMENT_FACES: &[&[u8]] =
@@ -2318,7 +2317,7 @@ pub struct TextPipeline {
     /// compares against this alongside `shaped_font` and re-bakes (`restyle_all_lines`)
     /// when EITHER differs — the font tracker alone can't see a same-face recolor.
     shaped_theme: usize,
-    /// The cursor line the markdown rule/bullet CONCEAL was last refreshed for (see
+    /// The cursor line the markdown rule/list-marker CONCEAL was last refreshed for (see
     /// [`Self::refresh_rule_conceal`]). The reveal-on-cursor conceal toggles ONLY when
     /// the caret's LINE changes, so a pure scroll / same-line move / idle redraw can
     /// skip the O(lines × md_spans) rescan entirely by comparing against this. `None`

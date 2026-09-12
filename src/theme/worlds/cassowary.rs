@@ -33,9 +33,10 @@ pub const CASSOWARY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.162, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Splatter's own trio: ink splash / black splash / centerless splash.
-    bullets: ('\u{FF04E}', '\u{FF04F}', '\u{FF04D}'),
+    // Lightning / electric arrow / asterisk: the approved sharp-depth sequence.
+    bullets: ('\u{2607}', '\u{2301}', '\u{2733}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),

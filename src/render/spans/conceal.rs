@@ -7,10 +7,12 @@ use super::*;
 mod bare_url;
 mod cell;
 mod footnotes;
+mod list;
 mod smart_punct;
 mod substitutes;
 pub(in crate::render) use bare_url::is_bare_url_tail;
 pub(in crate::render) use cell::cell_inline_attrs;
+pub(in crate::render) use list::{add_bullet_conceal_span, add_task_conceal_span};
 pub(in crate::render) use smart_punct::{shape_smart_punct_glyph, smart_punct_kind_for};
 pub(in crate::render) use substitutes::{
     SubstituteAdvances, shape_footnote_number, smart_punct_metrics,
@@ -99,21 +101,6 @@ pub(in crate::render) fn add_rule_conceal_span(
     }
 }
 
-pub(in crate::render) fn add_bullet_conceal_span(
-    al: &mut glyphon::cosmic_text::AttrsList,
-    line_text: &str,
-    base: &Attrs<'static>,
-) {
-    let Some(it) = crate::markdown::list_item(line_text) else {
-        return;
-    };
-    if it.ordered {
-        return;
-    }
-    let hidden = base.clone().color(RULE_CONCEAL_COLOR);
-    al.add_span(it.indent..it.indent + 1, &hidden);
-}
-
 pub(in crate::render) fn add_list_indent_span(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
@@ -146,7 +133,7 @@ pub(in crate::render) fn add_list_indent_span(
 /// trailing `\n`). `None` when there is no active (non-empty) selection.
 ///
 /// THE shared "selection reveal" extent: [`wysiwyg_reveals`] tests a
-/// concealable span's overlap against it, [`build_line_attrs`]'s rule/bullet
+/// concealable span's overlap against it, [`build_line_attrs`]'s rule/list-marker
 /// conceal gate tests a line's own byte range against it, and
 /// [`super::TextPipeline::prepare_table_xray`]/`prepare_table_grid` extend
 /// their caret-only table reveal with the SAME line set — so a selection can
@@ -320,7 +307,7 @@ pub(in crate::render) fn line_has_code_span(
 ///  - `Heading`/`Emphasis`/`Code`/`Highlight` are LINE-scoped: `conceal_off_cursor`
 ///    (the caller's "caret is on a DIFFERENT line" gate — the same one
 ///    `add_rule_conceal_span`/`add_bullet_conceal_span` already use) decides all
-///    four in lockstep with the hr/bullet conceal.
+///    four in lockstep with the rule/list-marker conceal.
 ///  - `Fence` is BLOCK-scoped: a fenced code block's marker LINES (the fence open
 ///    line + the fence close line, including the info string) conceal unless
 ///    `cursor_byte` — the document byte offset of the CARET'S OWN line's first

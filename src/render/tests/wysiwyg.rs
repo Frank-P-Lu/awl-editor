@@ -9,7 +9,7 @@ use super::{headless_pipeline, view};
 /// — heading, emphasis, inline code, highlight, strikethrough — each conceal
 /// (transparent ink) when the caret is on a DIFFERENT line, and reveal
 /// independently the instant the caret lands on their own line, exactly
-/// mirroring the pre-existing hr/bullet reveal-on-cursor toggle.
+/// mirroring the line-level rule/list-marker reveal-on-cursor toggle.
 #[test]
 fn wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on() {
     let _w = crate::testlock::serial();

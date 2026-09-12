@@ -1105,7 +1105,7 @@ impl TextPipeline {
     /// CARET OR ACTIVE SELECTION — the markdown horizontal-rule / bullet-marker
     /// conceal (each keyed to its OWN line) AND every WYSIWYG-concealable
     /// [`crate::markdown::MdKind::ConcealMarkup`] span (heading/emphasis/inline-code/
-    /// highlight, each line-scoped like the hr/bullet; a fenced block's marker lines,
+    /// highlight, each line-scoped like the rule/list marker; a fenced block's marker lines,
     /// block-scoped) — so it all matches the CURRENT caret line/position AND the
     /// current selection's touched lines (2026-07-22, "selection reveals raw
     /// markdown"). The incremental text path only rebuilds lines whose TEXT changed,

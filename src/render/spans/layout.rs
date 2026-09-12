@@ -116,20 +116,22 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
 /// Assemble ONE buffer line's complete `AttrsList` from the base doc attrs plus
 /// every styling layer, in the canonical order: heading SIZE scale
 /// ([`scaled_base_attrs`]) → markdown spans → syntax spans → CJK family spans →
-/// SYMBOL family spans → (optional) RULE + BULLET concealment (symbol family wins on
-/// symbol runs, CJK family on CJK runs; markdown/syntax weight/color/style win
-/// elsewhere; the concealed markup's transparent ink wins LAST over its own glyphs).
+/// SYMBOL family spans → (optional) RULE + LIST-MARKER concealment (symbol family
+/// wins on symbol runs, CJK family on CJK runs; markdown/syntax weight/color/style
+/// win elsewhere; the concealed markup's transparent ink wins LAST over its glyphs).
 /// `line_doc_start` is the line's first document byte (so the whole-document span
 /// lists map into this line's local range). `conceal_off_cursor` is the reveal-on-
 /// cursor gate: when set (the caret is on a DIFFERENT line) a markdown horizontal-rule
 /// line's literal `---` are hidden via [`add_rule_conceal_span`] (leaving the centered
-/// fleuron) AND a bullet's raw `-`/`*`/`+` via [`add_bullet_conceal_span`] (leaving its
-/// depth glyph); when clear (the caret is on the line) the raw markup stays dim +
-/// editable and no ornament is drawn. `cursor_byte` (the caret line's first document
-/// byte) additionally drives the WYSIWYG conceal ([`add_wysiwyg_conceal_spans`]) for
+/// fleuron), a bullet's raw `-`/`*`/`+` via [`add_bullet_conceal_span`] (leaving its
+/// depth glyph), and a task's raw checkbox via [`add_task_conceal_span`] (leaving its
+/// source-authored separator plus state glyph); when clear (the caret is on the line)
+/// the raw markup stays dim + editable and no ornament is drawn. `cursor_byte`
+/// (the caret line's first document byte) additionally drives the WYSIWYG conceal
+/// ([`add_wysiwyg_conceal_spans`]) for
 /// its one BLOCK-scoped kind (a fenced code block's marker lines). `selection_touch`
 /// ([`selection_touch_bytes`], `None` with no active selection) extends the SAME
-/// reveal rule: a line the selection touches drops BOTH the rule/bullet conceal gate
+/// reveal rule: a line the selection touches drops the rule/list-marker conceal gate
 /// here (`conceal_off_cursor && !line_selected`) AND (threaded straight through) every
 /// `add_wysiwyg_conceal_spans` kind, so a selected line shows raw markdown exactly
 /// like the caret's own line does. This is the SINGLE recipe shared by
@@ -226,10 +228,10 @@ pub(in crate::render) fn build_line_attrs(
     add_symbol_spans(&mut al, line_text, &lb);
     // SELECTION REVEAL: `line_selected` (computed above, alongside `revealed`)
     // is the same overlap test `wysiwyg_reveals` uses for a concealable span's
-    // own byte range, applied here to the whole line's range so the LEGACY
-    // (pre-`ConcealKind`) rule/bullet conceal widens identically — a selected
-    // bulleted list reveals its raw `-`/`*`/`+` exactly like a selected
-    // heading reveals its raw `#`, never a mixed state on the same line.
+    // own byte range, applied here to the whole line's range so rule/list-marker
+    // conceal widens identically — a selected bullet or task reveals its raw
+    // marker exactly like a selected heading reveals its raw `#`, never a mixed
+    // state on the same line.
     // REVEAL-ON-CURSOR: when the caret is off this line AND the selection
     // doesn't touch it, conceal a thematic break's raw `---` (leaving the
     // fleuron) AND a bullet's raw `-` (leaving the depth glyph). Both are
@@ -238,7 +240,15 @@ pub(in crate::render) fn build_line_attrs(
     // drawn.
     if conceal_off_cursor && !line_selected {
         add_rule_conceal_span(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
-        add_bullet_conceal_span(&mut al, line_text, &lb);
+        add_bullet_conceal_span(&mut al, line_text, line_doc_start, &lb, ctx.md_spans);
+        add_task_conceal_span(
+            &mut al,
+            line_text,
+            line_doc_start,
+            &lb,
+            row_lh,
+            ctx.md_spans,
+        );
     }
     add_wysiwyg_conceal_spans(
         &mut al,

@@ -8,7 +8,7 @@
 //! src/theme/ — the palette model, split by natural seam (2026-07
 //! code-organization pass) out of the former `theme.rs` monolith:
 //! [`color`] (the [`Srgb`] primitive), [`model`] (the [`Theme`]/[`Background`]/
-//! [`Lens`] data model), [`ornament`] (the section-break + list-bullet trios),
+//! [`Lens`] data model), [`ornament`] (section breaks, bullets and task markers),
 //! [`cjk`] (the per-script fallback ladders + [`FontId`]), [`worlds`] (the
 //! shipped [`Theme`] literals), and [`derive`] (the active-theme
 //! index + every derived-from-active-theme accessor). Every external path
@@ -149,11 +149,13 @@ pub use model::{
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.
 pub use ornament::{
-    BULLET_SCALE_GARAMOND, BULLET_SCALE_HANAMI, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN,
-    BULLETS_PLAIN, FoldMark, LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND,
-    ORNAMENT_JUNICODE, ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON,
-    ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister,
-    Ornaments, RESERVE_ORNAMENT_SETS, ReserveOrnamentSet, fold_mark_for, ornament_register,
+    BULLET_FULL_INK_MARKS, BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PAPER_TOOL,
+    BULLET_SCALE_PLAIN, BULLET_WHEEL_OPTICAL_SCALE, BULLETS_PLAIN, FoldMark,
+    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
+    ORNAMENT_MARKS, ORNAMENT_NISHIKI, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC,
+    ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT, OrnamentRegister, Ornaments, RESERVE_ORNAMENT_SETS,
+    ReserveOrnamentSet, TASK_MARKER_SCALE, TaskMarkerGlyphs, TaskMarkerStyle, fold_mark_for,
+    ornament_register,
 };
 #[allow(unused_imports)] // the individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
