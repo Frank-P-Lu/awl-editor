@@ -117,7 +117,10 @@ type Case = (
 );
 
 macro_rules! case {
-    ($name:literal, $kind:ident, $dir:expr, $child:literal, $action:ident, $target:expr, $payload:ident) => {
+    (
+        $name:literal, $kind:ident, $dir:expr, $child:literal,
+        $action:ident, $target:expr, $payload:ident
+    ) => {
         (
             $name,
             OverlayKind::$kind,
@@ -130,27 +133,33 @@ macro_rules! case {
     };
 }
 
+const DOCS: Option<&str> = Some("docs");
+const API: Option<&str> = Some("docs/api");
+const WS: Option<&str> = Some("/ws");
+const WS_DOCS: Option<&str> = Some("/ws/docs");
+
 #[rustfmt::skip]
 const CASES: [Case; 19] = [
-    case!("Browse Enter", Browse, None, "docs", Newline, Some("docs"), Plain),
-    case!("Browse Backspace", Browse, Some("docs/api"), "v1", DeleteBackward, Some("docs"), Plain),
-    case!("Move Enter", MoveDest, None, "docs", Newline, Some("docs"), Plain),
-    case!("Move Right", MoveDest, None, "docs", ForwardChar, Some("docs"), Plain),
-    case!("Move Left", MoveDest, Some("docs/api"), "v1", BackwardChar, Some("docs"), Plain),
-    case!("Move Backspace", MoveDest, Some("docs/api"), "v1", DeleteBackward, Some("docs"), Plain),
-    case!("Export Right", ExportDest, None, "docs", ForwardChar, Some("docs"), Export),
-    case!("Export Left", ExportDest, Some("docs/api"), "v1", BackwardChar, Some("docs"), Export),
-    case!("Export Backspace", ExportDest, Some("docs/api"), "v1", DeleteBackward, Some("docs"), Export),
-    case!("Save Copy Right", ExportDest, None, "docs", ForwardChar, Some("docs"), SaveCopy),
-    case!("Save Copy Left", ExportDest, Some("docs/api"), "v1", BackwardChar, Some("docs"), SaveCopy),
-    case!("Save Copy Backspace", ExportDest, Some("docs/api"), "v1", DeleteBackward, Some("docs"), SaveCopy),
-    case!("Setting Enter", Project, Some("/ws"), "docs", Newline, Some("/ws/docs"), SettingPath),
-    case!("Setting Right", Project, Some("/ws"), "docs", ForwardChar, Some("/ws/docs"), SettingPath),
-    case!("Setting Left", Project, Some("/ws/docs"), "api", BackwardChar, Some("/ws"), SettingPath),
-    case!("Setting Backspace", Project, Some("/ws/docs"), "api", DeleteBackward, Some("/ws"), SettingPath),
-    case!("ProjectBrowse Right", ProjectBrowse, Some("/ws"), "docs", ForwardChar, Some("/ws/docs"), ProjectBrowse),
-    case!("ProjectBrowse Left", ProjectBrowse, Some("/ws/docs"), "api", BackwardChar, Some("/ws"), ProjectBrowse),
-    case!("ProjectBrowse Backspace", ProjectBrowse, Some("/ws/docs"), "api", DeleteBackward, Some("/ws"), ProjectBrowse),
+    case!("Browse Enter", Browse, None, "docs", Newline, DOCS, Plain),
+    case!("Browse Backspace", Browse, API, "v1", DeleteBackward, DOCS, Plain),
+    case!("Move Enter", MoveDest, None, "docs", Newline, DOCS, Plain),
+    case!("Move Right", MoveDest, None, "docs", ForwardChar, DOCS, Plain),
+    case!("Move Left", MoveDest, API, "v1", BackwardChar, DOCS, Plain),
+    case!("Move Backspace", MoveDest, API, "v1", DeleteBackward, DOCS, Plain),
+    case!("Export Right", ExportDest, None, "docs", ForwardChar, DOCS, Export),
+    case!("Export Left", ExportDest, API, "v1", BackwardChar, DOCS, Export),
+    case!("Export Backspace", ExportDest, API, "v1", DeleteBackward, DOCS, Export),
+    case!("Save Copy Right", ExportDest, None, "docs", ForwardChar, DOCS, SaveCopy),
+    case!("Save Copy Left", ExportDest, API, "v1", BackwardChar, DOCS, SaveCopy),
+    case!("Save Copy Backspace", ExportDest, API, "v1", DeleteBackward, DOCS, SaveCopy),
+    case!("Setting Enter", Project, WS, "docs", Newline, WS_DOCS, SettingPath),
+    case!("Setting Right", Project, WS, "docs", ForwardChar, WS_DOCS, SettingPath),
+    case!("Setting Left", Project, WS_DOCS, "api", BackwardChar, WS, SettingPath),
+    case!("Setting Backspace", Project, WS_DOCS, "api", DeleteBackward, WS, SettingPath),
+    case!("ProjectBrowse Right", ProjectBrowse, WS, "docs", ForwardChar, WS_DOCS, ProjectBrowse),
+    case!("ProjectBrowse Left", ProjectBrowse, WS_DOCS, "api", BackwardChar, WS, ProjectBrowse),
+    case!("ProjectBrowse Backspace", ProjectBrowse, WS_DOCS, "api",
+        DeleteBackward, WS, ProjectBrowse),
 ];
 
 /// Every action that means "change directory level" reaches one action owner.
@@ -205,7 +214,10 @@ fn every_shared_folder_step_relevels_once_without_committing() {
                 "{name}: Save Copy survives"
             ),
             Payload::SettingPath => assert!(
-                matches!(journey.bind(), Some(crate::overlay::Bind::Path { key }) if key == "default_folder"),
+                matches!(
+                    journey.bind(),
+                    Some(crate::overlay::Bind::Path { key }) if key == "default_folder"
+                ),
                 "{name}: Settings parent and key survive"
             ),
             Payload::ProjectBrowse => assert!(
