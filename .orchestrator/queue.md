@@ -6,57 +6,15 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks.** Ready: none. Active integration: none. Integrated work awaiting the
-combined verification: 660, 659, 658, 657, 656, 655, 654, 653, 650, 646, 645 and 644.
-Blocked direction: 651. Read-only follow-up investigation complete: 652.
+**4 open numbered tasks.** Ready: none. Integrated work awaiting visible native
+review: 659, 658 and 657. Blocked direction: 651.
 Outstanding review of landed work and hardware checks are listed separately below.
-
-### 660 — optically lower the star list bullet beside prose (user approved, 2026-09-13)
-
-🟠 INTEGRATED — implementation landed on local `main` at merge `e989b5a98`,
-followed by health-owner splits `f4c21a973` and `2a94c6c05`; the required Astra
-eight-cell visual review approved the placement. Combined native/web gate remains.
-
-Finding: after 655/656, the user confirms task rendering is fine but the hollow
-star U+2606 appears too high beside “add chinese”. Horizontal body starts are no
-longer the reported issue. The desired outcome is optical vertical alignment with
-nearby lowercase text. Mathematical centering alone does not establish that outcome.
-
-Build/Scope: inspect current marker seating against actual body-font metrics,
-then apply a small downward optical adjustment for U+2606 through one shared,
-glyph-keyed data owner. Use font-relative units so the correction scales with zoom
-and DPI and applies consistently wherever that star is used as a list bullet.
-Around 0.05 em downward is an audition starting point, not an approved constant or
-measured fix. Choose the final offset from real awl comparisons. Preserve existing
-checkbox placement, other glyph assignments, horizontal spacing, line height,
-wrapping, caret/hit geometry, reveal behavior and source bytes. Do not globally
-lower all markers or alter divider stars merely because they share a codepoint.
-
-Done/Verify: read docs/markdown.md, docs/render.md and capture references before
-implementation; follow docs/verification.md. Compare matched before/after captures
-in every world using U+2606, with representative font sizes, DPI 1/2, nested lists
-and neighboring task rows. Record the measured displacement and verify unchanged
-layout and checkbox pixels. Add a regression-sensitive check for the chosen paint
-offset and cover caret/selection reveal; perform the required neighborhood audit
-and visual smoke. Required user-requested visual reviewer: a separate
-`gpt-6-astra` agent at `low` reasoning effort (Astra light). Give it the actual
-matched before/after awl images at normal reading size and close-up, across the
-star-using worlds and representative sizes. Ask whether the star sits optically
-centered beside lowercase prose, whether it now looks too low, and whether the
-neighboring checkbox/text alignment remains coherent. It must inspect the images
-and explicitly approve the placement or request a revision; numeric tests alone
-cannot close this item. Revise and repeat the visual review if it finds a defect.
-Present the reviewed captures to the user; their subsequent taste feedback remains
-authoritative.
-
----
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
 🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
-audit landed on local `main` at merge `ef344429`; combined gate and visible native
-review remain. Corrective follow-up to 637/628/640; prior completion did not
-establish fidelity.
+audit landed on local `main` at merge `ef344429`; visible native review remains.
+Corrective follow-up to 637/628/640; prior completion did not establish fidelity.
 
 Evidence: the user's native screenshot shows a detached search strip, Change
 folder and New document as list rows, ambiguous `root/` scope, repeated folder
@@ -71,20 +29,19 @@ blur for the reviewed picker surfaces. Preserve native theme identities, binding
 root ownership and buffer/save semantics. The accepted site is reference only:
 https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05).
 
-Verify: use seeded native captures, explicit root/config and matched viewport/DPI;
-compare hierarchy and control placement against the approved composition, not just
-control presence. Cover browsing, search, empty folders and narrow layout. Read
-render/capture references and verification policy before choosing probes. Keep
-650's content-free listings and 651/652's I/O boundaries. No user-file captures in
-the public repo; native visual review remains owed before calling fidelity complete.
+Verify: use a disposable seeded native release build with explicit root/config.
+Cover browsing, search, empty folders and narrow layout; compare hierarchy and
+control placement against the approved composition. Preserve content-free listings
+and the I/O boundaries established by the completed 650/652 work. No user-file
+captures belong in the public repo.
 
 ---
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
 🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
-audit landed with 657 on local `main` at merge `ef344429`; combined gate and the
-required visible native review remain.
+audit landed with 657 on local `main` at merge `ef344429`; the required visible
+native review remains.
 
 Observed through the running app's accessibility state: Cmd-A then Backspace in a
 nonempty Files query removed only its last character on two attempts. An unmatched
@@ -93,18 +50,11 @@ filename vanished from the exposed result list while Enter still opened its file
 that is an accessibility/result-publication hypothesis, not evidence search failed.
 The screenshot feed was stale during this sitting, so visual absence is unverified.
 
-Build: verify query selection through actual macOS menu Actions as well as key
-routing; make no-match state explicit and prevent a failed search from implicitly
-accepting Change folder. Expose matching choices, selection and focus consistently
-to accessibility. Preserve intentional New document access as a separate action.
-Check original shared state versus the automation/accessibility adapter before
-assigning blame; close false premises as oracle repairs, not product fixes.
-
 Verify in a disposable seeded workspace with a recorded build: query select-all,
 clear, matches/no matches, Tab and Enter, menu Select All, pointer and accessibility
-results. Add regression laws at the real owner and required live checks where replay
-cannot reach AppKit; follow docs/verification.md. Never type probes into the user's
-working document or rely on a stale screenshot to establish focus.
+results. A no-match state must not implicitly accept Change folder. Matching choices,
+selection and focus must agree visually and semantically. Never type probes into the
+user's working document or rely on a stale screenshot to establish focus.
 
 ---
 
@@ -112,210 +62,22 @@ working document or rely on a stale screenshot to establish focus.
 
 🟠 INTEGRATED — implementation landed on local `main` at merge `2dcdb1779`,
 followed by focus-owner, test-health and schema commits `210c60e36`, `be399d5f3`
-and `0e5e5d132`. Combined gate and the explicitly owed visible
-Settings/Find-Replace/Themes review remain.
+and `0e5e5d132`. The explicitly owed visible Settings/Find-Replace/Themes review
+remains.
 
 Observed: Settings opened on Categories; Tab entered the setting list, typing
 filtered while the setting row retained accessible focus, and Enter opened Themes.
 Theme preview followed by Esc restored the original theme and the filtered Settings
 page. Those transitions worked. The approved prototype instead teaches an explicit
-search field followed by controls. Define and implement a discoverable complete
-forward/reverse focus route; keep search, categories, controls and value-editing
-states distinguishable, with accurate hints and editor-focus restoration.
+search field followed by controls. Verify a discoverable complete forward/reverse
+focus route, keeping search, categories, controls and value-editing states distinct.
 
-Verify search → matching controls → categories/close and reverse traversal, no
+Cover search → matching controls → categories/close and reverse traversal, no
 matches, nested Theme/other pickers, cancellation and immediate-setting semantics.
-Use disposable documents: one rapid mixed-key sequence in the review appeared to
-send test text to the document; focus leakage versus automation timing remains
-unresolved. Inspect state after each transition before typing; do not infer a
-product bug from that sequence alone.
-
-Finish the visual review of Settings, Find/Replace and Themes on a visible,
-identified running build. The earlier screenshot feed remained on Files despite
-changing accessibility state; screen lock was not established as its cause.
-Recheck fixed Themes placement across opening/preview themes, Switch/Cancel,
-quieter chrome and removed blur. Read capture/verification references, record what
-was actually observed, and keep unverified appearance/feel claims explicitly open.
-
----
-
-### 655 — use Nishiki’s native bold checkbox pair in every world (user approved, 2026-09-12)
-
-🟠 INTEGRATED — implementation and independent Metal/pixel audit landed on local
-`main` at merge `c67785c9`; combined native/web gate remains.
-
-Decision: use Nishiki-teki U+2610 BALLOT BOX for open tasks and U+1F5F9
-BALLOT BOX WITH BOLD CHECK for completed tasks across all worlds. The user
-selected the second and fourth drawings in a specimen of the actual 4.0.5 font.
-Both are already bundled in Awl Marks. The rounded checked example in the
-[Task marker study](https://awl-task-marker-study.s84fzrm6tq.chatgpt.site) is
-U+25A2 plus a separately overlaid U+2713, not a native rounded checked glyph;
-retire that composition and the lighter U+2611 task treatment. Nishiki’s native
-bold tick extends beyond its box by design; do not redraw or clip that shape.
-
-Build/Scope: route task states through one shared native pair, removing obsolete
-per-world task styles and overlay machinery where no longer consumed. Preserve
-world ink, completed-body dimming, source syntax, caret/selection reveal, undo,
-file bytes and the approved decorative bullet roster. Coordinate fitting with 656;
-do not replace bullets with plain dots or dashes. No Site edit is requested.
-
-Done/Verify: follow docs/verification.md and the Markdown/render contracts. Update
-roster/style laws without discarding their coverage. Verify open/checked states,
-nested/wrapped tasks, invalid `- []` syntax and reveal transitions across every
-world at DPI 1/2. Require real awl pixel evidence for presence, state distinction,
-no fallback or duplicate marker, and clearance from body text, plus the required
-neighborhood audit and visual smoke. The specimen is taste evidence only.
-
----
-
-### 656 — align rich list bullets and task markers consistently (user report, 2026-09-12)
-
-🟠 INTEGRATED — implementation and independent Metal/pixel audit landed on local
-`main` at merge `c67785c9`; combined native/web gate remains.
-
-Finding: the user’s screenshot shows a star bullet and task boxes sitting at
-inconsistent horizontal positions, with task text beginning farther right than
-ordinary list text. Code inspection finds ordinary bullets left-aligned while
-task glyphs are centered, different slot-width derivation for the two kinds, and
-an additional retained task separator. These are confirmed mechanisms, not yet
-a measured attribution of every visible offset. The lower empty task may be
-source-indented; reproduce with a seeded fixture before calling that a defect.
-
-Build/Scope: give rich bullets and the approved native task pair one coherent
-marker alignment and body-text spacing rule at each nesting level. Measure both
-horizontal placement and optical vertical seating beside the actual body face.
-Preserve the approved per-world bullet symbols, their depth cycle and optical
-scale adjustments. Keep source indentation meaningful, raw Markdown editable on
-caret/selection reveal, wrapping and hit geometry correct, and saved bytes intact.
-Own placement in the shared renderer; avoid per-world code paths or cosmetic
-translations that leave text and interaction geometry disagreeing.
-
-Done/Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
-CAPTURE.md before choosing evidence. Follow docs/verification.md. Capture before/
-after mixed ordinary/open/checked lists, nested and wrapped rows, `-`/`*`/`+`
-markers, proportional/mono faces, all worlds and DPI 1/2. Assert actual marker
-alignment, consistent same-depth body starts, legibility and positive text gaps;
-prove the headline regression law fails with the old placement restored. Cover
-caret/selection reveal and neighboring ordered-list behavior. Include the standing
-visual smoke; human taste remains separate from numeric alignment evidence.
-
----
-
-### 654 — remove retired floating-card shadow machinery (user request, 2026-09-12)
-
-🟠 INTEGRATED — implementation, repair and independent audit landed on local
-`main` at merge `51290c84`; real-GPU appearance checks and the combined gate remain.
-
-Finding: the July 22 visual fix stopped emitting drop-shadow geometry but deliberately
-left five complete `SelectionPipeline` instances wired through construction, theme
-sync, per-frame preparation, painter order, benchmarks and tests. They can produce no
-pixels: every preparation supplies an empty rectangle slice and `draw` returns at zero
-instances. The retained objects nevertheless create ten explicit GPU buffers (13,200
-requested bytes in total), five bind groups and the associated live-app pipeline/layout
-objects, plus five empty 80-byte uniform writes during ordinary chrome preparation.
-
-Build complete: delete `panel_shadow`, `float_shadow`, `hud_shadow`, `wk_shadow` and
-`menu_drop_shadow`; remove their constructors, tint writes, empty prepares, draw calls
-and structural tests; remove `float_shadow_srgba`; update live comments and theme/render
-contracts from shadow/border/card trios to border/card pairs. Preserve `FloatElevation`
-because it still selects rimmed versus flat cards. Preserve the two pixel laws proving
-dark worlds have no bright slab and light cards remain visibly elevated by their rim.
-The branch changes 24 files, removing 186 lines and adding 48 (138 net removed), with
-no remaining source or contract-doc reference to the retired identifiers.
-
-Verification: formatting and diff checks pass; `cargo check --tests` passes; the native
-source ownership test `float_surface_primitive_has_no_bypass_among_the_unified_family`
-passes; `cargo check --target wasm32-unknown-unknown` passes with the base branch's
-existing Wasm warnings. Both retained appearance tests compile but skip because the
-worktree environment exposes no GPU, so the integrated candidate still needs the real
-GPU native gate and `scripts/web-smoke.sh`. `scripts/preflight.sh` currently stops on
-the inherited `clippy::obfuscated_if_else` at `src/overlay/build.rs:353`, outside this
-branch's diff; resolve that integrated-base blocker before treating the gate as green.
-
----
-
-### 653 — remove the checked-in legacy web-editor bundle (user request, 2026-09-12)
-
-🟠 INTEGRATED — implementation and independent audit landed on local `main` at
-merge `0d4310d4`; fresh assembly, live web smoke and the combined gate remain.
-
-Finding: `site/editor/` is generated Trunk/wasm-bindgen output, not authored product
-source. The only tracked files are a 137,136-byte hashed JavaScript glue file and its
-generated `index.html`; that page references an `_bg.wasm` file which is not tracked,
-so the checked-in bundle is incomplete. The current `deploy-web.yml` already ignores
-this directory: it builds a fresh release bundle into `dist/`, copies `site/` to a
-scratch deploy directory, removes the copied `editor/`, and installs the fresh build
-there. The workflow itself labels the checked-in files legacy. Git history preserves
-the old artifact if it is ever needed.
-
-Build/Scope: remove the tracked `site/editor/` files and prevent generated editor
-bundles from being recommitted. Preserve `/editor/` in the deployed website by keeping
-one fresh Trunk build as the source of that route. Update `site/README.md`,
-`.github/workflows/deploy-web.yml`, `scripts/with-remap.sh`, ignore rules and any other
-live references so they describe the current scratch-assembly path rather than a
-committed deployable bundle. Preserve a documented local way to preview the landing
-page and freshly built editor together without restoring generated output to Git; reuse
-the existing assembly mechanism rather than introducing a parallel build pipeline.
-Do not change editor behavior, analytics coverage, hosting, release policy or the
-generated bundle's public URL. The separate code-growth dashboard is out of scope.
-
-Done/Verify: follow `docs/verification.md`. Require `git ls-files site/editor` to be
-empty and add a structural audit that fails if a generated editor bundle is tracked
-there again. Exercise the deploy assembly against a fresh
-`scripts/with-remap.sh trunk build --release --public-url /editor/`; require the staged
-`editor/index.html`, its hashed JavaScript and wasm references to exist, remain rooted
-at `/editor/`, carry the analytics beacon, and contain no builder-home path. Run the
-relevant site/link checks and `scripts/web-smoke.sh`. Inspect the deletion and updated
-documentation/workflow diff; this item does not authorize a deploy, push, tag or
-release.
-
----
-
-### 650 — Files listings use names, never file contents (user-approved scope, 2026-09-12)
-
-🟠 INTEGRATED — implementation + targeted/mutation evidence landed on local
-`main` at merge `1bb70883`; the seeded live release smoke is complete and the
-combined gate remains.
-
-Finding: a three-second sample of the frozen live macOS app put every sampled main-thread
-stack in `App::apply` → `FilesOverlayBuilder::attach_level` →
-`overlay::files::unsupported_level_files` → `openable::classify` → `std::fs::read`.
-The open descriptor named a 778,658,385-byte MP4 in the user's Documents folder.
-No Files list had appeared; the app beachballed. This is a synchronous content read
-before presentation, not a GPU failure or observed process crash. Keep private paths
-and the raw process sample out of tracked artifacts.
-
-Origin: `22872ed0` (2026-09-11, “fix: preserve Files unsupported-only outcome”)
-added whole-corpus content classification to Files. `26e7758e` seven minutes later
-restricted that to the displayed directory, retaining full reads per file.
-`b4c3f92f` (2026-09-12) added selected deep-result classification, with a 256 KiB
-metadata threshold. Browse's corresponding whole-file listing reads date to
-`9d888a65f` (2026-07-25). These origins are verified from diffs; historical binaries
-were not replayed. The live sample confirms the current directory-level path.
-
-Build/Scope: make Files and Browse listing/filtering use filenames, extensions and
-entry kinds only. Use one shared, pure presentation-hint owner. Unknown, extensionless
-and misleading extensions may be offered and then refused on open; that tradeoff is
-user-approved. Remove preaccept content reads from directory summon/relevel AND
-selected deep results, including query, wheel, pointer, accessibility and replay doors.
-Do not claim “text · ready” or a definitive content verdict from a filename. Preserve
-folders, hidden-file policy, Text/All semantics, recent/open identities and selection.
-Keep full content validation at the actual open gate before any document/path mutation.
-This item does not introduce asynchronous folder scanning or claim immunity to slow
-metadata/directory reads; that wider work is investigated in 652.
-
-Done/Verify: follow docs/verification.md. Extend the existing CountingFs laws to require
-zero content reads before acceptance across Files summon/relevel, Browse Text/All,
-and deep selection input doors. Sweep ordinary text, large video/archive, empty,
-extensionless, unknown-extension and binary-under-.md cases. Assert actual listing
-outcomes as well as zero reads. Acceptance must still refuse binary content without
-changing the active document, root or disk bytes. Update the tests that currently
-REQUIRE preaccept reads/readiness, including `app/tests/files.rs` and the replay law
-in `main/tests/capture_scenarios.rs`; preserve their input-door coverage. Prove the
-zero-read regression law fails when a real old classify call is restored. Update
-`openable.rs`/`file_visibility.rs` documentation. Use seeded roots/configs for any
-capture and a live release smoke for the reported route; one integrated native/wasm
-gate after the candidate is committed and frozen.
+Use disposable documents and inspect state after every transition before typing.
+Recheck Settings, Find/Replace and Themes on one visible, identified release build,
+including Themes placement across opening/preview worlds, Switch/Cancel, quieter
+chrome and removed blur.
 
 ---
 
@@ -329,269 +91,21 @@ failing browser folder search closed is safe but a user-visible degradation.
 
 Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
 `search_folder::load_corpus` synchronously with whole-file `read_to_string` before
-showing the picker. `load_corpus` checks `max_file_bytes` only AFTER reading, and
+showing the picker. `load_corpus` checks `max_file_bytes` only after reading and
 counts only retained files/bytes. Oversized or failed reads consume neither budget;
 the total retained-byte limit can also be exceeded by the last accepted file.
-A standalone probe compiled the unchanged SearchBudget/load_corpus source: with
-max_files=3, max_file_bytes=10 and max_total_bytes=25, 1,000 oversized candidates
-caused 1,000 callbacks returning 100,000 bytes and zero retained files; 1,000 failed
-reads also caused 1,000 callbacks. Ten-byte inputs retained 30 bytes against 25.
-This demonstrates the budget defect, not a reproduced live UI hang. Origin:
-`cca5b34e` introduced the loader on 2026-09-02; `054cdc90` wired the live feature.
-Existing tests primarily assert the retained corpus, not attempted I/O.
 
-Build/Scope: give attempted reads and actual bytes explicit enforceable budgets at
-the read owner, including oversized, invalid-text, failed and changing-size files.
-Avoid reading a complete giant file merely to reject its size. Preserve search
-correctness for admitted files and make incomplete coverage honest. A size/byte cap
-is not a time guarantee: assess background/cancelable loading with 652 before claiming
-responsiveness on slow storage. Coordinate shared loading design sequentially, not
-as overlapping worker changes. Do not turn this into the names-only policy from 650:
-full-text search legitimately needs contents.
+Decision required: either move browser folder storage to transactional IndexedDB/
+OPFS chunks so the budget is enforceable, or make browser Search in folder fail
+closed with an explicit notice. There is no safe third option under the current
+synchronous localStorage backend.
 
-Done/Verify: read docs/verification.md. Count attempts and bytes at the actual FS seam;
-probe exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and
-read errors. Mutation-prove that the old post-read-only limits fail. Check live and
-replay consumers and incomplete-result communication. Use one integrated native/wasm
-gate for a final code candidate, never describe retained-corpus tests as I/O bounds.
-
----
-
-### 652 — investigate neighboring synchronous I/O stalls (user request, 2026-09-12)
-
-✅ INVESTIGATION COMPLETE — measured on `32cad5c6`, independently audited on
-`76d3a151`; no application changes. Implementation/design remains out of scope.
-The initial source audit is complete. The items below are source-confirmed blocking
-paths, not independently reproduced freezes. Measure with controlled fixtures and
-blocked/slow readers before choosing changes; no probing by reading large private files.
-
-- Folder indexing: `gather_goto_inputs` → `rescan_file_index` → `index::build_index`
-  runs before Files, projects, Asset Cleaner and folder-search actions. Recursive
-  non-git walks and synchronous git commands remain after 650; the git path also
-  walks for .env files. Symlink directories and named junk directories are skipped.
-  Measure large and slow trees; background loading needs stale-result suppression
-  when root/query changes, bounded workers and responsive cancellation.
-- History: `gather_overlay_inputs` → `history::timeline_rows` loads every snapshot
-  before composing rows. Loose-file `load` rereads/parses the full history log for
-  each version; Git history runs synchronous `git log` and `git show` per version,
-  then computes row diffs. Inspect batching/lazy previews before adding machinery.
-  The timeline content-loading shape dates to `9b439f406` (2026-07-01), with later
-  module extraction; do not blame the September Files change for this older path.
-- Asset Cleaner: `assets::scan` reads every non-hidden Markdown candidate in full
-  on summon, then stats asset candidates. The scan originated in `9cfb65294`
-  (2026-07-09). Failed/incomplete reference scans must never become authoritative
-  evidence that a used asset is orphaned. The preview path
-  `render/chrome/asset_preview.rs` → `render/image_cache.rs::ensure` synchronously
-  opens/decodes on a cache miss; verify compressed size versus decoded pixel bounds
-  and stale-mtime behavior before proposing background decode.
-- External changes: `external::Seen::at` unconditionally reads/hashes the file at
-  focus/persistence/buffer-identity boundaries. This shape dates to `1127673d`
-  (2026-08-03). It detects same-size/same-mtime changes and MUST NOT be replaced by
-  a stat-only shortcut. Measure slow-file behavior and preserve save/conflict/data
-  guarantees if moving observation off the UI thread. Include explicit file open
-  and image-drop full reads in the neighboring inventory.
-
-Done/Verify: publish a small trigger × owner × blocking operation × existing guard
-matrix with measured cases, reproduction status and prioritized bounded proposals.
-For delayed work, prove Escape/navigation remains serviceable and late results cannot
-change the wrong root/document or authorize writes/deletions. Read docs/platform.md,
-docs/render.md and docs/harness-reach.md for the relevant surface before promising
-verification. No application source edits are authorized by this investigation item.
-
----
-
-### 646 — shorten historical commentary, starting with `src/render.rs` (user request, 2026-09-12)
-
-🟠 INTEGRATED — the original production/test batches landed through `76d3a151`;
-the `src/render.rs` batch landed at merge `c4f9496a` and its source-size guard at
-`83323622`. The combined native/web gate remains.
-
-Build: shorten comments in tests and live code that recount previous bugs,
-implementation rounds, queue items, superseded designs or repeated narratives.
-Keep concise, present-tense explanations of non-obvious behavior, ownership,
-correctness constraints and each test's purpose, defect, coverage and oracle.
-Preserve calibration evidence and mutation rationale needed to maintain a law.
-Git retains history; do not move the removed narrative into another large document.
-
-Scope: the first bounded batch is specifically `src/render.rs`, before the wider
-`src/` inventory. It is currently 3,198 physical lines: cloc classifies 1,432 as
-code, 1,586 as comments and 180 as blank. Its 1,061-line `TextPipeline` declaration
-alone contains about 726 comment lines around 334 declaration/nonblank code lines.
-Shorten historical narratives, repeated per-field mechanism tours, retired-option
-comparisons and commentary that merely restates adjacent types or modules. Preserve
-concise present-tense ownership, ordering, cache invalidation, units, safety and
-cross-platform constraints; several long comments encode real rendering laws, so the
-raw 1,586-comment count is not a deletion target. Keep every executable Rust token,
-attribute and public API unchanged in this first batch. Measure `src/render.rs`
-independently before expanding to starting samples such as
-`src/render/tests/chrome_panels.rs`, `src/render/tests/list_surfaces.rs`,
-`src/capture/tests/panels.rs`, `src/app_icon/tests.rs`,
-`src/render/tests/caret_transition.rs`, `src/actions/workspace_nav.rs`,
-`src/app/apply.rs` and `src/main/args/flags.rs`. The shared refactors are already
-landed; measure only this cleanup so commentary savings remain independently
-reproducible. There is no deletion quota.
-
-Done/Verify: follow docs/verification.md. Prove executable Rust tokens and test
-enrollment unchanged with syntax-aware comparison; preserve doc-test code,
-license notices and source-audit-sensitive comments. Review the diff, relevant
-source audits, formatting and documentation links; use the required integrated
-native/wasm gate for source changes. Never weaken an audit to delete commentary.
-
-Required user report: name the before/after commits, counting tool/method and exact
-file scope. Give physical lines before and after, gross lines removed and added,
-and net lines removed, both per batch and cumulatively. Separate comment-only,
-blank and executable-code changes, and test-only versus production sections;
-executable-code changes must be zero. Report mixed code/comment lines separately
-rather than counting them twice. Include a plain headline, “Removed N net lines
-of historical commentary,” with blank-line savings separate. Count only this
-cleanup, excluding unrelated concurrent edits and refactors. Useful rationale is
-retained even if savings are small; do not present source reduction as binary-size
-or performance improvement.
-
----
-
-### 645 — distinct bullet, divider and task vocabularies (user direction, 2026-09-12)
-
-🟠 INTEGRATED — landed with 644 at merge `30c4d1a4`; combined gate remains.
-User approved the revised Site symbol sets on 2026-09-12.
-Implement alongside 644; routine fitting does not require another taste approval.
-
-Finding: Gumtree's depth-zero bullet is U+F591, named `SNAKE-4 tail` in
-`assets/fonts/AwlMarks.roster.tsv`; the nearby world comment incorrectly calls
-it the head. The dash divider intentionally joins tail, two trunk pieces and
-head. The task-marker Site copied those assignments, but displayed the divider
-trios without syntax labels and at comparison sizes, not awl's actual sizes.
-`Ornaments::of` and `pick` map dash/star/underscore explicitly; different glyph
-strings alone do not establish perceptual distinction.
-
-Build: implement the approved bullet assignments below, preserving current divider
-assignments and the approved Nishiki checkbox
-mapping; its explicit checks supersede the Cabinet's older hollow/solid animal,
-flower, rook and other task proposals. Cross-world reuse is acceptable; within
-each world bullets, divider glyphs (including joining components) and task marks
-must be disjoint. Audit visual near-collisions with folds, quotes, footnote marks
-and other chrome as well as exact codepoint overlap. Bullet siblings must remain
-distinct at actual size and carry comparable ink weight.
-
-The current `assert_bullet_pair_law` in `src/theme/tests/ornament.rs` REQUIRES
-membership in the divider set. Replace that obsolete product rule with the new
-separation law, preserving font coverage, depth, geometry and scale guarantees;
-update matching contracts and exception handling. Do not simply remove the audit.
-Keep Gumtree's complete joined snake as a divider; no detached joining fragment
-is a suitable bullet. Include Bombora in that neighborhood review.
-
-Approved reference: [Ornament Cabinet](https://awl-task-marker-study.s84fzrm6tq.chatgpt.site/),
-version 7, source `e80a8c126adf799fb29a1f9c3557dcf5fb8259a0`.
-These are Nishiki-teki 4.0.5 drawings, never system emoji fallback. Adopt the
-needed glyphs into the verified bundled subset. Shared complete sets are deliberate.
-
-| World | Bullets, outer to inner depth (Unicode) |
-| --- | --- |
-| Potoroo | U+1F330, U+1F331, U+1F98B |
-| Tawny | U+1F330, U+1F331, U+1F98B |
-| Mopoke | U+2606, U+2601, U+2604 |
-| Currawong | U+2657, U+2654, U+2656 |
-| Gumtree | U+1F426, U+1F98B, U+1F343 |
-| Bilby | U+2606, U+2601, U+2604 |
-| Saltpan | U+25B3, U+25C7, U+25CB |
-| Quokka | U+1F377, U+2615, U+2694 |
-| Bombora | U+2693, U+26F5, U+2638 |
-| Bowerbird | U+2606, U+2601, U+2604 |
-| Mulga | U+2160, U+2161, U+2162 |
-| Mangrove | U+2693, U+26F5, U+2638 |
-| Galah | U+2680, U+2681, U+2682 |
-| Magpie | U+203B, U+2301, U+2234 |
-| Brolga | U+273E, U+2742, U+273A |
-| Wagtail | U+266D, U+266E, U+266F |
-| Firetail | U+2604, U+2607, U+2739 |
-| Cassowary | U+2607, U+2301, U+2733 |
-| Paperbark | U+270E, U+2701, U+2709 |
-| Kite | U+2606, U+2601, U+2604 |
-
-The nautical U+2638 wheel needs optical enlargement beside anchor and sailboat:
-the Site uses 30px versus 24px (1.25×), shared by Bombora and Mangrove. Fit this
-same intent in awl without changing indentation or row height. The user accepted
-the corrected monochrome rendering; earlier colour-emoji appearances were not
-the approved drawings. Preserve Mulga's approved stroke trio.
-
-Historical candidate notes live in `.orchestrator/ornament-cabinet-review.md`;
-the assignments above supersede them. Compare the three-depth bullets with
-syntax-labelled `---`, `***`, `___` dividers and the inline approved task rows
-in actual awl. Do not revive older Cabinet divider swaps.
-
-Verify: read docs/render.md, docs/markdown.md, docs/harness-reach.md and
-docs/verification.md. Check the glyph drawings and joining behavior, ordinary and
-nested bullets, divider syntax mapping and caret/selection reveal across worlds
-and DPI 1/2. Add a regression-sensitive law for the detached-piece defect and
-missing outcome coverage found by the neighborhood audit. Use real awl pixel
-evidence and the standing vision smoke; a browser specimen is a taste aid only.
-
----
-
-### 644 — add visible open/completed task markers (design approved, 2026-09-12)
-
-🟠 INTEGRATED — landed with 645 at merge `30c4d1a4`; combined gate remains.
-Follow-up 655 supersedes the pair mapping below with the native bold pair for all worlds.
-Per-theme Nishiki picks were approved by the user; enhancement, not an
-established regression. Implement the approved mapping below.
-
-Finding: a direct pulldown-cmark 0.13 probe with task lists enabled recognises
-`- [ ] task` and `- [x] task completed`, but not `- [] task`. Current rendering
-styles literal brackets (`src/render/spans/attrs.rs`) beside the world's list
-bullet; no dedicated themed checkbox renderer was found. Checked bodies dim.
-History inspected back to initial task styling (`a43b79c47`) yielded no evidence
-of a removed per-world checkbox design. Two existing parser/style unit tests
-passed in the prebuilt test binary; no fresh-build claim. The pixel test skipped
-and capture attempts failed because no GPU adapter was available to the agent.
-
-Build: give valid tasks one recognisable open/completed marker in preview,
-replacing the decorative bullet plus literal brackets. Use one shared mechanism
-with world data: quiet empty outline and unmistakable completion, no additional
-accent or motion. Preserve completed-body dimming, raw source on caret/selection
-reveal, indentation, hit geometry and unchanged file bytes. Keep `[]` ordinary
-text; neither parser shorthand nor automatic rewriting belongs to this change.
-Verify the approved treatment with real awl captures; routine fitting and
-verification do not require another design approval.
-
-Approved design: the Site's inline **Approved task pair** examples beside actual
-task sentences, reconfirmed 2026-09-12. The lower “Open / Completed” legend has
-inconsistent oversized boxes and a tiny tick; it is NOT the implementation
-reference. Preserve the mapping below, also shown in Site version 7 referenced
-in 645. User confirmed standard `- [ ] task` / `- [x] task` syntax, including the
-space inside an empty marker; `- [] task` remains ordinary text.
-
-| Pair | Worlds |
-| --- | --- |
-| Native: U+2610 open / U+2611 checked | Tawny, Currawong, Saltpan, Bombora, Mulga, Magpie, Brolga, Paperbark, Kite |
-| Bold: U+2610 open / U+1F5F9 checked | Quokka, Mangrove, Firetail, Cassowary |
-| Rounded: U+25A2 open / U+25A2 with U+2713 overlaid | Potoroo, Mopoke, Gumtree, Bilby, Bowerbird, Galah, Wagtail |
-
-The rounded check is an explicit two-glyph composition, not a precomposed font
-character. Share its fitting owner across the seven worlds. Add the five selected
-codepoints to the existing Awl Marks adoption roster and regenerate from the
-verified upstream font; do not substitute fallback glyphs. This approval covers
-task-marker pairs only, not the rejected snake bullet or unresolved divider
-choices in 645. Compare beside existing symbols during verification.
-
-Upstream inspection (2026-09-12): downloaded the author's full 4.0.5 font and
-verified its SHA-256 equals the pinned source in the adoption roster. The cmap
-contains U+2610/U+2611 (native empty/checked boxes), U+1F5F9 (boxed bold check),
-U+25A2 (rounded square), U+2713/U+2714 and U+1F5F8 (check weights). Embedded and
-archive OFL grants are present. Direct font specimens at 22px and larger favor
-the native U+2610/U+2611 pair as the starting point; U+2610/U+1F5F9 is the bolder
-alternative. U+25A2 plus U+2713 is a promising rounded COMPOSITION, not an existing
-single checked glyph. The bold-square composition crowds its tick; flower/star
-fill pairs blur task state with existing ornaments. These are taste findings,
-not awl render verification. Prefer a small expanded Awl Marks subset over
-shipping the full font; fit any selected pair in the real renderer before adoption.
-
-Done/Verify: read docs/markdown.md, docs/render.md, docs/harness-reach.md and
-docs/verification.md. Cover valid/invalid syntax, both task states, caret/selection,
-nested/wrapped tasks and ordinary lists across worlds and DPI 1/2. Require pixel
-presence, state distinction and absence of duplicate bullets, plus sidecar/source
-fidelity. Add regression-sensitive laws and the standing neighborhood audit and
-vision smoke. Rendering evidence remains outstanding; use an available GPU and
-the single integrated native/wasm gate under the verification policy.
+Done/Verify after direction: count attempts and bytes at the actual FS seam; probe
+exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and read
+errors. Preserve search correctness for admitted files and make incomplete coverage
+honest. Use the completed 652 investigation when designing background/cancellation
+work. Mutation-prove that the old post-read-only limits fail, then run one integrated
+native/wasm gate on the final frozen candidate.
 
 ## Outstanding review of landed work
 
@@ -607,29 +121,24 @@ past verification reports remain in `git log -p -- .orchestrator/queue.md`.
   benchmark are clean; the measured median change was +0.007 ms at 2400×1600 @2x.
   Remaining judgment is live dwell/transit/settle comfort, pause/focus freeze,
   Reduce Motion in the bundled app, and whether the intentionally quieter far core
-  has the right density. Keep the repaired projection is recommended; the merge is
-  a single reversible unit if live review rejects it. The ignored scratch gallery
-  used by the judge remains review evidence rather than a product input.
+  has the right density. Keeping the repaired projection is recommended.
 - **588 — mechanically complete; blocked on user taste.** The current plain
   `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
   all three Brolga depths are present, distinct, aligned, contained, unclipped and
   legible (sampled contrast 13.46:1, 5.23:1, 13.46:1). Evidence is in the ignored
-  `gallery/landed-visual-review/588-bullets/`. Keeping it is recommended. A
-  different glyph or wider box is a separate mechanism decision only the user
-  can authorize; mechanical checks do not supply that taste decision.
+  `gallery/landed-visual-review/588-bullets/`. Keeping it is recommended; a different
+  glyph or wider box is a separate mechanism decision only the user can authorize.
 - **553 — folder-search highlight review.** Real-pixel match-highlight legibility
   remains unverified. Retain the known boundaries: results use summon-time disk
   contents, grouping differs from lens headers, and CRLF matches can retain a
-  cosmetic trailing carriage return. Review with 639/640 rather than treating
-  the original implementation as unfinished.
+  cosmetic trailing carriage return.
 - **561 / 618 — mechanically complete; blocked on user taste.** The requested
   reduction is merged (`760f4f43`, merge `b3e8d2aa`) and remeasured at 15.02%.
   Fresh release and live-headless-App captures show every Gumtree ornament present
   and legible; measured ink heights are snake 3.41em, fish 5.84em and snail 3.87em.
-  Their distinct shapes are not independently ink-equalized and the existing law
-  deliberately measures the shared dash scale. Accepting the fish-forward character
-  is recommended; a per-glyph scale is a new mechanism requiring the user's taste
-  decision. True-window live proportion judgment remains part of that decision.
+  Accepting the fish-forward character is recommended; a per-glyph scale is a new
+  mechanism requiring the user's taste decision. True-window live proportion
+  judgment remains part of that decision.
 
 Kite's unresolved appearance and live motion review belong to **582** above;
 there is no separate 564 build item. Its review must include convergence near
@@ -639,20 +148,28 @@ the resolved 584/626 investigation does not require another confirmation sitting
 
 ## Latest recorded verification
 
-The latest recorded native/wasm baseline is **`0c49d174`** (647–649 integrated
-refactor candidate), already on main:
+The latest recorded native/wasm baseline is
+**`943981bf26117d14ddbf1420d3b4f60368e7897c`**:
 
 ```text
-native-gate-receipt commit=0c49d1748852bcc36595ea5ff22d7e7438d0139a health=pass:284s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5183
+native-gate-receipt commit=943981bf26117d14ddbf1420d3b4f60368e7897c health=pass:281s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5215
   unit_shards=6 integration_targets=18
 web-smoke: OK
 ```
 
+Fresh `/editor/` assembly from a release Trunk build passed: the staged page uses
+rooted 16-hex hashed JavaScript and Wasm assets, retains analytics, contains no
+builder-home path, and no generated editor bundle is tracked.
+
+The dark-world no-brightening-slab and light-world rim-elevation panel laws each
+ran individually with `--exact --nocapture`: 1/1 passed apiece with no adapter-skip
+output on the built-in Apple M1 Max Metal adapter. Local Metal does not establish
+hosted virtualised-Metal behavior.
+
 Subsequent queue/policy-only commits use diff/link checks under `docs/verification.md`.
-Older receipts, resolved CI investigations and completed train summaries are in Git
-history. Local hardware receipts do not establish hosted-GPU or live-journey results;
-check remote status before a future push rather than inheriting old push warnings.
+Older receipts and completed train summaries are in Git history. Local hardware
+receipts do not establish hosted-GPU or live-journey results.
 
 ## Needs specific hardware
 
@@ -663,21 +180,14 @@ Headless capture cannot substitute for any missing live door. Honor the current
 scope and release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
-   reading, caret/selection, overlays, and an editing burst (post-v1 per
-   `ACCESSIBILITY.md`). **Blocked by external Linux UI hardware/session and
-   intrinsic user listening:** needs Orca, an active AT-SPI2/D-Bus bus, audio,
-   current native Linux awl, and a person; current mechanical CI cannot close it.
-2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
-   the rendered menu's Export action reaches its destination. **Blocked by an
-   external Linux compositor and real pointer door:** needs current native awl on
-   X11 or Wayland, then a genuine File → Export click and destination/file check.
-3. **Current Linux release artifacts** — launch both the tarball and AppImage
-   on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
-   **Blocked twice:** no current artifacts are present, and this arm64 Mac cannot
-   run or judge x86_64 Linux launcher/FUSE behavior. A dry-run/download can supply
-   artifacts without release authority; acceptance still needs an x86_64 Linux
-   desktop, supported DE, real Vulkan driver, runtime libraries, and FUSE plus
-   `--appimage-extract-and-run` fallback checks. A new tag remains unauthorized.
+   reading, caret/selection, overlays, and an editing burst. This needs Orca, an
+   active AT-SPI2/D-Bus bus, audio, current native Linux awl, and a person.
+2. **Linux drawn-menu Export click** — with a real window/compositor, confirm the
+   rendered menu's Export action reaches its destination through a genuine click.
+3. **Current Linux release artifacts** — launch both the tarball and AppImage on a
+   real x86_64 Linux desktop; check launcher name/icon, FUSE, and
+   `--appimage-extract-and-run`. No current artifacts are present and a new tag is
+   not authorized.
 
 ## Release authority
 
