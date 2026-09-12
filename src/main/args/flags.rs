@@ -16,13 +16,10 @@
 //!    a named law until `scripts/regen-reference.sh` has run, so a flag cannot
 //!    land undocumented even when `--help` deliberately stays quiet about it.
 //!
-//! WHY THE OPERANDS ARE DATA RATHER THAN `args.next()` PER ARM: the count and
-//! the refusal text were once repeated in every arm, which made the usage line a
-//! reader sees an independently-authored SECOND claim about the same fact. Here
-//! the declared operand list is what the loop actually consumes, so a wrong
-//! arity breaks parsing rather than only misprinting a document — the failure
-//! mode a generated table needs, since a generated table states its wrong answer
-//! with a law behind it.
+//! WHY THE OPERANDS ARE DATA RATHER THAN `args.next()` PER ARM: the declared
+//! operand list is what the loop consumes, so the parser and usage line cannot
+//! make independent claims about arity. A wrong arity breaks parsing rather
+//! than only misprinting generated documentation.
 //!
 //! THE BROWSER BUILD HAS NO COMMAND LINE. `fn main` is the native entry;
 //! `wasm_start` never calls [`super::parse_args`], so this roster is complete on
@@ -122,8 +119,8 @@ pub(crate) enum HelpBlock {
 pub(crate) enum Listing {
     /// `--help` prints it.
     Shown,
-    /// `--help` does not print it: a benchmark, diagnostic or verification hook
-    /// (and `--help` itself, which has never listed its own flag).
+    /// `--help` does not print it: a benchmark, diagnostic or verification hook,
+    /// including `--help` itself.
     Hidden,
 }
 
@@ -142,8 +139,7 @@ pub(crate) struct Flag {
 }
 
 /// Declare the whole roster once. The [`FlagId`] enum and the [`FLAGS`] table
-/// come from the SAME list, so there is no second list for a maintainer to keep
-/// aligned — the `enum_with_all!` move, one payload wider.
+/// come from the SAME list, so there is no second list to keep aligned.
 macro_rules! flag_roster {
     ( $(
         $id:ident : $names:expr, $block:ident, $listing:ident, $ops:expr, $summary:expr
@@ -241,8 +237,7 @@ impl Flag {
                     continue;
                 }
                 // Declined (absent, a flag, or — for a numeric operand — the
-                // wrong shape) ends the list here, same as the old "stop at
-                // the first missing one": no roster row currently declares an
+                // wrong shape) ends the list here. No roster row declares an
                 // operand after an optional one.
                 break;
             }
