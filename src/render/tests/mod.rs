@@ -225,6 +225,7 @@ mod range_rail;
 /// nothing to search. Both directions, in rendered pixels, per world.
 mod read_only_caret;
 mod reanchor_crossing_law;
+mod retained_line_splice;
 mod rotated_label;
 mod rotated_location;
 mod rotated_rail;
