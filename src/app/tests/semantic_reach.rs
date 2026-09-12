@@ -84,7 +84,13 @@ impl SemanticFile {
                 ],
                 Side::FoldOnly,
             ),
-            Self::Surfaces => (&["src/app/semantic/surfaces.rs"], Side::FoldOnly),
+            Self::Surfaces => (
+                &[
+                    "src/app/semantic/surfaces.rs",
+                    "src/app/semantic/files_overlay.rs",
+                ],
+                Side::FoldOnly,
+            ),
             Self::Passive => (&["src/app/semantic/passive.rs"], Side::FoldOnly),
         }
     }
