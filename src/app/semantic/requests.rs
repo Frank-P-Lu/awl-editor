@@ -174,7 +174,6 @@ impl App {
                 overlay.set_facet_lens(target);
             }
             self.workspace_state.focus_workspace_primary();
-            self.refresh_deep_file_status();
             self.sync_view(true);
             self.request_frame();
             return true;
@@ -224,7 +223,6 @@ impl App {
                 overlay.set_facet_lens(target);
             }
             self.workspace_state.focus_workspace_detail();
-            self.refresh_deep_file_status();
             self.sync_view(true);
             self.request_frame();
             return true;
@@ -337,7 +335,6 @@ impl App {
         } else {
             return false;
         }
-        self.refresh_deep_file_status();
         self.sync_view(true);
         self.request_frame();
         true

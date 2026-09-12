@@ -97,17 +97,10 @@ fn looks_like_text(bytes: &[u8]) -> bool {
 /// EMPTY file is `Text` too (zero bytes disqualify nothing). Otherwise the
 /// full byte content decides via [`looks_like_text`].
 ///
-/// Deliberately reads the WHOLE file rather than a bounded prefix: opening it
-/// (on a `Text` verdict) was always going to read the whole thing anyway —
-/// see `Buffer::from_file`/`fs::NativeFs::read_to_string` — so this adds no
-/// new full-file read on the accept path. The one place this trades a little
-/// eagerness for simplicity is the Browse LISTING (`overlay::build::browse_level`),
-/// which classifies every FILE in ONE directory level up front so it can
-/// label/filter the row without a second read on open; that's bounded by a
-/// single directory's entry count, not the whole project (a TASTE call,
-/// logged here rather than silently accepted: a single directory holding one
-/// enormous unfamiliar-extension file is the one case this reads more than
-/// strictly necessary for a listing).
+/// Deliberately reads the WHOLE file at the actual acceptance gate: opening a
+/// `Text` verdict was always going to read it anyway — see
+/// `Buffer::from_file`/`fs::NativeFs::read_to_string`. Listings never call
+/// this function; their pure filename hints live in [`crate::file_visibility`].
 pub fn classify(path: &Path) -> Openable {
     match crate::fs::active().read(path) {
         Ok(bytes) if bytes.is_empty() || looks_like_text(&bytes) => Openable::Text,
