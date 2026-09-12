@@ -369,10 +369,11 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // neither is a durable store.
         ("scenario.rs", 1),
         // The module's own tests WRITE real-disk fixtures the same way,
-        // carved into their own file by the size ceiling. Plus one: the
+        // carved into their own file by the size ceiling. Two more: the
         // symlinked-alias regression law needs a real file under a real
-        // symlink for the alias dual-seed to have anything to resolve.
-        ("scenario/tests.rs", 15),
+        // symlink for the alias dual-seed to have anything to resolve, and
+        // the nested seed-data law builds the exact history path it imports.
+        ("scenario/tests.rs", 16),
         // The Go-to root-relative alias law needs a real file under a real
         // symlink for canonicalization to have anything to resolve, same
         // reason as the scenario/tests.rs entry above.

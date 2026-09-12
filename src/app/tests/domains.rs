@@ -965,8 +965,10 @@ fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {
             // `stamp_return_to` (1).
             ("app/apply.rs", 2),
             // The extracted platform-surface dispatcher borrows the same slot
-            // while a native chooser or its in-app fallback takes over.
-            ("app/apply/surface_effects.rs", 1),
+            // at each of its three explicit fallback transitions: descend
+            // from Files, replace another summoned surface, or enter from the
+            // editor. Keeping those calls together preserves this boundary.
+            ("app/apply/surface_effects.rs", 3),
             // The live search-key intercept — the seam shared verbatim with the
             // headless `--keys` replay.
             ("app/input/keys.rs", 1),

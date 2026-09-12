@@ -46,7 +46,7 @@ Commands are grouped by the same task categories the palette browses.
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
 | Open file… | Choose a file with the platform file chooser. | — | — | Native, browser |
-| Open folder… | Choose the active writing folder with the platform folder chooser. | — | — | Native, browser |
+| Change folder… | Choose the active writing folder with the platform folder chooser. | — | — | Native, browser |
 | Version history… | Summon the version timeline — git log if tracked, saved snapshots otherwise. | `⌘⇧H` | `Ctrl+Shift+H` | Native |
 | Compare with version… | Open the read-only prose diff comparing the current buffer against a past version. | — | — | Native |
 | Keep version… | Prompt for a name, then record the buffer text as a pinned history snapshot under it. | — | — | Native |
@@ -76,7 +76,7 @@ Commands are grouped by the same task categories the palette browses.
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
 | Command palette… | Summon the command palette, searchable across every catalog command. | `⌘P` | `Ctrl+P` | Native, browser |
-| Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
+| Files… | Browse or search files in the current writing folder. | `⌘O` | `Ctrl+O` | Native, browser |
 | Search in folder… | Full-text search over every file in the active folder — matching lines grouped by file. | — | — | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
 | Follow link | Go where the caret points: a web address opens in your browser, a link to another file opens it here, a footnote jumps to its definition. | `C-c C-o` | — | Native, browser |

@@ -409,7 +409,10 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
 
     let derive = include_str!("../derive.rs");
     assert!(!derive.contains("resolve_selection_ui"));
-    assert!(derive.contains("pub fn selection_ui() -> Srgb {\n    derived_selection_ui()\n}"));
+    assert!(derive.contains("pub fn selection_ui() -> Srgb {\n    selection_ui_for(active())\n}"));
+    assert!(derive.contains(
+        "pub(super) fn derived_selection_ui() -> Srgb {\n    selection_ui_for(active())\n}"
+    ));
 
     let render = include_str!("../../render.rs");
     assert!(render.contains("None => theme::MotionJuice::CALM"));
@@ -425,8 +428,12 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
     assert!(render.contains("set_summoned_material_test_override"));
 
     let overrides = include_str!("../../render/overrides/mod.rs");
-    assert!(overrides.contains("unwrap_or(theme::active().render_caps.placard_placement)"));
-    assert!(overrides.contains("unwrap_or(theme::active().render_caps.summoned_material)"));
+    assert!(overrides.contains(
+        "current().placard_placement.unwrap_or(\n        crate::render::overlay_chrome_theme()"
+    ));
+    assert!(overrides.contains(
+        "current().summoned_material.unwrap_or(\n        crate::render::overlay_chrome_theme()"
+    ));
 
     let layers = include_str!("../../render/layers.rs");
     let outline = include_str!("../../render/chrome/outline.rs");

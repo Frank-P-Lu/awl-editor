@@ -383,7 +383,7 @@ fn source_audit_the_active_slot_has_one_owner() {
     );
     assert_eq!(loan_hits.get("app/apply.rs"), Some(&1));
     assert_eq!(loan_hits.get("app/document.rs"), Some(&1));
-    assert_eq!(loan_hits.get("app/files/export/tests.rs"), Some(&2));
+    assert_eq!(loan_hits.get("app/files/export/tests.rs"), Some(&3));
 }
 
 #[test]
