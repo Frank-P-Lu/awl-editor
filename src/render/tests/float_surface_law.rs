@@ -7,14 +7,15 @@
 //! is a SECOND direct caller among the files THIS round unified: the caret-
 //! style preview panel, the search panel, the contextual SPELL popup, and the
 //! format popover (the "mouse-highlight popover" — it rides the selection a
-//! mouse-drag makes) must ALL reach it ONLY through
-//! `TextPipeline::prepare_float_panel`, never inline.
+//! mouse-drag makes) must ALL reach it ONLY through the
+//! `TextPipeline::claim_float_panel` / `TextPipeline::flush_float_panel`
+//! transaction, never inline.
 //!
 //! THE BUG THIS CLOSED (overlay/chrome polish round): the format popover used
 //! to build its OWN `popover_shadow`/`popover_border`/`popover_card` trio and
 //! call `set_float_quads` inline — the exact "same behavior, different code"
-//! duplication the spell popup's own call (already routed through
-//! `prepare_float_panel`) had already solved once. A future summoned
+//! duplication the spell popup's own claim/flush routing had already solved
+//! once. A future summoned
 //! micro-panel among this SAME family (a link preview, a thesaurus popup) can
 //! no longer quietly reinvent its own elevation call either.
 //!
@@ -23,7 +24,7 @@
 //! real code reference trips the law.
 
 /// Files allowed to call `set_float_quads(` DIRECTLY: `chrome/mod.rs` (the
-/// owner — its own definition, plus `prepare_float_panel`'s one call), and the
+/// owner — its own definition, plus `flush_float_panel`'s one call), and the
 /// three float-panel families this round deliberately left alone (each keeps
 /// its own dedicated elevation pair, never shared — a bigger unification than
 /// this round's scope).
@@ -100,7 +101,8 @@ fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
     assert!(
         hits.is_empty(),
         "the caret-preview panel / search panel / spell popup / format popover must \
-         route through `TextPipeline::prepare_float_panel`, never call \
+         route through `TextPipeline::claim_float_panel` and \
+         `TextPipeline::flush_float_panel`, never call \
          `set_float_quads` directly — offending lines:\n{}",
         hits.iter()
             .map(|(f, l)| format!("  {f}:{l}"))
@@ -110,7 +112,7 @@ fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
 
     // NON-VACUOUS: the owner file itself still carries the expected hits — the
     // fn's own `fn set_float_quads(` definition plus its ONE in-module caller,
-    // `prepare_float_panel` — if that caller were ever deleted outright this
+    // `flush_float_panel` — if that caller were ever deleted outright this
     // count would drop and the law would go quiet without ever having exercised
     // its ban. (The SPLIT-PANE round routed `prepare_panel_card_elevation` — a
     // former in-module caller — through the multi-rect owner
