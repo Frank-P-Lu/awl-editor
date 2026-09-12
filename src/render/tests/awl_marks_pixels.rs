@@ -1,6 +1,6 @@
 //! Real-pixel laws for every production door the Nishiki-derived Awl Marks
-//! face currently reaches, plus the retained list-bullet treatment that shares
-//! the rule renderer. Enrolment comes from the roster (`symbol-span`) or live
+//! face currently reaches, plus the list-bullet and task-marker treatments that
+//! share the rule renderer. Enrolment comes from the roster (`symbol-span`) or live
 //! theme data, never a copied glyph or world list. Every contrast/size assertion
 //! carries a presence companion: a deleted renderer cannot pass by leaving an
 //! immaculate background behind.
@@ -330,8 +330,8 @@ fn every_symbol_span_is_legible_at_document_and_chrome_sizes() {
 }
 
 fn ornament_fixture() -> ViewState {
-    let text = "---\n\n***\n\n___\n\n- a\n  - b\n    - c\n\n";
-    let mut v = view(text, 10, 0);
+    let text = "---\n\n***\n\n___\n\n- a\n  - b\n    - c\n- [ ] open\n- [x] checked\n\n";
+    let mut v = view(text, 12, 0);
     v.is_markdown = true;
     v
 }
@@ -427,11 +427,174 @@ fn run_codepoints(run: &str) -> String {
         .join("+")
 }
 
-/// Rule ornaments and list bullets are separate render sizes and positions.
+#[derive(Default)]
+struct OrnamentUses {
+    expected: usize,
+    rules: usize,
+    bullets: usize,
+    tasks: usize,
+}
+
+impl OrnamentUses {
+    fn add(&mut self, other: Self) {
+        self.expected += other.expected;
+        self.rules += other.rules;
+        self.bullets += other.bullets;
+        self.tasks += other.tasks;
+    }
+
+    fn graded(&self) -> usize {
+        self.rules + self.bullets + self.tasks
+    }
+}
+
+fn assert_ornament_enrolment(
+    world: &theme::Theme,
+    rules: &[(f32, &'static str)],
+    bullets: &[(f32, f32, char)],
+    tasks: &[crate::render::rects::ListMark],
+) {
+    assert_eq!(
+        rules.iter().map(|&(_, ch)| ch).collect::<Vec<_>>(),
+        vec![
+            world.ornaments.dash,
+            world.ornaments.star,
+            world.ornaments.underscore
+        ],
+        "{}: rendered rule enrolment drifted from theme consumers",
+        world.name
+    );
+    assert_eq!(
+        bullets.iter().map(|&(_, _, ch)| ch).collect::<Vec<_>>(),
+        vec![world.bullets.0, world.bullets.1, world.bullets.2],
+        "{}: rendered bullet enrolment drifted from theme consumers",
+        world.name
+    );
+    assert_eq!(
+        tasks.iter().map(|mark| mark.glyphs).collect::<Vec<_>>(),
+        vec![
+            world.task_marker.glyphs(false),
+            world.task_marker.glyphs(true)
+        ],
+        "{}: rendered task enrolment drifted from theme consumers",
+        world.name
+    );
+}
+
+fn ornament_diff_frames(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> (Vec<[u8; 4]>, Vec<[u8; 4]>) {
+    let with = pixeldiff::render_frame(p, device, queue, W, H);
+    p.md_enabled = false;
+    p.prepare_ornaments(device, queue, W, H).unwrap();
+    let without = pixeldiff::render_frame(p, device, queue, W, H);
+    p.md_enabled = true;
+    (with, without)
+}
+
+fn grade_rule_marks(
+    p: &TextPipeline,
+    world: &theme::Theme,
+    dpi: f32,
+    frames: (&[[u8; 4]], &[[u8; 4]]),
+    rules: Vec<(f32, &'static str)>,
+) -> usize {
+    for (top, ch) in &rules {
+        let rect = [
+            p.text_left(),
+            *top,
+            p.page_geometry().3,
+            p.metrics.line_height * world.ornament_scale,
+        ];
+        assert_legible(
+            &format!("{} rule {}", world.name, run_codepoints(ch)),
+            dpi,
+            QUIET_CONTRAST_FLOOR,
+            diff_stats(frames.0, frames.1, rect),
+        );
+    }
+    rules.len()
+}
+
+fn grade_bullet_marks(
+    p: &TextPipeline,
+    world: &theme::Theme,
+    dpi: f32,
+    frames: (&[[u8; 4]], &[[u8; 4]]),
+    bullets: Vec<(f32, f32, char)>,
+) -> usize {
+    for &(top, left, ch) in &bullets {
+        let rect = [left, top, p.metrics.char_width * 2.0, p.metrics.line_height];
+        assert_legible(
+            &format!("{} bullet U+{:04X}", world.name, ch as u32),
+            dpi,
+            QUIET_CONTRAST_FLOOR,
+            diff_stats(frames.0, frames.1, rect),
+        );
+    }
+    bullets.len()
+}
+
+fn grade_task_marks(
+    p: &TextPipeline,
+    world: &theme::Theme,
+    dpi: f32,
+    frames: (&[[u8; 4]], &[[u8; 4]]),
+    tasks: Vec<crate::render::rects::ListMark>,
+) -> usize {
+    for mark in &tasks {
+        let state = match mark.kind {
+            crate::render::rects::ListLineKind::Task(false) => "open",
+            crate::render::rects::ListLineKind::Task(true) => "checked",
+            crate::render::rects::ListLineKind::Bullet => unreachable!(),
+        };
+        let rect = [mark.left, mark.top, mark.paint_width, p.metrics.line_height];
+        assert_legible(
+            &format!("{} task {state}", world.name),
+            dpi,
+            QUIET_CONTRAST_FLOOR,
+            diff_stats(frames.0, frames.1, rect),
+        );
+    }
+    tasks.len()
+}
+
+fn grade_world_ornaments(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    world: &theme::Theme,
+    dpi: f32,
+) -> OrnamentUses {
+    p.set_view(&ornament_fixture());
+    p.prepare(device, queue, W, H).unwrap();
+    let rules = p.rule_marks();
+    let bullets = p.bullet_marks();
+    let tasks: Vec<_> = p
+        .list_marks()
+        .into_iter()
+        .filter(|mark| matches!(mark.kind, crate::render::rects::ListLineKind::Task(_)))
+        .collect();
+    assert_ornament_enrolment(world, &rules, &bullets, &tasks);
+    let expected = rules.len() + bullets.len() + tasks.len();
+    let (with, without) = ornament_diff_frames(p, device, queue);
+    let frames = (with.as_slice(), without.as_slice());
+    OrnamentUses {
+        expected,
+        rules: grade_rule_marks(p, world, dpi, frames, rules),
+        bullets: grade_bullet_marks(p, world, dpi, frames, bullets),
+        tasks: grade_task_marks(p, world, dpi, frames, tasks),
+    }
+}
+
+/// Rule ornaments, list bullets and task markers are separate render sizes and
+/// positions.
 /// The world roster itself decides enrolment; the frame is then redrawn with
 /// only the ornament renderer emptied, making each diff the actual glyph ink.
 #[test]
-fn every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size() {
+fn every_rule_bullet_and_task_marker_is_legible_at_its_real_size() {
     let _guard = crate::testlock::serial();
     let worlds: Vec<_> = theme::THEMES
         .iter()
@@ -447,72 +610,19 @@ fn every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size() {
         return;
     };
     crate::page::set_page_on(true);
-    let mut graded_rules = 0usize;
-    let mut graded_bullets = 0usize;
-    let mut expected_uses = 0;
+    let mut uses = OrnamentUses::default();
     for dpi in [1.0_f32, 2.0] {
         p.set_dpi(dpi);
         for &(world_index, world) in &worlds {
             theme::set_active(world_index);
             p.sync_theme();
-            p.set_view(&ornament_fixture());
-            p.prepare(&device, &queue, W, H).unwrap();
-            let rules = p.rule_marks();
-            let bullets = p.bullet_marks();
-            assert_eq!(
-                rules.iter().map(|&(_, ch)| ch).collect::<Vec<_>>(),
-                vec![
-                    world.ornaments.dash,
-                    world.ornaments.star,
-                    world.ornaments.underscore
-                ],
-                "{}: rendered rule enrolment drifted from theme consumers",
-                world.name
-            );
-            assert_eq!(
-                bullets.iter().map(|&(_, _, ch)| ch).collect::<Vec<_>>(),
-                vec![world.bullets.0, world.bullets.1, world.bullets.2],
-                "{}: rendered bullet enrolment drifted from theme consumers",
-                world.name
-            );
-            expected_uses += rules.len() + bullets.len();
-            let with = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-            p.md_enabled = false;
-            p.prepare_ornaments(&device, &queue, W, H).unwrap();
-            let without = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-            p.md_enabled = true;
-
-            for (top, ch) in rules {
-                let rect = [
-                    p.text_left(),
-                    top,
-                    p.page_geometry().3,
-                    p.metrics.line_height * world.ornament_scale,
-                ];
-                assert_legible(
-                    &format!("{} rule {}", world.name, run_codepoints(ch)),
-                    dpi,
-                    QUIET_CONTRAST_FLOOR,
-                    diff_stats(&with, &without, rect),
-                );
-                graded_rules += 1;
-            }
-            for (top, left, ch) in bullets {
-                let rect = [left, top, p.metrics.char_width * 2.0, p.metrics.line_height];
-                assert_legible(
-                    &format!("{} bullet U+{:04X}", world.name, ch as u32),
-                    dpi,
-                    QUIET_CONTRAST_FLOOR,
-                    diff_stats(&with, &without, rect),
-                );
-                graded_bullets += 1;
-            }
+            uses.add(grade_world_ornaments(&mut p, &device, &queue, world, dpi));
         }
     }
     assert_eq!(
-        graded_rules + graded_bullets,
-        expected_uses,
-        "every theme-derived rule and bullet consumer must be graded"
+        uses.graded(),
+        uses.expected,
+        "every theme-derived rule, bullet and task consumer must be graded"
     );
     theme::set_active(theme::DEFAULT_THEME);
     p.set_dpi(1.0);

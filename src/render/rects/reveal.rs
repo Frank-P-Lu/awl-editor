@@ -6,10 +6,10 @@
 //! Readers ask it about a thematic break — the fleuron's own draw gate
 //! (`rule_lines`) and the nit underline's conceal check — and when they
 //! derived it separately they disagreed: a selection-revealed `---` drew its
-//! markup with the nit under it suppressed. `bullet_marks` reads the same
-//! owner for the sibling legacy construct (a selection-revealed bulleted
-//! list once kept drawing its depth glyph over the now-revealed raw `-`,
-//! the same disagreement one construct over). `wysiwyg_reveals` is the same
+//! markup with the nit under it suppressed. `list_marks` reads the same owner
+//! for bullets and tasks (a selection-revealed row must not keep drawing a
+//! depth or state glyph over its now-revealed raw source marker).
+//! `wysiwyg_reveals` is the same
 //! rule at SPAN scope; this is its line-scoped form.
 
 use super::*;

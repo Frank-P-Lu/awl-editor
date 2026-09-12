@@ -5,7 +5,10 @@ use super::{
     color::Srgb,
     diagonal::DiagonalSpine,
     ground::Background,
-    ornament::{FoldMark, Ornaments, fold_mark_for, ornament_register},
+    ornament::{
+        BULLET_FULL_INK_MARKS, BULLET_WHEEL_OPTICAL_SCALE, FoldMark, Ornaments, TaskMarkerStyle,
+        fold_mark_for, ornament_register,
+    },
 };
 mod chrome;
 pub use chrome::{
@@ -649,6 +652,7 @@ pub struct Theme {
     pub ornament_scale: f32,
     pub bullets: (char, char, char),
     pub bullet_scale: f32,
+    pub task_marker: TaskMarkerStyle,
     pub list_indent_scale: f32,
     pub tags: ThemeTags,
     pub role_overrides: RoleOverrides,
@@ -684,6 +688,28 @@ impl Theme {
             0 => self.bullets.0,
             1 => self.bullets.1,
             _ => self.bullets.2,
+        }
+    }
+
+    pub const fn bullet_scale_for(&self, ch: char) -> f32 {
+        let optical = if ch == '\u{2638}' {
+            BULLET_WHEEL_OPTICAL_SCALE
+        } else {
+            1.0
+        };
+        self.bullet_scale * optical
+    }
+
+    /// Ink token for a fitted bullet drawing. Fine paper-tool strokes use the
+    /// document ink; the rest of the roster stays at the ordinary muted tier.
+    pub const fn bullet_ink_for(&self, ch: char) -> Srgb {
+        if ch == BULLET_FULL_INK_MARKS[0]
+            || ch == BULLET_FULL_INK_MARKS[1]
+            || ch == BULLET_FULL_INK_MARKS[2]
+        {
+            self.base_content
+        } else {
+            self.muted
         }
     }
 

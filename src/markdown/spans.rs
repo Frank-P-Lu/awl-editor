@@ -2,13 +2,15 @@
 //!
 //! Split by subject into this directory: [`kind`] is the `MdKind`/`BreakKind`
 //! vocabulary, [`detect`] the pure per-line detectors (`is_thematic_break`,
-//! `list_item`, `fence_line_lang`, word/reading-time counting), [`parse`] the
+//! `list_item`, `fence_line_lang`, word/reading-time counting), [`list`] the
+//! parsed enrollment gate for rich list ornaments, [`parse`] the
 //! pulldown-cmark walk (`spans`) itself, and [`markers`] the per-construct span
 //! pushers `spans` calls into.
 
 mod detect;
 mod footnotes;
 mod kind;
+mod list;
 mod markers;
 mod parse;
 pub(super) use detect::bare_url_split; // the ONE bare-URL taming owner; see `follow::tamed`
@@ -20,6 +22,7 @@ pub use detect::{
 #[cfg(test)]
 pub(super) use detect::{bare_url_ranges, smart_punct_ranges, smart_punct_runs};
 pub use kind::{BreakKind, MdKind, break_kind};
+pub use list::{RichListItem, rich_unordered_list_item};
 pub use markers::equals_runs;
 #[cfg(test)]
 pub(super) use markers::push_highlight_spans;

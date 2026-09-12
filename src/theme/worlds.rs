@@ -15,9 +15,8 @@ use super::model::{
     ToastAnchor, TwoColour, WashOverride,
 };
 use super::ornament::{
-    BULLET_SCALE_GARAMOND, BULLET_SCALE_HANAMI, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN,
-    BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI,
-    ORNAMENT_SCALE_ORNATE, Ornaments,
+    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PAPER_TOOL, LIST_INDENT_SCALE_PLAIN,
+    LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI, ORNAMENT_SCALE_ORNATE, Ornaments, TaskMarkerStyle,
 };
 mod cassowary;
 pub use cassowary::CASSOWARY;
@@ -59,9 +58,10 @@ pub const GUMTREE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.95, // retuned smaller by taste (was 4.648) — see GUMTREE_TASTE_FLOOR
-    // Riverbank's own bestiary: the joined snake's head segment / fish / snail.
-    bullets: ('\u{F591}', '🐟', '🐌'),
+    // Bird / butterfly / leaf keep bullets distinct from Riverbank's joined snake divider.
+    bullets: ('\u{1F426}', '\u{1F98B}', '\u{1F343}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -108,9 +108,10 @@ pub const POTOROO: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.016, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Undergrowth's own trio: mushroom / clover / shamrock.
-    bullets: ('🍄', '🍀', '☘'),
+    // Chestnut / seedling / butterfly: the approved living-depth sequence.
+    bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -156,9 +157,10 @@ pub const BILBY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.515, // equalized upward from tier 1.8 (theme::tests::ornament)
-    // Hanami's own trio: cherry blossom / blossom / tulip.
-    bullets: ('🌸', '🌼', '🌷'),
-    bullet_scale: BULLET_SCALE_HANAMI,
+    // Star / cloud / comet: the approved sky-depth sequence.
+    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
+    bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -206,9 +208,10 @@ pub const SALTPAN: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
-    // Scriptorium's own margin kit: coronis / dotted diple / downwards ancora.
-    bullets: ('⸎', '⸖', '⸔'),
+    // Triangle / diamond / circle: the approved geometric-depth sequence.
+    bullets: ('\u{25B3}', '\u{25C7}', '\u{25CB}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -260,9 +263,10 @@ pub const QUOKKA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.542, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Tavern's own trio: acorns / bells / leaves.
-    bullets: ('\u{F5B0}', '\u{F5B3}', '\u{F5B1}'),
+    // Wine / coffee / swords: the approved tavern-depth sequence.
+    bullets: ('\u{1F377}', '\u{2615}', '\u{2694}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -319,11 +323,10 @@ pub const BOMBORA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 1.897, // equalized upward from tier 1.8 (theme::tests::ornament)
-    // Arabesque's own trio: the white pair's / black pair's own opening
-    // codepoint, and the white scroll — the manicule showpiece retires with
-    // the rest of the pre-Nishiki bullet vocabulary.
-    bullets: ('\u{F814}', '\u{F827}', '\u{F81C}'),
+    // Anchor / sailboat / optically enlarged wheel: the approved nautical sequence.
+    bullets: ('\u{2693}', '\u{26F5}', '\u{2638}'),
     bullet_scale: BULLET_SCALE_GARAMOND,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Night"),
@@ -368,9 +371,10 @@ pub const MULGA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.557, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Genjikō's own trio: the 1-2-3-4-5 ground pattern and its two neighbors.
-    bullets: ('\u{F501}', '\u{F500}', '\u{F51B}'),
+    // Roman numerals I / II / III: the approved stroke-depth sequence.
+    bullets: ('\u{2160}', '\u{2161}', '\u{2162}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: None,
@@ -416,9 +420,10 @@ pub const TAWNY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.83, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Autumn's own trio: maple / fluttering / fallen leaf.
-    bullets: ('🍁', '🍃', '🍂'),
+    // Chestnut / seedling / butterfly: the approved living-depth sequence.
+    bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -464,9 +469,10 @@ pub const MOPOKE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.328, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Moonfaces' own trio: full / first-quarter / new moon with face.
-    bullets: ('🌝', '🌛', '🌚'),
+    // Star / cloud / comet: the approved sky-depth sequence.
+    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -514,9 +520,10 @@ pub const BOWERBIRD: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.181, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Wish's own trio: shooting star / glowing star / sparkles.
-    bullets: ('🌠', '🌟', '✨'),
+    // Star / cloud / comet: the approved sky-depth sequence.
+    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -560,9 +567,10 @@ pub const CURRAWONG: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.359, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Gambit's own trio: knight / queen / pawn.
-    bullets: ('♘', '♕', '♙'),
+    // Bishop / king / rook: the approved chess-depth sequence.
+    bullets: ('\u{2657}', '\u{2654}', '\u{2656}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -619,9 +627,10 @@ pub const MANGROVE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.669, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Spirals' own trio: round / angular / conical coil.
-    bullets: ('\u{FF041}', '\u{FF053}', '\u{FF052}'),
+    // Anchor / sailboat / optically enlarged wheel: the approved nautical sequence.
+    bullets: ('\u{2693}', '\u{26F5}', '\u{2638}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -685,9 +694,10 @@ pub const GALAH: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.721, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Cardtable's own trio: spade / heart / club.
-    bullets: ('♠', '♥', '♣'),
+    // Dice one / two / three: the approved numbered-depth sequence.
+    bullets: ('\u{2680}', '\u{2681}', '\u{2682}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -745,10 +755,10 @@ pub const MAGPIE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.751, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Asterism's own trio: the print section-break mark, its two-stack
-    // sibling, and the heavy asterisk.
-    bullets: ('⁂', '⁑', '✱'),
+    // Reference mark / electric arrow / therefore: the approved print sequence.
+    bullets: ('\u{203B}', '\u{2301}', '\u{2234}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -810,18 +820,10 @@ pub const BROLGA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.907, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // NOT migrated to Dovecote — a named, evidenced exception (see
-    // `theme::tests::ornament::assert_bullet_pair_law`). Real-pixel
-    // measurement across the ordinary scale range found no single
-    // `bullet_scale` where all three doves both clear the legibility floor
-    // and avoid touching the following text: below the crowding threshold
-    // (~0.68) at least one dove's peak contrast stays under the floor, and at
-    // or above the threshold where every dove clears it (~0.75) the widest
-    // dove already fills the bullet's reserved box edge-to-edge. Stays on the
-    // pre-existing plain triple pending a curated pick or a mechanism change
-    // (a wider bullet box), neither of which this item's scope covers.
-    bullets: BULLETS_PLAIN,
-    bullet_scale: BULLET_SCALE_PLAIN,
+    // Three florettes: the approved balanced floral-depth sequence.
+    bullets: ('\u{273E}', '\u{2742}', '\u{273A}'),
+    bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Day"),
@@ -868,9 +870,10 @@ pub const WAGTAIL: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.221, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Songbook's own trio: quarter / eighth / beamed sixteenth note.
-    bullets: ('♩', '♪', '♬'),
+    // Flat / natural / sharp: the approved notation-depth sequence.
+    bullets: ('\u{266D}', '\u{266E}', '\u{266F}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Rounded,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -960,9 +963,10 @@ pub const FIRETAIL: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.217, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Stars' own trio: black four-point / six-point / white four-point star.
-    bullets: ('✦', '✶', '✧'),
+    // Comet / lightning / twelve-point star: the approved energetic sequence.
+    bullets: ('\u{2604}', '\u{2607}', '\u{2739}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Bold,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -1031,9 +1035,10 @@ pub const PAPERBARK: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.719, // equalized upward from tier 1.8 (theme::tests::ornament)
-    // Fleurons' own trio, now in the trio's own dash/star/underscore order.
-    bullets: ('❧', '☙', '❦'),
-    bullet_scale: BULLET_SCALE_GARAMOND,
+    // Pencil / scissors / envelope: the approved paper-tools sequence.
+    bullets: ('\u{270E}', '\u{2701}', '\u{2709}'),
+    bullet_scale: BULLET_SCALE_PAPER_TOOL,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -1152,9 +1157,10 @@ pub const KITE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.544, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Solar's own trio: black sun / white sun / sun with face.
-    bullets: ('☀', '☼', '🌞'),
+    // Star / cloud / comet: the approved sky-depth sequence.
+    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
+    task_marker: TaskMarkerStyle::Native,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,

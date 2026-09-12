@@ -11,24 +11,45 @@ U+2016	DOUBLE VERTICAL LINE	reference-537	General Punctuation U+2000-U+206F
 U+2020	DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
 U+2021	DOUBLE DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
 U+2022	BULLET	chrome	General Punctuation U+2000-U+206F
+U+203B	REFERENCE MARK	list-bullet	General Punctuation U+2000-U+206F
 U+2042	ASTERISM	chrome,symbol-span,ornament-536	General Punctuation U+2000-U+206F
 U+2051	TWO ASTERISKS ALIGNED VERTICALLY	ornament-536	General Punctuation U+2000-U+206F
+U+2160	ROMAN NUMERAL ONE	list-bullet	Number Forms U+2150-U+218F
+U+2161	ROMAN NUMERAL TWO	list-bullet	Number Forms U+2150-U+218F
+U+2162	ROMAN NUMERAL THREE	list-bullet	Number Forms U+2150-U+218F
 U+21B5	DOWNWARDS ARROW WITH CORNER LEFTWARDS	chrome,symbol-span	Arrows U+2190-U+21FF
 U+21E5	RIGHTWARDS ARROW TO BAR	chrome,symbol-span	Arrows U+2190-U+21FF
 U+21E7	UPWARDS WHITE ARROW	chrome,symbol-span	Arrows U+2190-U+21FF
+U+2234	THEREFORE	list-bullet	Mathematical Operators U+2200-U+22FF
+U+2301	ELECTRIC ARROW	list-bullet	Miscellaneous Technical U+2300-U+23FF
 U+2303	UP ARROWHEAD	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2318	PLACE OF INTEREST SIGN	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2325	OPTION KEY	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+232B	ERASE TO THE LEFT	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
+U+25A2	WHITE SQUARE WITH ROUNDED CORNERS	task-marker	Geometric Shapes U+25A0-U+25FF
 U+25AA	BLACK SMALL SQUARE	chrome	Geometric Shapes U+25A0-U+25FF
+U+25B3	WHITE UP-POINTING TRIANGLE	list-bullet	Geometric Shapes U+25A0-U+25FF
 U+25C6	BLACK DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
+U+25C7	WHITE DIAMOND	list-bullet	Geometric Shapes U+25A0-U+25FF
 U+25C8	WHITE DIAMOND CONTAINING BLACK SMALL DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
+U+25CB	WHITE CIRCLE	list-bullet	Geometric Shapes U+25A0-U+25FF
 U+25E6	WHITE BULLET	chrome	Geometric Shapes U+25A0-U+25FF
 U+2600	BLACK SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2601	CLOUD	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2604	COMET	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2606	WHITE STAR	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2607	LIGHTNING	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2610	BALLOT BOX	task-marker	Miscellaneous Symbols U+2600-U+26FF
+U+2611	BALLOT BOX WITH CHECK	task-marker	Miscellaneous Symbols U+2600-U+26FF
+U+2615	HOT BEVERAGE	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2618	SHAMROCK	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2619	REVERSED ROTATED FLORAL HEART BULLET	chrome,symbol-span,ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2638	WHEEL OF DHARMA	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+263C	WHITE SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2654	WHITE CHESS KING	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2655	WHITE CHESS QUEEN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2656	WHITE CHESS ROOK	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2657	WHITE CHESS BISHOP	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2658	WHITE CHESS KNIGHT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2659	WHITE CHESS PAWN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2660	BLACK SPADE SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
@@ -37,18 +58,35 @@ U+2665	BLACK HEART SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2669	QUARTER NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+266A	EIGHTH NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+266C	BEAMED SIXTEENTH NOTES	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+266D	MUSIC FLAT SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+266E	MUSIC NATURAL SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+266F	MUSIC SHARP SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2680	DIE FACE-1	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2681	DIE FACE-2	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2682	DIE FACE-3	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2693	ANCHOR	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2694	CROSSED SWORDS	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+26F5	SAILBOAT	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2701	UPPER BLADE SCISSORS	list-bullet	Dingbats U+2700-U+27BF
+U+2709	ENVELOPE	list-bullet	Dingbats U+2700-U+27BF
+U+270E	LOWER RIGHT PENCIL	list-bullet	Dingbats U+2700-U+27BF
+U+2713	CHECK MARK	task-marker	Dingbats U+2700-U+27BF
 U+2726	BLACK FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2727	WHITE FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2728	SPARKLES	ornament-536	Dingbats U+2700-U+27BF
 U+2731	HEAVY ASTERISK	ornament-536	Dingbats U+2700-U+27BF
+U+2733	EIGHT SPOKED ASTERISK	list-bullet	Dingbats U+2700-U+27BF
 U+2734	EIGHT POINTED BLACK STAR	chrome	Dingbats U+2700-U+27BF
 U+2736	SIX POINTED BLACK STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2737	EIGHT POINTED RECTILINEAR BLACK STAR	chrome	Dingbats U+2700-U+27BF
+U+2739	TWELVE POINTED BLACK STAR	list-bullet	Dingbats U+2700-U+27BF
+U+273A	SIXTEEN POINTED ASTERISK	list-bullet	Dingbats U+2700-U+27BF
 U+273D	HEAVY TEARDROP-SPOKED ASTERISK	chrome	Dingbats U+2700-U+27BF
+U+273E	SIX PETALLED BLACK AND WHITE FLORETTE	list-bullet	Dingbats U+2700-U+27BF
 U+273F	BLACK FLORETTE	chrome	Dingbats U+2700-U+27BF
 U+2740	WHITE FLORETTE	chrome	Dingbats U+2700-U+27BF
 U+2741	EIGHT PETALLED OUTLINED BLACK FLORETTE	chrome	Dingbats U+2700-U+27BF
-U+2742	CIRCLED OPEN CENTRE EIGHT POINTED STAR	chrome	Dingbats U+2700-U+27BF
+U+2742	CIRCLED OPEN CENTRE EIGHT POINTED STAR	chrome,list-bullet	Dingbats U+2700-U+27BF
 U+2756	BLACK DIAMOND MINUS WHITE X	chrome	Dingbats U+2700-U+27BF
 U+2761	CURVED STEM PARAGRAPH SIGN ORNAMENT	chrome,symbol-span	Dingbats U+2700-U+27BF
 U+2765	ROTATED HEAVY BLACK HEART BULLET	chrome,symbol-span	Dingbats U+2700-U+27BF
@@ -79,16 +117,22 @@ U+1F31D	FULL MOON WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U
 U+1F31E	SUN WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F31F	GLOWING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F320	SHOOTING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F330	CHESTNUT	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F331	SEEDLING	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F337	TULIP	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F338	CHERRY BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F33C	BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F340	FOUR LEAF CLOVER	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F341	MAPLE LEAF	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F342	FALLEN LEAF	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
-U+1F343	LEAF FLUTTERING IN WIND	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F343	LEAF FLUTTERING IN WIND	ornament-536,list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F344	MUSHROOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F377	WINE GLASS	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F40C	SNAIL	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F41F	FISH	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F426	BIRD	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F5F9	BALLOT BOX WITH BOLD CHECK	task-marker	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F98B	BUTTERFLY	list-bullet	Supplemental Symbols and Pictographs U+1F900-U+1F9FF
 U+FEFE1	Dove facing right	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
 U+FEFE2	Dove facing left	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
 U+FEFE3	Dove with olive branch	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD

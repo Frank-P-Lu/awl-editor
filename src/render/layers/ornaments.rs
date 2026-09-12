@@ -95,35 +95,50 @@ impl RuleOrnaments {
     }
 }
 
-struct BulletOrnaments {
-    marks: Vec<(f32, f32, char)>,
-    glyphs: Vec<(char, GlyphBuffer)>,
+struct ListMarkers {
+    marks: Vec<crate::render::rects::ListMark>,
+    glyphs: Vec<(char, u32, bool, u32, [u8; 4], GlyphBuffer)>,
 }
 
-impl BulletOrnaments {
-    fn shape(pipeline: &mut TextPipeline, metrics: Metrics, muted: glyphon::Color) -> Self {
+impl ListMarkers {
+    fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
         let marks = if pipeline.md_enabled {
-            pipeline.bullet_marks()
+            pipeline.list_marks()
         } else {
             Vec::new()
         };
-        let attrs = Attrs::new()
-            .family(Family::Name(theme::active().bullet_face))
-            .color(muted);
-        let glyph_metrics = GlyphMetrics::new(
-            metrics.font_size * theme::active().bullet_scale,
-            metrics.line_height,
-        );
-        let width = (metrics.char_width * 2.0).max(1.0);
+        let attrs = Attrs::new().family(Family::Name(theme::active().bullet_face));
         let mut distinct = Vec::new();
-        for (_, _, ch) in &marks {
-            if !distinct.contains(ch) {
-                distinct.push(*ch);
+        for mark in &marks {
+            let centered = matches!(mark.kind, crate::render::rects::ListLineKind::Task(_));
+            let mut enroll = |ch| {
+                let key = (
+                    ch,
+                    mark.scale.to_bits(),
+                    centered,
+                    mark.slot_width.to_bits(),
+                    mark.ink,
+                );
+                if !distinct.contains(&key) {
+                    distinct.push(key);
+                }
+            };
+            match mark.glyphs {
+                crate::theme::TaskMarkerGlyphs::Single(ch) => enroll(ch),
+                crate::theme::TaskMarkerGlyphs::Overlay { base, mark } => {
+                    enroll(base);
+                    enroll(mark);
+                }
             }
         }
         let glyphs = distinct
             .into_iter()
-            .map(|ch| {
+            .map(|(ch, scale_bits, centered, width_bits, ink)| {
+                let scale = f32::from_bits(scale_bits);
+                let width = f32::from_bits(width_bits);
+                let color = glyphon::Color::rgba(ink[0], ink[1], ink[2], ink[3]);
+                let glyph_metrics =
+                    GlyphMetrics::new(metrics.font_size * scale, metrics.line_height);
                 let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
                 buffer.set_size(
                     &mut pipeline.font_system,
@@ -133,39 +148,64 @@ impl BulletOrnaments {
                 buffer.set_text(
                     &mut pipeline.font_system,
                     &ch.to_string(),
-                    &attrs,
+                    &attrs.clone().color(color),
                     Shaping::Advanced,
-                    None,
+                    centered.then_some(glyphon::cosmic_text::Align::Center),
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                (ch, buffer)
+                (ch, scale_bits, centered, width_bits, ink, buffer)
             })
             .collect();
         Self { marks, glyphs }
     }
 
-    fn append_areas<'a>(
+    fn append_glyph<'a>(
         &'a self,
         areas: &mut Vec<TextArea<'a>>,
+        marker: &crate::render::rects::ListMark,
+        ch: char,
         bounds: TextBounds,
-        muted: glyphon::Color,
     ) {
-        for (top, left, ch) in &self.marks {
-            let buffer = &self
-                .glyphs
-                .iter()
-                .find(|(candidate, _)| candidate == ch)
-                .expect("bullet char was deduped in")
-                .1;
-            areas.push(TextArea {
-                buffer,
-                left: *left,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            });
+        let centered = matches!(marker.kind, crate::render::rects::ListLineKind::Task(_));
+        let buffer = &self
+            .glyphs
+            .iter()
+            .find(|(candidate, scale, align, width, ink, _)| {
+                *candidate == ch
+                    && *scale == marker.scale.to_bits()
+                    && *align == centered
+                    && *width == marker.slot_width.to_bits()
+                    && *ink == marker.ink
+            })
+            .expect("list-marker glyph was deduped in")
+            .5;
+        areas.push(TextArea {
+            buffer,
+            left: marker.left,
+            top: marker.top,
+            scale: 1.0,
+            bounds,
+            default_color: glyphon::Color::rgba(
+                marker.ink[0],
+                marker.ink[1],
+                marker.ink[2],
+                marker.ink[3],
+            ),
+            custom_glyphs: &[],
+        });
+    }
+
+    fn append_areas<'a>(&'a self, areas: &mut Vec<TextArea<'a>>, bounds: TextBounds) {
+        for marker in &self.marks {
+            match marker.glyphs {
+                crate::theme::TaskMarkerGlyphs::Single(ch) => {
+                    self.append_glyph(areas, marker, ch, bounds);
+                }
+                crate::theme::TaskMarkerGlyphs::Overlay { base, mark } => {
+                    self.append_glyph(areas, marker, base, bounds);
+                    self.append_glyph(areas, marker, mark, bounds);
+                }
+            }
         }
     }
 }
@@ -334,7 +374,7 @@ impl FoldTails {
 
 pub(super) struct OrnamentFrame {
     rules: RuleOrnaments,
-    bullets: BulletOrnaments,
+    list_markers: ListMarkers,
     quotes: QuoteOrnaments,
     fence_labels: FenceLabels,
     fold_tails: FoldTails,
@@ -354,7 +394,7 @@ impl OrnamentFrame {
         let col_w = pipeline.text_wrap_width().max(1.0);
         Self {
             rules: RuleOrnaments::shape(pipeline, metrics, muted, col_w),
-            bullets: BulletOrnaments::shape(pipeline, metrics, muted),
+            list_markers: ListMarkers::shape(pipeline, metrics),
             quotes: QuoteOrnaments::shape(pipeline, metrics),
             fence_labels: FenceLabels::shape(pipeline, metrics, muted, col_w),
             fold_tails: FoldTails::shape(pipeline, metrics, col_w),
@@ -372,8 +412,17 @@ impl OrnamentFrame {
         pipeline: &TextPipeline,
         bounds: TextBounds,
     ) -> Vec<TextArea<'a>> {
+        let list_marker_layers: usize = self
+            .list_markers
+            .marks
+            .iter()
+            .map(|mark| match mark.glyphs {
+                crate::theme::TaskMarkerGlyphs::Single(_) => 1,
+                crate::theme::TaskMarkerGlyphs::Overlay { .. } => 2,
+            })
+            .sum();
         let capacity = self.rules.marks.len()
-            + self.bullets.marks.len()
+            + list_marker_layers
             + self.quotes.len()
             + self.fence_labels.marks.len()
             + self.fold_tails.marks.len();
@@ -382,7 +431,7 @@ impl OrnamentFrame {
         let mut areas = Vec::with_capacity(capacity);
         self.rules
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
-        self.bullets.append_areas(&mut areas, bounds, self.muted);
+        self.list_markers.append_areas(&mut areas, bounds);
         self.quotes.append_areas(&mut areas, bounds);
         self.fence_labels
             .append_areas(&mut areas, self.text_left, bounds, self.muted);

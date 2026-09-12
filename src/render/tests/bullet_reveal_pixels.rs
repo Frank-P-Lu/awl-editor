@@ -14,7 +14,7 @@
 //! the selected column range, present whether or not the bug fires) and, on
 //! the caret-row control, the caret's own block — neither is "how wide is the
 //! ornament". The established isolation (`awl_marks_pixels::
-//! every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size`) sidesteps
+//! every_rule_bullet_and_task_marker_is_legible_at_its_real_size`) sidesteps
 //! both: prepare ONE frame normally (`with`), then flip `md_enabled` off and
 //! re-run ONLY `prepare_ornaments` — leaving the already-shaped text buffer
 //! (wash, revealed/concealed dash, caret) completely untouched — before

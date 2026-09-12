@@ -291,6 +291,9 @@ mod table_dims;
 mod table_pan_reveal_law;
 mod table_selection_band_law;
 mod tables;
+/// Parsed task-list membership, marker-slot geometry, all-world/DPI pixels,
+/// nesting/wrap, malformed syntax, and caret/selection reveal.
+mod task_markers;
 /// The document's first-row vertical origin (`TextPipeline::text_origin_top`,
 /// `doc_top`, `hit_test_scroll`), through the live pipeline, at every DPI and
 /// both `MENU_BAR_ON` states — the vertical twin of `column_left_dpi`.

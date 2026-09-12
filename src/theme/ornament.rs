@@ -1,7 +1,5 @@
-//! src/theme/ornament.rs — the per-world SECTION-BREAK ornament trio + the
-//! per-world LIST-BULLET triple (the ornament trio, one level down, drawn
-//! from the same worn set): the shared [`Ornaments`] type, the ornament FACE
-//! constants, the three ornament SCALE tiers, and the two bullet-scale tiers.
+//! src/theme/ornament.rs — the per-world section-break, list-bullet, and task
+//! marker vocabularies: their shared data types, faces, and scale tiers.
 //! See [`crate::theme::worlds`] for how each world picks from this data.
 
 // --- The PER-SYNTAX thematic-break ornament set -----------------------------
@@ -57,11 +55,9 @@ pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
 //
 // The section-break/About ornament cabinet is Nishiki-derived in every live
 // world. Keycaps (⌘⌥⇧) and the plain typographic marks (§ † ‡ …) stay on the
-// derived marks face (`render::SYMBOL_FAMILY`). List bullets moved onto the
-// same Nishiki register once a later fitting round derived most worlds'
-// bullet triples from the ornament set that world already wears — no world's
-// `bullet_face` names a legacy face any longer, even the one named exception
-// that kept its plain glyphs (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`).
+// derived marks face (`render::SYMBOL_FAMILY`). List bullets and task markers
+// use the same Nishiki register through vocabularies that remain disjoint from
+// each world's divider components.
 //
 // [`ORNAMENT_GARAMOND`]/[`ORNAMENT_JUNICODE`] remain bundled and registered
 // because the exhaustive [`OrnamentRegister`] fold-mark vocabulary still names
@@ -308,78 +304,105 @@ pub const ORNAMENT_SCALE_FLEURON: f32 = 1.8;
 /// geometric marks read best kept modest, so they sit lowest on the tier ladder.
 pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 
-// --- The per-world LIST BULLET triple + scale (the ornament trio, one level down) --
+// --- Per-world list bullets and task markers ---------------------------------
 //
 // The unordered-list bullet ([`crate::theme::Theme::bullets`], drawn over a
 // concealed `-`/`*`/`+` the caret is off) is PER-WORLD DATA drawn in the
 // world's own [`crate::theme::Theme::bullet_face`] — [`ORNAMENT_NISHIKI`] on
-// every world, the same face that already carries that world's own
-// section-break trio. Every world but one derives its triple from the very
-// ornament SET it wears for `---`/`***`/`___`: a bullet is never invented
-// vocabulary, only a smaller reach into a set already adopted for that world.
+// every world. Bullets, section-break components, and task markers are three
+// deliberately disjoint vocabularies within a world: list depth, document
+// division, and completion state must remain recognizable at their real sizes.
 // `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`
 // holds every pick to that face; `theme::tests::ornament::
-// every_world_has_a_bullet_pair` holds every pick to that world's own set,
-// and names the one exception (`assert_bullet_pair_law`'s
-// `BULLET_PAIR_EXCEPTION`, real-pixel evidence in its own doc).
+// every_world_has_a_bullet_pair` pins the approved mapping and the three-way
+// bullet/divider/task separation rule.
 //
 // [`crate::theme::Theme::bullet_for_depth`] cycles `.0`/`.1`/`.2` every THREE
 // nesting levels, composing the LEVEL axis with the per-WORLD one. The old
 // manicule showpiece (Bombora, exclusive to depth 0) retired with the rest of
 // the pre-Nishiki bullet vocabulary — it named no world's worn ornament set.
 
-/// The plain geometric bullet triple — `•` filled / `◦` hollow / `▪` small
-/// square, all three in the merged [`ORNAMENT_MARKS`] face. Every world's
-/// bullet now derives from its own worn ornament set, save the one named,
-/// evidenced exception (`theme::tests::ornament::BULLET_PAIR_EXCEPTION`);
-/// the constant stays as the historical restraint tier, that exception's
-/// value, and a documented shape for [`crate::theme::Theme::bullets`].
+/// The plain geometric bullet triple remains available as a reusable baseline,
+/// though every shipping world authors a distinct Nishiki-derived triple.
 pub const BULLETS_PLAIN: (char, char, char) = ('•', '◦', '▪');
 
 /// PLAIN bullet scale — the geometric worlds' bullets sit at body size.
 pub const BULLET_SCALE_PLAIN: f32 = 1.0;
 
-/// ORNAMENT bullet scale — a hedera / fleuron / manicule shaped at ~half body so
-/// it reads as a quiet bullet-sized marker, not a section-break flourish. A
-/// TASTE DEFAULT, one dial for every characterful world.
+/// ORNAMENT bullet scale — a detailed Nishiki drawing shaped at ~half body so it
+/// reads as a quiet bullet-sized marker, not a section-break flourish. A TASTE
+/// DEFAULT, one dial for the ordinary characterful tier.
 ///
 /// ⚠️ This tier is a byproduct of two UNRELATED font metrics: the concealed
 /// `"<marker> "` prefix's advance in the world's own BODY font, and the ornament
 /// glyph's own ink width in its ORNAMENT face. Nothing makes them agree, so a
-/// world can land here with its bullet crowding the text that follows —
-/// [`BULLET_SCALE_GARAMOND`] is the one such rule that has been needed so far,
-/// and `render::tests::markdown::bullet_glyph_never_touches_the_following_text_in_any_world`
-/// is what catches the next one.
+/// world can land here with its bullet crowding the text that follows.
+/// `render::tests::markdown::bullet_glyph_never_touches_the_following_text_in_any_world`
+/// checks that outcome for the live roster.
 pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
 
-/// The EB-GARAMOND-BODY bullet scale — a FACE rule, never a per-world taste
-/// exception. EB Garamond's punctuation advance is narrow enough that a
-/// half-body fleuron crowds out the text that follows, so EVERY world whose
-/// BODY face is EB Garamond carries this tier.
-/// `theme::tests::every_world_has_a_bullet_pair` derives the allowance from the
-/// face rather than from a world-name list, which is what keeps the next world
-/// to adopt that face from failing the padding law.
+/// The narrow bullet tier. It fits dense marks inside a proportional body's
+/// retained list-prefix advance; lighter drawings may need the ordinary tier
+/// to remain legible. The pixel fit and contrast laws decide between them.
 pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 
-/// The HANAMI bullet scale — a real-pixel LEGIBILITY exception, not a
-/// crowding one: Bilby's own cherry blossom (part of the Hanami set it
-/// already wears for `---`) is a thin five-petal outline whose peak rendered
-/// contrast falls short of the shared floor at the ordinary ORNAMENT tier,
-/// measured by `render::tests::awl_marks_pixels::
-/// every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size`
-/// (a real GPU pixel law, not a guess). More ink area at the SAME position
-/// clears the floor without leaving the world's own worn set for a different
-/// glyph. Pinned by name and value exactly like [`BULLET_SCALE_GARAMOND`], so
-/// a bullet_scale here is a proven exception, never a stray literal.
-pub const BULLET_SCALE_HANAMI: f32 = 0.60;
+/// Paperbark's fine pencil/scissors/envelope strokes need a middle fitting tier:
+/// larger than the narrow register, smaller than the ordinary ornament tier.
+pub const BULLET_SCALE_PAPER_TOOL: f32 = 0.45;
 
-// Brolga's Dovecote set was AUDITIONED at this same exception shape and
-// rejected: real-pixel measurement across the ordinary scale range found no
-// value where every dove both clears the legibility floor and stays clear of
-// the following text (the widest dove already fills the bullet's reserved
-// box before its own contrast clears the floor). See the comment on
-// `worlds::BROLGA`'s `bullets` field and `assert_bullet_pair_law`'s named
-// carve-out — a real per-glyph finding, not a skipped measurement.
+/// Optical correction for U+2638 beside the anchor and sailboat. It changes
+/// only the shaped glyph size inside the existing marker slot; list indentation
+/// and row height remain owned by the ordinary list geometry.
+pub const BULLET_WHEEL_OPTICAL_SCALE: f32 = 1.25;
+
+/// Thin paper-tool drawings use full document ink at their smaller fitted
+/// size. Their fine strokes disappear in muted ink before a larger raster size
+/// can fit inside EB Garamond's narrow retained `"- "` advance.
+pub const BULLET_FULL_INK_MARKS: [char; 3] = ['\u{270E}', '\u{2701}', '\u{2709}'];
+
+/// The three approved task-marker drawings. The rounded checked state is a
+/// deliberate two-glyph composition, represented by the type rather than a
+/// second renderer path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TaskMarkerStyle {
+    Native,
+    Bold,
+    Rounded,
+}
+
+/// Glyph plan for one task state. `Overlay` paints both glyphs in the same
+/// bounded marker slot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TaskMarkerGlyphs {
+    Single(char),
+    Overlay { base: char, mark: char },
+}
+
+impl TaskMarkerStyle {
+    pub const fn glyphs(self, checked: bool) -> TaskMarkerGlyphs {
+        match (self, checked) {
+            (Self::Native, false) | (Self::Bold, false) => TaskMarkerGlyphs::Single('☐'),
+            (Self::Native, true) => TaskMarkerGlyphs::Single('☑'),
+            (Self::Bold, true) => TaskMarkerGlyphs::Single('🗹'),
+            (Self::Rounded, false) => TaskMarkerGlyphs::Single('▢'),
+            (Self::Rounded, true) => TaskMarkerGlyphs::Overlay {
+                base: '▢',
+                mark: '✓',
+            },
+        }
+    }
+
+    pub const fn codepoints(self) -> &'static [char] {
+        match self {
+            Self::Native => &['☐', '☑'],
+            Self::Bold => &['☐', '🗹'],
+            Self::Rounded => &['▢', '✓'],
+        }
+    }
+}
+
+/// Task boxes use one shared size independent of the world's bullet scale.
+pub const TASK_MARKER_SCALE: f32 = 0.60;
 
 // --- The per-world LIST-ITEM INDENT scale (the other half of bullet-
 // level readability) ---------------------------------------------------------
@@ -391,9 +414,9 @@ pub const BULLET_SCALE_HANAMI: f32 = 0.60;
 // visible glyph — spaces carry no ink — and depth 0 is an empty range, so a
 // top-level item is untouched on every world whatever the dial says.
 //
-// Two tiers, mirroring [`BULLET_SCALE_PLAIN`]/[`BULLET_SCALE_ORNAMENT`] over the
-// same roster split. TASTE DEFAULTS: the multipliers are judged from the
-// gallery, and the mechanism is what is committed to.
+// This indentation policy has two tiers independent of the finer bullet-size
+// fitting tiers. TASTE DEFAULTS: the multipliers are judged from the gallery,
+// and the mechanism is what is committed to.
 
 /// PLAIN list-indent scale — the geometric/technical worlds' nested list items
 /// render at exactly their literal typed indent.
