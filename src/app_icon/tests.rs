@@ -3,9 +3,8 @@
 //! Two oracles, deliberately: the `.icns` CONTAINER is asserted structurally
 //! (magic, lengths, rep roster, and a re-pack that must reproduce the committed
 //! bytes), and the ARTWORK is asserted by counting pixels — because a container
-//! that parses proves nothing about what the Dock shows. This repo has already
-//! been burned once by a state oracle reporting a selected row that rendered
-//! fully invisible, so "the `l` is legible" here means "there are
+//! that parses proves nothing about what the Dock shows. A state oracle can
+//! report success for invisible pixels, so "the `l` is legible" here means "there are
 //! `primary_content` pixels forming a tall stem inside the `primary` slab", not
 //! "the exporter said so".
 //!
@@ -469,8 +468,8 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
 /// so on a footed or serifed face the overhang falls outside it and gets
 /// painted `primary_content` out on the ground — the mark reads as `‖` or
 /// `aw!`. Figtree's bare geometric stem is the one `l` with nothing to
-/// overhang, so it is the one world allowed to wear it. The fix is the
-/// assignment, never a bent colour law.
+/// overhang, so it is the one world allowed to wear it. The assignment owns
+/// this constraint; the colour law stays uniform.
 #[test]
 fn the_narrow_pill_is_galahs_alone() {
     let _g = crate::testlock::serial();
@@ -1420,15 +1419,12 @@ fn differing_blessed_bounds_match_the_doc_below() {
 /// stay apart least are COMPUTED from the rendered set on every run, never
 /// guessed.
 ///
-/// The predecessor of this law hand-picked two "near pairs" by shared-FACE
-/// reasoning (Potoroo/Firetail, Saltpan/Bilby) and asserted those two harder. It
-/// missed the actual global minimum by a wide margin: **Currawong/Cassowary
+/// Hand-picking "near pairs" by shared-FACE reasoning misses the actual global
+/// minimum: **Currawong/Cassowary
 /// differ on only 13.09% of their 32px pixels** (`DIFFERING_BLESSED`'s own
 /// minimum, pinned against drift by `differing_blessed_bounds_match_the_doc_below`
 /// below), because those two share a near-black GROUND (`#050506` vs `#060607`)
-/// and at 32px the ground IS most of the tile. Three things were wrong with the
-/// list, and all three are the same mistake — a human predicting which pair to
-/// watch:
+/// and at 32px the ground IS most of the tile. A human-picked list:
 ///   * it missed the minimum, which was pinned by NOTHING but the generic floor;
 ///   * shared face is *anti*-predictive — the five same-face pairs span 13.09%
 ///     (Currawong/Cassowary) to 97.3% (Mopoke/Magpie), so the criterion selects
