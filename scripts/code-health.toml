@@ -301,7 +301,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3198
+lines = 3090
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
 # `TextPipeline`; the row treatment reads this state beside selection geometry.
 # Per-pipeline typing work counters and profiling state live with the GPU owner.
