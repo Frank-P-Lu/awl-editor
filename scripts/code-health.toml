@@ -49,7 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 799
+lines = 805
+# 799 -> 805: PasteText joins the exhaustive shared buffer-transition owner.
 reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions. +1: `Action::OpenScratch` joins the exhaustive `ActionFamily::Deferred` classifier, mirroring `Action::NewDocument`. Insert Table's InsertTable action joins the exhaustive dispatch and ActionFamily classification this file already owns for every formatting command. +39 (709->748): item 542's auto-align-on-row-leave trigger — `ActionSnapshot` gains `row_before` (the cheap rope line lookup `capture` already owns the seam for) and `finish_action` gains the row-leave hook, dispatched through the one exhaustive post-transition seam every action already passes through. +4: the four sentence-motion Action arms in apply_transition (ForwardSentence/BackwardSentence/DeleteSentenceForward/DeleteSentenceBackward), dispatched through the one exhaustive transition seam every action already passes through. +2: the two MoveLineUp/MoveLineDown dispatch arms in apply_buffer_action, mirroring the sentence-motion arms directly above them. +11: OpenSearchFolder's dispatch arm summons the full-text search picker over the already-loaded corpus, joining the other overlay summons this seam already owns. +8: the six structural table row/column verbs join the ONE exhaustive auto-align-suppression list in `finish_action` (each already re-emits its block through the padder as one sealed group, so a follow-up re-pad would be a second undo step), plus the two comment lines naming why. +10: the personal-dictionary picker's own summon arm beside the Asset Cleaner's, with the doc that says why an empty list still opens. +17: the summoned find/replace panel joins the card's own action-level gate in `intercept_action` — a macOS menu key equivalent never becomes a key, so the panel's key guard cannot see it — plus the corrected note above the dispatcher saying which door is which. +1: `pub(crate) mod follow;` — the one seam every follow door reaches (chord, palette row, context card, pointer gesture). +1: the Export destination summon carries the active buffer's display name through the exhaustive action dispatcher so the contextual errand stays named after descending."
 
 [[file_size_mark]]
@@ -59,17 +60,20 @@ reason = "The mod tests block (~470 lines) was split out to src/actions/format/t
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 1052
+lines = 1069
+# 1052 -> 1069: focused overlay fields route bulk PasteText through one owner.
 reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing. +13: Go to Line's own accept path, the Headings branch's numeric sibling — both resolve through the same shared jump owner (`Effect::JumpToLine`) rather than repeating caret/fold/scroll work. +42: the mid-query gate — one owner deciding whether `ForwardChar`/`BackwardChar`/`LineStart`/`LineEnd` read as the list-nav overloads or the query field's own char motion / Home-End, checked once ahead of every arm below it. +40: `accept_move_dest`, Move's own bespoke accept — its contextual action rows (`Move here` commits, `New folder…` creates-and-moves, a folder row descends like `→`) made the shared `dest_value`/\"highlighted folder, else the level\" grammar ambiguous, so it left that family for one owner of its own three-way dispatch; `dest_value`'s doc narrowed to the two siblings that still share it. Insert Table's dimension-picker key ownership (arrow sculpt, typed-digit parse, Enter-commits, Esc-cancels) joins the other per-overlay-kind intercepts this file already owns. +18: SearchFolder's accept arm resolves a RowMeta::SearchHit into Effect::OpenPathAtLine, the same accept-dispatch shape every other overlay kind here already follows. +6: `preview_move` gained a doc comment naming it as the deliberate-move door apart from the bare hover path, now that the theme picker's own chrome pin makes the two crossing kinds behave identically here. +12: the CJK-priority picker's \"Auto\" row is resolved by row NAME ahead of `Lang::from_label` — resets the ladder to `DEFAULT_CJK_PRIORITY` and flips the live Auto flag on; the explicit-language arm now flips that same flag off, so the two globals can never disagree about which mode produced the current ladder."
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1416
+lines = 1396
+# 1416 -> 1396: integrated extraction lowered this file's live high-water mark.
 reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase. +6: the launch buffer's project root is enrolled into the new working set inside `App::new`, after the scratch-stash and session-restore decisions settle, so every capture door gets it for free. +100: the clipboard bridge's `ClipboardBackend` trait (native-only, implemented for `arboard::Clipboard` and a test-only `FakeClipboard`) so a buffer-switch/clipboard law can substitute a hermetic stand-in, plus the shared `clipboard_disabled` helper both construction arms call. +4: `App::new`'s `linux_emacs_meta` gate threaded to the live keymap constructor alongside the existing config/keep plumbing. +10: the drag-scroll re-arm's one scheduling-constant seam (`DRAG_SCROLL_TICK`), beside the other debounce/tick constants this file already owns. +1: `_menu_bar`'s doc comment now names its third live reader, `refresh_accelerators`. +8: the warped-grid ambient-motion config value applied at startup right beside Reduce Motion, the other pure-config accessibility toggle this constructor already resolves in the same spot, plus its justifying comment. +1: the read-only prose wall's `TextDoor` roster is re-exported beside the other input doors this file already owns, so the typed door list has one declaration point. +11: `on_gpu_ready` drains the Finder open-documents queue at this crate's own established first-frame-up seam, right beside the live probe's identical-shaped ready signal. +13: `run` injects the Finder open-documents AppKit delegate method after the daemon/menu-proxy wiring settles and before the live-probe/daemon-listener arms, gated in lockstep with the daemon's own soak/live skip."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 899
+lines = 904
+# 899 -> 904: browser Yank fails closed through the exhaustive effect interpreter.
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter. +12: the expanded working-set panel's own Esc-collapse arm, alongside the shared core's ordinary Cancel rather than instead of it — the panel is not part of `workspace_state`'s summoned-overlay precedence ladder (it draws in the margin, not as an overlay), so it needs its own arm here. +8: a held row drag aborts BEFORE that same Esc-collapse runs, so a stray Escape mid-drag can never replay a click or reorder against a row index the collapse just invalidated. +1: the exhaustive `apply_buffer_effect` match gains one arm, `BufferEffect::OpenScratch => self.open_scratch()`. Insert Table's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands. Item 527/528's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands, threading the new keymap flavor field. +13: threads search_root/search_corpus into the picker construction and resolves SearchFolder's combined accept path, beside the other per-kind construction/accept arms. +10: `retint_theme_now` picks a fresh warp-grid roam seed on every world activation, the one live commit path a headless replay never reaches, so a capture stays pinned to `warpgrid::DEFAULT_SEED`."
 
 [[file_size_mark]]
@@ -83,7 +87,8 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/app/input/keys.rs"
-lines = 508
+lines = 519
+# 508 -> 519: the active search surface owns its browser Yank notice.
 reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel now falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses."
 
 [[file_size_mark]]
@@ -101,7 +106,8 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 641
+lines = 643
+# 641 -> 643: the exhaustive projection mirrors browser paste policy.
 # +16: the exhaustive live projection carries Files location/query focus and
 # Settings' explicit focus state; no second ViewState construction path exists.
 # +1: `overlay_rows_focused` is derived at the sole exhaustive `ViewState`
@@ -136,7 +142,8 @@ reason = "The parked slots become a named `Parked<T>` struct carrying the RAIL-A
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 127
+lines = 129
+# 127 -> 129: schema /218 records Theme Switch/Cancel hit rectangles.
 # +4: schema 215 records Settings focus and reserves 216/217 in the one ledger;
 # the overlay ViewState projection is now enrolled as a focused sibling module.
 reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index). +3: `/205` records the held HUD's optional selection figures. +2: `/208` records honest document absence and its start actions. +1: `/209` records the query field's own char-index caret. +7: the /210 ledger row for the windowed picker's positional count cue (overlay.window.cue_above/cue_below). +6: the `/211` ledger row for `overlay.asset_preview`, the Asset Cleaner's live preview panel's own Verify seam. +8: the `/212` ledger row — the find/replace panel's bordered-chrome round replaces `search.panel.case_toggle` with `controls`, a roster of every drawn field/button/checkbox box. +10: a cfg(test)-only adapter lets the live-overlay capture law exercise the private final ViewState fold without widening that production boundary."
@@ -268,17 +275,20 @@ reason = "+163: the menu bar's own pixel-space declarations. Six pads move off b
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"
-lines = 632
+lines = 649
+# 632 -> 649: edit fields insert and mirror external text in one batch.
 reason = "LINKS V2's URL field: the typed value moves from a permanently-\"selected\" duplicate row into the shared `OverlayState::query` seam `RenameEdit` already proved, so `LinkEdit::prompt` sheds the text/verb it no longer owns, `new_link_edit` seeds a fixed click-to-commit row label plus an immediate `link_edit_mirror()` call, and the char/word-motion doors each gain their own mirror call so a pointer-placed or motion-moved caret is the field's own caret. Net growth is mostly widened doc comments naming the new seam, not new state."
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 528
+lines = 515
+# 528 -> 515: integrated extraction lowered this exhaustive roster's mark.
 reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here. +78: OverlayKind::ProjectBrowse crosses the file's exhaustive per-kind matches by design — that is the mechanism stopping a new kind inheriting an untested path — plus its hint arm, routed through the existing footer owner rather than a second answer. +10: OverlayKind::Keymap crosses the same exhaustive per-kind matches, grouped with Dictionary/CjkLang/Date (no live audition, unlike Caret/Theme). +14: OverlayKind::Credits crosses the same matches, reusing TimelineOverComparison's shape with a degenerate one-row primary column. +9: `row_meta_roster` gives MoveDest its own arm (`Plain`/`MoveHere`/`NewFolder`) split out of the shared single-`Plain` arm the other destination navigators keep, and `is_folder_destination`'s doc now says which members still share `↵`'s commit-the-highlighted-folder grammar and which (MoveDest) does not. A new OverlayKind::TableDims variant crosses the same seven exhaustive per-kind matches this file already owns. +20: OverlayKind::SearchFolder joins every exhaustive per-kind match this file owns (name, task category, row-meta roster, crisp/takeover membership). +49: `offers_query`, a wildcard-free per-kind roster answering whether a card has anything to search. Wildcard-free is the point — a new kind cannot inherit an answer by omission — and that shape costs one arm per member. +17: LINKS V2's `field_placeholder` (Insert-link's ghost-text string) plus the widened doc comments on `title`/`row_path_splits`/`draws_title_prefix` naming why InsertLink now draws a real field label instead of opting out."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 498
+lines = 502
+# 498 -> 502: query paste inserts once and refilters once.
 reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches. +43: the query field's own caret door — `query_at_rest`, `query_char_left`/`query_char_right`, `query_home`/`query_end`, `query_set_caret` — the one seat both the mid-query gate and a pointer click/drag read. +8: `query_set_caret` routes a click through `rename_edit_set_caret` first when a rename edit is active, so a click can't be overwritten by the next keystroke's mirror. +14: `selected_asset_path()`, the Asset Cleaner preview's one input — the highlighted row's own resolved absolute path, gated on `RowMeta::Asset` rather than a kind check. +26: item_range_fracs' SearchFolder arm mirrors a search hit's match span, the same byte-identical shape every other per-kind arm here already follows. +10: the query's ONE growth door refuses to grow a query on a card that offers no field, which is where the Credits rail was filtering its own only row away. +6: `query_set_caret` routes a click through `link_edit_set_caret` too when a link edit is active, mirroring the rename branch immediately above it."
 
 [[file_size_mark]]
@@ -307,7 +317,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3094
+lines = 3098
+# 3094 -> 3098: Files control fill/rim pipelines join exhaustive render state.
 # +21: exhaustive pipeline/ViewState data for Files location/surface/query focus
 # and Settings focus is declared beside the other per-frame overlay state.
 # +1: `overlay_rows_focused` joins the private per-frame overlay mirrors owned by
@@ -367,24 +378,29 @@ reason = "The persistent outline publishes its interactive geometry to the share
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 879
+lines = 883
+# 879 -> 883: Files owns a dedicated hint-row height at the geometry owner.
 reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its flow to `rail_geom`, so a mirrored cluster seats its rail on the other side of its value through the same owner. +34: eight bare geometry literals inside the two geometry owners become named constants of a declared unit family (the Pane text inset, the card's pad / margin / top drop / anchor drop, the spell popup's pad / window breath / word gap), each with the doc line that records why, plus the resolved locals the owners read them through and `overlay_leading`, the third term of the row pitch. DOWN 27: the roster-width measurements moved to `chrome/roster.rs`. The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) takes two of this file's three list-style match arms: the row AIR between rules rides the one row-pitch owner `overlay_row_gap` exactly as a `Bars` plate gap does, and the GUTTER a selection mark hangs in rides `overlay_text_hpad`. Both are the seams that already exist for exactly this question, so the growth is the two arms and the comments saying why a rule's air is the same quantity as a plate's gap (+9). +13: the rail inset and card-box policy take `dpi`, since the inset resolves the cap that seats the card. +50: `overlay_query_char_at`, the click-to-place pointer inverse of `overlay_query_caret_box` — same containment box as `over_overlay_query`'s I-beam gate, so a click can only land where the I-beam already promised a caret. +42: `overlay_header_gap` splits into a card arm and a `overlay_header_gap_workspace` arm sharing one private resolver, so a unified-pane taste dial (`OVERLAY_QUERY_BEAT_UNIFIED_PANE`) reaches only the card family; `overlay_row_plan` derives `billed_header_rows` from the active facet style once and threads it into the row-plan input, since a docked facet strip's own header box charges no row budget of its own. +42: the six-item merge round's own reconciliation of the query-drag and billed-header-rows diffs, both touching `overlay_row_plan`'s input construction and its callers. +125: the positional count cue's flat-family geometry -- window_edge_counts, the scroll-invariant cue_reserved reservation (resolve_window_and_cue), and the starvation-degrade arm (flat_window_without_cue/flat_card_h_without_header_gap) that drops the cue before overrunning the canvas, plus placard_vetoes closing the frost-hue law's card-growth interaction. Insert Table's overlay_geometry arm joins the spell/workspace/theme dedicated-kind arms this file already owns."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 550
+lines = 554
+# 550 -> 554: Files control pipelines park in the shared overlay draw pass.
 # +5: Files surface gating stays beside the overlay draw dispatch it controls.
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit. Insert Table's dimension-picker grid draw joins the other overlay pipelines this shared upload owner already serves. +8: `prepare_asset_preview`/`park_asset_preview` join the shared overlay prepare/park pass, drawn after the card so painter's order never hides the preview. +21: every overlay draw branch resolves its chrome geometry through the shared UI metric owner in this single painter-ordered upload pass, keeping document zoom out of card marks, rules, selection bands, and rotated-location bounds without creating per-surface draw owners."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 242
+lines = 243
+# 242 -> 243: Files controls prepare beside the card backing.
 # +13: Files uses the shared row backing and surface gate at the row-plan owner.
 reason = "+15: every range rail now computes its OWN thumb ink and uploads through `prepare_multicolor`, instead of one frame-wide `thumb_ink` painted onto every rail by a shared `set_color` -- a rail that was not the selected row wore the selected row's ink. No new pipeline: `prepare_multicolor` already carries per-instance colour for the writing-streaks heatmap, so this reaches for the existing mechanism rather than a second one. The track stays uniform."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 1199
+lines = 1241
+# 1199 -> 1241: Files rows and Settings/Theme continuation composition share
+# the single ordered shaping stream and its byte offsets.
 # +253: Files' adaptive header, bounded path fitting, and row stream share one
 # GlyphBuffer and header-row billing owner; extraction would duplicate offsets.
 # +12: `FlatQuerySpans` bundles the field's same-typed text and metric inputs so
@@ -403,7 +419,8 @@ reason = "Toast placement and collision planning live in `readout/toast.rs`, lea
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 802
+lines = 805
+# 802 -> 805: theme shaping consumes the planned Files header rows.
 # +51: the exhaustive OverlayGeom/theme plan carries Files header and grouped
 # surface geometry so every world resolves through one construction path.
 reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`. Grew by 22 lines (610 -> 632): the active-lens mark's `Text` and `Chips(Underline)` stroke weights moved off bare device-pixel literals onto two documented `Logical` constants resolved through `Metrics::px`, and the two draw-call array literals each grew from one line to a multi-line `rustfmt` layout once their fourth element became a method call instead of a bare float. Grew by 23 lines (542 -> 565): the DockedTab active-facet plate now overlaps the card's own top border by a named, dpi-scaled `DOCKED_TAB_SEAM_OVERLAP` so the tab's mouth reads continuous with the card ground instead of showing a border stroke through it, plus a `#[cfg(test)]` probe exposing that resolved overlap to the geometry law that asserts against it. +18: `theme_plan` gates `PlanLine::Location` on `LocationStyle::needs_plan_row` so a `RotatedRail` world's off-card cue is charged no row at all, and `theme_overlay_geometry` derives `billed_header_rows` from whether the active facet style docks its strip outside the card, so a docked strip's own header box stops billing a row of `lh` it never draws. +18: the six-item merge round's own reconciliation of the DockedTab seam overlap and billed-header-rows diffs, both touching the same `overlay_shape_theme`/`theme_overlay_geometry` arms. +40: `theme_reseat_marks` is the one owner both the shape pass and the hit-test route through for the active-lens mark's seat, called after the diagonal cluster resolves (shape time is too early to see it) -- every mark rect is now recorded buffer-local at shape time and reseated once, in one place, instead of each site computing its own upright-only `text_left` reading. +121: the count cue's grouped/theme-family geometry (theme_window_without_cue/theme_card_h_without_header_gap starvation-degrade arms) and the workspace-family exclusion this item deliberately disclosed (Settings' RailOverRows shares its row origin with a separate navigation rail, so wiring the cue in would move the rail on every content clip). +16: item 519's floating_strip_band relocation is threaded through this shaper alongside docked_facet_band, both reached via the merged relocated_strip_seat accessor, so the strip's active-mark seat stays consistent across shaping, drawing, and hit-test."
@@ -431,7 +448,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 594
+lines = 598
+# 594 -> 598: the exhaustive constructor seeds both Files control pipelines.
 # +9: the sole exhaustive TextPipeline constructor seeds the new inert fields.
 # +1: the exhaustive `TextPipeline::new` literal seeds `overlay_rows_focused`
 # inertly beside the other overlay focus state.
@@ -493,12 +511,14 @@ reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind acc
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
-lines = 443
+lines = 452
+# 443 -> 452: focused-field PasteText and query-jump routing stay together.
 reason = "+46: `intercept_action`, the panel's routed-Action door (the one a macOS menu key equivalent, a menu/context-menu click and a palette `Effect::RunAction` reach), with the module-doc note on why a key-level guard cannot see them, plus the Cmd-A arm in the key door that calls the same `select_all_focused_field` owner. +29: `intercept_action` gains a `buffer` parameter and an `Action::SearchPanel(PanelControl)` arm, so the panel's own CLICK vocabulary (`app/input/mouse.rs::panel_click`'s only dispatch) resolves through the exact same `step`/`toggle_case_and_jump`/`replace_current`/`replace_all` functions the matching keyboard chord already drives, closing the summoned-layer bypass a click into `workspace_state.core_slots()` used to be."
 
 [[file_size_mark]]
 file = "src/search/mod.rs"
-lines = 611
+lines = 626
+# 611 -> 626: bulk paste mutates once and recomputes the query once.
 reason = "+42: `select_all_focused_field` — the ONE owner both panel doors call for the select-all verb — and the three selection accessors the render projection and the laws read (`focused_selection`, `query_selection`, `replacement_selection`), with the doc naming why the verb never recomputes or jumps. +24: `PanelControl`, the panel's own clickable-control roster — `render::PanelHit`'s click-target set minus `Elsewhere`/`None` — carried as `Action::SearchPanel`'s payload so a click resolves through `actions::apply_transition` like every other input door."
 
 [[file_size_mark]]
@@ -615,7 +635,8 @@ reason = "Item 527/528: visible_effective_bindings gained a third KeymapFlavor a
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (301/100)"
+message = "this function has too many lines (303/100)"
+# 301 -> 303: the exhaustive per-frame projection also mirrors browser paste policy.
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens. +1: mirrors the query field's own seeded selection range into `overlay_query_selection`, beside the other query-caret mirrors. +3: mirrors `overlay_asset_preview` from `selected_asset_path()`, beside the other summoned-surface mirrors this function already owns. +1: mirrors overlay_match_highlights from the search picker. +1: mirrors the working set's outline-rail appetite (`parked_wants_rail()`) into `set_wants_outline_rail`, beside the other per-frame mirrors this one exhaustive projection site already owns. +4: `search_field_selection`, the find/replace panel's focused-field selection, mirrored from the panel's own focus rule. +2: Insert-link's `overlay_query_placeholder` (`OverlayKind::field_placeholder`), asked of the same summoned-picker owner every other per-kind question here already goes through. 1: the no-document start surface's folder-naming line's own inert default join the exhaustive projection."
 
 [[clippy_exception]]
@@ -629,15 +650,15 @@ reason = "Existing constructor owner and exhaustive App construction site. Docum
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
 function = "App::resumed"
-message = "this function has too many lines (118/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`."
+message = "this function has too many lines (125/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`. +7: installs the canvas paste listener beside the other resumed-window browser wiring, where its event proxy and lifecycle cleanup have one owner."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
 function = "run"
-message = "this function has too many lines (107/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. +4: the Finder open-documents AppKit-delegate injection, gated in lockstep with the daemon's own soak/live skip right beside the menu-proxy wiring it follows."
+message = "this function has too many lines (111/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. +4: the Finder open-documents AppKit-delegate injection, gated in lockstep with the daemon's own soak/live skip right beside the menu-proxy wiring it follows. +4: hooks the browser clipboard proxy into the one event-loop construction seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -717,18 +738,11 @@ message = "this function has too many lines (171/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it. +3: the guarded `push_bare_url_spans` call in the `Event::Text` arm. +3: item 530's guarded push_smart_punct_spans call in the Event::Text arm, mirroring push_bare_url_spans's own code_block guard."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/chrome/panel.rs"
-function = "TextPipeline::panel_shape_text"
-message = "the function has a cognitive complexity of (30/25)"
-reason = "The responsive Find/Replace shaper is one ordered row plan whose branches select wide versus narrow placement while sharing the same span offsets later consumed by draw, hit-test, sidecar, and semantics. Keeping those decisions together prevents geometry from gaining a second owner."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/panel.rs"
 function = "TextPipeline::panel_shape_text"
-message = "this function has too many lines (300/100)"
-reason = "One shaper owns responsive field width, semantic hint wrapping, and row/caret spans; splitting these would create a second sizing owner. +21: the selection band's focused-field choice and its crossing call, so the band's row and the caret's row come from the one `editing_replacement` decision this function already makes. +87: the bordered-chrome round's nav row (counter, step buttons, the `Match case` checkbox, its wide-only chord hints, its own wide/narrow line wrap) and actions row (`Replace`/`Replace all`, their chord hints, the same wrap), each threading the SAME mutable `spans` vec and running byte offset the next row's control spans are computed against -- splitting a row into its own function would mean returning its owned hint Strings (`push_symbol_split` borrows from them) alongside the spans it pushed, across a function boundary, for no reduction in real complexity. The row plan stated once, in order, is also the readable shape for auditing the exact bug class this file's own doc names (a fixed-length hint appended to a row whose width the narrow-canvas clamp is computed from)."
+message = "this function has too many lines (251/100)"
+reason = "One ordered shaper owns responsive field width, semantic hint wrapping, control byte ranges, row/caret spans, and the stable three-line continuation footer consumed by draw, hit-test, sidecar, and semantics. Splitting the shared span-offset stream would create a second sizing and geometry owner."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -764,6 +778,13 @@ file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::overlay_shape_theme"
 message = "this function has too many lines (198/100)"
 reason = "The row plan reaches this shaper so the strip's active mark rides its planned box. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. `LOCATION_SCALE` lives in `render::rotated_location`; grouped-card pad, margin, and top drop share one owner with the flat family; and text/underline mark thicknesses use named `Logical` constants through `Metrics::px`."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/chrome/theme_picker.rs"
+function = "TextPipeline::shape_theme_spans"
+message = "this function has too many lines (102/100)"
+reason = "One ordered span stream keeps header metrics, lens-strip byte ranges, cue reservations, and candidate rows synchronized for shaping and hit testing; splitting it would duplicate line, byte, and borrowed-text ownership."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -895,7 +916,8 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (532/100)"
+message = "this function has too many lines (536/100)"
+# 532 -> 536: the exhaustive constructor initializes the Files fill and rim pipelines.
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default. +1: `squiggle_projection`'s construction beside its sibling `squiggle_cache` initializer (item 633)."
 
 [[clippy_exception]]
