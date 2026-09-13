@@ -6,17 +6,29 @@
 
 ## Open build and design tasks
 
-**4 open numbered tasks.** Ready: none. Integrated work awaiting visible native
-review: 659, 658 and 657. Blocked direction: 651.
+**4 open numbered tasks.** Ready visual corrections: 657 and 659. Integrated
+query/accessibility work awaiting remaining review: 658. Blocked direction: 651.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
-🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
-audit landed on local `main` at merge `ef344429`; visible native review remains.
+🟢 READY FOR VISUAL CORRECTION — the prior implementation landed at `ef344429`;
+the 2026-09-13 live review finds hierarchy still short of the approved composition.
 Corrective follow-up to 637/628/640; prior completion did not establish fidelity.
 
-Evidence: the user's native screenshot shows a detached search strip, Change
+Live review (2026-09-13, running dev-app in Bowerbird with a temporary fixture):
+the unified Files panel and separate accessible actions are present, but folder
+name, Change folder and Search read as one faint inline sentence. The search has
+no recognizable field boundary, and New document reads like a footnote. Correct
+these through a distinct folder heading, a visibly interactive Change folder,
+a clearly bounded labelled search field and a legible footer action. Preserve
+quiet chrome without making essential controls look disabled; distinguish keyboard
+focus from selected view/row. Judge native screenshots by finding these affordances,
+not by their mere presence in the accessibility tree. Background blur is absent
+in the reviewed Files frame; preserve that improvement. Do not reimplement the
+already-separated action ownership or reintroduce mixed action rows.
+
+Original evidence (2026-09-12, before the latest correction): the user's screenshot shows a detached search strip, Change
 folder and New document as list rows, ambiguous `root/` scope, repeated folder
 markers and background blur. The live accessibility tree confirms the mixed rows.
 
@@ -43,6 +55,13 @@ captures belong in the public repo.
 audit landed with 657 on local `main` at merge `ef344429`; the required visible
 native review remains.
 
+Cancel retry (2026-09-13): starting in Recent, clicking Change folder opened the
+macOS Open panel; clicking Cancel returned to the same root and Recent empty
+state, with the same open document and focus on Change folder. Confirmed in both
+the accessibility tree and an updated screenshot. The earlier tool timeouts did
+not establish a cancellation bug. This bounded check does not discharge the
+remaining query selection, no-match or result-publication checks below.
+
 Observed through the running app's accessibility state: Cmd-A then Backspace in a
 nonempty Files query removed only its last character on two attempts. An unmatched
 query left Change folder selected and advertised Enter as change-folder. A known
@@ -60,12 +79,34 @@ user's working document or rely on a stale screenshot to establish focus.
 
 ### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
 
-🟠 INTEGRATED — implementation landed on local `main` at merge `2dcdb1779`,
-followed by focus-owner, test-health and schema commits `210c60e36`, `be399d5f3`
-and `0e5e5d132`. The explicitly owed visible Settings/Find-Replace/Themes review
-remains.
+🟢 READY FOR VISUAL CORRECTION — the earlier implementation landed at `2dcdb1779`
+with follow-ups `210c60e36`, `be399d5f3` and `0e5e5d132`. Live review on 2026-09-13
+confirms working transitions but remaining composition gaps; do not mark this as
+only waiting for acceptance of the existing appearance.
 
-Observed: Settings opened on Categories; Tab entered the setting list, typing
+Queued corrections from actual Bowerbird frames:
+
+- Settings: make search a recognizable field rather than a faint breadcrumb.
+  Preserve the bounded label/value column; give category selection, selected control
+  and active keyboard focus distinct treatments. Compose the surrounding workspace
+  deliberately instead of an oversized plate around a dense narrow column.
+- Themes: unite the detached query strip and list into the approved coherent panel,
+  with a clear Themes heading and visible clickable Switch/Cancel actions with
+  effective shortcut hints. Distinguish the current theme from the previewed choice.
+  Bowerbird → Mulga preview held panel geometry/colors steady and Esc restored
+  Bowerbird and the invoking Settings control: preserve those verified behaviors.
+- Find: separate field, count/previous/next and Match case into readable groups.
+  Remove redundant Aa beside Match case and crowded inline shortcut clutter; extend
+  the same composition to Replace mode, keeping replacement actions separate.
+
+Use the approved study 05 as a composition reference, not a hardcoded color skin.
+Prioritize recognizable fields/actions and focus before spacing-only retuning.
+Settings search focus now works (Tab from Categories reaches the search field);
+retain that improvement. Review matched native frames and actual input routes
+under docs/verification.md; do not claim the full theme roster, narrow geometry,
+Replace mode or release-build parity was established by this bounded live sitting.
+
+Earlier observation (2026-09-12): Settings opened on Categories; Tab entered the setting list, typing
 filtered while the setting row retained accessible focus, and Enter opened Themes.
 Theme preview followed by Esc restored the original theme and the filtered Settings
 page. Those transitions worked. The approved prototype instead teaches an explicit
