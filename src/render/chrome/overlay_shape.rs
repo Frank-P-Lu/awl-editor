@@ -204,6 +204,23 @@ fn push_beat_spacer<'a>(
     }
 }
 
+fn push_workspace_footer_spans<'a>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
+    footer_lines: &'a [String],
+    footer_rows: usize,
+    base: glyphon::Attrs<'a>,
+) {
+    if footer_rows == 0 {
+        return;
+    }
+    let faint = crate::render::overlay_chrome_theme().faint.to_glyphon();
+    let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
+    spans.push(("\n", base.clone().color(faint))); // the blank separator line
+    for line in footer_lines {
+        push_symbol_split(spans, line, || base.clone().color(faint), || sym(faint));
+    }
+}
+
 /// Whether the active [`theme::TitleStyle`] draws a placard THIS frame — the
 /// one fact [`TextPipeline::overlay_shape_placard`] (draws it) and
 /// [`TextPipeline::overlay_title_prefix`] (suppresses the inline title so the
@@ -1079,14 +1096,7 @@ impl TextPipeline {
             );
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
-        if geom.footer_rows > 0 {
-            let faint = crate::render::overlay_chrome_theme().faint.to_glyphon();
-            let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-            spans.push(("\n", mk(faint))); // the blank separator line
-            for line in &footer_lines {
-                push_symbol_split(&mut spans, line, || mk(faint), || sym(faint));
-            }
-        }
+        push_workspace_footer_spans(&mut spans, &footer_lines, geom.footer_rows, base.clone());
 
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));
