@@ -3,9 +3,8 @@
 
 /// The winit USER EVENT type this app's event loop carries: the single-
 /// instance daemon's posted events on every native platform, PLUS (macOS
-/// only) a fired native menu-bar item's raw id — an uninhabited no-op on wasm
-/// (the browser has no process/socket/menu-bar concept; `crate::daemon` and
-/// `crate::menu` both compile out there entirely). Growing this enum (the
+/// only) a fired native menu-bar item's raw id. The browser has its own
+/// paste-payload variant. Growing this enum (the
 /// `Menu` variant) is what FORCES `user_event`'s match below to grow a
 /// matching arm — the exhaustiveness check is the whole point.
 #[cfg(not(target_arch = "wasm32"))]
@@ -27,4 +26,6 @@ impl From<accesskit_winit::Event> for AwlEvent {
     }
 }
 #[cfg(target_arch = "wasm32")]
-pub(crate) type AwlEvent = ();
+pub(crate) enum AwlEvent {
+    BrowserPaste(Result<String, ()>),
+}

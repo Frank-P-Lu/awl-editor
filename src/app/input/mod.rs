@@ -5,6 +5,8 @@
 //! [`mouse_button`] dispatches button presses and releases; [`drags`] owns resize
 //! gestures, and [`pointer_sync`] refreshes derived feedback after input changes.
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_paste;
 mod context_menu;
 mod drags;
 mod gutter;

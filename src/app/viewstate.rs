@@ -23,6 +23,8 @@ type SearchViewFields = (
 
 impl App {
     pub(super) fn sync_view(&mut self, follow: bool) {
+        #[cfg(target_arch = "wasm32")]
+        self.sync_browser_paste_policy();
         if self.sync_menu_context_and_gpu_absent() {
             return;
         }

@@ -78,6 +78,15 @@ pub fn intercept(
 /// because a second copy is how the two would drift.
 pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, action: &Action) {
     match action {
+        Action::PasteText(text) => {
+            if let Some(st) = search.as_mut() {
+                let query_changed = !st.is_editing_replacement();
+                st.paste_focused(text, &buffer.text());
+                if query_changed {
+                    jump_to_current(search, buffer);
+                }
+            }
+        }
         Action::SelectAll => {
             if let Some(st) = search.as_mut() {
                 st.select_all_focused_field();

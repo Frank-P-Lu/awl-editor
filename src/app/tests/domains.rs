@@ -555,6 +555,7 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
 
 #[derive(Clone, Copy)]
 enum InputConsumer {
+    BrowserPaste,
     Apply,
     OverlaySync,
     Close,
@@ -585,6 +586,7 @@ enum InputConsumer {
 
 impl InputConsumer {
     const ROSTER: &'static [Self] = &[
+        Self::BrowserPaste,
         Self::Apply,
         Self::OverlaySync,
         Self::Close,
@@ -617,6 +619,7 @@ impl InputConsumer {
     /// member cannot join without choosing whether it is inside the owner.
     fn path_and_reach(self) -> (&'static str, bool) {
         match self {
+            Self::BrowserPaste => ("src/app/input/browser_paste.rs", true),
             Self::Apply => ("src/app/apply.rs", false),
             Self::OverlaySync => ("src/app/apply/overlay_sync.rs", false),
             Self::Close => ("src/app/files/close.rs", false),

@@ -63,6 +63,8 @@ pub enum Action {
     KillLine,
     Yank,
     YankText,
+    /// An already received plain-text clipboard payload, never a clipboard read.
+    PasteText(String),
     InsertImageReference(String),
     /// Undo the last edit group (Cmd+Z / C-/).
     Undo,
@@ -433,6 +435,7 @@ impl Action {
                 | Action::KillLine
                 | Action::Yank
                 | Action::YankText
+                | Action::PasteText(_)
                 | Action::InsertImageReference(_)
                 | Action::KillRegion
                 | Action::AlignTable

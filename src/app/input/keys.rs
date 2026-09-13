@@ -397,6 +397,17 @@ impl App {
         // lone-modifier filter (so a bare Shift/Ctrl tap during search is
         // dropped) and AFTER the preedit guard, but BEFORE keymap.resolve.
         if self.workspace_state.search_active() {
+            #[cfg(target_arch = "wasm32")]
+            if self
+                .input
+                .keyboard
+                .keymap
+                .single_action(&raw, self.input.keyboard.mods.state())
+                == Some(&Action::Yank)
+            {
+                self.browser_paste_notice();
+                return;
+            }
             let mods = self.input.keyboard.mods;
             self.handle_search_key(&raw, &mods, exit);
             self.sync_view(true);

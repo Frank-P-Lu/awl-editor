@@ -159,6 +159,50 @@ fn field_text(app: &App, field: TextField) -> Option<String> {
     }
 }
 
+#[test]
+fn browser_paste_targets_every_summoned_field_without_editing_document() {
+    let _guard = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    for field in TextField::ALL {
+        let mut app = app();
+        app.document.set_kill("stale");
+        summon(&mut app, field);
+        let document = app.document.buffer().text();
+        app.receive_browser_paste(Ok("42\n".into()), true, &schedule::RecordingExit::new());
+        assert!(
+            field_text(&app, field).unwrap().contains("42"),
+            "{field:?}: external payload must reach the focused text owner"
+        );
+        assert_eq!(
+            app.document.buffer().text(),
+            document,
+            "{field:?}: no background-document edit"
+        );
+        assert!(
+            !field_text(&app, field).unwrap().contains('\n'),
+            "{field:?}: clipboard newline must not accept a field"
+        );
+    }
+}
+
+#[test]
+fn browser_paste_replaces_selected_find_and_replace_fields() {
+    let _guard = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    for field in [TextField::FindQuery, TextField::ReplaceText] {
+        let mut app = app();
+        summon(&mut app, field);
+        let exit = schedule::RecordingExit::new();
+        app.apply(Action::SelectAll, false, &exit, crate::stats::Door::Chord);
+        app.receive_browser_paste(Ok("日本語 e\u{301} 👩‍💻".into()), true, &exit);
+        assert_eq!(
+            field_text(&app, field).as_deref(),
+            Some("日本語 e\u{301} 👩‍💻")
+        );
+        assert_eq!(app.document.buffer().text(), DOC);
+    }
+}
+
 /// A document snapshot precise enough to catch every verb in the roster: the
 /// bytes, the undo version (a refusal that still takes an undo step is an edit
 /// that happened to be empty), the caret, and the parked SELECTION — which is

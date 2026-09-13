@@ -323,6 +323,11 @@ impl App {
         if self.reject_without_document(&action) {
             return false;
         }
+        #[cfg(target_arch = "wasm32")]
+        if matches!(action, Action::Yank) {
+            self.browser_paste_notice();
+            return false;
+        }
 
         // FLIGHT RECORDER / PROBE: the STATE link of the event→present
         // chain, sampled either side of the shared core so one trace line answers

@@ -129,8 +129,7 @@ winit = "0.30"
 # arboard (the OS clipboard) links platform clipboard backends (objc / X11 /
 # windows) that DON'T compile for wasm32-unknown-unknown, and the browser
 # clipboard is a different, async/permission-gated API anyway. So it is a
-# native-only dependency; `app.rs` swaps in a no-op `Clipboard` stub on wasm
-# (the editor runs on the internal kill-ring there). Native is untouched.
+# native-only dependency; `app/web_clipboard.rs` owns the browser event bridge.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 accesskit = "0.24.1"
 accesskit_winit = "0.33.2"
@@ -299,16 +298,16 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Element",
     "HtmlCanvasElement",
+    "ClipboardEvent",
+    "DataTransfer",
+    "KeyboardEvent",
     "Storage",
     "Navigator",
     # ACCESSIBILITY TIER 1 (`motion.rs`): `window.matchMedia("(prefers-reduced-
     # motion: reduce)")` — the `auto` half of the web build's config→OS reduce-
     # motion ladder, read ONCE at `wasm_start`.
     "MediaQueryList",
-    # WEB ESCAPE HATCHES round (`web_export.rs` — "Download file"; `app.rs`'s
-    # `sync_kill_to_clipboard`/`refresh_kill_from_clipboard` async mirror):
-    # Blob + object-URL + synthetic `<a download>` click, and the browser
-    # Clipboard API (`navigator.clipboard.writeText`/`readText`).
+    # Browser downloads and the best-effort clipboard writeText mirror.
     "Blob",
     "BlobPropertyBag",
     "Url",

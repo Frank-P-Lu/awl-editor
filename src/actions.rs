@@ -254,6 +254,12 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::DeleteForward => ctx.buffer.delete_forward(),
         Action::KillLine => kill_line_motion(ctx),
         Action::YankText => ctx.buffer.yank(),
+        Action::PasteText(text) => {
+            if !text.is_empty() {
+                ctx.buffer.set_kill(text);
+                ctx.buffer.yank();
+            }
+        }
         Action::InsertImageReference(reference) => {
             let (_, col) = ctx.buffer.cursor_line_col();
             let text = image_reference_text(col == 0, reference);
@@ -449,6 +455,14 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         return Some(Effect::None);
     }
     if ctx.journey.card().is_some() {
+        if let Action::PasteText(text) = action {
+            // Reuse each focused field's filtering and selection owner. A
+            // newline in plain clipboard text is not an accept gesture.
+            for c in text.chars().filter(|c| !c.is_control()) {
+                overlay_intercept(ctx, &Action::InsertChar(c));
+            }
+            return Some(Effect::None);
+        }
         return Some(overlay_intercept(ctx, action));
     }
     // THE SUMMONED FIND/REPLACE PANEL owns every remaining action while it is

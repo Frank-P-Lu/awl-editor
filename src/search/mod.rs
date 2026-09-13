@@ -114,6 +114,20 @@ impl SearchState {
         self.recompute(haystack);
     }
 
+    pub(crate) fn paste_focused(&mut self, text: &str, haystack: &str) {
+        let field = if self.editing_replacement {
+            &mut self.replacement
+        } else {
+            &mut self.query
+        };
+        for c in text.chars().filter(|c| !c.is_control()) {
+            field.insert(c);
+        }
+        if !self.editing_replacement {
+            self.recompute(haystack);
+        }
+    }
+
     pub fn pop_char(&mut self, haystack: &str) {
         self.query.delete_back();
         self.recompute(haystack);

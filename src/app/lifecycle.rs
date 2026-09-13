@@ -25,9 +25,19 @@ impl ApplicationHandler<AwlEvent> for App {
     /// A daemon event or (macOS only) a fired menu item, posted by their
     /// respective source (the daemon's accept-loop thread / muda's global
     /// event handler) via `EventLoopProxy::send_event` — always runs on this,
-    /// the normal winit thread. A no-op on wasm (there is no `AwlEvent`
-    /// variant to construct there).
+    /// the normal winit thread. Browser paste also arrives here with the
+    /// payload already read synchronously from its trusted DOM event.
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: AwlEvent) {
+        #[cfg(target_arch = "wasm32")]
+        match _event {
+            AwlEvent::BrowserPaste(text) => {
+                let focused = self
+                    .clipboard
+                    .as_ref()
+                    .is_some_and(|clipboard| clipboard.focused());
+                self.receive_browser_paste(text, focused, _event_loop);
+            }
+        }
         #[cfg(not(target_arch = "wasm32"))]
         match _event {
             #[cfg(not(feature = "mas"))]
@@ -174,6 +184,13 @@ impl ApplicationHandler<AwlEvent> for App {
             attrs.with_canvas(canvas)
         };
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::platform::web::WindowExtWebSys;
+            if let (Some(clipboard), Some(canvas)) = (self.clipboard.as_mut(), window.canvas()) {
+                clipboard.install(canvas);
+            }
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             // Seeded BEFORE the adapter exists: the synchronous activation

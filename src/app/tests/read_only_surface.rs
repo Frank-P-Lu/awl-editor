@@ -131,6 +131,28 @@ fn family() -> Vec<OverlayKind> {
         .collect()
 }
 
+#[test]
+fn browser_paste_cannot_edit_the_document_behind_read_only_surfaces() {
+    let _guard = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    let kinds = family();
+    assert!(!kinds.is_empty());
+    for kind in kinds {
+        let mut app = app();
+        app.workspace_state
+            .install_overlay_for_test(representative(kind));
+        let text = app.document.buffer().text();
+        let version = app.document.buffer().version();
+        app.receive_browser_paste(
+            Ok("external 日本語\ntext".into()),
+            true,
+            &schedule::RecordingExit::new(),
+        );
+        assert_eq!(app.document.buffer().text(), text, "{kind:?}");
+        assert_eq!(app.document.buffer().version(), version, "{kind:?}");
+    }
+}
+
 /// Drive one door for real. Wildcard-free over the WHOLE census roster
 /// (`app/input/text_door.rs`), so a door added to it cannot ride this sweep
 /// without someone saying how it is pressed — which is the difference between a
