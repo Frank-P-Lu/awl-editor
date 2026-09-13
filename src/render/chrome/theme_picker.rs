@@ -664,10 +664,8 @@ impl TextPipeline {
     ) {
         let OverlaySpanInks { ink, muted, .. } = inks;
         let fitted_hint = self.overlay_fitted_hint(geom);
-        // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
-        // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
-        // offsets, the selected band, and the underline `y` never drift from a per-span
-        // metric taller than the row.
+        // Different Files type scales keep the planned overlay line height, so
+        // row offsets, selection bands, and underlines cannot drift.
         let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
         let sigil = "› ";
@@ -680,7 +678,9 @@ impl TextPipeline {
                 1.0
             };
         let header_lh = plan
-            .query_band()
+            .header_lines()
+            .get(usize::from(self.overlay_files_surface) * 2)
+            .copied()
             .map_or_else(|| self.overlay_lh(), |field| field.height);
         let title_prefix = if self.overlay_files_surface {
             let fitted = self.fit_files_title_prefix(geom, name_fs, header_lh);
@@ -705,26 +705,29 @@ impl TextPipeline {
                 attrs
             }
         };
+        let folder_head = |c| {
+            chrome_attrs()
+                .color(c)
+                .metrics(GlyphMetrics::new(name_fs * 1.15, header_lh))
+        };
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         let separated_actions = self
             .files_actions_are_split(geom)
             .then(|| self.files_action_suffix());
         if self.files_query_is_split(geom) {
-            spans.push(("Search: ", head(muted)));
-            spans.push((self.overlay_query.as_str(), head(ink)));
-            spans.push(("\n", head(muted)));
-            spans.push((title_prefix.as_str(), head_chrome(muted)));
+            spans.push((title_prefix.as_str(), folder_head(ink)));
             if let Some(actions) = separated_actions.as_deref() {
                 spans.push(("\n", head(muted)));
-                spans.push((actions, head_chrome(muted)));
+                spans.push((actions, head_chrome(ink)));
             }
+            spans.push(("\n", head(muted)));
+            spans.push(("Search files: ", head(muted)));
         } else if title_prefix.is_empty() {
             spans.push((sigil, head(muted)));
-            spans.push((self.overlay_query.as_str(), head(ink)));
         } else {
             spans.push((title_prefix.as_str(), head_chrome(muted)));
-            spans.push((self.overlay_query.as_str(), head(ink)));
         }
+        spans.push((self.overlay_query.as_str(), head(ink)));
         // Strip line: active label in full ink, others muted, separators + the "\n"
         // faint. One ordered pass over `strip_s` so the spans tile the line in byte
         // order (rich-text concatenates spans in push order). The label/separator

@@ -295,6 +295,8 @@ impl TextPipeline {
         // as `notice_rim`/`notice_plate` in `draw_chrome_tail`: an outset rect
         // showing only where the plate itself does not cover it.
         self.footer_plate_rim.draw(pass);
+        self.files_control_rim.draw(pass);
+        self.files_control_fill.draw(pass);
         self.overlay_bars.draw(pass);
         self.overlay_spine.draw(pass);
         self.overlay_spine_selected.draw(pass);

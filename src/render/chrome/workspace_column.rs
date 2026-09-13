@@ -199,10 +199,12 @@ impl TextPipeline {
     pub(in crate::render) fn measure_workspace_hint_text_px(&mut self, hint: &str) -> f32 {
         self.overlay_remetric();
         let name_fs = self.overlay_metrics().font_size;
-        let metrics = GlyphMetrics::new(
-            name_fs * crate::markdown::type_scale::LABEL,
-            self.overlay_hint_h(),
-        );
+        let hint_fs = if self.overlay_files_surface {
+            name_fs
+        } else {
+            name_fs * crate::markdown::type_scale::LABEL
+        };
+        let metrics = GlyphMetrics::new(hint_fs, self.overlay_hint_h());
         self.workspace_hint_measure_buffer
             .set_metrics(&mut self.font_system, metrics);
         self.workspace_hint_measure_buffer

@@ -141,6 +141,10 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         self.overlay_bars.prepare(device, queue, width, height, &[]);
+        self.files_control_fill
+            .prepare(device, queue, width, height, &[]);
+        self.files_control_rim
+            .prepare_multicolor(device, queue, width, height, &[]);
         self.footer_plate_rim
             .prepare(device, queue, width, height, &[]);
         self.overlay_spine

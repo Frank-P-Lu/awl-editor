@@ -673,7 +673,7 @@ impl TextPipeline {
 
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
         if self.files_query_is_split(geom) {
-            return "Search: ".to_string();
+            return "Search files: ".to_string();
         }
         if self.overlay_files_surface && !self.overlay_files_fitted_title_prefix.is_empty() {
             self.overlay_files_fitted_title_prefix.clone()
@@ -702,10 +702,10 @@ impl TextPipeline {
             .to_string()
     }
 
-    /// Decide the compact Files head from measured ink before geometry bills
-    /// its extra rows. The first probe decides whether query needs its own row;
-    /// once split, a second probe decides whether the semantic location plus
-    /// Up/Change-folder actions need separate rows too.
+    /// Files always spends distinct query, folder-identity, and folder-action
+    /// rows. This is hierarchy rather than an overflow fallback: fitting all
+    /// three into one sentence made the essential controls read as metadata on
+    /// ordinary wide windows. The bounded probes remain as fit witnesses.
     pub(in crate::render) fn resolve_files_header_split(&mut self, width: u32) {
         self.overlay_files_split_header = false;
         self.overlay_files_split_actions = false;
@@ -734,13 +734,13 @@ impl TextPipeline {
         };
         self.overlay_files_split_measure_attempts = 1;
         let line_w = self.measure_files_header_px(&prefix, &query, name_fs, self.overlay_lh());
-        self.overlay_files_split_header = line_w + self.metrics.caret_w + 0.5 > text_w;
-        if self.overlay_files_split_header {
-            let action_line = format!("{shown}  {}", self.files_action_suffix());
-            self.overlay_files_split_measure_attempts += 1;
-            self.overlay_files_split_actions =
-                self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) > text_w;
-        }
+        let _query_fits = line_w + self.metrics.caret_w + 0.5 <= text_w;
+        self.overlay_files_split_header = true;
+        let action_line = format!("{shown}  {}", self.files_action_suffix());
+        self.overlay_files_split_measure_attempts += 1;
+        let _actions_fit =
+            self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) <= text_w;
+        self.overlay_files_split_actions = true;
     }
 
     /// Fit only Files' location cell. The three header actions and the query
@@ -790,7 +790,12 @@ impl TextPipeline {
             } else {
                 self.metrics.caret_w + 0.5
             };
-            if self.measure_files_header_px(&candidate, measured_query, name_fs, header_lh)
+            let measured_name_fs = if split && self.files_actions_are_split(geom) {
+                name_fs * 1.15
+            } else {
+                name_fs
+            };
+            if self.measure_files_header_px(&candidate, measured_query, measured_name_fs, header_lh)
                 <= geom.text_w - reserve
             {
                 return candidate;
@@ -849,7 +854,11 @@ impl TextPipeline {
         content_before: bool,
     ) {
         let name_fs = self.overlay_metrics().font_size;
-        let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
+        let hint_fs = if self.overlay_files_surface {
+            name_fs
+        } else {
+            name_fs * crate::markdown::type_scale::LABEL
+        };
         let hint_h = self.overlay_hint_h();
         let base = overlay_panel_attrs();
         let hk_hint = |c| {
@@ -891,7 +900,23 @@ impl TextPipeline {
         if gap_rows > 0 || content_before {
             spans.push(("\n", base.clone().color(muted)));
         }
-        push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
+        if self.overlay_files_surface {
+            let ink = crate::render::overlay_chrome_theme()
+                .base_content
+                .to_glyphon();
+            let (action, destination) = hint
+                .split_once(" — ")
+                .map_or((hint, None), |(action, destination)| {
+                    (action, Some(destination))
+                });
+            push_symbol_split(spans, action, || hk_hint(ink), || sym_hint(ink));
+            if let Some(destination) = destination {
+                spans.push((" — ", hk_hint(muted)));
+                spans.push((destination, hk_hint(muted)));
+            }
+        } else {
+            push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
+        }
     }
 
     fn push_flat_overlay_query_spans<'a>(
