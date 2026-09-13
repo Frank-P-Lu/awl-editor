@@ -12,7 +12,8 @@ Outstanding review of landed work and hardware checks are listed separately belo
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
 
-🟢 READY FOR VISUAL CORRECTION — the prior implementation landed at `ef344429`;
+🟡 IN PROGRESS — /root/files_affordances (codex), branch
+`codex/657-files-affordances`. The prior implementation landed at `ef344429`;
 the 2026-09-13 live review finds hierarchy still short of the approved composition.
 Corrective follow-up to 637/628/640; prior completion did not establish fidelity.
 
@@ -79,7 +80,8 @@ user's working document or rely on a stale screenshot to establish focus.
 
 ### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
 
-🟢 READY FOR VISUAL CORRECTION — the earlier implementation landed at `2dcdb1779`
+🟡 IN PROGRESS — /root/panel_composition (codex), branch
+`codex/659-panel-composition`. The earlier implementation landed at `2dcdb1779`
 with follow-ups `210c60e36`, `be399d5f3` and `0e5e5d132`. Live review on 2026-09-13
 confirms working transitions but remaining composition gaps; do not mark this as
 only waiting for acceptance of the existing appearance.
@@ -150,8 +152,9 @@ native/wasm gate on the final frozen candidate.
 
 ### 661 — external plain-text paste in the browser
 
-🟢 READY — user approved queuing a fix after source/specification investigation.
-Independent of the browser-storage decision in 651.
+🟡 IN PROGRESS — /root/browser_paste (codex), branch
+`codex/661-browser-paste`. User approved a fix after source/specification
+investigation. Independent of the browser-storage decision in 651.
 
 Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
 `refresh_kill_from_clipboard` silently retains the internal kill ring. External
