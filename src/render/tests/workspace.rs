@@ -71,6 +71,12 @@ pub(super) fn workspace_view(ov: &OverlayState) -> ViewState {
         .workspace_shape()
         .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
     v.overlay_detail_focus = ov.detail_focus;
+    // `workspace_card` enters either Categories or Controls through Journey,
+    // never the query field. Mirror `App::sync_view`'s Settings projection so
+    // the focus-cue laws photograph the region their lifecycle state names,
+    // rather than ViewState's inert query/row defaults.
+    v.overlay_query_focused = false;
+    v.overlay_rows_focused = ov.detail_focus;
     v.overlay_sections = ov.item_sections();
     v.overlay_hint = ov.foot_hint();
     v.overlay_selected = ov.selected;

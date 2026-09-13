@@ -74,7 +74,7 @@ const MIN_PANE_CHARS: Chars = Chars(46.0);
 /// focused one's alpha. It is the same rect in the same place — only its
 /// insistence changes, which is figure/ground by value rather than a second
 /// decoration (DESIGN.md §5).
-pub(in crate::render) const UNFOCUSED_MARK_ALPHA: f32 = 0.20;
+pub(in crate::render) const UNFOCUSED_MARK_ALPHA: f32 = 0.34;
 
 pub(in crate::render) struct WorkspaceFrame {
     pub regions: plan::WorkspaceRegions,
