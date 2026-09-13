@@ -6,9 +6,8 @@
 //! shared panel buffers). See [`super`].
 //!
 //! Clear bordered fields, a separate match/navigation region, and distinct
-//! Replace/Replace all controls form one compact logical UI unit. Every button
-//! carries its chord from ONE place (`keyspec::Panel*`, never a hardcoded
-//! glyph), preserving the keyboard-first character. The card is ONE text buffer
+//! Replace/Replace all controls form one compact logical UI unit. Every action
+//! remains reachable through the existing keymap. The card is ONE text buffer
 //! (`panel_buffer`) shaped as a handful of rows; what is new is that some of
 //! those rows' CONTROLS also get a drawn box, computed from their own shaped
 //! byte range (`chrome::panel_controls`), never a hardcoded pitch.
@@ -20,7 +19,7 @@ use super::*;
 /// zoom and proportional to display density.
 pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
 pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
-pub(in crate::render) const PANEL_MIN_W: Logical = Logical(420.0);
+pub(in crate::render) const PANEL_MIN_W: Logical = Logical(560.0);
 
 /// Field labels, padded to ONE shared width (13 ASCII bytes) so the find and
 /// replace boxes start in the same column — ASCII, so byte len == char count,
@@ -113,17 +112,15 @@ impl TextPipeline {
     ///     replacement, one reserved caret cell. No trailing hint text — this
     ///     row's own width is what the responsive `field_chars` budget below
     ///     is computed against, so a fixed-length hint appended here would
-    ///     ride outside that budget (see the nav row's own `Tab switch` hint
-    ///     for why this matters).
+    ///     ride outside that budget.
     ///   * the **nav row** (`find    ` -> row 1, replace revealed -> row 2;
     ///     wraps to a second line under narrow pressure): the `N of M`
-    ///     counter, the `^`/`v` step buttons, and the `Aa` match-case
-    ///     checkbox with its `Match case` label — plus, at ordinary widths, a
-    ///     `Tab switch` hint and, with no replace row up, the `Esc close`
-    ///     hint (there is no actions row to carry it otherwise).
+    ///     counter, the `^`/`v` step buttons, and the match-case checkbox with
+    ///     its `Match case` label.
     ///   * the **actions row** (nav row + its line count, only once replace is
     ///     revealed; also wraps under narrow pressure): the `Replace` /
-    ///     `Replace all` buttons and the `Esc close` hint.
+    ///     `Replace all` buttons.
+    ///   * the quiet footer carries only the global `Esc close` hint.
     pub(in crate::render) fn panel_shape_text(&mut self, width: u32) -> PanelShape {
         let m = self.metrics.panel_ui();
         let no_match = self.search_no_matches();
@@ -164,20 +161,12 @@ impl TextPipeline {
         let replace_active = self.search_replace_active;
         let editing_replacement = replace_active && self.search_editing_replacement;
 
-        // Calm visual hierarchy via per-run color: muted labels, full-ink
-        // query/replacement, and an "Aa" indicator that brightens from muted
-        // to full ink when case-sensitivity is ON — state carried by VALUE,
-        // never amber (the caret alone owns that accent).
-        let (c_query, c_counter, c_toggle) = if no_match {
-            (red, red, muted)
-        } else if self.search_case_sensitive {
-            (ink, muted, ink)
-        } else {
-            (ink, muted, muted)
-        };
+        // Calm visual hierarchy via per-run color: muted labels and full-ink
+        // query/replacement. State lives inside the checkbox, never amber (the
+        // caret alone owns that accent).
+        let (c_query, c_counter) = if no_match { (red, red) } else { (ink, muted) };
         let wide = panel_cells >= PANEL_WIDE_CELLS;
         let stacked_fields = panel_cells < PANEL_STACKED_FIELD_CELLS;
-        let case_hint_on = self.search_case_sensitive && !no_match;
 
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         let mut controls = PanelControlSpans::default();
@@ -205,8 +194,8 @@ impl TextPipeline {
         // computed against, so any FIXED-length text appended after the
         // reserved caret cell rides for free on top of that budget and can
         // push the row past the narrow-canvas clamp `panel_layout` derives
-        // from the very same width. The `Tab switch field` hint lives on the
-        // nav row instead, which already carries its own wide/narrow wrap.
+        // from the very same width. The nav row already owns its own
+        // wide/narrow wrap.
         let mut replace_row = None;
         let mut nav_row = find_row + 1.0;
         if replace_active {
@@ -280,43 +269,38 @@ impl TextPipeline {
         });
         let case_row = if wide { nav_row } else { nav_row + 1.0 };
         if wide {
-            spans.push(("   ", mk(muted)));
-            off += 3;
+            // Leave the checkbox visibly separate from the preceding nav
+            // cluster after both controls apply their shaped-span outsets.
+            spans.push(("      ", mk(muted)));
+            off += 6;
         } else {
             spans.push(("\n", mk(muted)));
             off = 0;
         }
         let case_start = off;
-        spans.push(("Aa", mk(c_toggle)));
-        off += 2;
+        // A non-breaking space keeps a real shaped cell when unchecked, so
+        // the shared span-to-rect owner can still draw and hit the empty box.
+        let case_mark = if self.search_case_sensitive {
+            "✓"
+        } else {
+            "\u{a0}"
+        };
+        spans.push((case_mark, mk(ink)));
+        off += case_mark.len();
         controls.case_box = Some(ControlSpan {
             row: case_row,
             byte_start: case_start,
             byte_end: off,
         });
-        const CASE_LABEL: &str = " Match case";
+        const CASE_LABEL: &str = "  Match case";
         spans.push((CASE_LABEL, mk(muted)));
-        let case_hint_owned;
-        if wide {
-            case_hint_owned = format!(" {}", crate::keyspec::PANEL_MATCH_CASE.label());
-            let case_hint_color = if case_hint_on { ink } else { muted };
-            push_symbol_split(
-                &mut spans,
-                &case_hint_owned,
-                move || mk(case_hint_color),
-                move || sym(case_hint_color),
-            );
-        }
         let nav_lines = if wide { 1.0 } else { 2.0 };
 
         // THE ACTIONS ROW (only once replace is revealed): Replace / Replace
-        // all, each a real click target with its own chord annotation, and
-        // the `Esc close` hint. Same wrap policy as the nav row: one line at
+        // all, each a real click target. Same wrap policy as the nav row: one line at
         // ordinary widths, `Replace all` moves to a second line under narrow
         // pressure.
         let actions_row = nav_row + nav_lines;
-        let replace_hint_owned;
-        let replace_all_hint_owned;
         if replace_active {
             spans.push(("\n", mk(muted)));
             let mut off2 = 0usize;
@@ -329,16 +313,9 @@ impl TextPipeline {
                 byte_start: rb_start,
                 byte_end: off2,
             });
-            spans.push((" ", mk(muted)));
-            off2 += 1;
-            if wide {
-                replace_hint_owned = crate::keyspec::PANEL_REPLACE_NEXT.label();
-                push_symbol_split(&mut spans, &replace_hint_owned, || mk(muted), || sym(muted));
-                off2 += replace_hint_owned.len();
-            }
             let replace_all_row = if wide {
-                spans.push(("  ", mk(muted)));
-                off2 += 2;
+                spans.push(("   ", mk(muted)));
+                off2 += 3;
                 actions_row
             } else {
                 spans.push(("\n", mk(muted)));
@@ -354,16 +331,6 @@ impl TextPipeline {
                 byte_start: rab_start,
                 byte_end: off2,
             });
-            spans.push((" ", mk(muted)));
-            if wide {
-                replace_all_hint_owned = crate::keyspec::PANEL_REPLACE_ALL.label();
-                push_symbol_split(
-                    &mut spans,
-                    &replace_all_hint_owned,
-                    || mk(muted),
-                    || sym(muted),
-                );
-            }
         }
         let actions_lines = if replace_active {
             if wide { 1.0 } else { 2.0 }
@@ -371,30 +338,12 @@ impl TextPipeline {
             0.0
         };
 
-        // One quiet footer owns the two navigation chords that apply to the
-        // panel as a whole. Keeping them out of the control rows makes those
-        // rows scan as controls instead of a sentence of annotations.
-        let footer_field_owned;
-        let footer_close_owned;
-        let footer_owned;
-        let footer_rows = if stacked_fields {
-            footer_field_owned = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
-            footer_close_owned = format!("{} close", crate::keyspec::PANEL_CLOSE.label());
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_field_owned, || mk(muted), || sym(muted));
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_close_owned, || mk(muted), || sym(muted));
-            2.0
-        } else {
-            footer_owned = format!(
-                "{} field   {} close",
-                crate::keyspec::PANEL_SWITCH_FIELD.label(),
-                crate::keyspec::PANEL_CLOSE.label()
-            );
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_owned, || mk(muted), || sym(muted));
-            1.0
-        };
+        // One quiet footer owns the global close chord. Field/action rows
+        // remain recognizable controls instead of a sentence of annotations.
+        let footer_owned = format!("{} close", crate::keyspec::PANEL_CLOSE.label());
+        spans.push(("\n", mk(muted)));
+        push_symbol_split(&mut spans, &footer_owned, || mk(muted), || sym(muted));
+        let footer_rows = 1.0;
 
         let rows = actions_row + actions_lines + footer_rows;
         // Give the buffer generous width + one line height per row so it never wraps.

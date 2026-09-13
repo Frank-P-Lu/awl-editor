@@ -9,7 +9,7 @@
 //!   glyphon laid the row's glyphs out at, which is what the frame uploaded — and
 //!   against the POINTER, probed at the band's own centre and 1.5px outside each
 //!   edge;
-//! * the `Aa` TOGGLE SPAN against the find row's total shaped advance (`line_w`,
+//! * the MATCH-CASE BOX against the find row's total shaped advance (`line_w`,
 //!   an accumulation glyphon keeps separately from the per-glyph `x`/`w` the
 //!   span is seated on) and against the pointer at both ends, inside and out.
 //!   **EXTENT, NOT ONLY ORIGIN**: a span pinned only by where it starts accepts
@@ -25,8 +25,8 @@
 //! all.
 //!
 //! **THE ROW COUNT IS AN AXIS TOO.** A plain find panel shapes one row; the
-//! replace state shapes three at ordinary widths and may break the complete hint
-//! into more semantic rows under pressure. Only the replace state can expose a
+//! replace state shapes more control rows and may wrap those controls under
+//! pressure. Only the replace state can expose a
 //! row-band step error that one row cannot show.
 //!
 //! **THE NARROW-WINDOW ARM ASSERTS AGREEMENT AT THE DEVICE SEAM.** The pure
@@ -136,8 +136,8 @@ fn find_chrome_is_logical_across_dpi_and_independent_of_document_zoom() {
                 .expect("the Find panel prepares");
             let normalized = geometry.card.map(|value| value / dpi);
             assert!(
-                (420.0..=480.0).contains(&normalized[2]),
-                "dpi={dpi} zoom={zoom}: ordinary Find width {} misses 420..=480 logical",
+                (560.0..=620.0).contains(&normalized[2]),
+                "dpi={dpi} zoom={zoom}: ordinary Find width {} misses 560..=620 logical",
                 normalized[2]
             );
             for control in &geometry.controls {
@@ -182,7 +182,6 @@ fn expected_controls(replace: bool) -> Vec<(&'static str, PanelHit)> {
     ];
     if replace {
         want.push(("replace_field", PanelHit::Replace));
-        want.push(("replace_button", PanelHit::ReplaceButton));
         want.push(("replace_all_button", PanelHit::ReplaceAllButton));
     }
     want
@@ -346,7 +345,7 @@ fn grade_card_and_rows(
 /// Every bordered control this state should have shaped: a real extent, ink
 /// actually present in its own byte span, a press at its centre resolving to
 /// its named `PanelHit`, and a press 1.5px past EACH of its four edges no
-/// longer resolving to that same variant — the EXTENT grade the retired `Aa`
+/// longer resolving to that same variant — the EXTENT grade the retired inline marker
 /// span law used, generalized to every control the reference chrome added.
 fn grade_controls(
     label: &str,

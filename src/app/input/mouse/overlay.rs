@@ -124,27 +124,74 @@ impl App {
         self.request_frame();
     }
 
+    fn apply_theme_panel_action(
+        &mut self,
+        action: Option<crate::render::chrome::overlay_composition::ThemePanelAction>,
+        exit: &dyn schedule::Exit,
+    ) -> bool {
+        let Some(action) = action else { return false };
+        let action = match action {
+            crate::render::chrome::overlay_composition::ThemePanelAction::Switch => Action::Newline,
+            crate::render::chrome::overlay_composition::ThemePanelAction::Cancel => Action::Cancel,
+        };
+        self.apply(action, false, exit, crate::stats::Door::Chord);
+        self.sync_view(true);
+        self.request_frame();
+        true
+    }
+
+    fn apply_files_surface_action(
+        &mut self,
+        action: Option<crate::render::FilesSurfaceAction>,
+        exit: &dyn schedule::Exit,
+    ) -> bool {
+        let Some(action) = action else { return false };
+        if let Some(overlay) = self.workspace_state.overlay_mut() {
+            overlay.files_focus = match action {
+                crate::render::FilesSurfaceAction::Up => crate::overlay::FilesFocus::Up,
+                crate::render::FilesSurfaceAction::ChangeFolder => {
+                    crate::overlay::FilesFocus::ChangeFolder
+                }
+                crate::render::FilesSurfaceAction::NewDocument => {
+                    crate::overlay::FilesFocus::NewDocument
+                }
+            };
+        }
+        self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
+        self.sync_view(true);
+        self.request_frame();
+        true
+    }
+
     /// Use press-time hit tests, never cached hover or release position. Rows
     /// accept through the shared action path, except range labels select only.
     /// Query presses place their caret and arm dragging. Interior gaps consume the
     /// press; click-away cancels through the shared path so previews revert.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
-        let (row_hit, lens_hit, rail_hit, query_hit, files_hit, card, table_dims_hit) = self
+        let (
+            (row_hit, lens_hit, rail_hit, query_hit),
+            (files_hit, theme_action, card, table_dims_hit),
+        ) = self
             .frame
             .gpu()
             .map(|g| {
                 (
-                    g.pipeline.overlay_row_at(px, py),
-                    g.pipeline.overlay_lens_at(px, py),
-                    g.pipeline.workspace_rail_at(px, py),
-                    g.pipeline.overlay_query_char_at(px, py),
-                    g.pipeline.files_surface_action_at(px, py),
-                    g.pipeline.overlay_card_rect(),
-                    g.pipeline.table_dims_cell_at(px, py),
+                    (
+                        g.pipeline.overlay_row_at(px, py),
+                        g.pipeline.overlay_lens_at(px, py),
+                        g.pipeline.workspace_rail_at(px, py),
+                        g.pipeline.overlay_query_char_at(px, py),
+                    ),
+                    (
+                        g.pipeline.files_surface_action_at(px, py),
+                        g.pipeline.theme_panel_action_at(px, py),
+                        g.pipeline.overlay_card_rect(),
+                        g.pipeline.table_dims_cell_at(px, py),
+                    ),
                 )
             })
-            .unwrap_or((None, None, None, None, None, None, None));
+            .unwrap_or(((None, None, None, None), (None, None, None, None)));
 
         // Grid cells commit through the same action as Enter.
         if let Some((row, col)) = table_dims_hit {
@@ -156,27 +203,16 @@ impl App {
             self.request_frame();
             return;
         }
+        if self.apply_theme_panel_action(theme_action, exit) {
+            return;
+        }
         // Rail clicks use the same lens and focus transitions as keyboard entry.
         if let Some(rail_idx) = rail_hit {
             self.focus_workspace_rail_at(rail_idx);
             return;
         }
 
-        if let Some(action) = files_hit {
-            if let Some(overlay) = self.workspace_state.overlay_mut() {
-                overlay.files_focus = match action {
-                    crate::render::FilesSurfaceAction::Up => crate::overlay::FilesFocus::Up,
-                    crate::render::FilesSurfaceAction::ChangeFolder => {
-                        crate::overlay::FilesFocus::ChangeFolder
-                    }
-                    crate::render::FilesSurfaceAction::NewDocument => {
-                        crate::overlay::FilesFocus::NewDocument
-                    }
-                };
-            }
-            self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
-            self.sync_view(true);
-            self.request_frame();
+        if self.apply_files_surface_action(files_hit, exit) {
             return;
         }
 

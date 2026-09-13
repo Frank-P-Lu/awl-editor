@@ -459,14 +459,14 @@ impl OverlayKind {
         )
     }
 
-    /// Ghost text the query FIELD shows while it's empty — a promise no
-    /// picker's fuzzy-filter field makes (an empty query there just means
-    /// "everything"), but this kind's field has nothing behind it until
-    /// something is typed. `None` for every other kind, so the query line's
-    /// paint stays exactly as blank as it always was there.
+    /// Ghost text the query FIELD shows while it's empty — a promise no picker's
+    /// fuzzy-filter field makes (an empty query there just means
+    /// "everything"), but this kind's field has nothing behind it until something
+    /// is typed. `None` elsewhere, so the query line stays exactly as blank as before.
     pub fn field_placeholder(self) -> Option<&'static str> {
         match self {
             OverlayKind::InsertLink => Some("Paste or type a URL"),
+            OverlayKind::Theme => Some("Search themes"),
             OverlayKind::Settings => Some("Search settings"),
             _ => None,
         }

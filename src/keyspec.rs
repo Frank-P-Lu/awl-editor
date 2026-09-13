@@ -448,21 +448,17 @@ pub fn undo_chord_label() -> String {
 pub(crate) const UNDO_SPEC_MAC: &str = "s-z";
 pub(crate) const UNDO_SPEC_LINUX: &str = "C-/";
 
-/// THE FIND/REPLACE PANEL'S OWN FIXED CHORDS, AS PROSE THE USER READS.
+/// THE FIND/REPLACE PANEL'S OWN FIXED CHORDS.
 ///
 /// Every one of these is consumed directly by `search::keys::intercept` while
 /// the panel is up — a raw-key interception with no catalog row and no
-/// `[keys]` rebinding door, the same shape [`undo_chord_label`] already solved
-/// for `Undo`. A doc string baked into `render/chrome/panel.rs` as a literal
-/// `"\u{2318}\u{2325}c case"` is wrong the instant it is read on Linux (bare
-/// `Alt-c` there, never `Super+Alt+c` — a Linux hand has no reason to hold a
-/// Super/Windows key for this), so each fixed chord gets a mac/linux SPEC pair
-/// resolved through the SAME glyph renderer every catalog chord uses
-/// (`mac_glyph_chord`/`linux_glyph_chord`), gated on [`crate::convention::Convention::current`]
-/// exactly like the undo label above. `panel_chords::tests` (in
-/// `render/chrome/panel.rs`) proves each spec is the chord that actually fires,
-/// through `search::keys::intercept` directly (these never reach the keymap, so
-/// `KeymapState::resolve` cannot see them).
+/// `[keys]` rebinding door. The quiet composition only prints the global close
+/// hint, but every fixed chord retains a mac/linux SPEC pair so the laws can
+/// prove it is the chord `search::keys::intercept` actually fires. Labels route
+/// through the same platform glyph renderer every catalog chord uses.
+/// Keeping these specs also makes the interaction contract inspectable without
+/// forcing the compact panel to print every alternative beside its controls.
+/// The close spec remains the one label the surface renders directly.
 pub(crate) struct PanelChordSpec {
     pub mac: &'static str,
     pub linux: &'static str,
@@ -487,6 +483,7 @@ impl PanelChordSpec {
 
 /// Enter, unmodified: replace the current match and advance (or, with no
 /// replace row up, accept and close).
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) const PANEL_REPLACE_NEXT: PanelChordSpec = PanelChordSpec {
     mac: "Enter",
     linux: "Enter",
@@ -496,11 +493,13 @@ pub(crate) const PANEL_REPLACE_NEXT: PanelChordSpec = PanelChordSpec {
 /// Ctrl-Enter alternate) — `search::keys::intercept_character`'s Enter arm
 /// gates on `ModifiersState::SUPER` alone, so the physical key is Cmd on mac
 /// and the Super/Windows key on Linux.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) const PANEL_REPLACE_ALL: PanelChordSpec = PanelChordSpec {
     mac: "s-Enter",
     linux: "s-Enter",
 };
 /// Tab, unmodified: switch focus between the find and replace fields.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) const PANEL_SWITCH_FIELD: PanelChordSpec = PanelChordSpec {
     mac: "Tab",
     linux: "Tab",
@@ -514,6 +513,7 @@ pub(crate) const PANEL_CLOSE: PanelChordSpec = PanelChordSpec {
 /// just a different render of one spec — Option-c alone composes to 'ç' on
 /// macOS (see `search::keys::intercept_character`'s own doc), so the
 /// mac-reachable door holds Super down too; the Linux door is bare Alt-c.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) const PANEL_MATCH_CASE: PanelChordSpec = PanelChordSpec {
     mac: "s-M-c",
     linux: "M-c",

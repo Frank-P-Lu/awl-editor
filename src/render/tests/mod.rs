@@ -207,6 +207,7 @@ mod palette_shortcuts;
 /// edges through the same shaped-glyph scan the amber caret rides, clipped by
 /// the same fixed-width window rule.
 mod panel_bordered_chrome;
+mod panel_composition;
 mod panel_field_selection;
 mod paperbark_retina;
 mod pipeline_tint_law;

@@ -72,12 +72,11 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        // A WORKSPACE AND FILES ARE EACH ONE SURFACE. The split composition
-        // carves a card's query beat into a separate upper plate; that is a
-        // small-card gesture, and run across a workspace it would cut the
-        // navigation rail in half at an arbitrary height. Files likewise owns
-        // one opaque surface, so a seam would expose the document it replaced.
-        if geom.workspace || self.overlay_files_surface {
+        // WORKSPACES, FILES, AND THEMES ARE EACH ONE SURFACE. The split card's
+        // separate query plate is a small-card gesture; here it would cut the
+        // navigation rail, detach theme search from its choices, or expose the
+        // document through the opaque Files surface.
+        if geom.workspace || self.overlay_files_surface || self.overlay_theme_picker {
             return vec![full];
         }
         if !matches!(
@@ -201,6 +200,7 @@ impl TextPipeline {
             }
             thumb_quads.push((rail.thumb, ink));
         }
+        self.append_overlay_composition_quads(geom, plan, &mut track_rects, &mut thumb_quads);
         self.overlay_range_track
             .set_color(crate::render::overlay_chrome_theme().faint.rgba_bytes());
         self.overlay_range_track

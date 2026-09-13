@@ -1,4 +1,21 @@
-use super::kind::OverlayKind;
+use super::{kind::OverlayKind, state::OverlayState};
+
+impl OverlayState {
+    /// Theme rows report the committed world independently from the selected
+    /// live preview. Every other picker retains its authored secondary cell.
+    pub(super) fn composed_item_binding(&self, item: usize) -> String {
+        if self.kind != OverlayKind::Theme {
+            return self.rows[item].secondary.clone();
+        }
+        let current = self.audition.theme_original();
+        let preview = self.selected_corpus_index();
+        match (Some(item) == current, Some(item) == preview) {
+            (true, _) => "current".to_string(),
+            (false, true) => "preview".to_string(),
+            (false, false) => String::new(),
+        }
+    }
+}
 
 impl OverlayKind {
     /// A brief contextual choice that keeps the surrounding writing readable.

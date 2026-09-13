@@ -18,8 +18,15 @@ impl TextPipeline {
 
     /// Left edge of the editable query span. Files reserves the shaped title
     /// prefix for header controls; ordinary cards retain their full-row field.
-    pub(super) fn overlay_query_input_x(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
-        if !self.overlay_files_surface {
+    pub(in crate::render) fn overlay_query_input_x(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> f32 {
+        if !self.overlay_files_surface
+            && !self.overlay_theme_picker
+            && !(geom.workspace && !self.overlay_rows_primary)
+        {
             return geom.card_x;
         }
         let prefix = self.overlay_title_prefix(geom);

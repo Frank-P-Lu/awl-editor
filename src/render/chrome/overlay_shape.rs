@@ -664,6 +664,8 @@ impl TextPipeline {
         );
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
+        } else if let Some(title) = self.overlay_composed_title_prefix(geom) {
+            title
         } else if self.overlay_files_surface {
             format!("{}: ", self.overlay_title)
         } else {
@@ -920,6 +922,7 @@ impl TextPipeline {
     }
 
     fn push_flat_overlay_query_spans<'a>(
+        &self,
         spans: &mut Vec<(&'a str, glyphon::Attrs)>,
         geom: &OverlayGeom,
         query: FlatQuerySpans<'a>,
@@ -958,18 +961,15 @@ impl TextPipeline {
         if title_prefix.is_empty() {
             spans.push(("› ", hk(muted)));
         } else {
-            spans.push((title_prefix, hkc(muted)));
+            let composed = self.overlay_composed_title_prefix(geom).is_some();
+            spans.push((title_prefix, hkc(if composed { ink } else { muted })));
         }
-        // GHOST TEXT: an empty field with something to say about it (today
-        // only Insert-link's URL field) shows it dim in the field's own
-        // place, never a second line — a query text still overrides it the
-        // instant it exists, matching the plain text-field convention.
+        // Ghost text occupies an empty field; typed query text replaces it immediately.
         match (query.is_empty(), placeholder) {
             (true, Some(placeholder)) => spans.push((placeholder, hk(muted))),
             _ => spans.push((query, hk(ink))),
         }
     }
-
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
@@ -1002,7 +1002,7 @@ impl TextPipeline {
         } else {
             self.overlay_raw_title_prefix(geom)
         };
-        Self::push_flat_overlay_query_spans(
+        self.push_flat_overlay_query_spans(
             &mut spans,
             geom,
             FlatQuerySpans {

@@ -398,7 +398,7 @@ impl OverlayState {
     pub fn item_bindings(&self) -> Vec<String> {
         self.items
             .iter()
-            .map(|&i| self.rows[i].secondary.clone())
+            .map(|&i| self.composed_item_binding(i))
             .collect()
     }
 
