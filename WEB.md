@@ -168,7 +168,7 @@ hermetic setup for automated input-state testing.
   event API supplies that payload during the paste gesture; its contract is
   distinct from the permission-gated asynchronous `readText` API.
   See the [Clipboard Events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
-  `app/web_clipboard.rs` owns both event listeners. Its capture listener lets
+  `app/web_clipboard.rs` owns the browser event listeners. Its capture listener lets
   Cmd-V on Mac or Ctrl-V elsewhere reach the browser only while that chord
   still resolves to Paste; it stops the duplicate winit keydown first. Other
   keys retain winit's browser-default suppression, and remapped paste chords
@@ -177,8 +177,15 @@ hermetic setup for automated input-state testing.
   Received text enters the shared `Action::PasteText` transition, replacing a
   document selection as one undoable edit. Unicode is preserved and CRLF
   becomes LF. Summoned fields receive text through their existing filtering
-  and selection owners; line breaks/control characters are omitted in those
-  single-line fields, and never submit a field or edit the background document.
+  and selection owners in one bulk splice and one results update; line breaks
+  and control characters are omitted in those single-line fields, and never
+  submit a field or edit the background document. Paste leaves every phase of
+  keybinding capture unchanged, including partially recorded chords.
+  Trusted DOM `compositionstart`/`compositionend` events track browser
+  composition independently of winit preedit. Paste during composition is
+  refused without inserting or queueing text; finish composition before pasting.
+  Composition and focus changes invalidate queued payloads and pending notices.
+  See the [UI Events composition contract](https://www.w3.org/TR/uievents/#events-compositionevents).
   Empty plain text is a no-op. Missing/non-text data and an observed gesture
   with no paste event show a notice instead of inserting old kill-ring text.
   Custom Paste bindings and palette Paste cannot summon a trusted browser

@@ -27,6 +27,13 @@ default. Request a worker full gate only when an identified integration risk war
 it. This scope rule also applies when an older queue brief mechanically lists both.
 An explicit user requirement for additional verification still takes precedence.
 
+The ignored `app::tests::summoned_field_actions::browser_paste::
+browser_paste_bulk_release_measurement` test measures a 45,056-byte Unicode
+clipboard fixture through every focused field in release mode. Its sibling law
+counts actual splices, refilters, search recomputations, previews and field
+mirrors; timing is observational, never the correctness oracle. Neither test
+proves browser or operating-system clipboard delivery.
+
 The merge train may collect related changes into a bounded candidate, inspecting and
 compiling each merge, then gate that candidate once. It does not push or describe the
 candidate as verified until the full required checks pass. After a failure, diagnose
