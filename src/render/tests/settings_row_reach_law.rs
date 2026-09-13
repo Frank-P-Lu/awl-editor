@@ -76,6 +76,50 @@ fn settings_view(ov: &OverlayState) -> ViewState {
     settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS)
 }
 
+/// Keep the same 1200×800 LOGICAL window at every swept display scale. The
+/// renderer and pointer inverse both speak physical canvas pixels, so the
+/// pipeline size and prepared target must grow with DPI together.
+fn row_reach_canvas(p: &mut TextPipeline, dpi: f32) -> (u32, u32) {
+    let width = (1200.0 * dpi).round() as u32;
+    let height = (800.0 * dpi).round() as u32;
+    p.set_dpi(dpi);
+    p.set_size(width as f32, height as f32);
+    (width, height)
+}
+
+/// An interior x from the exact planned row carrying `item`, not from the
+/// workspace card around it. A Settings workspace can place its row band in
+/// one pane of that card, so the card's center is not generally clickable.
+fn planned_row_center_x(p: &TextPipeline, width: u32, item: usize, ctx: &str) -> (f32, (f32, f32)) {
+    let geom = p.overlay_geometry(width);
+    let plan = p.overlay_row_plan(&geom);
+    let row = plan
+        .rows()
+        .iter()
+        .find(|row| row.item == Some(item))
+        .unwrap_or_else(|| panic!("{ctx}: item {item} must have a planned row"));
+    let (x0, x1) = plan
+        .row_x_span(row.display)
+        .unwrap_or_else(|| panic!("{ctx}: item {item}'s planned row must have a hit span"));
+    assert!(
+        x1 - x0 >= 2.0,
+        "{ctx}: item {item}'s planned hit span {x0}..{x1} must contain an interior point"
+    );
+    ((x0 + x1) * 0.5, (x0, x1))
+}
+
+fn assert_row_reach_enrollment(graded: usize, expected: usize, card_center_misses: usize) {
+    assert_eq!(
+        graded, expected,
+        "the row-reach sweep must grade every cell"
+    );
+    assert!(
+        card_center_misses > 0,
+        "the sweep must include a planned row span that excludes the whole-card \
+         center; restoring that old oracle must be observable"
+    );
+}
+
 /// The measured cluster is a geometry contract, not a Settings-only cosmetic
 /// alignment. Sweep every typed settings identity through both diagonal
 /// worlds and both reachable surfaces: the label/control gap stays one measured
@@ -315,8 +359,11 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
         "the Editor facet must carry a handful of rows for this sweep to be meaningful"
     );
 
+    let mut graded = 0usize;
+    let mut card_center_misses = 0usize;
+    let world_count = crate::theme::world_names().len();
     for dpi in [1.0f32, 2.0] {
-        p.set_dpi(dpi);
+        let (width, height) = row_reach_canvas(&mut p, dpi);
         for world in crate::theme::world_names() {
             theme::set_active_by_name(world).unwrap();
             p.sync_theme();
@@ -336,12 +383,14 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
                     ov.selected = target;
                     let v = settings_view(&ov);
                     p.set_view(&v);
-                    p.prepare(&device, &queue, 1200, 800).unwrap();
+                    p.prepare(&device, &queue, width, height).unwrap();
                     let pr = p.overlay_row_y_probe();
                     let card = p.overlay_card_rect().unwrap_or_else(|| {
                         panic!("{ctx}: an open Settings card must expose a rect")
                     });
-                    let px = card[0] + card[2] * 0.5;
+                    let (px, (x0, x1)) = planned_row_center_x(&p, width, target, &ctx);
+                    let card_center = card[0] + card[2] * 0.5;
+                    card_center_misses += usize::from(card_center < x0 || card_center > x1);
                     let k = pr.sel_disp;
                     let top = *pr.primary.get(&k).unwrap_or_else(|| {
                         panic!("{ctx}: display row {k} (item {target}) must be drawn")
@@ -364,9 +413,10 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
                     assert_eq!(
                         hit,
                         Some(target),
-                        "{ctx}: a pointer at row {target}'s own y-center ({py}) must \
-                         hit-test to row {target}, not {hit:?} — this IS the \"every \
-                         second row\" failure mode at the pixel layer"
+                        "{ctx}: a pointer inside row {target}'s own planned span \
+                         ({x0}..{x1}) at ({px}, {py}) must hit-test to row {target}, \
+                         not {hit:?} — this IS the \"every second row\" failure mode \
+                         at the pixel layer"
                     );
 
                     // (b) PASSIVE HOVER from a DIFFERENT row lands on exactly this
@@ -398,10 +448,16 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
                         "{ctx}: the row drawn as {drawn_name:?} must accept as the \
                          same setting, not {corpus_name:?}"
                     );
+                    graded += 1;
                 }
             }
         }
     }
+    assert_row_reach_enrollment(
+        graded,
+        2 * world_count * styles.len() * n,
+        card_center_misses,
+    );
     crate::render::set_list_style_test_override(None);
     crate::render::set_bar_config_test_override(None);
     p.set_dpi(1.0);
@@ -435,33 +491,39 @@ fn the_zoom_rows_band_and_its_neighbours_never_bleed_into_one_another() {
         "Zoom needs a neighbour on both sides to test adjacency"
     );
 
+    let mut graded = 0usize;
+    let mut card_center_misses = 0usize;
     for world in ["Mopoke", "Saltpan", "Firetail"] {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         for dpi in [1.0f32, 2.0] {
-            p.set_dpi(dpi);
+            let (width, height) = row_reach_canvas(&mut p, dpi);
             for row in [zoom - 1, zoom, zoom + 1] {
                 let ctx = format!("world={world} dpi={dpi} row={row}");
                 let mut ov = editor_overlay();
                 ov.selected = row;
                 let v = settings_view(&ov);
                 p.set_view(&v);
-                p.prepare(&device, &queue, 1200, 800).unwrap();
+                p.prepare(&device, &queue, width, height).unwrap();
                 let pr = p.overlay_row_y_probe();
                 let card = p.overlay_card_rect().unwrap();
-                let px = card[0] + card[2] * 0.5;
+                let (px, (x0, x1)) = planned_row_center_x(&p, width, row, &ctx);
+                let card_center = card[0] + card[2] * 0.5;
+                card_center_misses += usize::from(card_center < x0 || card_center > x1);
                 let k = pr.sel_disp;
                 let top = pr.primary[&k];
                 let py = top + pr.lh * 0.5;
                 assert_eq!(
                     p.overlay_row_at(px, py),
                     Some(row),
-                    "{ctx}: rows adjacent to the Zoom rail must still hit-test to \
-                     themselves, not the rail row"
+                    "{ctx}: rows adjacent to the Zoom rail must hit-test inside \
+                     their own planned span {x0}..{x1}, not bleed into the rail row"
                 );
+                graded += 1;
             }
         }
     }
+    assert_row_reach_enrollment(graded, 3 * 2 * 3, card_center_misses);
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
 }
