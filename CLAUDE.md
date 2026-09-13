@@ -122,3 +122,13 @@ Tags and releases wait for the user's explicit word, every time. **Worktree bran
 - **Shift-PageDown/PageUp** deliberately do not extend a selection (documented non-movers in the `is_motion` test); promoting them is a conscious follow-up, not a bug.
 - **Shared orchestration board:** build queues, dependencies, and status live in `.orchestrator/queue.md` — the one tool-neutral source of truth (ROADMAP.md is product direction). A queue orchestrator reads `.orchestrator/README.md` before every dispatch wave. Its protocol: claim on the board and commit before writing code; work in a worktree named on the claim line; board writes are orchestrator-only — workers report shas + outcomes. Every dispatched worker gets an explicit model and effort chosen by role; never silently inherit the orchestrator's defaults. Inheritance is allowed only when the brief deliberately records that the worker needs the same model and effort.
 - **Design-session flow (README §Design sessions):** brainstormed decisions land as self-contained queue items committed with an `orchestrator: decisions` subject; git is the log — no decisions file. The user's notes (private, outside the repo) are the user's space: agents read there, never write.
+
+## Worktree lifecycle
+
+Create agent-owned worktrees through `scripts/worktree.py create` under the main
+checkout's `.worktrees/<task>-<purpose>/`, including detached baselines and one-off
+experiments. Register tool-managed exceptions through its `state` command. Keep
+lifecycle and review locations current; never infer retirement from age or a
+completed turn. Use `scripts/sweep.sh --list` and `--retired` for inventory and
+preview. Only explicitly retired, stopped, preserved work is eligible for removal.
+See [docs/worktree-lifecycle.md](docs/worktree-lifecycle.md) for the procedure.

@@ -63,6 +63,16 @@
 #   DRY_RUN=1 scripts/sweep.sh          # report only
 set -euo pipefail
 
+# Lifecycle mode is independent of cargo-sweep and never runs in disk preflight.
+if [[ "${1:-}" == "--list" ]]; then
+    exec python3 "$(dirname "${BASH_SOURCE[0]}")/worktree.py" list
+fi
+RETIRED=0
+if [[ "${1:-}" == "--retired" ]]; then
+    RETIRED=1
+    shift
+fi
+
 ALL_WORKTREES=0
 if [[ "${1:-}" == "--all-worktrees" ]]; then
     ALL_WORKTREES=1
@@ -73,7 +83,7 @@ DAYS="${1:-7}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
 
-if ! command -v cargo-sweep >/dev/null 2>&1; then
+if [[ "$RETIRED" -eq 0 ]] && ! command -v cargo-sweep >/dev/null 2>&1; then
     echo "sweep: cargo-sweep not installed — cargo install cargo-sweep" >&2
     exit 1
 fi
@@ -102,6 +112,10 @@ refuse_all_worktrees_if_not_idle() {
     if [[ -n "${AWL_SWEEP_CARGO_PS_COMMAND:-}" ]]; then
         live="$(${AWL_SWEEP_CARGO_PS_COMMAND} 2>/dev/null || true)"
     else
+        if ! ps -axo pid= >/dev/null 2>&1; then
+            echo "sweep: cannot inspect processes; refusing fleet cleanup" >&2
+            exit 1
+        fi
         live="$( { pgrep -x cargo; pgrep -x rustc; } 2>/dev/null || true)"
     fi
     if [[ -n "$live" ]]; then
@@ -109,6 +123,18 @@ refuse_all_worktrees_if_not_idle() {
         exit 1
     fi
 }
+
+if [[ "$RETIRED" -eq 1 ]]; then
+    if [[ "$#" -gt 1 || ( "$#" -eq 1 && "$1" != "--apply" ) ]]; then
+        echo "usage: sweep.sh --retired [--apply]" >&2
+        exit 1
+    fi
+    if [[ "${1:-}" == "--apply" && -z "${DRY_RUN:-}" ]]; then
+        refuse_all_worktrees_if_not_idle
+        exec python3 "$ROOT/scripts/worktree.py" sweep --apply
+    fi
+    exec python3 "$ROOT/scripts/worktree.py" sweep
+fi
 
 # macOS still ships Bash 3, so do not use an associative array here.
 unique_roots=()

@@ -317,3 +317,5 @@ fi
 echo "test-sweep: --all-worktrees refuses on a live cargo/rustc report even absent a marker"
 
 echo "test-sweep: sweep.sh deletes only inside its caller's worktree"
+
+python3 "$ROOT/scripts/test-worktree.py"
