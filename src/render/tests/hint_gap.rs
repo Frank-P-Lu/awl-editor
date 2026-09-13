@@ -299,6 +299,10 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
                 let mut v = overlay_view(OverlayKind::Settings, Shape::Scrolled);
                 v.overlay_workspace = true;
                 v.overlay_rows_primary = rows_primary;
+                // The Settings row list is the content region. At shipped
+                // density it is staged behind the category rail, so this
+                // footer-gap reading enters that real lifecycle stage.
+                v.overlay_detail_focus = !rows_primary;
                 p.set_view(&v);
                 p.prepare(&device, &queue, cw, ch).unwrap();
                 let lh = p.overlay_lh();
@@ -432,6 +436,10 @@ fn grade_hint_budget_roster(
         if let Some(shape) = kind.workspace_shape() {
             v.overlay_workspace = true;
             v.overlay_rows_primary = shape.rows_are_primary();
+            // Only RailOverRows keeps its candidate rows in the content
+            // region. Its default launch stage is the rail, whose teaching
+            // line is deliberately not a candidate-footer gap.
+            v.overlay_detail_focus = !shape.rows_are_primary();
             workspace_cells += 1;
         } else if v.overlay_lens.is_empty() {
             flat_cells += 1;

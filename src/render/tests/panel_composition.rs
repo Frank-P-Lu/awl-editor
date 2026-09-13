@@ -8,6 +8,30 @@ use super::{headless_dqp, view};
 const W: u32 = 1200;
 const H: u32 = 800;
 
+/// The Settings separator exists only when both workspace regions are visible.
+/// Shipped density intentionally stages this capped pane, so the composition
+/// law uses the explicit compact-density counterfactual and restores it on
+/// unwind rather than leaving a process-global override behind after a panic.
+struct CompactDensity;
+
+impl CompactDensity {
+    fn install() -> Self {
+        crate::render::overrides::set_overlay_density_test_override(Some(
+            crate::render::overrides::TypeDensity {
+                scale: 0.75,
+                leading: 0.0,
+            },
+        ));
+        Self
+    }
+}
+
+impl Drop for CompactDensity {
+    fn drop(&mut self) {
+        crate::render::overrides::set_overlay_density_test_override(None);
+    }
+}
+
 fn theme_view() -> ViewState {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
@@ -32,6 +56,9 @@ fn settings_view() -> ViewState {
     v.overlay_crisp = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = false;
+    // This fixture grades Settings' rows composition. The production default
+    // starts on Categories at shipped density, so enter the content stage.
+    v.overlay_detail_focus = true;
     v.overlay_query_field = true;
     v.overlay_query_focused = false;
     v.overlay_query_placeholder = Some("Search settings".into());
@@ -233,6 +260,7 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
 fn settings_title_field_and_region_separator_are_distinct() {
     let _guard = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
+    let _density = CompactDensity::install();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping Settings composition law: no wgpu adapter");
         return;

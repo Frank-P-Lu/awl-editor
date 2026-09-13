@@ -235,9 +235,21 @@ fn published_row_lanes_are_physical_pixels_and_scale_with_capture_dpi() {
     // are the same (W/N)x(H/N) logical window, so every difference below is the
     // scale factor and nothing else.
     let one = dir.join("dpi1.png");
-    capture_with(&one, &buf, &flat_picker_opts(&ov, (1200, 800), 1.0)).expect("dpi 1 capture");
+    let mut one_opts = flat_picker_opts(&ov, (1200, 800), 1.0);
+    one_opts
+        .overlay
+        .as_mut()
+        .expect("Settings capture has an overlay")
+        .detail_focus = true;
+    capture_with(&one, &buf, &one_opts).expect("dpi 1 capture");
     let two = dir.join("dpi2.png");
-    capture_with(&two, &buf, &flat_picker_opts(&ov, (2400, 1600), 2.0)).expect("dpi 2 capture");
+    let mut two_opts = flat_picker_opts(&ov, (2400, 1600), 2.0);
+    two_opts
+        .overlay
+        .as_mut()
+        .expect("Settings capture has an overlay")
+        .detail_focus = true;
+    capture_with(&two, &buf, &two_opts).expect("dpi 2 capture");
     let (a, ax, aw) = read_rows(&one);
     let (b, bx, bw) = read_rows(&two);
 

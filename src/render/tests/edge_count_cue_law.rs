@@ -158,6 +158,8 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
     };
     let mut fit_cells = 0usize;
     let mut clip_cells = 0usize;
+    let mut workspace_excluded = 0usize;
+    let mut history_projection = 0usize;
     for kind in OverlayKind::ALL {
         let fam = family(kind);
         // TALL-FITS: a corpus no bigger than the kind's own window cap, at a
@@ -167,6 +169,30 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         p.set_view(&v);
         p.prepare(&device, &queue, ROOMY.0, ROOMY.1).unwrap();
         let ctx = format!("{kind:?}/{fam:?} tall-fits");
+        if fam == Family::Workspace {
+            let rows_primary = kind
+                .workspace_shape()
+                .expect("workspace roster member has a shape")
+                .rows_are_primary();
+            assert_eq!(
+                v.overlay_rows_primary, rows_primary,
+                "{ctx}: the shared fixture must project this workspace's real row region"
+            );
+            if kind == OverlayKind::History {
+                assert!(
+                    rows_primary,
+                    "History is TimelineOverComparison, so its rows live in the primary region"
+                );
+                history_projection += 1;
+            }
+            assert_eq!(
+                p.overlay_edge_cue_report(),
+                Some((None, None)),
+                "{ctx}: summoned workspaces deliberately do not carry picker edge cues"
+            );
+            workspace_excluded += 1;
+            continue;
+        }
         assert_fits_and_no_cue(&p, ROOMY.0, small_n, &ctx);
         fit_cells += 1;
 
@@ -240,6 +266,14 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
     assert!(
         clip_cells > 20,
         "the clipping arm graded too few cells: {clip_cells}"
+    );
+    assert!(
+        workspace_excluded > 0,
+        "the roster must explicitly reach the workspace exclusion"
+    );
+    assert_eq!(
+        history_projection, 1,
+        "the workspace exclusion must reach History's non-Settings projection"
     );
 }
 
@@ -331,8 +365,9 @@ fn theme_picker_short_window_shows_the_below_edge_cue() {
 /// exterior geometry (`card_x`, `card_y`, `card_w`, `card_h`) must be
 /// BYTE-IDENTICAL at every scroll position — the reservation is a property
 /// of the corpus/canvas/query alone, never of which edge happens to clip at
-/// the current selection. Swept over the flat, grouped and workspace
-/// families; the mutation this law is named for (reserving `above.is_some()
+/// the current selection. Swept over the flat and grouped picker families;
+/// summoned workspaces deliberately have no edge-cue reservation. The mutation
+/// this law is named for (reserving `above.is_some()
 /// as usize + below.is_some() as usize` instead of a fixed `2`) made the
 /// SAME command palette's card 27px taller mid-scroll than at either end.
 #[test]
@@ -344,9 +379,8 @@ fn cue_card_geometry_is_scroll_invariant_while_windowed() {
     };
     let mut swept = 0usize;
     for kind in [
-        OverlayKind::Command,  // flat, per-kind-cap-bound
-        OverlayKind::Theme,    // grouped
-        OverlayKind::Settings, // summoned workspace
+        OverlayKind::Command, // flat, per-kind-cap-bound
+        OverlayKind::Theme,   // grouped
     ] {
         let n = kind.window_rows() + 25;
         let mut rects: Vec<[f32; 4]> = Vec::new();
@@ -372,7 +406,7 @@ fn cue_card_geometry_is_scroll_invariant_while_windowed() {
     }
     theme::set_active(theme::DEFAULT_THEME);
     assert_eq!(
-        swept, 3,
-        "the scroll-invariance law must sweep all three named families"
+        swept, 2,
+        "the scroll-invariance law must sweep both cue-bearing picker families"
     );
 }
