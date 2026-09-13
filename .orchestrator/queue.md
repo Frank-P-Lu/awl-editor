@@ -6,7 +6,7 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In progress: 657 and 659. In independent review: 661.
+**5 open numbered tasks.** In implementation or review: 657, 659 and 661.
 Blocked: 651 and 658.
 Outstanding review of landed work and hardware checks are listed separately below.
 
@@ -161,11 +161,13 @@ native/wasm gate on the final frozen candidate.
 
 ### 661 — external plain-text paste in the browser
 
-🟡 IN INDEPENDENT REVIEW — /root/browser_paste_review (codex), source/tests
-commit `0ab25650`; narrow WEB.md commit `623eb83f`. Premise confirmed and focused
-laws, mutation proof, wasm compile, release build and trusted Chrome transport
-passed. The full final Chrome/Safari/Firefox interaction matrix remains owed;
-independent of browser-storage item 651.
+🟡 IN REPAIR — /root/browser_paste (codex), branch `codex/661-browser-paste`.
+Independent review of source/tests commit `0ab25650` found browser-menu paste can
+mutate keybinding capture, and per-scalar insertion makes large summoned-field
+paste quadratic with repeated refilters. Repair with capture/composition gates,
+one field-owned bulk insertion/recompute and work-count/release evidence. The
+narrow WEB.md commit is `623eb83f`; the full final Chrome/Safari/Firefox interaction
+matrix remains owed. This remains independent of browser-storage item 651.
 
 Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
 `refresh_kill_from_clipboard` silently retains the internal kill ring. External
