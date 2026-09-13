@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In progress: 657, 658 and 659. Ready for integration:
-661. Blocked direction: 651.
+**5 open numbered tasks.** In progress: 657 and 659. In independent review: 661.
+Blocked: 651 and 658.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -52,11 +52,13 @@ captures belong in the public repo.
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🟡 IN PROGRESS — /root/browser_paste (codex), branch
-`codex/658-files-select-all`. The same architecture-tier worker is reused because
-the defect crosses AppKit's menu-key equivalent and the live key door, a boundary
-the replay harness cannot drive. Earlier implementation and audit landed with 657
-at merge `ef344429`; the 2026-09-13 live review reproduced the routing discrepancy.
+🔴 BLOCKED on trustworthy physical Cmd-A confirmation. A fresh release bundle
+built and assembled, but the bounded automation attempt delivered no keyboard or
+`App::apply` trace events; the app-selection call hung until interrupted. The CUA
+injector also produced inconsistent deletions (`star` → `sta`, `shared` → `hare`).
+Existing direct-action and real menu-click laws both pass, so product code must not
+change until a physical key-equivalent run distinguishes an awl defect from the
+automation door. Earlier implementation and audit landed with 657 at `ef344429`.
 
 In a disposable Bowerbird release session, typing `shared` in Files and pressing
 Cmd-A then Backspace left `hare`: the command did not select the query and the
@@ -159,10 +161,11 @@ native/wasm gate on the final frozen candidate.
 
 ### 661 — external plain-text paste in the browser
 
-🟠 READY FOR INTEGRATION — source/tests commit `0ab25650`; narrow WEB.md
-commit `623eb83f`. Premise confirmed and focused laws, mutation proof, wasm compile,
-release build and trusted Chrome transport passed. The full final Chrome/Safari/
-Firefox interaction matrix remains owed; independent of browser-storage item 651.
+🟡 IN INDEPENDENT REVIEW — /root/browser_paste_review (codex), source/tests
+commit `0ab25650`; narrow WEB.md commit `623eb83f`. Premise confirmed and focused
+laws, mutation proof, wasm compile, release build and trusted Chrome transport
+passed. The full final Chrome/Safari/Firefox interaction matrix remains owed;
+independent of browser-storage item 651.
 
 Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
 `refresh_kill_from_clipboard` silently retains the internal kill ring. External
