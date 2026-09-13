@@ -26,13 +26,18 @@
 //!
 //! Finally [`assert_budget_returns_to_the_names`] asserts the one thing separating
 //! the lanes was for: yielding the column hands its budget back to the names, and
-//! somewhere on the roster the names genuinely pay for it.
+//! somewhere on the roster the names genuinely pay for it. Its reference is the
+//! same card geometry shaped without an accessory — not the widest swept card,
+//! whose capped Settings composition can still retain the accessory.
 
 use super::super::{Lane, PlannedRowRect, RailLane};
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::render::TextPipeline;
+use crate::render::chrome::{OverlaySpanInks, VisualSelection};
 use crate::render::rowlayout::{ColumnFlow, rail_accessory_width};
-use crate::render::tests::{SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_view};
+use crate::render::tests::{
+    SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_view, view,
+};
 use crate::theme;
 
 /// The Settings corpus is the only one that carries all three lanes at once — a
@@ -65,6 +70,38 @@ fn settings_state() -> OverlayState {
     ov
 }
 
+/// Shape the same planned rows through the production shaper after removing
+/// only their accessory data. The resolved card/workspace geometry and diagonal
+/// cluster stay fixed, so any name elision that remains belongs to the card
+/// itself rather than to the accessory budget.
+fn labels_without_accessory(
+    p: &mut TextPipeline,
+    geom: &crate::render::chrome::OverlayGeom,
+    plan: &super::super::OverlayRowPlan,
+) -> std::collections::BTreeMap<usize, f32> {
+    let bindings = std::mem::take(&mut p.overlay_bindings);
+    let ranges = std::mem::take(&mut p.overlay_ranges);
+    let right_shown = p.overlay_right_shown;
+    let chrome = crate::render::overlay_chrome_theme();
+    let shown = p.overlay_shape_text(
+        geom,
+        plan,
+        OverlaySpanInks {
+            ink: chrome.base_content.to_glyphon(),
+            muted: chrome.muted.to_glyphon(),
+            selected: None,
+        },
+        &VisualSelection::default(),
+        true,
+    );
+    let labels = p.overlay_row_primary_px(geom);
+    p.overlay_bindings = bindings;
+    p.overlay_ranges = ranges;
+    p.overlay_right_shown = right_shown;
+    assert!(!shown, "a no-accessory reference cannot grant an accessory");
+    labels
+}
+
 /// What the sweep enrolled, so a green run can be shown to have graded something.
 #[derive(Default)]
 struct Enrolled {
@@ -79,14 +116,59 @@ struct Enrolled {
     cells: Vec<Cell>,
 }
 
-/// One swept cell's widest NAME lane and whether that cell got its accessory
-/// column — the pair the budget relation below is asserted over.
+/// One swept cell's NAME lanes and whether that cell got its accessory column —
+/// the pair the budget relation below is asserted over.
 struct Cell {
     world: &'static str,
     bar: bool,
     logical_width: u32,
     granted: bool,
-    widest_label: f32,
+    labels: Vec<(usize, f32, f32)>,
+}
+
+/// A controlled flat-card crossing which makes BOTH sides of the budget rule
+/// observable. Settings' current roster genuinely yields on narrow cells, but
+/// no granted cell elides a name: treating a different visible row at another
+/// width as "payment" was the stale oracle this repair removes.
+fn assert_budget_mechanism_crosses(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+) {
+    let ambient_world = theme::active_index();
+    theme::set_active_by_name("Tawny").expect("the reported world remains enrolled");
+    p.sync_theme();
+    let mut cell = |logical_width| {
+        p.set_dpi(1.0);
+        p.set_size(logical_width as f32, 600.0);
+        let mut v = view("hello\n", 0, 0);
+        v.overlay_active = true;
+        v.overlay_title = "Budget probe".into();
+        v.overlay_items = vec!["W".repeat(48)];
+        v.overlay_bindings = vec!["i".repeat(20)];
+        v.overlay_window_rows = 1;
+        p.set_view(&v);
+        p.prepare(device, queue, logical_width, 600).unwrap();
+        let geom = p.overlay_geometry(logical_width);
+        let plan = p.overlay_row_plan(&geom);
+        let row = p.overlay_row_geometry().unwrap().rows[0];
+        let width = row.lanes.label.expect("the probe draws its name").w;
+        let reference = labels_without_accessory(p, &geom, &plan)[&row.display];
+        (row.lanes.value.is_some(), width, reference)
+    };
+    let returned = cell(280);
+    let paid = cell(524);
+    theme::set_active(ambient_world);
+    p.sync_theme();
+    assert!(
+        !returned.0 && (returned.1 - returned.2).abs() < 0.5,
+        "the yielded control did not return its budget: {returned:?}"
+    );
+    assert!(
+        paid.0 && paid.1 < paid.2 - 0.5,
+        "the granted control did not make its name pay: {paid:?}"
+    );
+    eprintln!("accessory budget counterfactual: paid {paid:?}; returned {returned:?}");
 }
 
 #[test]
@@ -167,21 +249,6 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
                         e.yielded_cells += 1;
                         e.yielded_worlds.insert(world);
                     }
-                    // Banked for the budget relation, at ONE scale only: every
-                    // figure doubles, so mixing them compares 1x against 2x.
-                    if dpi == 1.0 {
-                        e.cells.push(Cell {
-                            world,
-                            bar,
-                            logical_width,
-                            granted: any_value,
-                            widest_label: report
-                                .rows
-                                .iter()
-                                .filter_map(|r| r.lanes.label.map(|l| l.w))
-                                .fold(0.0f32, f32::max),
-                        });
-                    }
                     // A card may grant its value column and STILL seat no rail:
                     // the rail needs its own room inside what the column left. The
                     // implication that DOES hold is graded per row in `grade_rail`.
@@ -201,6 +268,44 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
                             e.rails += 1;
                             grade_rail(&p, &ctx, row, rail, mid_y, lh, flow);
                         }
+                    }
+                    // Banked for the budget relation, at ONE scale only: every
+                    // figure doubles, so mixing them compares 1x against 2x.
+                    // Shape the SAME plan and geometry without its accessory
+                    // after grading the frame (the shaper reuses the draw buffer).
+                    // This is the real budget counterfactual; the widest swept
+                    // card is not one now that the Settings composition is capped.
+                    if dpi == 1.0 {
+                        let drawn: std::collections::BTreeMap<usize, f32> = report
+                            .rows
+                            .iter()
+                            .filter_map(|row| row.lanes.label.map(|label| (row.display, label.w)))
+                            .collect();
+                        let without_accessory = labels_without_accessory(&mut p, &geom, &plan);
+                        assert!(
+                            !drawn.is_empty(),
+                            "{ctx}: the drawn Settings plan has no name ink"
+                        );
+                        let labels: Vec<(usize, f32, f32)> = drawn
+                            .iter()
+                            .map(|(&display, &width)| {
+                                let Some(&reference) = without_accessory.get(&display) else {
+                                    panic!("{ctx}: no-accessory shaping omitted row {display}");
+                                };
+                                (display, width, reference)
+                            })
+                            .collect();
+                        assert!(
+                            labels.iter().all(|(_, _, reference)| *reference > 0.0),
+                            "{ctx}: the independently shaped no-accessory Settings plan has no ink"
+                        );
+                        e.cells.push(Cell {
+                            world,
+                            bar,
+                            logical_width,
+                            granted: any_value,
+                            labels,
+                        });
                     }
                 }
             }
@@ -247,6 +352,7 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
         e.flows
     );
     assert_budget_returns_to_the_names(&e.cells);
+    assert_budget_mechanism_crosses(&device, &queue, &mut p);
 }
 
 /// **WHAT THE PUBLISHED LANES SAY ABOUT THE WIDTH BUDGET**, asserted per
@@ -257,66 +363,53 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
 /// never draws an accessory still has its label lane graded above, but a narrow
 /// label there is ordinary card pressure, not budget returned by this gate.
 ///
-/// Two things must hold, and the second is what stops the first being vacuous:
+/// **Yielding the accessory column returns its budget to the names.** On a
+///    cell that reports no value lane, the widest name must match the same plan
+///    and geometry shaped without an accessory. If a future budget yielded the
+///    column and kept accessory-driven elision anyway, the card would have given
+///    up its readouts and bought nothing, and this goes red.
 ///
-/// 1. **Yielding the accessory column returns its budget to the names.** On a
-///    cell that reports no value lane, the widest name must measure what it
-///    measures at the widest swept width, where nothing is under pressure — the
-///    names are UN-ELIDED. If a future budget yielded the column and kept the
-///    names elided anyway, the card would have given up its readouts and bought
-///    nothing, and this goes red.
-/// 2. **Somewhere the names really do pay for the column.** At least one granted
-///    cell must report a widest name STRICTLY NARROWER than its own un-elided
-///    reference. Without this, (1) would be satisfiable by a card that never
-///    elides at all, and the whole "who yields first" question would be
-///    unmeasurable from the published lanes.
+/// The controlled companion above proves separately that some granted name
+/// really pays and that a yielded name really gets the budget back. Settings'
+/// current visible roster does not exercise the first mechanism; requiring it
+/// here is how the old widest-card oracle mistook a different row for elision.
 fn assert_budget_returns_to_the_names(cells: &[Cell]) {
-    let widest_swept = cells
-        .iter()
-        .map(|c| c.logical_width)
-        .max()
-        .expect("the sweep visited cells");
-    let mut paid = 0usize;
     let mut returned = 0usize;
-    let mut crossing_runs = 0usize;
-    for run in cells.iter().filter(|c| c.logical_width == widest_swept) {
-        let reference = run.widest_label;
-        let same_run = |c: &&Cell| c.world == run.world && c.bar == run.bar;
-        let crosses = cells.iter().filter(same_run).any(|c| c.granted)
-            && cells.iter().filter(same_run).any(|c| !c.granted);
-        if !crosses {
+    let crossing_runs: std::collections::BTreeSet<(&str, bool)> = cells
+        .iter()
+        .filter_map(|run| {
+            let same_run = |c: &&Cell| c.world == run.world && c.bar == run.bar;
+            let crosses = cells.iter().filter(same_run).any(|c| c.granted)
+                && cells.iter().filter(same_run).any(|c| !c.granted);
+            crosses.then_some((run.world, run.bar))
+        })
+        .collect();
+    for run in cells {
+        if !crossing_runs.contains(&(run.world, run.bar)) {
             continue;
         }
-        crossing_runs += 1;
-        for c in cells.iter().filter(same_run) {
-            let ctx = format!(
-                "world={} bar={} w={} (reference {reference} at w={widest_swept})",
-                c.world, c.bar, c.logical_width
-            );
-            if c.granted {
-                if c.widest_label < reference - 0.5 {
-                    paid += 1;
-                }
-            } else {
-                returned += 1;
+        if !run.granted {
+            returned += 1;
+            for (display, width, reference) in &run.labels {
                 assert!(
-                    (c.widest_label - reference).abs() < 0.5,
-                    "{ctx}: the accessory column was YIELDED and the widest name \
-                     still measures {} against an un-elided {reference} — giving up \
-                     the readouts must hand their budget back to the names",
-                    c.widest_label
+                    (*width - *reference).abs() < 0.5,
+                    "world={} bar={} w={} row {display}: the accessory column was YIELDED and \
+                     the name still measures {width} against its same-geometry no-accessory \
+                     {reference} — giving up the readouts must hand their budget back to the names",
+                    run.world,
+                    run.bar,
+                    run.logical_width
                 );
             }
         }
     }
     assert!(
-        crossing_runs > 0 && returned > 0 && paid > 0,
-        "the budget relation graded {crossing_runs} same-world/menu runs, {returned} \
-         yielded cells and found {paid} \
-         granted cells whose names had actually paid for the column. Zero of \
-         any population makes the relation vacuous: with no yielded cell there is nothing \
-         to return a budget to, and with no elided granted cell the names never \
-         pay and the claim is trivially true."
+        !crossing_runs.is_empty() && returned > 0,
+        "the Settings budget relation graded {} same-world/menu runs and {returned} \
+         yielded cells. Zero of either population makes the relation vacuous: without a \
+         crossing run there is no same-composition comparison, and without a yielded cell \
+         there is no returned budget to grade.",
+        crossing_runs.len()
     );
 }
 

@@ -65,6 +65,15 @@ use crate::overlay::{OverlayKind, OverlayState};
 /// lands on.
 const GLYPH_STEP: f32 = 24.0;
 
+fn set_compact_density(scale: f32) {
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale,
+            leading: 0.0,
+        },
+    ));
+}
+
 fn luma(p: [u8; 4]) -> f32 {
     0.2126 * p[0] as f32 + 0.7152 * p[1] as f32 + 0.0722 * p[2] as f32
 }
@@ -472,15 +481,9 @@ fn grade_cell(
 #[test]
 fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_machine() {
     let _g = crate::testlock::serial();
-    // The shipped Settings density asks for a 563px pane against its 520px
-    // ceiling, so it correctly remains staged. This law grades the two-column
-    // accessory invariant at the compact density where that split is reachable.
-    crate::render::overrides::set_overlay_density_test_override(Some(
-        crate::render::overrides::TypeDensity {
-            scale: 0.75,
-            leading: 0.0,
-        },
-    ));
+    // Shipped Settings asks for 563px against 520px and correctly stays staged;
+    // this law grades the two-column invariant where compact density makes it reachable.
+    set_compact_density(0.75);
     if !crate::test_gpu::adapter_present() {
         eprintln!("skipping a_two_column_workspace_keeps_the_rows_accessory...: no wgpu adapter");
         return;
@@ -724,13 +727,13 @@ fn conclude(
 
 /// **THE DELAY IS A MECHANISM, NOT A COINCIDENCE.**
 ///
-/// The law above is an implication, and today's Settings roster satisfies it
-/// with room to spare — the value cells are bounded by
-/// `settings::visible_value_cells`'s allowance, which is the widest row NAME, so the
-/// rows' whole demand lands exactly on the `MIN_PANE_CHARS` legibility floor
-/// that was already there. That makes the implication true and says nothing
-/// about WHY, and a roster that grew one long name would re-open the defect
-/// with every existing law still green.
+/// The law above is an implication, and its compact-density Settings roster
+/// satisfies it with room to spare — the value cells are bounded by
+/// `settings::visible_value_cells`'s allowance, which is the widest row NAME, so
+/// the rows' whole demand lands exactly on the `MIN_PANE_CHARS` legibility floor.
+/// At shipped density that floor exceeds the 520px pane cap and Settings stays
+/// staged, asserted separately by `workspace::settings_width_owner_matches_*`.
+/// The compact arm makes this mechanism reachable instead of weakening the cap.
 ///
 /// So this asks the gate directly, at one fixed geometry, with two rosters that
 /// differ only in how much room their rows want: the demanding one must still be
@@ -743,6 +746,7 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
         eprintln!("skipping the_wide_gate_delays_for_rows_that_ask_for_more_room: no adapter");
         return;
     }
+    set_compact_density(0.5);
     let ambient_menu_bar = crate::menubar::menu_bar_on();
     crate::menubar::set_menu_bar_on(false);
 
@@ -750,12 +754,8 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
     // the demand can move the threshold.
     let modest: Vec<String> = (0..8).map(|i| format!("Row {i}")).collect();
     let modest_vals: Vec<String> = (0..8).map(|_| "on".to_string()).collect();
-    let demanding: Vec<String> = (0..8)
-        .map(|i| format!("A considerably longer settings row name {i}"))
-        .collect();
-    let demanding_vals: Vec<String> = (0..8)
-        .map(|_| "a considerably longer readout".to_string())
-        .collect();
+    let demanding: Vec<String> = (0..8).map(|_| "N".repeat(34)).collect();
+    let demanding_vals: Vec<String> = (0..8).map(|_| "V".repeat(20)).collect();
 
     // ONE PIPELINE for the whole walk. The widths this closure returns are
     // re-derived below against pipelines built for a single width, so the reuse
@@ -802,6 +802,7 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
          {modest_at}px for rows that want little — it is not reading the rows at all, so the \
          two-column stage can still arrive at a pane the accessory does not fit in"
     );
+    crate::render::overrides::set_overlay_density_test_override(None);
     eprintln!(
         "wide-gate delay: modest rows go two-column at {modest_at}px, demanding rows at \
          {demanding_at}px (+{}px); {rechecked} readings re-derived against fresh pipelines",
