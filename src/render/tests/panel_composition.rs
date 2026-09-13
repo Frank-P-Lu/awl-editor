@@ -2,6 +2,7 @@
 //! authored grouping at the same shaped/hit-test seams the frame consumes.
 
 use super::super::*;
+use super::pixeldiff::{Region, diff_region, render_frame};
 use super::{headless_dqp, view};
 
 const W: u32 = 1200;
@@ -28,6 +29,7 @@ fn theme_view() -> ViewState {
 fn settings_view() -> ViewState {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
+    v.overlay_crisp = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = false;
     v.overlay_query_field = true;
@@ -35,10 +37,116 @@ fn settings_view() -> ViewState {
     v.overlay_query_placeholder = Some("Search settings".into());
     v.overlay_title = "settings".into();
     v.overlay_lens = vec![("All".into(), true), ("Writing".into(), false)];
-    v.overlay_items = vec!["Caret style".into(), "Page mode".into()];
-    v.overlay_bindings = vec!["Block".into(), "on".into()];
+    v.overlay_items = (0..31).map(|i| format!("Setting {i:02}")).collect();
+    v.overlay_bindings = (0..31).map(|i| format!("value {i:02}")).collect();
+    v.overlay_window_rows = 31;
     v.overlay_hint = crate::overlay::OverlayKind::Settings.hint();
     v
+}
+
+fn case_label_gap(p: &TextPipeline) -> (f32, [f32; 4], f32) {
+    let geometry = p.panel_geometry().expect("active panel geometry");
+    let case = geometry
+        .controls
+        .iter()
+        .find(|c| c.name == "case_toggle")
+        .unwrap()
+        .rect;
+    let (line_i, byte) = p
+        .panel_buffer
+        .lines
+        .iter()
+        .enumerate()
+        .find_map(|(i, line)| line.text().find("Match case").map(|b| (i, b)))
+        .expect("Match case label");
+    let label_x = p
+        .panel_buffer
+        .layout_runs()
+        .filter(|run| run.line_i == line_i)
+        .flat_map(|run| run.glyphs.iter())
+        .filter(|glyph| glyph.start >= byte)
+        .map(|glyph| glyph.x)
+        .fold(f32::INFINITY, f32::min)
+        + geometry.text_left;
+    (label_x - (case[0] + case[2]), case, label_x)
+}
+
+fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, queue: &wgpu::Queue) {
+    let categories = render_frame(p, device, queue, W, H);
+    let rail = p
+        .workspace_rail_mark_probe()
+        .expect("active Settings category mark");
+    let row = p.overlay_row_geometry().unwrap().rows[0];
+    let mut search = settings_view();
+    search.overlay_query_focused = true;
+    p.set_view(&search);
+    p.prepare(device, queue, W, H).unwrap();
+    let search_pixels = render_frame(p, device, queue, W, H);
+    let geom = p.overlay_geometry(W);
+    let search_field = p
+        .overlay_composition_quads(&geom, &p.overlay_row_plan(&geom))
+        .0[0];
+    let mut controls = settings_view();
+    controls.overlay_rows_focused = true;
+    controls.overlay_detail_focus = true;
+    p.set_view(&controls);
+    p.prepare(device, queue, W, H).unwrap();
+    let control_pixels = render_frame(p, device, queue, W, H);
+    for (name, a, b, region) in [
+        (
+            "category/search rail",
+            &categories,
+            &search_pixels,
+            Region::new(rail[0], rail[1], rail[2], rail[3]),
+        ),
+        (
+            "category/search field",
+            &categories,
+            &search_pixels,
+            Region::new(
+                search_field[0],
+                search_field[1],
+                search_field[2],
+                search_field[3],
+            ),
+        ),
+        (
+            "category/controls row",
+            &categories,
+            &control_pixels,
+            Region::new(row.x, row.y, row.w, row.h),
+        ),
+    ] {
+        let diff = diff_region(a, b, W as i64, H as i64, region);
+        assert!(
+            diff.differing > 20 && diff.max_channel_delta >= 12,
+            "{name} focus cue was not visible: {diff:?}"
+        );
+    }
+
+    crate::theme::set_active_by_name("Magpie").unwrap();
+    p.sync_theme();
+    p.set_view(&controls);
+    p.prepare(device, queue, W, H).unwrap();
+    assert_eq!(
+        p.frost_mode(),
+        None,
+        "Magpie Settings must not blur the document"
+    );
+    assert_eq!(
+        p.panel_card.instance_count(),
+        1,
+        "crisp Settings still needs one opaque card"
+    );
+    assert_eq!(
+        crate::theme::pane_surface_for(
+            crate::render::overlay_chrome_theme(),
+            crate::render::effective_card_elevation()
+        )
+        .rgba_bytes()[3],
+        255,
+        "Settings' replacement for frost must be opaque"
+    );
 }
 
 #[test]
@@ -78,8 +186,16 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
     );
 
     let (switch, cancel) = p
-        .theme_panel_action_rects(&geom)
+        .theme_panel_action_report()
         .expect("Themes publishes its two action rectangles");
+    assert!(
+        switch[0] + switch[2] + 4.0 <= cancel[0],
+        "Switch and Cancel must be visibly separate controls: {switch:?} {cancel:?}"
+    );
+    let (fill, border) = p.overlay_composition_inks();
+    let chrome = crate::render::overlay_chrome_theme();
+    assert_eq!(fill, chrome.base_300.rgba_bytes());
+    assert_eq!(border, chrome.muted.rgba_bytes());
     let center = |[x, y, w, h]: [f32; 4]| (x + w * 0.5, y + h * 0.5);
     let (sx, sy) = center(switch);
     let (cx, cy) = center(cancel);
@@ -91,11 +207,32 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
         p.theme_panel_action_at(cx, cy),
         Some(crate::render::chrome::overlay_composition::ThemePanelAction::Cancel)
     );
+
+    let before = render_frame(&mut p, &device, &queue, W, H);
+    crate::theme::set_active_by_name("Mulga").unwrap();
+    p.sync_theme();
+    p.prepare(&device, &queue, W, H).unwrap();
+    assert_eq!(p.overlay_geometry(W).card_probe(), geom.card_probe());
+    assert_eq!(p.theme_panel_action_report(), Some((switch, cancel)));
+    assert_eq!(p.overlay_composition_inks(), (fill, border));
+    let after = render_frame(&mut p, &device, &queue, W, H);
+    let actions = Region::new(
+        switch[0],
+        switch[1],
+        cancel[0] + cancel[2] - switch[0],
+        switch[3].max(cancel[3]),
+    );
+    assert_eq!(
+        diff_region(&before, &after, W as i64, H as i64, actions).differing,
+        0,
+        "previewing a world must not recolor or reshape the chooser controls"
+    );
 }
 
 #[test]
 fn settings_title_field_and_region_separator_are_distinct() {
     let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping Settings composition law: no wgpu adapter");
         return;
@@ -135,11 +272,37 @@ fn settings_title_field_and_region_separator_are_distinct() {
         Some(0),
         "the field itself remains clickable while Categories owns focus"
     );
+    let (_, _, _, card_h, _) = p.overlay_window_report().unwrap();
+    let (cue_above, cue_below) = p.overlay_edge_cue_report().unwrap();
+    assert_eq!(cue_above, None);
+    assert_eq!(cue_below, Some(31 - geom.visible_probe()));
+    assert!(
+        p.panel_buffer
+            .lines
+            .iter()
+            .any(|line| line.text().contains("↓")),
+        "the clipped Settings roster must disclose continuation"
+    );
+    let card = geom.card_probe();
+    assert!(
+        card[2] < W as f32 * 0.8,
+        "wide Settings slab was not capped: {card:?}"
+    );
+    assert!((card[0] - (W as f32 - card[2]) * 0.5).abs() < 0.1);
+    assert_eq!(card[3], card_h);
+    assert_eq!(
+        p.frost_mode(),
+        None,
+        "Settings must leave its framed document crisp"
+    );
+
+    assert_settings_focus_regions(&mut p, &device, &queue);
 }
 
 #[test]
 fn find_and_replace_group_controls_without_inline_chord_clutter() {
     let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping Find/Replace composition law: no wgpu adapter");
         return;
@@ -189,6 +352,26 @@ fn find_and_replace_group_controls_without_inline_chord_clutter() {
                 .iter()
                 .any(|c| c.name == "replace_all_button"),
             replace
+        );
+
+        let (gap, case, label_x) = case_label_gap(&p);
+        assert!(
+            gap >= p.metrics.panel_ui().px(Logical(6.0)),
+            "checkbox rim touches Match case: box={case:?}, label_x={label_x}"
+        );
+    }
+
+    v.search_replace_active = false;
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        p.set_view(&v);
+        p.prepare(&device, &queue, W, H).unwrap();
+        let (gap, case, label_x) = case_label_gap(&p);
+        assert!(
+            gap >= p.metrics.panel_ui().px(Logical(6.0)),
+            "{} checkbox gap {gap}: box={case:?}, label_x={label_x}",
+            world.name
         );
     }
 }

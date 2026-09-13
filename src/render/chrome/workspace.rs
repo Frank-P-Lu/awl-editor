@@ -79,6 +79,7 @@ pub(in crate::render) struct WorkspaceFrame {
     pub show_rows: bool,
     pub hint: String,
     pub hint_rows: usize,
+    pub footer_rows: usize,
     pub empty: Option<String>,
     pub fit: plan::WorkspaceRowFit,
 }
@@ -295,23 +296,29 @@ impl TextPipeline {
         let empty = (n_items == 0).then(|| self.overlay_empty.clone()).flatten();
         let header_rows = self.workspace_header_rows();
         let card_h = regions.card[3];
-        let fit = plan::fit_workspace_item_rows(
-            card_h,
-            authored_pad,
-            lh,
-            header_rows,
-            self.overlay_header_gap_workspace(),
-            empty.is_some() as usize,
-            self.overlay_footer_reserve(hint_rows, hint_gap_rows),
-            self.overlay_footer_reserve(hint_rows, 0),
-            hint_rows > 0,
-            usize::from(hint_rows == 0),
-        );
+        let fit_with_footer = |footer_px: f32| {
+            plan::fit_workspace_item_rows(
+                card_h,
+                authored_pad,
+                lh,
+                header_rows,
+                self.overlay_header_gap_workspace(),
+                empty.is_some() as usize,
+                self.overlay_footer_reserve(hint_rows, hint_gap_rows) + footer_px,
+                self.overlay_footer_reserve(hint_rows, 0) + footer_px,
+                hint_rows > 0,
+                usize::from(hint_rows == 0),
+            )
+        };
+        let initial_fit = fit_with_footer(0.0);
+        let footer_rows = usize::from(show_rows && initial_fit.item_cap < n_items) * 2;
+        let fit = fit_with_footer(footer_rows as f32 * lh);
         WorkspaceFrame {
             regions,
             show_rows,
             hint,
             hint_rows,
+            footer_rows,
             empty,
             fit,
         }
@@ -348,6 +355,7 @@ impl TextPipeline {
         // rather than a second flag, so one sentence lives in one place.
         let hint = frame.hint;
         let hint_rows = frame.hint_rows;
+        let footer_rows = frame.footer_rows;
         // The shared owner (`overlay_hint_gap_rows`, `chrome/mod.rs`) — the same
         // blank-row budget the flat and grouped families reserve, so a hint on
         // this family doesn't sit flush against the last row while its siblings
@@ -414,31 +422,20 @@ impl TextPipeline {
         // enforced minimum — zero rows is the honest staged degradation.
         let fit = frame.fit;
         let pad = fit.pad;
-        // THE COUNT CUE IS DELIBERATELY NOT WIRED FOR THIS FAMILY.
-        // A workspace's ROW ORIGIN (`first_top`, via `plan_overlay_rows`) is
-        // shared with its RAIL — the primary column's own category labels,
-        // for a `RailOverRows` shape — so shifting it for the cue (the same
-        // shift the flat/grouped families use) moves the rail whenever the
-        // CONTENT pane's own item count happens to clip, even though the
-        // rail's rows never changed at all: measured directly, switching a
-        // Settings category from one with few rows to one with many moved
-        // the rail's own row 0 by exactly one row pitch
-        // (`render/tests/rail_ink_law.rs`'s pre-existing "the same rect
-        // photographed twice" oracle, which this broke immediately). Unlike
-        // the flat/grouped families, this family's card is CANVAS-sized, so
-        // fixing this by threading the shift into the rail's own geometry
-        // too — decoupling it back out is not a smaller job than getting it
-        // right the first time — is future work; today the cue is simply
-        // absent from every summoned workspace, `visible` alone answers how
-        // many rows fit (byte-identical to pre-508 behaviour), and
-        // `render/tests/edge_count_cue_law.rs`'s own roster sweep excludes
-        // the workspace family from the "must show a cue when clipped"
-        // claim for the same reason.
         let (top_idx, visible) = match show_rows {
             true => self.overlay_workspace_window(n_items, fit.item_cap),
             false => (0, 0),
         };
-        let (cue_above, cue_below): (Option<usize>, Option<usize>) = (None, None);
+        let (cue_above, cue_below) = (footer_rows > 0)
+            .then(|| window_edge_counts(top_idx, visible, n_items))
+            .unwrap_or((None, None));
+        let footer = [
+            cue_above.map(|n| edge_cue_text(true, n)),
+            cue_below.map(|n| edge_cue_text(false, n)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
 
         // A LENS IN THE HEADER IS THE GROUPED CARD'S OWN COMPOSITION,
         // so it takes the grouped card's own shaper rather than a second one.
@@ -461,6 +458,8 @@ impl TextPipeline {
             n_items,
             hint: if hint_rows > 0 { hint } else { String::new() },
             hint_rows,
+            footer,
+            footer_rows,
             hint_gap_rows: fit.hint_gap_rows,
             header_rows,
             header_gap,

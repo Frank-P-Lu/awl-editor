@@ -262,6 +262,27 @@ pub(super) fn context_anchor_json(anchor: Option<(f32, f32)>) -> String {
         .unwrap_or_else(|| "null".into())
 }
 
+pub(super) fn theme_actions_json(pipeline: &crate::render::TextPipeline) -> String {
+    let rect = |[x, y, w, h]: [f32; 4]| format!("[{x}, {y}, {w}, {h}]");
+    pipeline.theme_panel_action_report().map_or_else(
+        || "null".into(),
+        |(switch, cancel)| {
+            format!(
+                "{{ \"switch\": {}, \"cancel\": {} }}",
+                rect(switch),
+                rect(cancel)
+            )
+        },
+    )
+}
+
+pub(super) fn asset_preview_json(pipeline: &crate::render::TextPipeline) -> String {
+    match pipeline.asset_preview_report() {
+        Some([x, y, w, h]) => format!("{{ \"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h} }}"),
+        None => "null".into(),
+    }
+}
+
 /// The Keybindings menu's capture sub-state for the sidecar `overlay.capture` block.
 #[derive(Clone)]
 pub struct CaptureInfo {

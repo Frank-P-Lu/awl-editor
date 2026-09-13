@@ -132,11 +132,11 @@ impl TextPipeline {
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        let backing = if self.overlay_files_surface {
-            theme::ListBacking::Card
-        } else {
-            list_style.list_backing(spell)
-        };
+        let backing =
+            match self.overlay_files_surface || (geom.workspace && !self.overlay_rows_primary) {
+                true => theme::ListBacking::Card,
+                false => list_style.list_backing(spell),
+            };
         self.overlay_prepare_card_backing(surface, backing, spell, card_rect);
         self.prepare_files_controls(surface);
         self.overlay_prepare_selection(surface, list_style, backing, vis);
@@ -202,7 +202,7 @@ impl TextPipeline {
         }
         self.append_overlay_composition_quads(geom, plan, &mut track_rects, &mut thumb_quads);
         self.overlay_range_track
-            .set_color(crate::render::overlay_chrome_theme().faint.rgba_bytes());
+            .set_color(self.overlay_composition_inks().1);
         self.overlay_range_track
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb

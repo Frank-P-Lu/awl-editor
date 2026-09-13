@@ -1006,8 +1006,7 @@ fn dispatch_settings_row(ctx: &mut ActionCtx, row: crate::settings::SettingRow) 
 /// The roster gate is [`crate::overlay::OverlayKind::previews_live_document`], not
 /// the arms below: a kind that has not declared the audition never reaches its
 /// own arm, so an arm added here alone is inert until the declaration is made —
-/// and the declaration is what pins the card's backdrop crisp
-/// (`keeps_backdrop_crisp`, asserted equal over the roster). Without the gate the
+/// and the declaration is what pins the card's backdrop crisp. Without the gate the
 /// wildcard swallowed the difference, and a new previewing kind could blur the
 /// only thing its rows were showing with every law still green.
 pub(crate) fn preview_overlay(ov: &OverlayState) {

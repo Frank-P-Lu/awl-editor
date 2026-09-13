@@ -292,7 +292,7 @@ impl TextPipeline {
             byte_start: case_start,
             byte_end: off,
         });
-        const CASE_LABEL: &str = "  Match case";
+        const CASE_LABEL: &str = "     Match case";
         spans.push((CASE_LABEL, mk(muted)));
         let nav_lines = if wide { 1.0 } else { 2.0 };
 

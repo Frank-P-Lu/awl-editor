@@ -273,22 +273,10 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
     assert_eq!(ov.empty_notice().as_deref(), Some("no matches"));
 }
 
-/// THE CRISP BACKDROP IS EXACTLY THE LIVE-DOCUMENT AUDITION — an IFF, not a
-/// subset. A card frosts what it covers; the exemption is earned by one property
-/// and one only, that moving the highlight repaints the page BEHIND the card
-/// ([`OverlayKind::previews_live_document`]), because frost would then blur the
-/// only thing the row is showing.
-///
-/// ⚠️ **A SUBSET LAW WAS TOO WEAK, AND ITS OWN DOC SAID SO.** The predicate's
-/// documentation earned the exemption by previewing live document state, while
-/// the law asserted only `crisp ⊆ ValuePick`. `ValuePick` is a much larger set —
-/// three of its members preview INSIDE THEIR OWN ROWS (the date formats render
-/// today's date; the dictionary and CJK pickers pre-select the live value),
-/// change nothing behind the card, and so want the frost. So a new picker could
-/// be added to `actions::overlay_nav::preview_overlay`, audition the live
-/// document, inherit frost, blur its own preview — and pass every law in the
-/// tree, because the audition owner's match ended in a wildcard and no law had
-/// the audition as its subject at all.
+/// THE CRISP BACKDROP HAS TWO EXPLICIT REASONS. Live-document auditions require
+/// crispness so frost cannot obscure the thing being previewed; Settings' opaque
+/// viewport-scale workspace requires it because the workspace itself already
+/// establishes figure/ground and a second veil visibly blurs the framed prose.
 ///
 /// The set is asked BOTH ways here, and the two floors below are what keep the
 /// IFF from being satisfiable by collapsing its own subject:
@@ -301,7 +289,7 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
 /// Enrolment is [`OverlayKind::ALL`], so a new kind is swept the moment it
 /// exists rather than when someone remembers to list it.
 #[test]
-fn crisp_backdrop_is_exactly_the_live_document_audition() {
+fn crisp_backdrop_is_exactly_the_auditions_plus_settings_workspace() {
     let crisp: Vec<OverlayKind> = OverlayKind::ALL
         .iter()
         .copied()
@@ -336,27 +324,32 @@ fn crisp_backdrop_is_exactly_the_live_document_audition() {
         "EVERY kind kept the backdrop crisp — frost has no subject left, and the \
          summoned-surface rule DESIGN.md §5 states is gone: crisp = {crisp:?}"
     );
-    // THE DISTINCTION FLOOR. The two predicates are allowed to be equal to each
-    // other; neither is allowed to collapse into the accept disposition, because
-    // then "previews the live document" would mean "picks a value" and the three
-    // pickers that preview inside their own rows would be crisp by accident.
+    // The value-pick roster remains larger than the audition roster: row-local
+    // previews do not accidentally earn the live-document exemption.
     assert!(
-        value_picks.len() > crisp.len(),
+        value_picks.len() > auditions.len(),
         "every value-picker is crisp, so the audition predicate has collapsed into \
          the accept disposition — the pickers that preview INSIDE THEIR OWN ROWS \
          (nothing behind the card moves, so frost costs them nothing) have lost it. \
          value-pickers = {value_picks:?}, crisp = {crisp:?}"
     );
 
-    // ---- THE IFF, both directions, named per kind ---------------------------
+    // The roster itself is exact, so a new kind cannot inherit crispness.
+    assert_eq!(
+        crisp,
+        [
+            OverlayKind::Theme,
+            OverlayKind::Caret,
+            OverlayKind::Settings
+        ]
+    );
     for k in OverlayKind::ALL {
         assert_eq!(
-            k.keeps_backdrop_crisp(),
+            k.keeps_backdrop_crisp() && k != OverlayKind::Settings,
             k.previews_live_document(),
             "{k:?} keeps_backdrop_crisp={} but previews_live_document={} — the frost \
-             exemption and the live audition are ONE decision: a kind that repaints \
-             the page behind its card must not frost it, and a kind that repaints \
-             nothing has no exemption to claim. crisp = {crisp:?}, auditions = \
+             every audition must be crisp and Settings is the one explicit \
+             composition-only exception. crisp = {crisp:?}, auditions = \
              {auditions:?}",
             k.keeps_backdrop_crisp(),
             k.previews_live_document()
@@ -365,7 +358,7 @@ fn crisp_backdrop_is_exactly_the_live_document_audition() {
 
     // The NECESSARY (never sufficient) condition: an audition commits a value,
     // so it pops back to its summoning surface.
-    for k in &crisp {
+    for k in &auditions {
         assert_eq!(
             k.accept_disposition(),
             AcceptDisposition::ValuePick,

@@ -5,7 +5,7 @@ use super::*;
 
 const FIELD_PAD_X: Logical = Logical(8.0);
 const FIELD_PAD_Y: Logical = Logical(3.0);
-const BUTTON_PAD_X: Logical = Logical(8.0);
+const BUTTON_PAD_X: Logical = Logical(3.0);
 const BUTTON_PAD_Y: Logical = Logical(2.0);
 const HAIRLINE: Physical = Physical(1.0);
 
@@ -101,11 +101,7 @@ impl TextPipeline {
     }
 
     pub fn theme_panel_action_at(&self, px: f32, py: f32) -> Option<ThemePanelAction> {
-        if !self.overlay_active || !self.overlay_theme_picker {
-            return None;
-        }
-        let geom = self.overlay_geometry(self.window_w as u32);
-        let (switch, cancel) = self.theme_panel_action_rects(&geom)?;
+        let (switch, cancel) = self.theme_panel_action_report()?;
         let contains = |[x, y, w, h]: [f32; 4]| px >= x && px <= x + w && py >= y && py <= y + h;
         if contains(switch) {
             Some(ThemePanelAction::Switch)
@@ -114,6 +110,13 @@ impl TextPipeline {
         } else {
             None
         }
+    }
+
+    pub(crate) fn theme_panel_action_report(&self) -> Option<([f32; 4], [f32; 4])> {
+        if !self.overlay_active || !self.overlay_theme_picker {
+            return None;
+        }
+        self.theme_panel_action_rects(&self.overlay_geometry(self.window_w as u32))
     }
 
     pub(in crate::render) fn overlay_composition_quads(
@@ -157,8 +160,24 @@ impl TextPipeline {
     ) {
         let (composition_fills, composition_borders) = self.overlay_composition_quads(geom, plan);
         borders.extend(composition_borders);
-        let fill = crate::render::overlay_chrome_theme().base_200.rgba_bytes();
+        let fill = self.overlay_composition_inks().0;
         fills.extend(composition_fills.into_iter().map(|rect| (rect, fill)));
+    }
+
+    pub(in crate::render) fn overlay_composition_inks(&self) -> ([u8; 4], [u8; 4]) {
+        let chrome = crate::render::overlay_chrome_theme();
+        let emphasized = self.overlay_theme_picker || self.overlay_query_focused;
+        let fill = if self.overlay_theme_picker {
+            chrome.base_300
+        } else {
+            chrome.base_200
+        };
+        let border = if emphasized {
+            chrome.muted
+        } else {
+            chrome.faint
+        };
+        (fill.rgba_bytes(), border.rgba_bytes())
     }
 
     pub(super) fn overlay_composed_title_prefix(&self, geom: &OverlayGeom) -> Option<String> {

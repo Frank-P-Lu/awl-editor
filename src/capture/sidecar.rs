@@ -234,18 +234,16 @@ pub(super) fn project_json(opts: &CaptureOpts) -> String {
         None => "null".to_string(),
     }
 }
-
-/// THE OVERLAY BLOCK. Two sources, deliberately: every field but `window` is the
-/// STATE the capture door was driven with (`CaptureOpts::overlay`), while `window`
-/// is what the RENDERER planned for the frame — counts, heights, and (schema
-/// `/201`) each candidate row's own rect. That half has its own serializer
+/// THE OVERLAY BLOCK. All but `window` is capture-door state (`CaptureOpts::overlay`);
+/// renderer-planned `window` carries counts, heights, and each candidate row's
+/// rect (schema `/201`). That half has its own serializer
 /// (`super::plan_sidecar`) because it reads the pipeline, not the fold's input.
 fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
     let window = super::plan_sidecar::window_json(pipeline);
-    let asset_preview = match pipeline.asset_preview_report() {
-        Some([x, y, w, h]) => format!("{{ \"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h} }}"),
-        None => "null".to_string(),
-    };
+    let asset_preview = super::opts::asset_preview_json(pipeline);
+    let theme_actions = super::opts::theme_actions_json(pipeline);
+
+    // Action rectangles come from the renderer's hit-test owner.
     match &opts.overlay {
         Some(o) => {
             let items = o
@@ -345,7 +343,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                     "\"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
                     "\"preview_id\": {}, \"preview_view\": {}, ",
-                    "\"detail_focus\": {}, \"settings_focus\": {}, \"diff_scroll\": {}, ",
+                    "\"detail_focus\": {}, \"settings_focus\": {}, \"theme_actions\": {}, ",
+                    "\"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
                     "\"asset_preview\": {}, ",
                     "\"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], ",
@@ -371,6 +370,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 preview_view,
                 o.detail_focus,
                 settings_focus,
+                theme_actions,
                 o.diff_scroll,
                 o.show_hidden,
                 capture,
@@ -392,7 +392,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 "\"notice\": \"\", ",
                 "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
                 "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
-                "\"detail_focus\": false, \"settings_focus\": null, ",
+                "\"detail_focus\": false, \"settings_focus\": null, \"theme_actions\": null, ",
                 "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
                 "\"empty\": null, \"window\": null, \"asset_preview\": {}, \"items\": [], ",
                 "\"bindings\": [], \"ranges\": [], \"git\": [] }}",
