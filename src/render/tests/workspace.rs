@@ -513,7 +513,8 @@ fn settings_width_owner_matches_the_visible_rail_and_content_split() {
     );
 }
 
-/// THE FOCUS CUE IS REAL INK, and it is the SAME rect at a different presence.
+/// THE TWO-COLUMN FOCUS CUE IS REAL INK, and it is the SAME rect at a different
+/// presence.
 ///
 /// A workspace keeps a selection in both regions, so something has to say which
 /// one is live. This asserts that in the pixels, not in the state: rendering the
@@ -524,12 +525,22 @@ fn settings_width_owner_matches_the_visible_rail_and_content_split() {
 #[test]
 fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
     let _g = crate::testlock::serial();
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
     let (w, h) = (1400u32, 900u32);
     let (device, queue, mut p) =
         headless_dqp(w as f32, h as f32).expect("workspace laws require a wgpu adapter");
 
     let on_rail = workspace_card(0, false);
     prepared(&device, &queue, &mut p, &on_rail, Cell::plain(w, h));
+    assert!(
+        p.workspace_is_wide(w),
+        "the two-column focus fixture must resolve both Settings regions"
+    );
     let geom = p.workspace_rail_probe(w);
     let rail_mark = geom.mark.expect("the rail marks its active category");
     let row_band = geom.selected_band.expect("the content pane marks its row");
@@ -538,6 +549,7 @@ fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
     let on_rows = workspace_card(0, true);
     prepared(&device, &queue, &mut p, &on_rows, Cell::plain(w, h));
     let rows_focused = render_frame(&mut p, &device, &queue, w, h);
+    crate::render::overrides::set_overlay_density_test_override(None);
 
     // The measurement is DIFFERENTIAL against the card's own ground, so the
     // world's palette, the dither and the backdrop all cancel: for each region,
