@@ -99,12 +99,17 @@ fn case_label_gap(p: &TextPipeline) -> (f32, [f32; 4], f32) {
 }
 
 fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, queue: &wgpu::Queue) {
+    let mut category = settings_view();
+    category.overlay_detail_focus = false;
+    p.set_view(&category);
+    p.prepare(device, queue, W, H).unwrap();
     let categories = render_frame(p, device, queue, W, H);
     let rail = p
         .workspace_rail_mark_probe()
         .expect("active Settings category mark");
     let row = p.overlay_row_geometry().unwrap().rows[0];
     let mut search = settings_view();
+    search.overlay_detail_focus = false;
     search.overlay_query_focused = true;
     p.set_view(&search);
     p.prepare(device, queue, W, H).unwrap();
@@ -265,7 +270,9 @@ fn settings_title_field_and_region_separator_are_distinct() {
         eprintln!("skipping Settings composition law: no wgpu adapter");
         return;
     };
-    p.set_view(&settings_view());
+    let mut category = settings_view();
+    category.overlay_detail_focus = false;
+    p.set_view(&category);
     p.prepare(&device, &queue, W, H).unwrap();
 
     assert_eq!(p.panel_buffer.lines[0].text(), "Settings   Search settings");
@@ -426,6 +433,7 @@ fn assert_workspace_continuation_scroll(
 fn workspace_continuation_footer_is_three_shaped_lines_at_every_scroll_position() {
     let _guard = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
+    let _density = CompactDensity::install();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping workspace continuation footer law: no wgpu adapter");
         return;
@@ -437,6 +445,15 @@ fn workspace_continuation_footer_is_three_shaped_lines_at_every_scroll_position(
         v.overlay_scroll = scroll;
         p.set_view(&v);
         p.prepare(&device, &queue, W, H).unwrap();
+        assert!(
+            p.workspace_is_wide(W),
+            "{name}: the continuation fixture requires the compact two-region Settings composition"
+        );
+        let split = p.workspace_rail_probe(W);
+        assert!(
+            split.rail.is_some() && split.visible > 0,
+            "{name}: the compact fixture must show both its rail and rows"
+        );
         let now = assert_workspace_continuation_scroll(&p, name);
         match stable {
             None => stable = Some(now),
