@@ -94,6 +94,7 @@ fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.rename_edit_push(*c),
+        Action::PasteText(text) => overlay.rename_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.rename_edit_pop(),
         Action::DeleteWordBackward => overlay.rename_edit_pop_word(),
         Action::ForwardChar => overlay.rename_edit_char_right(),
@@ -129,6 +130,7 @@ fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.link_edit_push(*c),
+        Action::PasteText(text) => overlay.link_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.link_edit_pop(),
         Action::DeleteWordBackward => overlay.link_edit_pop_word(),
         Action::ForwardChar => overlay.link_edit_char_right(),
@@ -158,6 +160,7 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.keep_edit_push(*c),
+        Action::PasteText(text) => overlay.keep_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.keep_edit_pop(),
         Action::DeleteWordBackward => overlay.keep_edit_pop_word(),
         Action::ForwardChar => overlay.keep_edit_char_right(),
@@ -201,6 +204,7 @@ fn table_dims_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.table_dims_push(*c),
+        Action::PasteText(text) => overlay.table_dims_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.table_dims_pop(),
         Action::NextLine => overlay.table_dims_row_delta(1),
         Action::PreviousLine => overlay.table_dims_row_delta(-1),
@@ -231,6 +235,7 @@ fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.value_edit_push(*c),
+        Action::PasteText(text) => overlay.value_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.value_edit_pop(),
         Action::DeleteWordBackward => overlay.value_edit_pop_word(),
         Action::ForwardChar => overlay.value_edit_char_right(),
@@ -271,6 +276,9 @@ fn field_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
 
 /// Modal overlay input shared by the live app and `--keys` replay.
 pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect {
+    if matches!(action, Action::PasteText(text) if text.chars().all(char::is_control)) {
+        return Effect::None;
+    }
     if let Some(effect) = field_edit_intercept(ctx, action) {
         return effect;
     }
@@ -299,6 +307,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         return Effect::None;
     }
     match action {
+        Action::PasteText(text) => {
+            let text = crate::textbox::single_line(text);
+            let card = ctx.journey.card_mut().unwrap();
+            if card.push_text(&text) {
+                preview_move(card);
+            }
+            Effect::None
+        }
         Action::InsertChar(c) => {
             ctx.journey.card_mut().unwrap().push(*c);
             preview_move(ctx.journey.card_mut().unwrap());
@@ -1024,6 +1040,8 @@ pub(crate) fn preview_overlay(ov: &OverlayState) {
 /// the selection moved, so this currently does nothing beyond the preview
 /// itself.
 pub(crate) fn preview_move(ov: &mut OverlayState) {
+    #[cfg(test)]
+    crate::textbox::work::note(crate::textbox::work::Op::Preview);
     preview_overlay(ov);
 }
 

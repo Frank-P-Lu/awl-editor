@@ -83,6 +83,28 @@ fn parse_dims(typed: &str) -> Option<(usize, usize)> {
     (rows > 0 && cols > 0).then_some((rows, cols))
 }
 
+/// Last valid numeric prefix, in one scan. A trailing separator or overflow
+/// retains the same dimensions that scalar typing last displayed.
+fn parse_dims_progress(typed: &str) -> Option<(usize, usize)> {
+    let sep = typed.find(|c: char| !c.is_ascii_digit())?;
+    let rows: usize = typed[..sep].parse().ok()?;
+    if rows == 0 {
+        return None;
+    }
+    let rest = typed[sep..].trim_start_matches(|c: char| !c.is_ascii_digit());
+    let mut cols = 0_usize;
+    for c in rest.chars().take_while(char::is_ascii_digit) {
+        let Some(next) = cols
+            .checked_mul(10)
+            .and_then(|n| n.checked_add((c as u8 - b'0') as usize))
+        else {
+            break;
+        };
+        cols = next;
+    }
+    (cols > 0).then_some((rows, cols))
+}
+
 fn clamp_dim(v: i32, max: usize) -> usize {
     v.clamp(MIN_DIM as i32, max as i32) as usize
 }
@@ -136,14 +158,18 @@ impl OverlayState {
     /// exactly what `↵` would insert. A no-op with no table-dims edit
     /// active.
     pub fn table_dims_push(&mut self, c: char) {
+        self.table_dims_insert(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn table_dims_insert(&mut self, text: &str) {
         let Some(td) = self.table_dims.as_mut() else {
             return;
         };
-        if !(c.is_ascii_digit() || c == 'x' || c == 'X' || c == ' ') {
-            return;
-        }
-        td.typed.push(c);
-        if let Some((rows, cols)) = parse_dims(&td.typed) {
+        td.typed.extend(
+            text.chars()
+                .filter(|c| c.is_ascii_digit() || matches!(c, 'x' | 'X' | ' ')),
+        );
+        if let Some((rows, cols)) = parse_dims_progress(&td.typed) {
             td.rows = rows.clamp(MIN_DIM, MAX_ROWS);
             td.cols = cols.clamp(MIN_DIM, MAX_COLS);
         }
@@ -243,6 +269,26 @@ impl OverlayState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bulk_dimensions_keep_the_same_last_valid_prefix_as_scalar_typing() {
+        let _guard = crate::testlock::serial();
+        for input in [
+            "4x5 6",
+            "4x9999999999999999999999999999999",
+            "8x00",
+            "invalid4X7",
+            "0x8",
+        ] {
+            let mut bulk = OverlayState::new_table_dims();
+            let mut scalar = bulk.clone();
+            bulk.table_dims_insert(input);
+            for c in input.chars() {
+                scalar.table_dims_push(c);
+            }
+            assert_eq!(bulk.table_dims, scalar.table_dims, "{input}");
+        }
+    }
 
     #[test]
     fn seeds_the_modest_default() {

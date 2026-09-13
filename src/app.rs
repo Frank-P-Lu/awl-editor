@@ -30,6 +30,8 @@ fn clipboard_disabled(e: impl std::fmt::Display) {
     eprintln!("system clipboard disabled: {e}");
 }
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_paste_events;
 #[cfg(target_arch = "wasm32")]
 mod web_clipboard;
 

@@ -114,18 +114,17 @@ impl SearchState {
         self.recompute(haystack);
     }
 
-    pub(crate) fn paste_focused(&mut self, text: &str, haystack: &str) {
+    pub(crate) fn paste_focused(&mut self, text: &str, haystack: &str) -> bool {
         let field = if self.editing_replacement {
             &mut self.replacement
         } else {
             &mut self.query
         };
-        for c in text.chars().filter(|c| !c.is_control()) {
-            field.insert(c);
-        }
-        if !self.editing_replacement {
+        let changed = field.insert_text(&crate::textbox::single_line(text));
+        if changed && !self.editing_replacement {
             self.recompute(haystack);
         }
+        changed
     }
 
     pub fn pop_char(&mut self, haystack: &str) {
@@ -206,6 +205,8 @@ impl SearchState {
     ///   * Forward  → first match with `start >= origin`, else wrap to first.
     ///   * Backward → last match with `start <= origin`, else wrap to last.
     fn recompute(&mut self, haystack: &str) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Recompute);
         self.wrap_armed = None;
         self.matches = find_all(haystack, self.query.text(), self.case_sensitive);
         self.current = if self.matches.is_empty() {

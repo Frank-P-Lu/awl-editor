@@ -455,14 +455,6 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         return Some(Effect::None);
     }
     if ctx.journey.card().is_some() {
-        if let Action::PasteText(text) = action {
-            // Reuse each focused field's filtering and selection owner. A
-            // newline in plain clipboard text is not an accept gesture.
-            for c in text.chars().filter(|c| !c.is_control()) {
-                overlay_intercept(ctx, &Action::InsertChar(c));
-            }
-            return Some(Effect::None);
-        }
         return Some(overlay_intercept(ctx, action));
     }
     // THE SUMMONED FIND/REPLACE PANEL owns every remaining action while it is

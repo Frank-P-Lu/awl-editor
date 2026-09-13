@@ -81,8 +81,8 @@ pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, a
         Action::PasteText(text) => {
             if let Some(st) = search.as_mut() {
                 let query_changed = !st.is_editing_replacement();
-                st.paste_focused(text, &buffer.text());
-                if query_changed {
+                let changed = st.paste_focused(text, &buffer.text());
+                if changed && query_changed {
                     jump_to_current(search, buffer);
                 }
             }

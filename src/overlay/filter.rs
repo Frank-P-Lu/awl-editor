@@ -5,6 +5,8 @@ use crate::fuzzy::{self, Tier};
 
 impl OverlayState {
     pub fn refilter(&mut self) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Refilter);
         // SEARCH-IN-FOLDER's corpus is not a fixed row list to rank/filter —
         // a typed query re-MATCHES the already-loaded corpus from scratch
         // (`rebuild_search_rows`, `search_folder.rs`), so it takes over here

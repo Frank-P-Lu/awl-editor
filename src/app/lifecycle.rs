@@ -30,12 +30,21 @@ impl ApplicationHandler<AwlEvent> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: AwlEvent) {
         #[cfg(target_arch = "wasm32")]
         match _event {
-            AwlEvent::BrowserPaste(text) => {
+            AwlEvent::BrowserPaste { payload, epoch } => {
                 let focused = self
                     .clipboard
                     .as_ref()
-                    .is_some_and(|clipboard| clipboard.focused());
-                self.receive_browser_paste(text, focused, _event_loop);
+                    .is_some_and(|clipboard| clipboard.accepts_delivery(epoch));
+                self.receive_browser_paste(payload, focused, _event_loop);
+            }
+            AwlEvent::BrowserPasteTimeout(token) => {
+                if self
+                    .clipboard
+                    .as_ref()
+                    .is_some_and(|clipboard| clipboard.claim_timeout(token))
+                {
+                    self.receive_browser_paste(Err(()), true, _event_loop);
+                }
             }
         }
         #[cfg(not(target_arch = "wasm32"))]

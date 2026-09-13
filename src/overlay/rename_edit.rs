@@ -89,6 +89,8 @@ impl OverlayState {
     /// being mutated directly, so the two can never drift. A no-op when no
     /// rename edit is active.
     fn rename_edit_mirror(&mut self) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Mirror);
         let Some(re) = self.rename_edit.as_ref() else {
             return;
         };
@@ -106,13 +108,17 @@ impl OverlayState {
     /// filename is free text). The FILTER stays here — `TextBox::insert` itself
     /// accepts any char. A no-op when no rename edit is active.
     pub fn rename_edit_push(&mut self, c: char) {
+        self.rename_edit_insert(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn rename_edit_insert(&mut self, text: &str) {
         let Some(re) = self.rename_edit.as_mut() else {
             return;
         };
-        if c != '/' {
-            re.input.insert(c);
+        let text: String = text.chars().filter(|c| *c != '/').collect();
+        if re.input.insert_text(&text) {
+            self.rename_edit_mirror();
         }
-        self.rename_edit_mirror();
     }
 
     /// RENAME MINIBUFFER: ⌥⌫ word-delete — drop the trailing word (the word-DELETE

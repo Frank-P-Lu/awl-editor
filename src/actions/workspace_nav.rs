@@ -138,7 +138,10 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
         // Typing is searching, and the results are rows — so the query edit and
         // the focus hand-off are one gesture, never "type, then wonder why
         // nothing moved".
-        Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteWordBackward => {
+        Action::InsertChar(_)
+        | Action::PasteText(_)
+        | Action::DeleteBackward
+        | Action::DeleteWordBackward => {
             ctx.journey.toggle_detail();
             None
         }
@@ -192,7 +195,10 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
                     ctx.journey.card_mut().unwrap().query.select_all();
                     Some(Effect::None)
                 }
-                Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteWordBackward => {
+                Action::InsertChar(_)
+                | Action::PasteText(_)
+                | Action::DeleteBackward
+                | Action::DeleteWordBackward => {
                     focus_search(ctx);
                     None
                 }
@@ -206,7 +212,10 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
                 ctx.journey.card_mut().unwrap().query.select_all();
                 Some(Effect::None)
             }
-            Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteWordBackward => {
+            Action::InsertChar(_)
+            | Action::PasteText(_)
+            | Action::DeleteBackward
+            | Action::DeleteWordBackward => {
                 focus_search(ctx);
                 None
             }

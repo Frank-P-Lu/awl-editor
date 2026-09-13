@@ -37,6 +37,7 @@
 //! someone says how it is summoned; a seventh Edit row enrols on its own.
 
 use super::*;
+mod browser_paste;
 use crate::keymap::Action;
 use crate::overlay::{LinkEditMode, OverlayKind, OverlayState};
 use crate::search::{Direction, SearchState};

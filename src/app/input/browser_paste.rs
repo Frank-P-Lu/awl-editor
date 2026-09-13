@@ -10,7 +10,10 @@ impl App {
             crate::convention::Convention::Linux => ModifiersState::CONTROL,
         };
         let allowed = self.input.keyboard.preedit.is_empty()
-            && !self.capture_recording()
+            && !self
+                .workspace_state
+                .overlay()
+                .is_some_and(|card| card.capture.is_some())
             && self
                 .input
                 .keyboard
@@ -28,7 +31,12 @@ impl App {
         focused: bool,
         exit: &dyn schedule::Exit,
     ) {
-        if !focused {
+        if !focused
+            || self
+                .workspace_state
+                .overlay()
+                .is_some_and(|card| card.capture.is_some())
+        {
             return;
         }
         match payload {
@@ -136,5 +144,86 @@ mod tests {
             map.resolve(&Key::Character("x".into()), &ModifiersState::CONTROL.into());
             assert_eq!(map.single_action(&key, modifier), None);
         }
+    }
+
+    #[test]
+    fn browser_paste_leaves_every_capture_stage_and_existing_binding_untouched() {
+        let _guard = crate::testlock::serial();
+        for stage in crate::overlay::CaptureStage::ALL {
+            for chord_mode in [false, true] {
+                for recorded in [
+                    vec![],
+                    vec!["C-x".to_string()],
+                    vec!["C-x".into(), "v".into()],
+                ] {
+                    let mut app = app();
+                    app.document.select_range(7, 15);
+                    let mut card = crate::overlay::OverlayState::new_keybindings(
+                        crate::commands::visible_names(),
+                        crate::commands::visible_effective_bindings(
+                            &[],
+                            &[],
+                            crate::keymap::KeymapFlavor::Native,
+                        ),
+                    );
+                    card.set_query_text("undo");
+                    card.query.select_all();
+                    card.start_capture();
+                    let capture = card.capture.as_mut().unwrap();
+                    capture.stage = stage;
+                    capture.chord_mode = chord_mode;
+                    capture.captured = recorded;
+                    capture.conflict = Some("Save".into());
+                    let before_capture = card.capture.clone();
+                    let before_query = card.query.clone();
+                    let before_bindings = format!("{:?}", card.rows);
+                    let before_config = app.config.keys.clone();
+                    let before_version = app.document.buffer().version();
+                    app.workspace_state.install_overlay_for_test(card);
+                    for payload in [Ok("s-\n日本語".into()), Ok(String::new()), Err(())] {
+                        app.receive_browser_paste(payload, true, &schedule::RecordingExit::new());
+                        let card = app.workspace_state.overlay().unwrap();
+                        assert_eq!(card.capture, before_capture, "{stage:?} chord={chord_mode}");
+                        assert_eq!(card.query, before_query);
+                        assert_eq!(format!("{:?}", card.rows), before_bindings);
+                        assert_eq!(app.config.keys, before_config);
+                        assert_eq!(app.document.buffer().text(), "before selected after");
+                        assert_eq!(app.document.buffer().version(), before_version);
+                        assert_eq!(app.document.buffer().selection_range(), Some((7, 15)));
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn browser_paste_queued_before_composition_cannot_edit_after_composition_starts_or_ends() {
+        let _guard = crate::testlock::serial();
+        use crate::app::browser_paste_events::{Paste, PasteEvents};
+        let mut events = PasteEvents::default();
+        let Paste::Read(epoch) = events.paste(true, true) else {
+            panic!()
+        };
+        let mut app = app();
+        app.document.select_range(7, 15);
+        for composing in [true, false] {
+            events.context_changed(composing);
+            app.receive_browser_paste(
+                Ok("stale queued text".into()),
+                events.accepts_delivery(epoch),
+                &schedule::RecordingExit::new(),
+            );
+            assert_eq!(app.document.buffer().text(), "before selected after");
+            assert_eq!(app.document.buffer().selection_range(), Some((7, 15)));
+        }
+        let Paste::Read(epoch) = events.paste(true, true) else {
+            panic!()
+        };
+        app.receive_browser_paste(
+            Ok("新".into()),
+            events.accepts_delivery(epoch),
+            &schedule::RecordingExit::new(),
+        );
+        assert_eq!(app.document.buffer().text(), "before 新 after");
     }
 }

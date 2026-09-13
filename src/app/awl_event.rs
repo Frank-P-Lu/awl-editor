@@ -27,5 +27,9 @@ impl From<accesskit_winit::Event> for AwlEvent {
 }
 #[cfg(target_arch = "wasm32")]
 pub(crate) enum AwlEvent {
-    BrowserPaste(Result<String, ()>),
+    BrowserPaste {
+        payload: Result<String, ()>,
+        epoch: u64,
+    },
+    BrowserPasteTimeout(u64),
 }
