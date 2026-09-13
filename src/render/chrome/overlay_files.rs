@@ -208,6 +208,14 @@ impl TextPipeline {
     }
 
     #[cfg(test)]
+    pub(in crate::render) fn files_surface_control_quad_counts_probe(&self) -> [usize; 2] {
+        [
+            self.files_control_fill.instance_count() as usize,
+            self.files_control_rim.instance_count() as usize,
+        ]
+    }
+
+    #[cfg(test)]
     pub(in crate::render) fn files_surface_ink_bounds_probe(&self) -> Option<[[f32; 4]; 4]> {
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);

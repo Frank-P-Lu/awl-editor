@@ -616,6 +616,17 @@ fn files_scope_and_controls_have_visible_hierarchy_on_every_world_and_geometry()
             let [query, change, footer] = pipeline
                 .files_surface_control_rects_probe()
                 .expect("Files control layout");
+            let [fills, rims] = pipeline.files_surface_control_quad_counts_probe();
+            assert_eq!(
+                fills, 3,
+                "{} {width}px @{dpi}x: Files control fills were removed or parked",
+                world.name
+            );
+            assert_eq!(
+                rims, 3,
+                "{} {width}px @{dpi}x: Files control rims were removed or parked",
+                world.name
+            );
             let (header, footer_text) = pipeline.files_surface_text_probe().unwrap();
             assert!(
                 header.contains("Search files: ")
