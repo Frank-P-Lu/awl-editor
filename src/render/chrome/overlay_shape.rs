@@ -690,7 +690,7 @@ impl TextPipeline {
         }
     }
 
-    pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
+    pub(in crate::render) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
         if self.files_query_is_split(geom) {
             return "Search files: ".to_string();
         }

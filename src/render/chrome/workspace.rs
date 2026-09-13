@@ -214,20 +214,6 @@ impl TextPipeline {
         self.overlay_lens.len()
     }
 
-    /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? The one width decision the whole
-    /// workspace makes, and the only place width enters this feature at all
-    /// (see the module doc). `true` draws the rail beside the content; `false`
-    /// stages them, and the lifecycle's focus stage becomes which stage you are
-    /// on — with no arm of the transition table able to tell the difference.
-    pub(in crate::render) fn workspace_is_wide(&self, width: u32) -> bool {
-        let hpad = self.overlay_text_hpad();
-        let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
-        let cw = self.overlay_char_width();
-        self.workspace_primary_w > 0.0
-            && interior - self.workspace_primary_w - RAIL_GAP_CHARS.0 * cw
-                >= self.workspace_min_pane()
-    }
-
     /// THE NARROWEST CONTENT PANE THIS WORKSPACE MAY GO TWO-COLUMN AT, in px:
     /// [`MIN_PANE_CHARS`] raised to whatever the rows on show actually ask for —
     /// the widest row NAME, the gap `rowlayout` puts after it, and the widest
@@ -248,7 +234,7 @@ impl TextPipeline {
     /// minimum. And it is asked only of a shape whose rows live in the CONTENT
     /// pane — a `TimelineOverComparison` workspace opens a relocated document
     /// there, which has no accessory column to lose.
-    fn workspace_min_pane(&self) -> f32 {
+    pub(super) fn workspace_min_pane(&self) -> f32 {
         let cw = self.overlay_char_width();
         if self.overlay_rows_primary {
             return MIN_PANE_CHARS.0 * cw;
@@ -258,6 +244,11 @@ impl TextPipeline {
             + rowlayout::GAP_CHARS as f32
             + widest(self.overlay_right_labels());
         MIN_PANE_CHARS.0.max(demand) * cw
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn workspace_min_pane_probe(&self) -> f32 {
+        self.workspace_min_pane()
     }
 
     /// HOW MANY DISPLAY LINES A WORKSPACE DRAWS ABOVE ITS CANDIDATE BAND — one

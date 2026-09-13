@@ -472,6 +472,15 @@ fn grade_cell(
 #[test]
 fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_machine() {
     let _g = crate::testlock::serial();
+    // The shipped Settings density asks for a 563px pane against its 520px
+    // ceiling, so it correctly remains staged. This law grades the two-column
+    // accessory invariant at the compact density where that split is reachable.
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
     if !crate::test_gpu::adapter_present() {
         eprintln!("skipping a_two_column_workspace_keeps_the_rows_accessory...: no wgpu adapter");
         return;
@@ -583,6 +592,7 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         &kinds,
         ambient_menu_bar,
     );
+    crate::render::overrides::set_overlay_density_test_override(None);
     eprintln!(
         "workspace two-column accessory: {rechecked} cells re-measured against fresh pipelines"
     );

@@ -136,6 +136,16 @@ fn grade_header_band(
         *fields += 1;
         return;
     };
+    // A RailOverRows workspace places the Settings search field in its
+    // content pane, not at the card midpoint. Sample inside the real input
+    // span the production hit-test uses; otherwise a correct field can be
+    // reported as missed simply because the midpoint falls in the title.
+    let input_x = p.overlay_query_input_x(geom, plan);
+    assert!(
+        input_x < x1,
+        "{ctx}: the shaped title leaves no query-input span before the card's right edge"
+    );
+    let query_x = (input_x + x1) * 0.5;
 
     // --- DRAWN == PLANNED -------------------------------------
     // `query_line_top`/`query_line_height` are read off the shaped
@@ -164,7 +174,7 @@ fn grade_header_band(
         ("the field's bottom edge", field.bottom() + 0.1, false),
     ] {
         assert_eq!(
-            p.over_overlay_query(mid_x, y),
+            p.over_overlay_query(query_x, y),
             want,
             "{ctx}: the pointer at {label} (y={y}) must{} read as the \
              query field — planned box [{}, {}]",
@@ -188,7 +198,7 @@ fn grade_header_band(
     // must be inside the band the pointer accepts. Before this
     // family the baseline sat up to 30px BELOW the accepted band.
     assert!(
-        p.over_overlay_query(mid_x, pr.query_baseline),
+        p.over_overlay_query(query_x, pr.query_baseline),
         "{ctx}: the query's own shaped baseline (y={}) is not inside \
          the band the pointer accepts as the field — the I-beam is \
          somewhere the text is not",
@@ -204,7 +214,7 @@ fn grade_header_band(
         field.bottom()
     );
     assert!(
-        p.over_overlay_query(mid_x, pr.caret_center),
+        p.over_overlay_query(query_x, pr.caret_center),
         "{ctx}: the pointer does not accept the field where its own \
          caret is drawn"
     );
