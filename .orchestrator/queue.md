@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** Ready: browser paste 661; visual corrections 657 and 659.
-Integrated query/accessibility work awaiting remaining review: 658. Blocked direction: 651.
+**5 open numbered tasks.** In progress: 657, 659 and 661. Ready: query/action
+repair 658. Blocked direction: 651.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -52,9 +52,19 @@ captures belong in the public repo.
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🟠 INTEGRATED — implementation, focused native/wasm evidence and independent
-audit landed with 657 on local `main` at merge `ef344429`; the required visible
-native review remains.
+🟢 READY FOR REPAIR — implementation, focused native/wasm evidence and
+independent audit landed with 657 on local `main` at merge `ef344429`, but the
+2026-09-13 live review reproduced an action-routing defect.
+
+In a disposable Bowerbird release session, typing `shared` in Files and pressing
+Cmd-A then Backspace left `hare`: the command did not select the query and the
+delete removed only its last grapheme. Edit ▸ Select all followed by Backspace
+cleared the whole query. This is an action-level discrepancy, not a general
+selection failure. The same session established that an unmatched query kept
+focus in Search and Enter did nothing; `notes/draft.md` was exposed, selected and
+opened by Enter, and `shared.md` opened through its accessible pointer action.
+The screenshot feed remained stale while the accessibility tree and interactions
+advanced, so it is not appearance evidence.
 
 Cancel retry (2026-09-13): starting in Recent, clicking Change folder opened the
 macOS Open panel; clicking Cancel returned to the same root and Recent empty
@@ -63,18 +73,13 @@ the accessibility tree and an updated screenshot. The earlier tool timeouts did
 not establish a cancellation bug. This bounded check does not discharge the
 remaining query selection, no-match or result-publication checks below.
 
-Observed through the running app's accessibility state: Cmd-A then Backspace in a
-nonempty Files query removed only its last character on two attempts. An unmatched
-query left Change folder selected and advertised Enter as change-folder. A known
-filename vanished from the exposed result list while Enter still opened its file;
-that is an accessibility/result-publication hypothesis, not evidence search failed.
-The screenshot feed was stale during this sitting, so visual absence is unverified.
-
-Verify in a disposable seeded workspace with a recorded build: query select-all,
-clear, matches/no matches, Tab and Enter, menu Select All, pointer and accessibility
-results. A no-match state must not implicitly accept Change folder. Matching choices,
-selection and focus must agree visually and semantically. Never type probes into the
-user's working document or rely on a stale screenshot to establish focus.
+Build: route the Cmd-A menu-equivalent action to the focused Files query through
+the same surface-level selection owner used by Edit ▸ Select all. Preserve the
+confirmed no-match and result-publication behavior. Add an action-level law that
+fails when Select all falls through to the background document, then recheck query
+clear, matches/no matches, Tab and Enter, menu Select All, pointer and accessible
+results in a disposable seeded workspace. Never type probes into the user's working
+document or rely on a stale screenshot to establish focus.
 
 ---
 
