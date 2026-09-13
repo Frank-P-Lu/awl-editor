@@ -64,6 +64,8 @@ pub enum Action {
     Yank,
     YankText,
     /// An already received plain-text clipboard payload, never a clipboard read.
+    /// Browser delivery constructs this only on wasm; native laws construct it directly.
+    #[cfg_attr(all(not(target_arch = "wasm32"), not(test)), allow(dead_code))]
     PasteText(String),
     InsertImageReference(String),
     /// Undo the last edit group (Cmd+Z / C-/).
