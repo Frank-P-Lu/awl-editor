@@ -2,19 +2,29 @@
 //! selection box. Every interaction reads the same planned band and shaped run.
 
 use super::*;
+use crate::render::plan::PlannedHeader;
 
 impl TextPipeline {
+    pub(super) fn overlay_query_band(&self, plan: &OverlayRowPlan) -> Option<PlannedHeader> {
+        let line = usize::from(self.overlay_files_surface) * 2;
+        plan.header_lines().get(line).copied()
+    }
+
+    fn overlay_query_run(&self) -> Option<glyphon::LayoutRun<'_>> {
+        self.panel_buffer
+            .layout_runs()
+            .nth(usize::from(self.overlay_files_surface) * 2)
+    }
+
     /// Left edge of the editable query span. Files reserves the shaped title
     /// prefix for header controls; ordinary cards retain their full-row field.
-    fn overlay_query_input_x(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
+    pub(super) fn overlay_query_input_x(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
         if !self.overlay_files_surface {
             return geom.card_x;
         }
         let prefix = self.overlay_title_prefix(geom);
         let origin = self.overlay_head_left(geom, plan);
-        self.panel_buffer
-            .layout_runs()
-            .next()
+        self.overlay_query_run()
             .and_then(|run| {
                 run.glyphs
                     .iter()
@@ -49,7 +59,7 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
-        let Some(field) = plan.query_band() else {
+        let Some(field) = self.overlay_query_band(&plan) else {
             return false;
         };
         let x0 = self.overlay_query_input_x(&geom, &plan);
@@ -74,7 +84,7 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
-        let field = plan.query_band()?;
+        let field = self.overlay_query_band(&plan)?;
         let query_x = self.overlay_query_input_x(&geom, &plan);
         if !(px >= query_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
             return None;
@@ -86,7 +96,7 @@ impl TextPipeline {
             title_prefix.len()
         };
         let query_len = self.overlay_query.chars().count();
-        let Some(run) = self.panel_buffer.layout_runs().next() else {
+        let Some(run) = self.overlay_query_run() else {
             return Some(query_len);
         };
         for g in run.glyphs.iter() {
@@ -127,7 +137,7 @@ impl TextPipeline {
         };
         let char_idx = char_idx.min(self.overlay_query.chars().count());
         let target_byte = prefix_len + field_caret_byte(&self.overlay_query, char_idx);
-        let first_run = self.panel_buffer.layout_runs().next();
+        let first_run = self.overlay_query_run();
         // `overlay_head_left`'s own seat — the text edge, or right-aligned.
         self.overlay_head_left(geom, plan)
             + first_run
@@ -159,7 +169,7 @@ impl TextPipeline {
     ) -> Option<[f32; 4]> {
         // The field's own PLANNED line box. `None` is the contextual spell
         // popup, which draws no query line at all.
-        let field = plan.query_band()?;
+        let field = self.overlay_query_band(plan)?;
         // …and `None` again on a card whose head line is NOT a field: Credits'
         // one fixed row names the document beside it, so there is nothing to
         // search and the query door refuses every character
@@ -196,7 +206,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<[f32; 4]> {
-        let field = plan.query_band()?;
+        let field = self.overlay_query_band(plan)?;
         let (start, end) = self.overlay_query_selection?;
         let m = self.metrics;
         let start_x = self.overlay_query_glyph_x(geom, plan, start);

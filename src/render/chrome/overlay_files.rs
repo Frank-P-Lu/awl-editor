@@ -5,25 +5,42 @@
 
 use super::*;
 
+#[derive(Clone, Copy)]
+struct FilesChromeLayout {
+    query: [f32; 4],
+    up: Option<[f32; 4]>,
+    change: [f32; 4],
+    footer: [f32; 4],
+}
+
 impl TextPipeline {
-    fn files_surface_action_regions(
-        &self,
-    ) -> [Option<(crate::render::FilesSurfaceAction, [f32; 4])>; 3] {
-        use crate::render::FilesSurfaceAction;
+    fn files_surface_chrome_layout(&self) -> Option<FilesChromeLayout> {
         if !self.overlay_active || !self.overlay_files_surface {
-            return [None; 3];
+            return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
+        let ui = self.metrics.ui();
+        let pad_x = ui.px(Logical(7.0));
+        let inset_y = ui.px(Logical(3.0));
+        let field = self.overlay_query_band(&plan)?;
+        let input_x = self.overlay_query_input_x(&geom, &plan);
+        let query = [
+            (input_x - pad_x).max(geom.text_left),
+            field.top + inset_y,
+            (geom.text_left + geom.text_w - input_x + pad_x).max(1.0),
+            (field.height - 2.0 * inset_y).max(1.0),
+        ];
+
         let split = self.files_query_is_split(&geom);
         let actions_split = self.files_actions_are_split(&geom);
-        let action_line = usize::from(split) + usize::from(actions_split);
-        let header = (if split {
+        let action_line = usize::from(split && actions_split);
+        let (up, change) = (if split {
             plan.header_lines().get(action_line).copied()
         } else {
             plan.query_band()
         })
-        .and_then(|field| {
+        .and_then(|line| {
             let prefix = if actions_split {
                 self.files_action_suffix()
             } else if split {
@@ -40,46 +57,124 @@ impl TextPipeline {
                     .map(|glyph| origin + glyph.x)
                     .unwrap_or(origin + run.line_w)
             };
-            let region = |needle: &str, action| {
+            let region = |needle: &str| {
                 let start = prefix.rfind(needle)?;
                 let word = needle.trim();
                 let word_start = start + needle.find(word)?;
                 let word_end = word_start + word.len();
                 let x0 = glyph_x(word_start);
                 let x1 = glyph_x(word_end);
-                Some((action, [x0, field.top, x1 - x0, field.height]))
+                Some([x0, line.top, x1 - x0, line.height])
             };
-            Some((
-                region("Up", FilesSurfaceAction::Up),
-                region("Change folder", FilesSurfaceAction::ChangeFolder),
-            ))
+            Some((region("Up"), region("Change folder")?))
+        })?;
+        let change = [
+            change[0] - pad_x,
+            change[1] + inset_y,
+            change[2] + 2.0 * pad_x,
+            (change[3] - 2.0 * inset_y).max(1.0),
+        ];
+        let up = up.map(|rect| {
+            [
+                rect[0],
+                rect[1] + inset_y,
+                rect[2],
+                (rect[3] - 2.0 * inset_y).max(1.0),
+            ]
         });
-        let footer = self
-            .panel_buffer
-            .layout_runs()
-            .find(|run| {
-                (run.text.starts_with("New document") || run.text.starts_with("› New document"))
-                    && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)
-            })
-            .and_then(|run| {
-                let start_byte = run.text.find("New document")?;
-                let end_byte = start_byte + "New document".len();
-                let x0 =
-                    geom.text_left + run.glyphs.iter().find(|glyph| glyph.start >= start_byte)?.x;
-                let x1 = geom.text_left
-                    + run
-                        .glyphs
-                        .iter()
-                        .find(|glyph| glyph.start >= end_byte)
-                        .map(|glyph| glyph.x)
-                        .unwrap_or(run.line_w);
-                Some((
-                    FilesSurfaceAction::NewDocument,
-                    [x0, geom.text_top + run.line_top, x1 - x0, run.line_height],
-                ))
-            });
-        let (up, change) = header.unwrap_or((None, None));
-        [up, change, footer]
+
+        let footer_run = self.panel_buffer.layout_runs().find(|run| {
+            (run.text.starts_with("New document") || run.text.starts_with("› New document"))
+                && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)
+        })?;
+        let footer = [
+            geom.text_left,
+            geom.text_top + footer_run.line_top + inset_y,
+            geom.text_w,
+            (footer_run.line_height - 2.0 * inset_y).max(1.0),
+        ];
+        Some(FilesChromeLayout {
+            query,
+            up,
+            change,
+            footer,
+        })
+    }
+
+    pub(super) fn prepare_files_controls(&mut self, surface: OverlayCardSurface<'_>) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            ..
+        } = surface;
+        let Some(layout) = self.files_surface_chrome_layout() else {
+            self.files_control_fill
+                .prepare(device, queue, width, height, &[]);
+            self.files_control_rim
+                .prepare_multicolor(device, queue, width, height, &[]);
+            return;
+        };
+        let chrome = crate::render::overlay_chrome_theme();
+        let radius = self.metrics.ui().px(Logical(4.0));
+        self.files_control_fill.set_corner(radius);
+        self.files_control_fill
+            .set_color(chrome.base_200.rgba_bytes());
+        self.files_control_fill.prepare(
+            device,
+            queue,
+            width,
+            height,
+            &[layout.query, layout.change, layout.footer],
+        );
+
+        let focused = chrome.primary.rgba_bytes();
+        let quiet = chrome.muted.rgba_bytes();
+        let grow = |[x, y, w, h]: [f32; 4]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0];
+        let rims = [
+            (
+                grow(layout.query),
+                if self.overlay_query_focused {
+                    focused
+                } else {
+                    quiet
+                },
+            ),
+            (
+                grow(layout.change),
+                if self.overlay_title.contains("› Change folder") {
+                    focused
+                } else {
+                    quiet
+                },
+            ),
+            (
+                grow(layout.footer),
+                if self.overlay_hint.starts_with("› New document") {
+                    focused
+                } else {
+                    quiet
+                },
+            ),
+        ];
+        self.files_control_rim.set_corner(radius + 1.0);
+        self.files_control_rim
+            .prepare_multicolor(device, queue, width, height, &rims);
+    }
+
+    fn files_surface_action_regions(
+        &self,
+    ) -> [Option<(crate::render::FilesSurfaceAction, [f32; 4])>; 3] {
+        use crate::render::FilesSurfaceAction;
+        let Some(layout) = self.files_surface_chrome_layout() else {
+            return [None; 3];
+        };
+        [
+            layout.up.map(|rect| (FilesSurfaceAction::Up, rect)),
+            Some((FilesSurfaceAction::ChangeFolder, layout.change)),
+            Some((FilesSurfaceAction::NewDocument, layout.footer)),
+        ]
     }
 
     /// Hit-test Files controls that are deliberately not candidate rows: Up
@@ -104,6 +199,12 @@ impl TextPipeline {
         &self,
     ) -> [Option<(crate::render::FilesSurfaceAction, [f32; 4])>; 3] {
         self.files_surface_action_regions()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn files_surface_control_rects_probe(&self) -> Option<[[f32; 4]; 3]> {
+        self.files_surface_chrome_layout()
+            .map(|layout| [layout.query, layout.change, layout.footer])
     }
 
     #[cfg(test)]

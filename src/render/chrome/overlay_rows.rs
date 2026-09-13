@@ -139,6 +139,7 @@ impl TextPipeline {
             list_style.list_backing(spell)
         };
         self.overlay_prepare_card_backing(surface, backing, spell, card_rect);
+        self.prepare_files_controls(surface);
         self.overlay_prepare_selection(surface, list_style, backing, vis);
         self.prepare_diagonal_spine(device, queue, width, height, plan, vis);
         self.overlay_prepare_range_rails(surface, vis);

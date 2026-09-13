@@ -208,7 +208,11 @@ impl TextPipeline {
     }
 
     pub(in crate::render) fn overlay_hint_h(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
+        if self.overlay_files_surface {
+            self.overlay_lh()
+        } else {
+            (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
+        }
     }
 
     /// The blank separator's own (shorter still) row height.

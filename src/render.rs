@@ -2443,6 +2443,10 @@ pub struct TextPipeline {
     /// the shaper (`selected_ink`) so the pair reads as crisp black-on-white.
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
+    /// Quiet bounded controls belonging to Files chrome rather than its
+    /// candidate-row selection.
+    pub files_control_fill: SelectionPipeline,
+    pub files_control_rim: SelectionPipeline,
     /// The `Bars` FOOTER PLATE's rim — that plate's own rect grown one pixel on
     /// every side and drawn under it, the same mechanism the calm notice's own
     /// rim uses for the identical failure mode: `overlay_bar_unselected`'s FILL
