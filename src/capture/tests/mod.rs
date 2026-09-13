@@ -44,6 +44,7 @@ mod search_in_folder_journey;
 mod selection_hud;
 mod serialization_law;
 mod start_folder;
+mod theme_actions;
 mod working_set_sidecar;
 
 /// Re-derive the DRAWN streak length (px) for the caret's current spring state

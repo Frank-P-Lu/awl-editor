@@ -300,6 +300,125 @@ fn settings_title_field_and_region_separator_are_distinct() {
 }
 
 #[test]
+fn workspace_continuation_footer_is_three_shaped_lines_at_every_scroll_position() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping workspace continuation footer law: no wgpu adapter");
+        return;
+    };
+
+    let mut stable: Option<([f32; 4], f32, f32, usize)> = None;
+    for (name, selected, scroll) in [("top", 0, 0), ("middle", 15, 8), ("bottom", 30, 30)] {
+        let mut v = settings_view();
+        v.overlay_selected = selected;
+        v.overlay_scroll = scroll;
+        p.set_view(&v);
+        p.prepare(&device, &queue, W, H).unwrap();
+
+        let geom = p.overlay_geometry(W);
+        let card = geom.card_probe();
+        let rows = p
+            .overlay_row_geometry()
+            .expect("workspace row report after prepare");
+        let rail_top = p
+            .workspace_rail_probe(W)
+            .rows
+            .first()
+            .copied()
+            .flatten()
+            .expect("Settings rail row 0")[1];
+        let (top, visible, _, _, _) = p
+            .overlay_window_report()
+            .expect("workspace sidecar window report");
+        let sidecar_cues = p
+            .overlay_edge_cue_report()
+            .expect("workspace sidecar cue report");
+        let shaped_cues = p.overlay_cue_lines(W);
+
+        assert_eq!(visible, rows.rows.len(), "{name}: visible rows");
+        assert_eq!(top + visible <= 31, true, "{name}: window stays in corpus");
+        assert_eq!(
+            sidecar_cues.0.is_some(),
+            shaped_cues.0.is_some(),
+            "{name}: above cue"
+        );
+        assert_eq!(
+            sidecar_cues.1.is_some(),
+            shaped_cues.1.is_some(),
+            "{name}: below cue"
+        );
+
+        let lines: Vec<&str> = p
+            .panel_buffer
+            .lines
+            .iter()
+            .map(|line| line.text())
+            .collect();
+        let footer = lines
+            .get(lines.len().saturating_sub(3)..)
+            .expect("three-line continuation footer");
+        let footer_cue_lines = [lines.len() - 2, lines.len() - 1];
+        assert_eq!(footer[0], "", "{name}: separator line");
+        assert_eq!(
+            footer[1],
+            sidecar_cues.0.map_or_else(
+                || " ".into(),
+                |n| { crate::render::chrome::edge_cue_text(true, n) }
+            ),
+            "{name}: fixed above-edge slot"
+        );
+        assert_eq!(
+            footer[2],
+            sidecar_cues.1.map_or_else(
+                || " ".into(),
+                |n| { crate::render::chrome::edge_cue_text(false, n) }
+            ),
+            "{name}: fixed below-edge slot"
+        );
+
+        if name == "middle" {
+            let (above, below) = sidecar_cues;
+            assert_eq!(above, Some(top));
+            assert_eq!(below, Some(31 - top - visible));
+            for cue in [footer[1], footer[2]] {
+                assert_eq!(
+                    lines.iter().filter(|line| **line == cue).count(),
+                    1,
+                    "middle scroll shapes each footer cue exactly once"
+                );
+            }
+            assert!(
+                shaped_cues.0.is_some() && shaped_cues.1.is_some(),
+                "middle scroll shapes both cue texts"
+            );
+            for line_i in footer_cue_lines {
+                let run = p
+                    .panel_buffer
+                    .layout_runs()
+                    .find(|run| run.line_i == line_i)
+                    .expect("a shaped cue has a layout run");
+                let bottom = geom.text_top + run.line_top + run.line_height;
+                assert!(
+                    bottom <= card[1] + card[3] + 0.01,
+                    "middle cue line {line_i} escapes the workspace card: {bottom} > {}",
+                    card[1] + card[3]
+                );
+            }
+        }
+
+        let now = (card, rail_top, rows.first_top, visible);
+        match stable {
+            None => stable = Some(now),
+            Some(first) => assert_eq!(
+                now, first,
+                "{name}: scrolling may change only the window and cue contents, not card/rail/row origins"
+            ),
+        }
+    }
+}
+
+#[test]
 fn find_and_replace_group_controls_without_inline_chord_clutter() {
     let _guard = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();

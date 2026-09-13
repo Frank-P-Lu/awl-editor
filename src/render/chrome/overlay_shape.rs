@@ -1024,7 +1024,10 @@ impl TextPipeline {
         // per-scroll CONTENT) — so this line's very existence cannot appear
         // or vanish as the reader scrolls through an already-open card; only
         // whether it carries text or sits blank does.
-        let cue_above_text = geom.cue_above.map(|n| edge_cue_text(true, n));
+        let cue_above_text = geom
+            .cue_reserved
+            .then(|| geom.cue_above.map(|n| edge_cue_text(true, n)))
+            .flatten();
         let beat = plan.beat_line();
         push_beat_spacer(
             &mut spans,

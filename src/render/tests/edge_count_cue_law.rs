@@ -145,32 +145,6 @@ fn assert_fits_and_no_cue(p: &TextPipeline, width: u32, n_items: usize, ctx: &st
     );
 }
 
-/// A corpus/canvas pair the SUMMONED WORKSPACE family clips WITHOUT a cue —
-/// the family's own deliberate exclusion (`workspace.rs::workspace_geometry`'s
-/// own doc: the cue's `first_top` shift is shared with the rail's row
-/// origin, so it would move the rail's category labels whenever the
-/// CONTENT pane's item count happened to clip, even though the rail itself
-/// never changed — caught by `render/tests/rail_ink_law.rs`). Neither edge
-/// fires here, but (unlike a genuine fit) the corpus is NOT shown in full.
-fn assert_clips_with_no_cue_workspace_exclusion(
-    p: &TextPipeline,
-    width: u32,
-    n_items: usize,
-    ctx: &str,
-) {
-    let (above, below, visible_items, _) = cue_state(p, width);
-    assert_eq!(
-        (above, below),
-        (None, None),
-        "{ctx}: the workspace family must never fire a cue"
-    );
-    assert!(
-        visible_items < n_items,
-        "{ctx}: this fixture must actually clip ({visible_items} of {n_items} shown) for the \
-         exclusion to mean anything"
-    );
-}
-
 const ROOMY: (u32, u32) = (1200, 800);
 
 #[test]
@@ -213,9 +187,6 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         let ctx = format!("{kind:?}/{fam:?} corpus-forced-clip");
         if fam == Family::Contextual {
             assert_fits_and_no_cue(&p, ROOMY.0, kind.window_rows().max(1), &ctx);
-            fit_cells += 1;
-        } else if fam == Family::Workspace {
-            assert_clips_with_no_cue_workspace_exclusion(&p, ROOMY.0, big_n, &ctx);
             fit_cells += 1;
         } else {
             assert_clips_and_cue_present(&p, ROOMY.0, big_n, &ctx);

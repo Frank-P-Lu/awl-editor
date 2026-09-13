@@ -66,9 +66,11 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/215` — `overlay.settings_focus`: the exact Settings keyboard recipient
 ///          (`categories`, `search`, or `controls`), distinct inside the
 ///          existing coarse `detail_focus` lifecycle stage.
+/// `/218` — `overlay.theme_actions`: the Theme chooser's Switch and Cancel
+///          physical-pixel hit rects, or `null` off Theme.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 215;
+pub const SCHEMA_VERSION: u32 = 218;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }
