@@ -1069,7 +1069,11 @@ impl TextPipeline {
             self.push_overlay_hint_spans(
                 &mut spans,
                 fitted_hint.as_str(),
-                self.overlay_theme_picker.then_some(ink).unwrap_or(muted),
+                if self.overlay_theme_picker {
+                    ink
+                } else {
+                    muted
+                },
                 geom.hint_gap_rows,
                 has_query || !rows.is_empty() || geom.empty.is_some(),
             );

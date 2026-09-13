@@ -337,7 +337,7 @@ fn workspace_continuation_footer_is_three_shaped_lines_at_every_scroll_position(
         let shaped_cues = p.overlay_cue_lines(W);
 
         assert_eq!(visible, rows.rows.len(), "{name}: visible rows");
-        assert_eq!(top + visible <= 31, true, "{name}: window stays in corpus");
+        assert!(top + visible <= 31, "{name}: window stays in corpus");
         assert_eq!(
             sidecar_cues.0.is_some(),
             shaped_cues.0.is_some(),

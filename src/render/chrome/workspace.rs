@@ -448,9 +448,11 @@ impl TextPipeline {
             true => self.overlay_workspace_window(n_items, fit.item_cap),
             false => (0, 0),
         };
-        let (cue_above, cue_below) = (footer_rows > 0)
-            .then(|| window_edge_counts(top_idx, visible, n_items))
-            .unwrap_or((None, None));
+        let (cue_above, cue_below) = if footer_rows > 0 {
+            window_edge_counts(top_idx, visible, n_items)
+        } else {
+            (None, None)
+        };
         let (footer, shaped_footer_rows) =
             workspace_continuation_footer(footer_rows > 0, cue_above, cue_below);
         debug_assert_eq!(footer_rows, shaped_footer_rows);
