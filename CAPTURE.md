@@ -704,7 +704,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/215` (`/216` timeline, `/217` held)
+## The sidecar JSON — schema `awl-capture/218` (`/219` timeline, `/220` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -1272,6 +1272,15 @@ against `lines`. Derived at the one windowing owner (`scroll_window`'s own
 `(top, visible)` pair, read through `window_edge_counts`,
 `render/chrome/mod.rs`) shared by every candidate window — flat, grouped, and
 the summoned workspace — so a picker that never clips reports both `null`.
+
+Schema `/218` adds **`overlay.theme_actions`**: `{ switch: [x, y, w, h],
+cancel: [x, y, w, h] }` on the Theme chooser, and `null` on every other
+overlay and when no overlay is open. These are the renderer's actual Switch and
+Cancel hit rectangles in physical device pixels, in the same coordinate space as
+the PNG and `overlay.window`; they are not logical coordinates and the sidecar
+does not rescale or project them. Each array is the rectangle's physical
+left/top/width/height, and a press at its centre resolves to the named action
+through the same geometry owner that draws its label.
 
 Schema `/211` adds **`overlay.asset_preview`**: the Asset Cleaner's live
 preview panel's own PLANNED rect `{ x, y, w, h }`, beside the picker's card at
@@ -1844,7 +1853,7 @@ world.)
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
-| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`project_browse`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`keymap`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`credits`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`/`table_dims`/`search_folder`/`user_words`), `query`, `query_caret` (the field's own char-index caret — schema `/209`'s own note, above, has the mid-query motion rule), `settings_focus` (`"categories"`/`"search"`/`"controls"` for Settings, else null), `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for `switch` and the `project_browse` navigator — home-relative `~/…` when it falls under `$HOME` — else null), `items` (dirs trailing `/`, a git child tagged `"git"` in the secondary column rather than bulleted; `switch` pins the accept-this-folder row on top, reading `use this folder — <name>`; command names for `command`; the three variant labels for `dictionary`; native/emacs labels for `keymap`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary/keymap pickers' one-line descriptions; else `[]`) |
+| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`project_browse`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`keymap`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`credits`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`/`table_dims`/`search_folder`/`user_words`), `query`, `query_caret` (the field's own char-index caret — schema `/209`'s own note, above, has the mid-query motion rule), `settings_focus` (`"categories"`/`"search"`/`"controls"` for Settings, else null), `theme_actions` (Theme-only physical-pixel `{ switch, cancel }` hit rects, else null), `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for `switch` and the `project_browse` navigator — home-relative `~/…` when it falls under `$HOME` — else null), `items` (dirs trailing `/`, a git child tagged `"git"` in the secondary column rather than bulleted; `switch` pins the accept-this-folder row on top, reading `use this folder — <name>`; command names for `command`; the three variant labels for `dictionary`; native/emacs labels for `keymap`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary/keymap pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry + the VISIBLE WORKING SET: `{ open, active, files, active_index }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, `"scratch"`, `"untitled"` for an unnamed fresh buffer, or `null` with no document. A plain `--screenshot` always reports `open: 1`. `files` = one full root-relative label per drawn stack row, in stable open order (`[]` whenever the margin draws no stack — a single open file, the zero-document state, or any capture door with no `App` to ask); simultaneous fresh rows read `untitled`, `untitled 2`, … only as needed to distinguish them. `active_index` = which row is the reader's current file, or `null` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 
