@@ -31,6 +31,8 @@
 
 use super::*;
 
+mod continuation;
+
 /// The workspace's inset from the window edge, as a fraction of the smaller
 /// window dimension. Generous enough that the document reads as a quiet frame
 /// around the workspace rather than being erased by it, small enough that
@@ -82,27 +84,6 @@ pub(in crate::render) struct WorkspaceFrame {
     pub footer_rows: usize,
     pub empty: Option<String>,
     pub fit: plan::WorkspaceRowFit,
-}
-
-/// A windowed workspace keeps one fixed footer shape at every scroll position:
-/// a separator plus one slot for each edge cue. An edge with no hidden items
-/// contributes a blank slot rather than changing the footer's height under the
-/// reader. Returning the row count with the strings makes the reservation and
-/// the shaper two reads of one composition.
-fn workspace_continuation_footer(
-    windowed: bool,
-    cue_above: Option<usize>,
-    cue_below: Option<usize>,
-) -> (Vec<String>, usize) {
-    if !windowed {
-        return (Vec::new(), 0);
-    }
-    let footer = vec![
-        cue_above.map_or_else(|| " ".into(), |n| edge_cue_text(true, n)),
-        cue_below.map_or_else(|| " ".into(), |n| edge_cue_text(false, n)),
-    ];
-    let rows = footer.len() + 1;
-    (footer, rows)
 }
 
 /// Scale a theme colour's ALPHA only, leaving its hue and value alone.
@@ -333,7 +314,7 @@ impl TextPipeline {
         };
         let initial_fit = fit_with_footer(0.0);
         let windowed = show_rows && initial_fit.item_cap < n_items;
-        let (_, footer_rows) = workspace_continuation_footer(windowed, None, None);
+        let (_, footer_rows) = continuation::workspace_continuation_footer(windowed, None, None);
         let fit = fit_with_footer(footer_rows as f32 * lh);
         WorkspaceFrame {
             regions,
@@ -454,7 +435,7 @@ impl TextPipeline {
             (None, None)
         };
         let (footer, shaped_footer_rows) =
-            workspace_continuation_footer(footer_rows > 0, cue_above, cue_below);
+            continuation::workspace_continuation_footer(footer_rows > 0, cue_above, cue_below);
         debug_assert_eq!(footer_rows, shaped_footer_rows);
 
         // A LENS IN THE HEADER IS THE GROUPED CARD'S OWN COMPOSITION,
