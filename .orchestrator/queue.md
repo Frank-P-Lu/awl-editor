@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**4 open numbered tasks.** Ready visual corrections: 657 and 659. Integrated
-query/accessibility work awaiting remaining review: 658. Blocked direction: 651.
+**5 open numbered tasks.** Ready: browser paste 661; visual corrections 657 and 659.
+Integrated query/accessibility work awaiting remaining review: 658. Blocked direction: 651.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -147,6 +147,42 @@ errors. Preserve search correctness for admitted files and make incomplete cover
 honest. Use the completed 652 investigation when designing background/cancellation
 work. Mutation-prove that the old post-read-only limits fail, then run one integrated
 native/wasm gate on the final frozen candidate.
+
+### 661 — external plain-text paste in the browser
+
+🟢 READY — user approved queuing a fix after source/specification investigation.
+Independent of the browser-storage decision in 651.
+
+Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
+`refresh_kill_from_clipboard` silently retains the internal kill ring. External
+paste can therefore do nothing or insert stale internal text. The installed winit
+web keydown handler cancels default behavior, which may suppress browser paste
+events. These are source findings; a live browser reproduction remains required.
+
+Build: investigate and implement trusted browser `paste` events carrying
+`clipboardData` plain text, allowing the native browser paste gesture without
+also executing an internal yank. Route the received text through the shared
+Actions/transition and focused-surface owners, preserving selection replacement,
+Unicode and undo. Preserve browser shortcut suppression elsewhere and existing
+keymap/remapping semantics. Explicitly handle custom yank bindings and palette
+paste, which do not inherently generate a browser paste event. For an observed
+failed or unsupported external-paste attempt, show an actionable notice instead
+of silently inserting stale internal text. Keep intentional internal yank behavior
+explicit. Image paste and styled clipboard are outside this task. Update WEB.md
+with verified behavior rather than treating async clipboard-read limitations as
+proof that all external paste is impossible.
+
+Verify: reproduce before fixing, then exercise genuine external copy/paste in
+Chrome, Safari and Firefox on a static release build. Cover document and summoned
+text fields, focus changes, selection replacement, multiline/Unicode, single undo,
+repeated paste, empty/non-text data, custom bindings and palette invocation. Prove
+no duplicate insertion or background-document edit. Synthetic clipboard payloads
+can test routing but cannot prove OS clipboard access. Add targeted regression laws
+that fail with the old behavior; record browser versions and unavailable coverage.
+Follow the verification policy for integration gates. Reference:
+[Clipboard events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
+
+---
 
 ## Outstanding review of landed work
 
