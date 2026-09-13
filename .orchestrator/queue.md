@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In progress: 657, 659 and 661. Ready: query/action
-repair 658. Blocked direction: 651.
+**5 open numbered tasks.** In progress: 657, 658 and 659. Ready for integration:
+661. Blocked direction: 651.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -52,9 +52,11 @@ captures belong in the public repo.
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🟢 READY FOR REPAIR — implementation, focused native/wasm evidence and
-independent audit landed with 657 on local `main` at merge `ef344429`, but the
-2026-09-13 live review reproduced an action-routing defect.
+🟡 IN PROGRESS — /root/browser_paste (codex), branch
+`codex/658-files-select-all`. The same architecture-tier worker is reused because
+the defect crosses AppKit's menu-key equivalent and the live key door, a boundary
+the replay harness cannot drive. Earlier implementation and audit landed with 657
+at merge `ef344429`; the 2026-09-13 live review reproduced the routing discrepancy.
 
 In a disposable Bowerbird release session, typing `shared` in Files and pressing
 Cmd-A then Backspace left `hare`: the command did not select the query and the
@@ -157,9 +159,10 @@ native/wasm gate on the final frozen candidate.
 
 ### 661 — external plain-text paste in the browser
 
-🟡 IN PROGRESS — /root/browser_paste (codex), branch
-`codex/661-browser-paste`. User approved a fix after source/specification
-investigation. Independent of the browser-storage decision in 651.
+🟠 READY FOR INTEGRATION — source/tests commit `0ab25650`; narrow WEB.md
+commit `623eb83f`. Premise confirmed and focused laws, mutation proof, wasm compile,
+release build and trusted Chrome transport passed. The full final Chrome/Safari/
+Firefox interaction matrix remains owed; independent of browser-storage item 651.
 
 Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
 `refresh_kill_from_clipboard` silently retains the internal kill ring. External
