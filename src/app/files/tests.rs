@@ -119,6 +119,51 @@ fn select_all_key_route_clears_the_focused_files_query_not_the_document() {
 }
 
 #[test]
+fn clicking_the_files_query_restores_focus_before_select_all() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(root.join("alpha.md"), "parked prose"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(Some(root.join("alpha.md")), root, Config::empty());
+        let mut files = crate::overlay::OverlayState::new_files(
+            vec!["alpha.md".into()],
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        files.set_query_text("alpha");
+        files.files_focus = crate::overlay::FilesFocus::Recent;
+        app.workspace_state.install_overlay_for_test(files);
+
+        // Query clicks and query drags both place the caret through this owner.
+        app.workspace_state
+            .overlay_mut()
+            .unwrap()
+            .query_set_caret(2);
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().files_focus,
+            crate::overlay::FilesFocus::Query
+        );
+
+        let before = app.document.buffer().text().to_string();
+        let exit = crate::app::schedule::RecordingExit::default();
+        app.apply(Action::SelectAll, false, &exit, crate::stats::Door::Chord);
+        app.apply(
+            Action::DeleteBackward,
+            false,
+            &exit,
+            crate::stats::Door::Chord,
+        );
+        assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "");
+        assert_eq!(app.document.buffer().text(), before);
+    });
+}
+
+#[test]
 fn files_menu_action_creates_in_the_browsed_directory_without_switching_root() {
     let _guard = crate::testlock::serial();
     let root = PathBuf::from("/notes");

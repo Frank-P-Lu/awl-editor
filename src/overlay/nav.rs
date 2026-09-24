@@ -1,4 +1,4 @@
-use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
+use super::{FilesFocus, OverlayKind, OverlayState, RangeCell, RowMeta};
 
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
@@ -115,6 +115,9 @@ impl OverlayState {
         if self.link_edit.is_some() {
             self.link_edit_set_caret(at);
             return;
+        }
+        if self.files_mode {
+            self.files_focus = FilesFocus::Query;
         }
         self.query.set_caret(at);
     }
