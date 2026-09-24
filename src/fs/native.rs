@@ -9,6 +9,76 @@ pub(super) fn stable_complete(initial_len: u64, final_len: u64, bytes_read: usiz
     initial_len == bytes_read as u64 && final_len == bytes_read as u64
 }
 
+/// The two operations the native bounded reader needs from an already-open
+/// file. Keeping them behind one private seam lets the byte cap be observed by
+/// a deterministic reader law; production still supplies a real `File`.
+pub(super) trait NativeBoundedInput: Read {
+    fn current_len(&mut self) -> io::Result<u64>;
+}
+
+impl NativeBoundedInput for std::fs::File {
+    fn current_len(&mut self) -> io::Result<u64> {
+        self.metadata().map(|metadata| metadata.len())
+    }
+}
+
+pub(super) fn read_bounded_input(
+    input: &mut impl NativeBoundedInput,
+    max_bytes: usize,
+) -> BoundedRead {
+    let initial_len = match input.current_len() {
+        Ok(len) => len,
+        Err(error) => {
+            return BoundedRead::Failed {
+                bytes: Vec::new(),
+                _error: error,
+            };
+        }
+    };
+    let mut bytes = Vec::with_capacity(max_bytes.min(64 * 1024));
+    while bytes.len() < max_bytes {
+        let remaining = max_bytes - bytes.len();
+        let mut chunk = [0u8; 16 * 1024];
+        let chunk_len = remaining.min(chunk.len());
+        match input.read(&mut chunk[..chunk_len]) {
+            Ok(0) => {
+                return match input.current_len() {
+                    Ok(final_len) if stable_complete(initial_len, final_len, bytes.len()) => {
+                        BoundedRead::Complete(bytes)
+                    }
+                    Ok(_) => BoundedRead::LimitReached(bytes),
+                    Err(error) => BoundedRead::Failed {
+                        bytes,
+                        _error: error,
+                    },
+                };
+            }
+            Ok(n) => bytes.extend_from_slice(&chunk[..n]),
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => {
+                return BoundedRead::Failed {
+                    bytes,
+                    _error: error,
+                };
+            }
+        }
+    }
+
+    // At the exact cap, ask the already-open handle for its current size. A
+    // one-byte EOF probe would itself exceed the read budget. Regular files are
+    // the indexer's subject; if size cannot prove completion, reject the prefix.
+    match input.current_len() {
+        Ok(final_len) if stable_complete(initial_len, final_len, bytes.len()) => {
+            BoundedRead::Complete(bytes)
+        }
+        Ok(_) => BoundedRead::LimitReached(bytes),
+        Err(error) => BoundedRead::Failed {
+            bytes,
+            _error: error,
+        },
+    }
+}
+
 impl FileSystem for NativeFs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         std::fs::read_to_string(path)
@@ -28,60 +98,7 @@ impl FileSystem for NativeFs {
                 };
             }
         };
-        let initial_len = match file.metadata() {
-            Ok(metadata) => metadata.len(),
-            Err(error) => {
-                return BoundedRead::Failed {
-                    bytes: Vec::new(),
-                    _error: error,
-                };
-            }
-        };
-        let mut bytes = Vec::with_capacity(max_bytes.min(64 * 1024));
-        while bytes.len() < max_bytes {
-            let remaining = max_bytes - bytes.len();
-            let mut chunk = [0u8; 16 * 1024];
-            let chunk_len = remaining.min(chunk.len());
-            match file.read(&mut chunk[..chunk_len]) {
-                Ok(0) => {
-                    return match file.metadata() {
-                        Ok(metadata)
-                            if stable_complete(initial_len, metadata.len(), bytes.len()) =>
-                        {
-                            BoundedRead::Complete(bytes)
-                        }
-                        Ok(_) => BoundedRead::LimitReached(bytes),
-                        Err(error) => BoundedRead::Failed {
-                            bytes,
-                            _error: error,
-                        },
-                    };
-                }
-                Ok(n) => bytes.extend_from_slice(&chunk[..n]),
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-                Err(error) => {
-                    return BoundedRead::Failed {
-                        bytes,
-                        _error: error,
-                    };
-                }
-            }
-        }
-
-        // At the exact cap, ask the already-open handle for its current size.
-        // A one-byte EOF probe would itself exceed the read budget. Regular
-        // files are the indexer's subject; if the size cannot prove completion,
-        // conservatively reject the prefix as limited.
-        match file.metadata() {
-            Ok(metadata) if stable_complete(initial_len, metadata.len(), bytes.len()) => {
-                BoundedRead::Complete(bytes)
-            }
-            Ok(_) => BoundedRead::LimitReached(bytes),
-            Err(error) => BoundedRead::Failed {
-                bytes,
-                _error: error,
-            },
-        }
+        read_bounded_input(&mut file, max_bytes)
     }
 
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {
