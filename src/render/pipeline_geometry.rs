@@ -358,6 +358,8 @@ impl TextPipeline {
         self.folded_headings = view.folded_headings.clone();
         self.doc_source = view.doc_source.clone();
         self.preedit = view.preedit.clone();
+        self.field_input = view.field_input.clone();
+        self.field_caret_rect = None;
         // Mirror the spell list ONLY when it actually changed (a rescan landing),
         // bumping its version so the cached squiggle protos rebuild; the common
         // cursor-move / scroll event keeps the mirror, the clone, AND the cache.

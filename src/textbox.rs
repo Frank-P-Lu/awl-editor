@@ -36,6 +36,17 @@ use crate::buffer::{
     word_forward_boundary,
 };
 
+/// A summoned text surface's lifetime, preserved by view clones, renewed on open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TextInputId(usize);
+
+impl TextInputId {
+    pub(crate) fn new() -> Self {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
+        Self(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
+}
+
 /// A single-line text field: its content plus a CHAR-index caret, plus an
 /// OPTIONAL selection anchor. Shared by every end-only minibuffer field (see
 /// the module doc) so motion/edit/word rules exist in exactly ONE place —
@@ -216,6 +227,17 @@ impl TextBox {
         self.caret = start + text.chars().count();
         self.anchor = None;
         true
+    }
+
+    /// Insert one committed string, replacing the selection once.
+    pub fn insert_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        self.delete_selection_if_any();
+        let byte = self.byte_of(self.caret);
+        self.text.insert_str(byte, text);
+        self.caret += text.chars().count();
     }
 
     /// Backspace: delete the CHARACTER before the caret — one extended

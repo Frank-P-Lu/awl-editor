@@ -310,13 +310,8 @@ fn no_door_writes_text_into_a_read_only_prose_surface() {
 
 /// **THE WALL IS SCOPED TO THE FAMILY, AND THAT SCOPE IS A DECISION.**
 ///
-/// A card that is NOT a reading surface — the command palette over your
-/// document, say — leaves these doors open exactly as before. That is the
-/// deliberate boundary of this item, not an oversight: the question of whether
-/// an IME commit should reach the document while any picker is up is a wider one
-/// about every summoned surface. Pinning it here means widening the wall later
-/// is a decision someone has to make on purpose, with this law in front of them,
-/// rather than a silent drift.
+/// Non-reading cards do not acquire the read-only prose wall. Platform IME has
+/// its own focused recipient; the other insertion doors retain this boundary.
 #[test]
 fn a_card_that_is_not_a_reading_surface_leaves_the_doors_open() {
     let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
@@ -341,7 +336,12 @@ fn a_card_that_is_not_a_reading_surface_leaves_the_doors_open() {
             "{kind:?} is outside the family but the App reads it as a reading surface"
         );
         let before = app.document.buffer().text();
-        drive(&mut app, TextDoor::Ime, "字", image_span());
+        drive(
+            &mut app,
+            TextDoor::AssistiveReplaceSelection,
+            "字",
+            image_span(),
+        );
         assert_ne!(
             app.document.buffer().text(),
             before,

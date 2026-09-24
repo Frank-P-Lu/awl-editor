@@ -1,5 +1,6 @@
 pub mod keys;
 mod semantic;
+mod text_input;
 use crate::textbox::TextBox;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -49,6 +50,7 @@ pub enum StepOutcome {
 /// Live isearch state. Owned by `App` as `Option<SearchState>`; the query is its
 /// OWN String, never spliced into the rope.
 pub struct SearchState {
+    pub(crate) text_input_id: crate::textbox::TextInputId,
     /// The search needle + its CHAR-index caret, one shared [`TextBox`].
     query: TextBox,
     case_sensitive: bool,
@@ -74,6 +76,7 @@ pub struct SearchState {
 impl SearchState {
     pub fn start(origin: usize, direction: Direction) -> Self {
         Self {
+            text_input_id: crate::textbox::TextInputId::new(),
             query: TextBox::new(),
             case_sensitive: false,
             matches: Vec::new(),

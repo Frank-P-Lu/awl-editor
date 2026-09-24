@@ -150,6 +150,7 @@ pub(super) fn write_sidecar(
         panel = super::panel_sidecar::panel_json(pipeline),
         project = project_json(opts),
         overlay = overlay_json(opts, pipeline),
+        focused_field = focused_field_json(view, pipeline),
         buffers = super::opts::buffers_sidecar::json(opts, view),
         replay_skips = super::replay_sidecar::replay_skips_json(opts),
         diff = diff_json(opts),
@@ -159,6 +160,21 @@ pub(super) fn write_sidecar(
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(super::redact::redact(&json).as_bytes())?;
     Ok(())
+}
+
+fn focused_field_json(view: &ViewState, pipeline: &TextPipeline) -> String {
+    let Some(input) = &view.field_input else {
+        return "null".into();
+    };
+    serde_json::json!({
+        "field": format!("{:?}", input.field),
+        "text": input.text,
+        "caret": input.caret,
+        "selection": input.selection,
+        "preedit": input.preedit,
+        "candidate_rect": pipeline.focused_field_caret_rect(),
+    })
+    .to_string()
 }
 
 /// THE CALM NOTICE block: `{ text, kind }`, or `null` when nothing is showing.

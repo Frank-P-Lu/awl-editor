@@ -278,6 +278,7 @@ impl OverlayState {
         let Some(row) = self.selected_corpus_index() else {
             return;
         };
+        self.text_input_id = crate::textbox::TextInputId::new();
         let orig = self
             .rows
             .get(row)

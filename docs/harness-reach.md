@@ -219,12 +219,15 @@ to the same `App::on_ime` that `lifecycle.rs`'s `WindowEvent::Ime` arm hands it
 to, so a headless commit and a physical composition are the same code path minus
 the platform input method.
 
-**What it does NOT open.** There is still no `--keys` token and no sidecar for
-it — `--screenshot-app` drives chords only, so a capture cannot photograph a
-frame an IME commit produced. A Verify clause about IME behaviour is a Rust
-assertion on `App` state (`app::tests::read_only_surface` is the worked example),
-not a capture. Composition PREEDIT is a different matter and has its own
-deterministic render hook, `--preedit`.
+**What it does NOT open.** There is still no `--keys` token: `--screenshot-app`
+drives chords only. Rust laws can deliver `Ime` events to `App::on_ime`, then
+capture that App through `capture_opts` and `capture_with`; `app::tests::ime_capture`
+checks transient field text, candidate geometry, pixels and unchanged document
+state this way. The `focused_field` sidecar describes the rendered field without
+exposing its session identity. These are real App events, not physical input-method
+events: Japanese conversion, the OS candidate window, event ordering and live feel
+still require a disposable native bundled session and a person. The synthetic
+document-only `--preedit` render hook remains separate.
 
 ### A macOS MENU KEY EQUIVALENT is not a key, and no capture door can spell it
 

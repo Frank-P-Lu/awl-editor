@@ -187,6 +187,7 @@ impl TextPipeline {
         let caret_h = m.caret_h * 0.8;
         let caret_cx = caret_x + m.caret_w * 0.5;
         let caret_cy = self.panel_caret_cy(text_top, caret_row);
+        self.field_caret_rect = Some([caret_x, caret_cy - caret_h * 0.5, m.caret_w, caret_h]);
         self.panel_caret.prepare(
             queue,
             width,

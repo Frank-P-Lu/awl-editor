@@ -287,6 +287,9 @@ pub(super) fn settled_viewstate(
     vstate.search_query_caret = vstate.search_query.chars().count();
     vstate.search_replacement_caret = vstate.search_replacement.chars().count();
     viewstate_overlay::fold(&mut vstate, buffer, opts, search_active);
+    if let Some(input) = &opts.field_input {
+        vstate.apply_field_input(input.clone());
+    }
     // HISTORY TIMELINE live preview: the still-open History overlay's highlighted
     // row previews THAT VERSION in the document itself — override the snapshot's
     // text BEFORE the first `set_view`, so the scroll math below shapes the

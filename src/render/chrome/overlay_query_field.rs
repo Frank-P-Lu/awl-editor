@@ -128,7 +128,7 @@ impl TextPipeline {
     /// shaped-text lookup both [`Self::overlay_query_caret_box`] and
     /// [`Self::overlay_query_selection_box`] read, so the caret and a
     /// selection edge can never disagree about where a character sits.
-    fn overlay_query_glyph_x(
+    pub(in crate::render) fn overlay_query_glyph_x(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,

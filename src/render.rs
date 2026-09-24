@@ -130,6 +130,8 @@ pub mod caretbench;
 /// Render-relevant editor data and its canonical [`ViewState::base`] defaults.
 mod viewstate_def;
 pub use viewstate_def::{DocSource, FoldTail, ViewState};
+mod field_input;
+pub use field_input::FieldInput;
 
 mod pipeline_activity;
 mod pipeline_band_epoch;
@@ -2200,6 +2202,8 @@ pub struct TextPipeline {
     fold_chevron_turn: std::collections::HashMap<usize, f32>,
     hover_line: Option<usize>,
     preedit: String,
+    field_input: Option<FieldInput>,
+    field_caret_rect: Option<[f32; 4]>,
     misspelled: Vec<Misspelling>,
     /// Version counter for [`Self::misspelled`]: bumped by `sync_view_fields`
     /// whenever the incoming spell list actually DIFFERS from the mirrored one.

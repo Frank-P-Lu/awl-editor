@@ -63,6 +63,7 @@ mod search;
 mod semantic;
 mod state;
 mod table_dims;
+mod text_input;
 mod title;
 mod user_words;
 mod value_input;

@@ -298,6 +298,7 @@ impl App {
             }
             return;
         }
+        self.reconcile_text_focus();
         if !self.input.keyboard.preedit.is_empty() {
             return;
         }

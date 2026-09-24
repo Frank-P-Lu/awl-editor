@@ -414,6 +414,7 @@ mod panel_draw;
 /// The panel's FIELD SELECTION BAND, split out to keep `panel.rs` under its
 /// production ceiling.
 mod panel_selection;
+mod text_input;
 pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_MIN_W, PANEL_PAD};
 pub(in crate::render) use panel_controls::{ControlSpan, PanelControlSpans};
 use panel_selection::panel_selection_span;

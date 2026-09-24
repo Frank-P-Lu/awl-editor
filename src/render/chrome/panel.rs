@@ -418,7 +418,7 @@ impl TextPipeline {
             )
         };
         let selection_span = panel_selection_span(
-            self.search_field_selection,
+            self.search_field_mark_range(),
             label,
             view,
             field_caret,

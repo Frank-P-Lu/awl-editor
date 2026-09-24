@@ -26,6 +26,10 @@ mod dock_icon;
 mod external;
 mod files;
 mod history;
+#[cfg(not(target_arch = "wasm32"))]
+mod ime_capture;
+#[cfg(not(target_arch = "wasm32"))]
+mod ime_fields;
 /// THE INSERTION-DOOR CENSUS: every production path that edits the focused
 /// buffer's text is enrolled at one seam, declares what gates it, and is named
 /// where it says it lives. Roster and mechanism: `app/input/text_door.rs`.

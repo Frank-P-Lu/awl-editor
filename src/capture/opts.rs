@@ -355,6 +355,8 @@ pub struct CaptureOpts {
     /// same Advanced-shaping path as the live IME overlay; never enters the
     /// buffer, so the capture stays deterministic.
     pub preedit: Option<String>,
+    /// Live App's focused field, including transient composition and selection.
+    pub field_input: Option<crate::render::FieldInput>,
     /// Live isearch query to render the panel + highlights deterministically
     /// (None = no search). Matches are computed against the loaded buffer.
     pub search: Option<String>,

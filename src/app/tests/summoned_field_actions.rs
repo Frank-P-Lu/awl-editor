@@ -51,11 +51,11 @@ const DOC: &str = "alpha beta gamma\nbeta again\n";
 const DOC_WITH_IMAGE: &str = "alpha beta gamma\nbeta again\n![a cat](cat.png)\n";
 const QUERY: &str = "beta";
 
-fn seeded() -> crate::fs::InMemoryFs {
+pub(super) fn seeded() -> crate::fs::InMemoryFs {
     crate::fs::InMemoryFs::new().with_file(PathBuf::from("/proj/draft.md"), DOC)
 }
 
-fn app() -> App {
+pub(super) fn app() -> App {
     app_on(
         Some(PathBuf::from("/proj/draft.md")),
         "/proj",
@@ -76,7 +76,7 @@ fn app() -> App {
 /// surface with nothing to type into and the sweep would go on passing while
 /// the field it was written for leaked. Making the author of that field name
 /// its summon here is what keeps the subject alive.
-fn summon(app: &mut App, field: TextField) {
+pub(super) fn summon(app: &mut App, field: TextField) {
     match field {
         TextField::PickerQuery => {
             let mut ov = OverlayState::new(
@@ -111,6 +111,7 @@ fn summon(app: &mut App, field: TextField) {
                 vec![],
             );
             ov.set_secondaries(crate::settings::visible_value_cells(&Default::default()));
+            ov.set_query_text("zoom");
             ov.start_value_edit("zoom".to_string(), "Zoom".to_string());
             app.workspace_state.install_overlay_for_test(ov);
         }
@@ -138,7 +139,7 @@ fn summon(app: &mut App, field: TextField) {
 /// types into — `None` when the surface is no longer standing, or is standing
 /// without its field. Wildcard-free like `summon`, and for the same reason:
 /// a field nobody knows how to read back cannot be asserted about.
-fn field_text(app: &App, field: TextField) -> Option<String> {
+pub(super) fn field_text(app: &App, field: TextField) -> Option<String> {
     let ov = || app.workspace_state.overlay();
     let st = || app.workspace_state.search();
     match field {
@@ -208,7 +209,7 @@ fn browser_paste_replaces_selected_find_and_replace_fields() {
 /// bytes, the undo version (a refusal that still takes an undo step is an edit
 /// that happened to be empty), the caret, and the parked SELECTION — which is
 /// what ⌘A actually moved.
-fn doc_state(app: &App) -> (String, u64, usize, Option<(usize, usize)>) {
+pub(super) fn doc_state(app: &App) -> (String, u64, usize, Option<(usize, usize)>) {
     let b = app.document.buffer();
     (b.text(), b.version(), b.cursor_char(), b.selection_range())
 }
@@ -467,25 +468,10 @@ fn the_real_select_all_menu_id_does_not_select_the_document_behind_the_panel() {
     );
 }
 
-/// **THE WALL IS SCOPED TO ROUTED ACTIONS, AND THAT SCOPE IS A MEASURED
-/// DECISION, NOT AN OVERSIGHT — ACROSS THE WHOLE INSERTION-DOOR ROSTER.**
-///
-/// The doors that bypass `App::apply` altogether still reach the document while
-/// the find panel is up. That is not a second half of this item left undone: it
-/// is EXACTLY the boundary `app::tests::read_only_surface` already pinned for
-/// the summoned CARD ("a card that is not a reading surface leaves the doors
-/// open"), and the panel inheriting the same answer is what keeps the two
-/// summoned surfaces from disagreeing. Widening the wall from "a read-only
-/// prose surface" to "any summoned surface" is one decision to take across
-/// both, with this measurement in front of whoever takes it — and it is not a
-/// pure widening, because a refusal is only the right answer if the commit does
-/// not instead belong in the PANEL'S OWN query.
-///
-/// The subject is DERIVED — `read_only_surface::walled_doors()`, i.e. every
-/// member of the census roster whose gate is the wall — rather than the one
-/// door this pin was first written against. That matters: the census grew the
-/// roster from three doors to five, and a pin that named `Ime` alone would have
-/// gone on reporting a measurement two doors out of date.
+/// Non-IME insertion doors keep their original read-only-prose boundary.
+/// IME instead has a focused recipient; its whole-field and non-text roster
+/// laws live in `ime_fields`. Derive the remaining doors from the census so
+/// this narrower change cannot quietly weaken another insertion path.
 #[test]
 fn the_text_insertion_doors_are_outside_this_wall_and_that_is_pinned() {
     let _fs = crate::fs::FsGuard::install(Arc::new(
@@ -500,7 +486,7 @@ fn the_text_insertion_doors_are_outside_this_wall_and_that_is_pinned() {
         "the walled roster is empty — no subject"
     );
 
-    for door in walled {
+    for door in walled.into_iter().filter(|door| *door != TextDoor::Ime) {
         let mut app = app();
         summon(&mut app, TextField::FindQuery);
         let before = app.document.buffer().text();

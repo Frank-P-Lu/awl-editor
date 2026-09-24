@@ -342,6 +342,8 @@ impl TextPipeline {
             fold_chevron_turn: std::collections::HashMap::new(),
             hover_line: None,
             preedit: String::new(),
+            field_input: None,
+            field_caret_rect: None,
             misspelled: Vec::new(),
             spell_gen: 0,
             shaped_key: None,

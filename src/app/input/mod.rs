@@ -16,9 +16,12 @@ mod mouse;
 mod mouse_button;
 mod pointer_sync;
 mod text_door;
+mod text_focus;
+mod text_view;
 mod wheel;
 
 pub(in crate::app) use text_door::{TextDoor, TextEdit};
+pub(in crate::app) use text_focus::TextTarget;
 
 use drags::ImageDrag;
 #[cfg(test)]
@@ -57,6 +60,8 @@ struct KeyboardInput {
     peek_arm: crate::peek::PeekArm,
     peek_armed_at: Option<crate::clock::Instant>,
     preedit: String,
+    preedit_cursor: usize,
+    ime_target: Option<TextTarget>,
     ime_enabled: bool,
 }
 
@@ -115,6 +120,8 @@ impl InputRuntime {
                 peek_arm: crate::peek::PeekArm::default(),
                 peek_armed_at: None,
                 preedit: String::new(),
+                preedit_cursor: 0,
+                ime_target: None,
                 ime_enabled: false,
             },
             pointer: PointerInput {
@@ -195,6 +202,9 @@ impl InputRuntime {
 
     pub(in crate::app) fn clear_preedit(&mut self) {
         self.keyboard.preedit.clear();
+        if self.keyboard.ime_target.is_some() {
+            self.keyboard.ime_target = Some(TextTarget::None);
+        }
     }
 
     pub(in crate::app) fn preedit(&self) -> &str {

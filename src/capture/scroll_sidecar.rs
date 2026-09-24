@@ -58,6 +58,7 @@ macro_rules! sidecar_format {
                 "\"editing_replacement\": {er}, \"panel\": {panel} }},\n",
                 "  \"project\": {project},\n",
                 "  \"overlay\": {overlay},\n",
+                "  \"focused_field\": {focused_field},\n",
                 "  \"buffers\": {buffers},\n",
                 "  \"replay_skips\": {replay_skips},\n",
                 "  \"diff\": {diff}{caret_extra}\n",

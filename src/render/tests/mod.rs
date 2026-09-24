@@ -156,6 +156,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod ime_fields;
 mod insert_link_field;
 mod japanese_bold_assets;
 mod japanese_bold_pixels;

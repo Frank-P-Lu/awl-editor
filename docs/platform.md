@@ -2,6 +2,17 @@
 
 > Read before touching `app/` lifecycle hooks, autosave/history, `daemon.rs`, `menu.rs`, `session.rs`, `updates.rs`, GPU fault/recovery paths, `--soak-gpu`, or the debug panel/HUD.
 
+## Platform text input
+
+`app/input/text_focus.rs` resolves one IME recipient: the active document, a
+specific summoned field, or none. Commit uses that field's existing validation
+and filtering owner. Preedit is transient and survives an empty-preedit event
+until commit; a dismissed or replaced recipient cannot redirect a late commit.
+Live frames and App captures use the same field projection. The native candidate
+area comes from the field caret actually prepared by the renderer, after shaping,
+not the document hidden behind it. Physical input-method behavior is a live test;
+see [harness reach](harness-reach.md).
+
 ## Debug panel / HUD / copy pulse (determinism-safe live-only feedback)
 
 - **Debug panel (`debug.rs`):** opt-in, dim top-right (the persistent margin outline owns the top-left), debug-only (diagnostic infra for the agent — the user screenshots, the agent triages). Value-only, no amber. Three perf lines (`frame ms`, `key→px ms`, `redraws`) + deterministic diagnostics. **Schedules zero frames** — rides frames the editor drew anyway, then draws one `still ·` stamp and goes fully quiet (0% CPU, frozen `redraws` — a climb without input is a hot-loop bug made visible). Toggle: palette "Toggle debug" / `Action::ToggleDebug` / `--debug` — **no default chord in either convention** (the emacs `C-x r` binding was retired when the native-first identity round dropped the emacs `C-x` defaults; rebindable via config `[keys] toggle_debug`). **Determinism:** perf lines are a live clock the capture lacks → a default `--screenshot` is byte-identical (panel absent); enabled-in-capture draws fixed numberless placeholders. Sidecar `debug` block.

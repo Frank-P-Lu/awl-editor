@@ -25,6 +25,7 @@ impl App {
     pub(super) fn sync_view(&mut self, follow: bool) {
         #[cfg(target_arch = "wasm32")]
         self.sync_browser_paste_policy();
+        self.reconcile_text_focus();
         if self.sync_menu_context_and_gpu_absent() {
             return;
         }
@@ -174,6 +175,7 @@ impl App {
             zoom: self.frame.zoom(),
             selection: self.document.buffer().selection_line_col(),
             preedit: self.input.preedit().to_owned(),
+            field_input: None,
             misspelled,
             is_edit_move,
             held,
@@ -409,6 +411,7 @@ impl App {
                 self.document.buffer().folds(),
             );
         }
+        self.project_text_input(&mut view);
         {
             let gpu = self.frame.gpu_mut().unwrap();
             gpu.pipeline.set_view(&view);
@@ -628,16 +631,5 @@ impl App {
         {
             gpu.pipeline.caret_recoil(dir);
         }
-    }
-
-    pub(super) fn update_ime_cursor_area(&self) {
-        let Some(gpu) = self.frame.gpu() else {
-            return;
-        };
-        let (x, y, w, h) = gpu.pipeline.caret_pixel_rect();
-        gpu.window.set_ime_cursor_area(
-            winit::dpi::PhysicalPosition::new(x as f64, y as f64),
-            winit::dpi::PhysicalSize::new(w.max(1.0) as f64, h.max(1.0) as f64),
-        );
     }
 }

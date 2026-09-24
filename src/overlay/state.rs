@@ -22,6 +22,7 @@ pub use super::add_to_dictionary_label;
 
 #[derive(Debug, Clone)]
 pub struct OverlayState {
+    pub(crate) text_input_id: crate::textbox::TextInputId,
     pub kind: OverlayKind,
     pub align: crate::theme::CardAnchor,
     pub query: TextBox,
@@ -183,6 +184,7 @@ impl OverlayState {
             })
             .collect();
         let mut s = Self {
+            text_input_id: crate::textbox::TextInputId::new(),
             kind,
             // Themes is the one chooser whose rows replace the world behind
             // the card. Its reviewed composition is a stable top-right form
