@@ -229,17 +229,6 @@ impl TextBox {
         true
     }
 
-    /// Insert one committed string, replacing the selection once.
-    pub fn insert_text(&mut self, text: &str) {
-        if text.is_empty() {
-            return;
-        }
-        self.delete_selection_if_any();
-        let byte = self.byte_of(self.caret);
-        self.text.insert_str(byte, text);
-        self.caret += text.chars().count();
-    }
-
     /// Backspace: delete the CHARACTER before the caret — one extended
     /// grapheme cluster, through the same [`crate::grapheme`] owner the
     /// document buffer's own Backspace uses. A no-op at the start. Replaces
