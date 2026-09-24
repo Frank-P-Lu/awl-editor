@@ -302,6 +302,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         ("export/tests.rs", 1),
         ("firstrun/tests.rs", 1),
         ("fs.rs", 1),
+        // The native bounded-read law seeds an exact-size file and a larger
+        // file under ScratchDir, then reads them without opening an App. Both
+        // writes are disposable test inputs, never durable user state.
+        ("fs/bounded_tests.rs", 2),
         ("fs/native.rs", 1),
         ("fs/paths.rs", 2),
         ("fs/web.rs", 1),
