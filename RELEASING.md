@@ -94,11 +94,11 @@ git push origin v0.9.0
 
 The tag push builds the Linux tarball and AppImage plus a universal macOS app.
 The app is signed with Developer ID, notarized, stapled, and packaged as
-`awl-<version>-macos-universal.dmg`. The publish job depends on both platform
-jobs and attaches those three downloads plus one `SHA256SUMS` manifest covering
-all three. It never publishes the workflow-only app zip. Rerunning the Linux
-profile parity law inside the release job means a missed local pre-tag run still
-blocks publication.
+`awl-<version>-macos-universal.dmg`. A separate preparation job always depends
+on both platform jobs, verifies their producer checksums, selects exactly those
+three public downloads, and builds and verifies one `SHA256SUMS`. It runs on dry
+runs too. Only GitHub Release creation is tag-gated, and it consumes that prepared
+payload. The workflow-only app zip is never selected for publication.
 
 **Dry run (no tag, nothing published) — verify the pipeline is healthy:**
 
@@ -107,9 +107,10 @@ gh workflow run release.yml -f dry_run=true
 gh run watch
 ```
 
-All three build jobs run; artifacts land in the run's **Artifacts** tab instead
-of a GitHub Release, `publish` is skipped, and no tag or release is created.
-The macOS output is unsigned by default.
+All three build jobs run, then `prepare-release` downloads the named Linux and
+macOS artifacts, verifies their producer checksums, and uploads the exact public
+layout as `awl-release-payload`. `publish` is skipped, and no tag or release is
+created. The macOS output is unsigned by default.
 
 **Credentialed macOS rehearsal (still no tag and nothing published):**
 
@@ -155,6 +156,7 @@ treat a missing licence file as a hard failure, not a warning.
 | `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `awl-<version>-macos-universal.dmg` + `SHA256SUMS` (covering all three) | GitHub Release (tag) |
 | same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
 | versioned universal app zip + DMG + their `.sha256`s | workflow artifact `awl-macos` (unsigned on the default dry run; signed/notarized on tags and credentialed rehearsals; only the DMG is public) |
+| exact three-download public layout + verified `SHA256SUMS` | workflow artifact `awl-release-payload` (dry runs and tags; only a tag hands it to GitHub Release creation) |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
@@ -291,9 +293,9 @@ across worlds") — run it before step 1.
 | 2 | `scripts/audit.sh` | cargo-deny clean, or a recorded narrow ignore |
 | 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
-| 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs, `publish` skipped; unsigned macOS packaging stays rehearsable without credentials |
+| 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs plus green `prepare-release`; prepared artifact contains exactly the three public payloads and `SHA256SUMS`; `publish` is skipped |
 | 6 | Optional: rerun with `-f credentialed_macos_rehearsal=true` | signed macOS path passes without creating a tag or Release; required after credential renewal or release-workflow signing changes |
-| 7 | Download `awl-linux` and `awl-macos`; verify checksums and inspect the DMG | names are versioned; DMG and workflow-only app zip are each under 50,000,000 bytes; mounted app is universal, signed, stapled, and Gatekeeper-accepted |
+| 7 | Download `awl-linux`, `awl-macos`, and `awl-release-payload`; verify checksums and inspect the DMG | names are versioned; the public DMG is strictly under 50,000,000 bytes; the app zip's recorded size is informational because it is never public; mounted app is universal, signed, stapled, and Gatekeeper-accepted |
 | 8 | Launch the mounted macOS app on a real user's Mac; launch both Linux forms on a real Linux desktop | each opens a window and file; Linux launcher metadata appears correctly |
 | 9 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
 | 10 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |

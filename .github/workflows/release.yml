@@ -264,15 +264,7 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent dist-mac/Awl.app "dist-mac/$APP_ZIP"
-          MAX_BYTES=50000000
-          for artifact in "dist-mac/$DMG" "dist-mac/$APP_ZIP"; do
-            BYTES="$(stat -f%z "$artifact")"
-            echo "macOS artifact size: $artifact = $BYTES bytes (limit $MAX_BYTES)"
-            if [ "$BYTES" -ge "$MAX_BYTES" ]; then
-              echo "::error::$artifact is $BYTES bytes; every compressed macOS download must be under $MAX_BYTES bytes."
-              exit 1
-            fi
-          done
+          scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"
           hdiutil verify "dist-mac/$DMG"
           MOUNT="$RUNNER_TEMP/awl-dmg-mount"
           mkdir -p "$MOUNT"
@@ -450,24 +442,17 @@ jobs:
           path: dist-web/awl-web-dist.zip
           retention-days: 14
 
-  publish:
-    name: publish GitHub Release
-    # A failed/skipped mac job blocks publication just as a failed Linux job.
+  prepare-release:
+    name: prepare release payload
+    # This job deliberately runs on manual dry runs as well as tags. It is the
+    # rehearsal for the artifact download/layout/checksum work that used to be
+    # hidden behind the tag-only publish condition.
     needs: [plan, mac, linux]
-    if: needs.plan.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write
     steps:
-      # NAME THE ARTIFACT. Without `name:`, download-artifact fetches every
-      # artifact in the run and its layout depends on how many it found — the
-      # untested shape that failed the first real tag, which expected an
-      # `artifacts/awl-linux/` subdirectory that was not there. Naming it
-      # downloads exactly this one artifact's files flat into `path`, so the
-      # location is fixed by the input rather than by what else the run
-      # happened to upload. Linux and macOS are fetched into explicit sibling
-      # directories so adding one cannot silently reshape the other.
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           name: awl-linux
@@ -478,39 +463,35 @@ jobs:
           name: awl-macos
           path: artifacts/mac
 
-      # SHA256SUMS covers exactly the files about to be attached, computed
-      # from the artifacts themselves rather than transcribed. `sha256sum -c
-      # SHA256SUMS` in the download directory is the whole verification.
-      #
-      # TWO Linux artifacts now: the tarball and the AppImage,
-      # checked and copied identically — this step's own doc note (below)
-      # about `publish` running only on a tag and never on a dry run applies
-      # to BOTH files equally, so both get the same named, loud failure
-      # rather than one being an afterthought.
-      - name: Build the checksum manifest
+      - name: Select public payload and build checksum manifest
         env:
-          TARBALL: awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
-          APPIMAGE: awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
-          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+          VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          mkdir -p release
-          (cd artifacts/linux && sha256sum -c "$TARBALL.sha256" "$APPIMAGE.sha256")
-          (cd artifacts/mac && sha256sum -c "$DMG.sha256")
-          # Fail LOUDLY and by name if the layout ever moves again. `cp`'s own
-          # "No such file or directory" names a path without saying what was
-          # actually there, which is the diagnosis this step owes its reader:
-          # this job runs only on a real tag, so a bad run here is a broken
-          # public release, and it has no dry run standing behind it.
-          for pair in "linux/$TARBALL" "linux/$APPIMAGE" "mac/$DMG"; do
-            if [ ! -f "artifacts/$pair" ]; then
-              echo "::error::expected artifacts/$pair — downloaded tree was:"
-              find artifacts -type f | sed 's/^/  /'
-              exit 1
-            fi
-            cp "artifacts/$pair" release/
-          done
-          (cd release && sha256sum "$TARBALL" "$APPIMAGE" "$DMG" > SHA256SUMS)
-          cat release/SHA256SUMS
+          scripts/prepare-release-payload.sh \
+            artifacts/linux artifacts/mac release "$VERSION"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: awl-release-payload
+          path: release/
+          retention-days: 14
+
+  publish:
+    name: publish GitHub Release
+    needs: [plan, prepare-release]
+    if: needs.plan.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: awl-release-payload
+          path: release
+
+      - name: Verify prepared payload
+        run: (cd release && sha256sum -c SHA256SUMS)
 
       # The release body IS the install page — a reader arrives here from the
       # site's Download link and must not have to guess. `body` (not

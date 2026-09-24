@@ -7,7 +7,7 @@
 
 #![cfg(all(test, not(target_arch = "wasm32")))]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -53,11 +53,17 @@ fn step<'a>(job: &'a str, name: &str) -> &'a str {
     &rest[..end]
 }
 
-fn release_audit(workflow: &str, packager: &str) -> Vec<&'static str> {
+fn release_audit(
+    workflow: &str,
+    packager: &str,
+    size_check: &str,
+    preparer: &str,
+) -> Vec<&'static str> {
     let workflow = without_comments(workflow);
     let packager = without_comments(packager);
     let mac = job(&workflow, "mac");
     let plan = job(&workflow, "plan");
+    let prepare = job(&workflow, "prepare-release");
     let publish = job(&workflow, "publish");
     let signing_check = step(mac, "Check signing secrets");
     let mut failures = Vec::new();
@@ -86,7 +92,6 @@ fn release_audit(workflow: &str, packager: &str) -> Vec<&'static str> {
         ("xcrun notarytool submit", "notarization"),
         ("xcrun stapler staple", "staple"),
         ("hdiutil verify", "dmg-verification"),
-        ("MAX_BYTES=50000000", "download-size-cap"),
     ] {
         if !mac.contains(needle) {
             failures.push(label);
@@ -106,12 +111,20 @@ fn release_audit(workflow: &str, packager: &str) -> Vec<&'static str> {
     {
         failures.push("versioned-mac-artifact");
     }
-    if !publish.contains("needs: [plan, mac, linux]") {
+    if !prepare.contains("needs: [plan, mac, linux]") {
         failures.push("publication-depends-on-mac");
     }
-    if !publish.contains("name: awl-macos")
-        || !publish.contains("mac/$DMG")
-        || !publish.contains("sha256sum \"$TARBALL\" \"$APPIMAGE\" \"$DMG\"")
+    if prepare.lines().any(|line| line.starts_with("    if:"))
+        || !prepare.contains("name: awl-linux")
+        || !prepare.contains("name: awl-macos")
+        || !prepare.contains("scripts/prepare-release-payload.sh")
+        || !prepare.contains("name: awl-release-payload")
+    {
+        failures.push("dry-run-prepares-public-payload");
+    }
+    if !publish.contains("needs: [plan, prepare-release]")
+        || !publish.contains("name: awl-release-payload")
+        || !publish.contains("sha256sum -c SHA256SUMS")
         || !publish.contains("release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg")
     {
         failures.push("publish-checksum-attachment-parity");
@@ -132,24 +145,48 @@ fn release_audit(workflow: &str, packager: &str) -> Vec<&'static str> {
     {
         failures.push("one-dmg-owner");
     }
+    if !mac.contains("scripts/check-macos-release-size.sh")
+        || !size_check.contains("MAX_BYTES=50000000")
+        || !size_check.contains("[ \"$DMG_BYTES\" -ge \"$MAX_BYTES\" ]")
+        || !size_check.contains("APP_ZIP_BYTES")
+        || size_check.contains("[ \"$APP_ZIP_BYTES\" -ge")
+        || size_check.contains("[ \"$APP_ZIP_BYTES\" -gt")
+    {
+        failures.push("public-dmg-size-boundary");
+    }
+    if !preparer.contains("$LINUX_DIR/$TARBALL")
+        || !preparer.contains("$LINUX_DIR/$APPIMAGE")
+        || !preparer.contains("$MAC_DIR/$DMG")
+        || !preparer.contains("\"$TARBALL\" \"$APPIMAGE\" \"$DMG\" > SHA256SUMS")
+        || !preparer.contains("\"${SHA256[@]}\" -c SHA256SUMS")
+        || preparer.contains("app.zip\" \"$OUT_DIR")
+    {
+        failures.push("prepared-payload-layout");
+    }
     failures
+}
+
+fn sources() -> (String, String, String, String) {
+    (
+        read(".github/workflows/release.yml"),
+        read("scripts/package-macos.sh"),
+        read("scripts/check-macos-release-size.sh"),
+        read("scripts/prepare-release-payload.sh"),
+    )
 }
 
 #[test]
 fn signed_macos_publication_is_fail_closed() {
     let _guard = crate::testlock::serial();
-    let failures = release_audit(
-        &read(".github/workflows/release.yml"),
-        &read("scripts/package-macos.sh"),
-    );
+    let (workflow, packager, size_check, preparer) = sources();
+    let failures = release_audit(&workflow, &packager, &size_check, &preparer);
     assert!(failures.is_empty(), "release workflow audit: {failures:?}");
 }
 
 #[test]
 fn release_audit_rejects_each_headline_regression() {
     let _guard = crate::testlock::serial();
-    let workflow = read(".github/workflows/release.yml");
-    let packager = read("scripts/package-macos.sh");
+    let (workflow, packager, size_check, preparer) = sources();
     let mutations = [
         (
             "echo \"::error::macOS signing is required, but these credentials are missing:$missing\"\n              exit 1",
@@ -162,6 +199,11 @@ fn release_audit_rejects_each_headline_regression() {
             "publication-depends-on-mac",
         ),
         (
+            "    needs: [plan, mac, linux]\n    runs-on: ubuntu-latest",
+            "    needs: [plan, mac, linux]\n    if: needs.plan.outputs.is_release == 'true'\n    runs-on: ubuntu-latest",
+            "dry-run-prepares-public-payload",
+        ),
+        (
             "xcrun stapler validate",
             "xcrun stapler check",
             "staple-validation",
@@ -170,16 +212,6 @@ fn release_audit_rejects_each_headline_regression() {
             "spctl --assess --type execute",
             "true # spctl removed",
             "gatekeeper",
-        ),
-        (
-            "MAX_BYTES=50000000",
-            "MAX_BYTES=50000001",
-            "download-size-cap",
-        ),
-        (
-            "sha256sum \"$TARBALL\" \"$APPIMAGE\" \"$DMG\"",
-            "sha256sum \"$TARBALL\" \"$APPIMAGE\"",
-            "publish-checksum-attachment-parity",
         ),
         (
             "release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg",
@@ -193,7 +225,7 @@ fn release_audit_rejects_each_headline_regression() {
             "mutation subject missing: {subject}"
         );
         let broken = workflow.replacen(subject, replacement, 1);
-        let failures = release_audit(&broken, &packager);
+        let failures = release_audit(&broken, &packager, &size_check, &preparer);
         assert!(
             failures.contains(&expected),
             "mutation {subject:?} did not fail as {expected:?}: {failures:?}"
@@ -206,9 +238,147 @@ fn release_audit_rejects_each_headline_regression() {
         "mutation subject missing: {subject}"
     );
     let broken_packager = packager.replacen(subject, "--dmg-copy) DMG_ONLY=1", 1);
-    let failures = release_audit(&workflow, &broken_packager);
+    let failures = release_audit(&workflow, &broken_packager, &size_check, &preparer);
     assert!(
         failures.contains(&"one-dmg-owner"),
         "packager mutation did not fail by owner: {failures:?}"
+    );
+
+    for (subject, replacement) in [
+        ("MAX_BYTES=50000000", "MAX_BYTES=50000001"),
+        (
+            "[ \"$DMG_BYTES\" -ge \"$MAX_BYTES\" ]",
+            "[ \"$DMG_BYTES\" -gt \"$MAX_BYTES\" ]",
+        ),
+    ] {
+        let broken = size_check.replacen(subject, replacement, 1);
+        let failures = release_audit(&workflow, &packager, &broken, &preparer);
+        assert!(
+            failures.contains(&"public-dmg-size-boundary"),
+            "size mutation {subject:?} did not fail by boundary: {failures:?}"
+        );
+    }
+
+    let subject = "\"$TARBALL\" \"$APPIMAGE\" \"$DMG\" > SHA256SUMS";
+    let broken = preparer.replacen(subject, "\"$TARBALL\" \"$APPIMAGE\" > SHA256SUMS", 1);
+    let failures = release_audit(&workflow, &packager, &size_check, &broken);
+    assert!(
+        failures.contains(&"prepared-payload-layout"),
+        "payload mutation did not fail by layout: {failures:?}"
+    );
+}
+
+fn scratch(name: &str) -> crate::testscratch::ScratchDir {
+    crate::testscratch::ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl-release-law-{name}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    )))
+}
+
+fn write_checksum(dir: &Path, name: &str) {
+    let output = std::process::Command::new("shasum")
+        .args(["-a", "256", name])
+        .current_dir(dir)
+        .output()
+        .expect("shasum must run");
+    assert!(output.status.success(), "shasum failed: {output:?}");
+    std::fs::write(dir.join(format!("{name}.sha256")), output.stdout).expect("write checksum");
+}
+
+#[test]
+fn only_the_public_dmg_has_a_hard_size_limit() {
+    let _guard = crate::testlock::serial();
+    let dir = scratch("size");
+    std::fs::create_dir_all(&*dir).expect("create scratch");
+    let dmg = dir.join("public.dmg");
+    let zip = dir.join("workflow-only.app.zip");
+    std::fs::File::create(&dmg)
+        .and_then(|file| file.set_len(49_999_999))
+        .expect("create under-limit DMG");
+    std::fs::File::create(&zip)
+        .and_then(|file| file.set_len(50_000_001))
+        .expect("create oversized diagnostic ZIP");
+
+    let accepted = std::process::Command::new(root().join("scripts/check-macos-release-size.sh"))
+        .arg(&dmg)
+        .arg(&zip)
+        .output()
+        .expect("size check must run");
+    assert!(
+        accepted.status.success(),
+        "an oversized nonpublic ZIP must not reject an under-limit DMG: {}",
+        String::from_utf8_lossy(&accepted.stderr)
+    );
+
+    std::fs::File::create(&dmg)
+        .and_then(|file| file.set_len(50_000_000))
+        .expect("create boundary DMG");
+    let rejected = std::process::Command::new(root().join("scripts/check-macos-release-size.sh"))
+        .arg(&dmg)
+        .arg(&zip)
+        .output()
+        .expect("size check must run");
+    assert!(
+        !rejected.status.success(),
+        "a DMG at exactly 50,000,000 bytes must fail the strict under-limit law"
+    );
+}
+
+#[test]
+fn dry_run_preparation_builds_the_exact_public_payload() {
+    let _guard = crate::testlock::serial();
+    let dir = scratch("payload");
+    let linux = dir.join("linux");
+    let mac = dir.join("mac");
+    let output = dir.join("release");
+    std::fs::create_dir_all(&linux).expect("create linux input");
+    std::fs::create_dir_all(&mac).expect("create mac input");
+    let version = "9.8.7-test";
+    let tarball = format!("awl-{version}-linux-x86_64.tar.gz");
+    let appimage = format!("awl-{version}-linux-x86_64.AppImage");
+    let dmg = format!("awl-{version}-macos-universal.dmg");
+    std::fs::write(linux.join(&tarball), b"tarball").expect("write tarball");
+    std::fs::write(linux.join(&appimage), b"appimage").expect("write AppImage");
+    std::fs::write(mac.join(&dmg), b"dmg").expect("write DMG");
+    write_checksum(&linux, &tarball);
+    write_checksum(&linux, &appimage);
+    write_checksum(&mac, &dmg);
+
+    // This is intentionally larger than the public-download cap. Preparation
+    // must ignore it because the app ZIP is a workflow receipt, not a release.
+    std::fs::File::create(mac.join(format!("awl-{version}-macos-universal.app.zip")))
+        .and_then(|file| file.set_len(50_000_001))
+        .expect("create diagnostic ZIP");
+
+    let prepared = std::process::Command::new(root().join("scripts/prepare-release-payload.sh"))
+        .args([&linux, &mac, &output])
+        .arg(version)
+        .output()
+        .expect("payload preparation must run");
+    assert!(
+        prepared.status.success(),
+        "fake artifact preparation failed: {}",
+        String::from_utf8_lossy(&prepared.stderr)
+    );
+
+    let mut names: Vec<_> = std::fs::read_dir(&output)
+        .expect("read prepared output")
+        .map(|entry| entry.expect("output entry").file_name())
+        .collect();
+    names.sort();
+    let mut expected = vec![
+        std::ffi::OsString::from("SHA256SUMS"),
+        std::ffi::OsString::from(appimage),
+        std::ffi::OsString::from(dmg),
+        std::ffi::OsString::from(tarball),
+    ];
+    expected.sort();
+    assert_eq!(
+        names, expected,
+        "prepared payload must contain exactly three public downloads plus SHA256SUMS"
     );
 }
