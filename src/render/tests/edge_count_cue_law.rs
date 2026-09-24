@@ -7,15 +7,10 @@
 //! (`workingset.rs`'s resting-stack overflow row — an EXPAND affordance, and
 //! untouched by this item; this cue lives only in the scrolling views). One
 //! windowing owner: [`crate::render::chrome::window_edge_counts`], read at
-//! both card families (flat `overlay.rs`, grouped `theme_picker.rs`) through
-//! the shared budget fixed point `resolve_window_and_cue`. **The SUMMONED
-//! WORKSPACE family is deliberately excluded** — its row origin is shared
-//! with its own RAIL (a `RailOverRows` shape's category-label column), so
-//! shifting it for the cue moved the rail whenever the CONTENT pane's item
-//! count happened to clip, even though the rail itself never changed
-//! (`workspace.rs::workspace_geometry`'s own doc has the measured defect and
-//! the pre-existing law — `render/tests/rail_ink_law.rs` — that caught it);
-//! decoupling the two is future work, not part of this item's shipped scope.
+//! both card families (flat `overlay.rs`, grouped `theme_picker.rs`) and the
+//! summoned WORKSPACE through their respective window owners. A workspace
+//! reserves its fixed three-line continuation footer before fitting candidates,
+//! so its rail and row origin stay stable while the two cue slots change text.
 //!
 //! **THE SCROLL-INVARIANCE BUG THIS LAW NAMES.** An earlier cut of the
 //! reservation charged exactly as many extra display lines as the edges
@@ -145,6 +140,27 @@ fn assert_fits_and_no_cue(p: &TextPipeline, width: u32, n_items: usize, ctx: &st
     );
 }
 
+/// The shared fixture projects a workspace's actual row-owning region. Settings
+/// is RailOverRows, so this law enters its content stage; History is
+/// TimelineOverComparison, so its rows remain in the primary region. Keeping
+/// this check at the roster seam prevents a staged Settings fixture from
+/// silently grading an invisible list while preserving History's distinct
+/// projection.
+fn assert_workspace_projection(v: &ViewState, kind: OverlayKind, ctx: &str) {
+    let rows_primary = kind
+        .workspace_shape()
+        .expect("workspace roster member has a shape")
+        .rows_are_primary();
+    assert_eq!(
+        v.overlay_rows_primary, rows_primary,
+        "{ctx}: the shared fixture must project this workspace's real row region"
+    );
+    assert_eq!(
+        v.overlay_detail_focus, !rows_primary,
+        "{ctx}: Settings must enter its content rows while History keeps its primary rows"
+    );
+}
+
 const ROOMY: (u32, u32) = (1200, 800);
 
 #[test]
@@ -158,8 +174,8 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
     };
     let mut fit_cells = 0usize;
     let mut clip_cells = 0usize;
-    let mut workspace_excluded = 0usize;
-    let mut history_projection = 0usize;
+    let mut workspace_fit_cells = 0usize;
+    let mut workspace_clip_cells = 0usize;
     for kind in OverlayKind::ALL {
         let fam = family(kind);
         // TALL-FITS: a corpus no bigger than the kind's own window cap, at a
@@ -170,31 +186,11 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         p.prepare(&device, &queue, ROOMY.0, ROOMY.1).unwrap();
         let ctx = format!("{kind:?}/{fam:?} tall-fits");
         if fam == Family::Workspace {
-            let rows_primary = kind
-                .workspace_shape()
-                .expect("workspace roster member has a shape")
-                .rows_are_primary();
-            assert_eq!(
-                v.overlay_rows_primary, rows_primary,
-                "{ctx}: the shared fixture must project this workspace's real row region"
-            );
-            if kind == OverlayKind::History {
-                assert!(
-                    rows_primary,
-                    "History is TimelineOverComparison, so its rows live in the primary region"
-                );
-                history_projection += 1;
-            }
-            assert_eq!(
-                p.overlay_edge_cue_report(),
-                Some((None, None)),
-                "{ctx}: summoned workspaces deliberately do not carry picker edge cues"
-            );
-            workspace_excluded += 1;
-            continue;
+            assert_workspace_projection(&v, kind, &ctx);
         }
         assert_fits_and_no_cue(&p, ROOMY.0, small_n, &ctx);
         fit_cells += 1;
+        workspace_fit_cells += usize::from(fam == Family::Workspace);
 
         // CORPUS-FORCED CLIP: bigger than the kind's own window cap — the
         // PER-KIND cap binds regardless of how roomy the canvas is.
@@ -215,8 +211,12 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
             assert_fits_and_no_cue(&p, ROOMY.0, kind.window_rows().max(1), &ctx);
             fit_cells += 1;
         } else {
+            if fam == Family::Workspace {
+                assert_workspace_projection(&v, kind, &ctx);
+            }
             assert_clips_and_cue_present(&p, ROOMY.0, big_n, &ctx);
             clip_cells += 1;
+            workspace_clip_cells += usize::from(fam == Family::Workspace);
 
             // SCROLLED TO THE TOP: `overlay_view`'s own default selection is
             // the corpus's LAST item, so every cell above exercises the
@@ -267,13 +267,10 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         clip_cells > 20,
         "the clipping arm graded too few cells: {clip_cells}"
     );
-    assert!(
-        workspace_excluded > 0,
-        "the roster must explicitly reach the workspace exclusion"
-    );
     assert_eq!(
-        history_projection, 1,
-        "the workspace exclusion must reach History's non-Settings projection"
+        (workspace_fit_cells, workspace_clip_cells),
+        (2, 2),
+        "both workspace projections must grade both the fits and clipping arms"
     );
 }
 
@@ -365,8 +362,8 @@ fn theme_picker_short_window_shows_the_below_edge_cue() {
 /// exterior geometry (`card_x`, `card_y`, `card_w`, `card_h`) must be
 /// BYTE-IDENTICAL at every scroll position — the reservation is a property
 /// of the corpus/canvas/query alone, never of which edge happens to clip at
-/// the current selection. Swept over the flat and grouped picker families;
-/// summoned workspaces deliberately have no edge-cue reservation. The mutation
+/// the current selection. Swept over the flat, grouped, and workspace families.
+/// The mutation
 /// this law is named for (reserving `above.is_some()
 /// as usize + below.is_some() as usize` instead of a fixed `2`) made the
 /// SAME command palette's card 27px taller mid-scroll than at either end.
@@ -379,8 +376,9 @@ fn cue_card_geometry_is_scroll_invariant_while_windowed() {
     };
     let mut swept = 0usize;
     for kind in [
-        OverlayKind::Command, // flat, per-kind-cap-bound
-        OverlayKind::Theme,   // grouped
+        OverlayKind::Command,  // flat, per-kind-cap-bound
+        OverlayKind::Theme,    // grouped
+        OverlayKind::Settings, // workspace continuation footer
     ] {
         let n = kind.window_rows() + 25;
         let mut rects: Vec<[f32; 4]> = Vec::new();
@@ -389,6 +387,35 @@ fn cue_card_geometry_is_scroll_invariant_while_windowed() {
             v.overlay_selected = sel;
             p.set_view(&v);
             p.prepare(&device, &queue, ROOMY.0, ROOMY.1).unwrap();
+            if kind == OverlayKind::Settings {
+                let position = match sel {
+                    0 => "top",
+                    _ if sel == n / 2 => "middle",
+                    _ if sel == n - 1 => "bottom",
+                    _ => "between",
+                };
+                let ctx = format!("Settings workspace {position} scroll (selection {sel})");
+                assert_workspace_projection(&v, kind, &ctx);
+                assert_clips_and_cue_present(&p, ROOMY.0, n, &ctx);
+                let (above, below, ..) = cue_state(&p, ROOMY.0);
+                match position {
+                    "top" => assert_eq!(
+                        (above, below.is_some()),
+                        (None, true),
+                        "{ctx}: only the below continuation is hidden at the top"
+                    ),
+                    "middle" => assert!(
+                        above.is_some() && below.is_some(),
+                        "{ctx}: both continuation slots carry counts in the middle"
+                    ),
+                    "bottom" => assert_eq!(
+                        (above.is_some(), below),
+                        (true, None),
+                        "{ctx}: only the above continuation is hidden at the bottom"
+                    ),
+                    _ => {}
+                }
+            }
             rects.push(
                 p.overlay_card_rect()
                     .expect("an open overlay has a card rect"),
@@ -406,7 +433,7 @@ fn cue_card_geometry_is_scroll_invariant_while_windowed() {
     }
     theme::set_active(theme::DEFAULT_THEME);
     assert_eq!(
-        swept, 2,
-        "the scroll-invariance law must sweep both cue-bearing picker families"
+        swept, 3,
+        "the scroll-invariance law must sweep all three cue-bearing picker families"
     );
 }

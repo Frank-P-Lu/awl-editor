@@ -131,6 +131,9 @@ pub(super) fn overlay_view(kind: OverlayKind, n: usize, sectioned: bool) -> View
                 .workspace_shape()
                 .expect("workspace family has a workspace shape")
                 .rows_are_primary();
+            // Settings' candidates live in the content region, so enter that
+            // stage; History's timeline remains in the primary region.
+            v.overlay_detail_focus = !v.overlay_rows_primary;
             v.overlay_lens = vec![
                 ("All".into(), true),
                 ("Editor".into(), false),
