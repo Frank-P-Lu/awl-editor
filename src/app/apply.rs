@@ -306,6 +306,7 @@ impl App {
             // before materializing a file. Refuse at the action door, before
             // the picker gather can rescan or read a search corpus.
             self.set_sticky_notice("search in folder is unavailable in the browser");
+            self.sync_view(false);
             self.request_frame();
             return false;
         }

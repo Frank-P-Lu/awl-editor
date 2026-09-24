@@ -117,6 +117,9 @@ pub struct OverlayState {
     /// corpus. Kept beside that corpus so every live/replay/view consumer
     /// reports the same partial-coverage state.
     pub search_incomplete: bool,
+    /// The current query reached a result-row cap. Recomputed on each filter,
+    /// separately from the summon-time corpus coverage fact above.
+    pub search_limited: bool,
     pub(super) hug_roster: Option<Arc<HugRoster>>,
 }
 
@@ -233,6 +236,7 @@ impl OverlayState {
             search_root: None,
             search_corpus: Vec::new(),
             search_incomplete: false,
+            search_limited: false,
             hug_roster: None,
         };
         s.refilter();
@@ -773,8 +777,16 @@ impl OverlayState {
         if let Some(hint) = self.files_hint() {
             return hint;
         }
-        if self.kind == OverlayKind::SearchFolder && self.search_incomplete {
-            return "some files not searched   ↵ open   esc close".to_string();
+        if self.kind == OverlayKind::SearchFolder {
+            let coverage = match (self.search_incomplete, self.search_limited) {
+                (true, true) => "some files not searched; results limited",
+                (true, false) => "some files not searched",
+                (false, true) => "results limited",
+                (false, false) => "",
+            };
+            if !coverage.is_empty() {
+                return format!("{coverage}   ↵ open   esc close");
+            }
         }
         self.kind.hint()
     }

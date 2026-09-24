@@ -78,6 +78,10 @@ fn browser_search_refusal_precedes_the_picker_gather() {
         .expect("the refusal ends before ordinary action handling")
         .0;
     assert!(refusal.contains("search in folder is unavailable in the browser"));
+    assert!(
+        refusal.contains("self.sync_view(false);"),
+        "a direct Search in folder binding must publish its notice without a palette transition"
+    );
     assert!(refusal.contains("return false"));
     assert!(
         source

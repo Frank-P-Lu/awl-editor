@@ -162,6 +162,10 @@ hermetic setup for automated input-state testing.
   up as a virtual FS — origin-scoped, synchronous, and bounded by the browser's
   ~5 MB localStorage quota. There are **no real multi-file projects** and no
   filesystem outside the seeded virtual root `/`.
+- **Search in folder is unavailable in the browser.** Synchronous
+  `localStorage` cannot enforce a read budget before materializing a file, so
+  the action shows a notice without scanning the virtual root. Native folder
+  search remains available.
 - **Clipboard.** Copy and cut retain the best-effort asynchronous
   `navigator.clipboard.writeText` mirror. Plain-text paste reads `text/plain`
   from a trusted browser `paste` event while the canvas has focus. The browser

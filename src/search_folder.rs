@@ -42,6 +42,15 @@ pub struct Hit {
     pub hl_end: usize,
 }
 
+/// The bounded rows and whether a result cap was reached. A reached cap is
+/// reported even when no further match is known, so the picker never implies
+/// an exhaustive scan after it stopped looking.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct SearchResult {
+    pub hits: Vec<Hit>,
+    pub limited: bool,
+}
+
 /// The scan/result BUDGET — enforced, not aspirational: a folder larger than
 /// this never hangs the picker, it just stops finding more. All five numbers
 /// are named here so the tradeoff is one place to retune.
@@ -150,6 +159,10 @@ fn load_corpus_with(
             load.incomplete = true;
             continue;
         };
+        if !crate::openable::looks_like_text(&bytes) {
+            load.incomplete = true;
+            continue;
+        }
         match String::from_utf8(bytes) {
             Ok(content) => load.corpus.push((path.clone(), content)),
             Err(_) => load.incomplete = true,
@@ -166,18 +179,28 @@ fn load_corpus_with(
 /// group). Bounded by `budget.max_hits`/`max_hits_per_file`; stops scanning
 /// entirely once the total is reached, so a huge folder never over-runs the
 /// budget even by one row.
-pub fn search(corpus: &[(String, String)], query: &str, budget: &SearchBudget) -> Vec<Hit> {
+pub fn search_report(
+    corpus: &[(String, String)],
+    query: &str,
+    budget: &SearchBudget,
+) -> SearchResult {
     if query.is_empty() {
-        return Vec::new();
+        return SearchResult::default();
     }
-    let mut hits = Vec::new();
+    if budget.max_hits == 0 || budget.max_hits_per_file == 0 {
+        return SearchResult {
+            limited: !corpus.is_empty(),
+            ..SearchResult::default()
+        };
+    }
+    let mut result = SearchResult::default();
     'files: for (path, content) in corpus {
         let mut in_file = 0usize;
         for (line_idx, line) in content.split('\n').enumerate() {
             for m in crate::search::find_all(line, query, false) {
                 let (snippet, hl_start, hl_end) =
                     build_snippet(line, m.start, m.end, budget.snippet_chars);
-                hits.push(Hit {
+                result.hits.push(Hit {
                     path: path.clone(),
                     line: line_idx,
                     col: m.start,
@@ -186,16 +209,23 @@ pub fn search(corpus: &[(String, String)], query: &str, budget: &SearchBudget) -
                     hl_end,
                 });
                 in_file += 1;
-                if hits.len() >= budget.max_hits {
+                if result.hits.len() >= budget.max_hits {
+                    result.limited = true;
                     break 'files;
                 }
                 if in_file >= budget.max_hits_per_file {
+                    result.limited = true;
                     continue 'files;
                 }
             }
         }
     }
-    hits
+    result
+}
+
+#[cfg(test)]
+fn search(corpus: &[(String, String)], query: &str, budget: &SearchBudget) -> Vec<Hit> {
+    search_report(corpus, query, budget).hits
 }
 
 /// Window `line` down to at most `max_chars`, CENTERED on the match

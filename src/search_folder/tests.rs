@@ -89,6 +89,7 @@ fn max_hits_caps_the_total_across_every_file() {
         5,
         "the total must stop exactly at the budget, mid-file if needed"
     );
+    assert!(search_report(&corpus, "needle", &budget).limited);
 }
 
 #[test]
@@ -110,6 +111,13 @@ fn max_hits_per_file_caps_one_files_share_without_starving_the_rest() {
         other, 1,
         "capping the dense file must not crowd out the other file's own hit"
     );
+    assert!(search_report(&corpus, "needle", &budget).limited);
+}
+
+#[test]
+fn a_query_below_both_result_caps_does_not_claim_to_be_limited() {
+    let corpus = vec![("a.md".to_string(), "one needle here".to_string())];
+    assert!(!search_report(&corpus, "needle", &tight_budget()).limited);
 }
 
 /// A short line (within the snippet width) is returned UNCHANGED — no
@@ -405,4 +413,34 @@ fn incomplete_coverage_is_visible_in_the_picker_footer_without_hiding_open() {
         incomplete.foot_hint(),
         "some files not searched   ↵ open   esc close"
     );
+}
+
+#[test]
+fn nul_bearing_utf8_is_not_a_searchable_document() {
+    let files = vec!["binary.md".into()];
+    let load = load_corpus_with(
+        &files,
+        &tight_budget(),
+        |_| None,
+        |_, _| complete("needle\0binary"),
+    );
+    assert_eq!(load.attempted_files, 1);
+    assert_eq!(load.bytes_read, "needle\0binary".len());
+    assert!(load.corpus.is_empty());
+    assert!(load.incomplete);
+}
+
+#[test]
+fn a_result_cap_is_visible_in_the_picker_footer() {
+    let mut picker = crate::overlay::OverlayState::new_search_folder(
+        std::path::PathBuf::from("/notes"),
+        vec![("a.md".into(), "needle\n".repeat(21))],
+        false,
+    );
+    for ch in "needle".chars() {
+        picker.push(ch);
+    }
+    assert_eq!(picker.rows.len(), SearchBudget::default().max_hits_per_file);
+    assert!(picker.search_limited);
+    assert_eq!(picker.foot_hint(), "results limited   ↵ open   esc close");
 }
