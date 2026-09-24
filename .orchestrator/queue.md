@@ -434,8 +434,10 @@ should become the default; the experimental branch is not a releasable change.
 
 ### 669 — investigate the opening-bracket gap under the caret (user screenshot, 2026-09-24)
 
-🟡 IN PROGRESS — /root/bracket_669_analysis (codex), branch
-`codex/669-cjk-punctuation`. In the supplied Japanese Paperbark screenshot,
+🟡 VERIFIED IN TRAIN — `46be9e14` and `70eb217c` integrated at `05916301`;
+full native gate and browser smoke passed on that train commit. Main landing
+awaits reconciliation of the user's in-progress documentation. In the supplied
+Japanese Paperbark screenshot,
 the visible gap between `の` and the focused `「` reads much too large to the
 user. The settled block caret appears to cover the narrow bracket ink while
 leaving its leading space bare. The screenshot alone does not establish whether
@@ -460,6 +462,10 @@ and stable caret motion. Use matched native PNGs and pixel measurements to
 recommend one treatment; implement the smallest shared-owner correction if
 the evidence identifies a mechanical defect, and bring a genuine visual taste
 choice back to the user. Do not add a Paperbark-specific renderer branch.
+
+The font mismatch and document-evidence cache defect are fixed across the shared
+renderer. The remaining 15 px Paperbark kana-to-caret gap is a measured font
+sidebearing/caret-width taste decision; current ink-hugging fill is unchanged.
 
 ---
 
