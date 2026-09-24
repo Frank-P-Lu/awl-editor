@@ -17,11 +17,12 @@ the website is its distribution. §5 is the pre-tag checklist.
 
 ## 1. Apple setup (macOS signing + notarization)
 
-The Apple signing and notarization setup is complete. Release tags always sign
-and notarize; any missing credential fails the macOS job and therefore blocks
-publication. A default manual dry run produces an unsigned universal app and
-DMG without publishing. An explicit credentialed rehearsal exercises the same
-signed path without a tag or GitHub Release. The steps below document renewal.
+The workflow has a signing and notarization path, but the five Apple secrets and
+hosted result must be checked before a release. Tags require signing and
+notarization; a missing credential fails the macOS job and blocks publication.
+A default manual dry run produces an unsigned universal app and DMG without
+publishing. An explicit credentialed rehearsal exercises the signed path without
+a tag or GitHub Release. The steps below document setup and renewal.
 
 **(a) Export your Developer ID Application certificate as a `.p12`:**
 
@@ -294,7 +295,7 @@ across worlds") — run it before step 1.
 | 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
 | 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs plus green `prepare-release`; prepared artifact contains exactly the three public payloads and `SHA256SUMS`; `publish` is skipped |
-| 6 | Optional: rerun with `-f credentialed_macos_rehearsal=true` | signed macOS path passes without creating a tag or Release; required after credential renewal or release-workflow signing changes |
+| 6 | Rerun with `-f credentialed_macos_rehearsal=true` for the first macOS release and after credential renewal or signing-workflow changes | signed macOS path passes without creating a tag or Release |
 | 7 | Download `awl-linux`, `awl-macos`, and `awl-release-payload`; verify checksums and inspect the DMG | names are versioned; the public DMG is strictly under 50,000,000 bytes; the app zip's recorded size is informational because it is never public; mounted app is universal, signed, stapled, and Gatekeeper-accepted |
 | 8 | Launch the mounted macOS app on a real user's Mac; launch both Linux forms on a real Linux desktop | each opens a window and file; Linux launcher metadata appears correctly |
 | 9 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
@@ -344,7 +345,7 @@ about scope to call itself a receipt.
 | Decision | State today | Owner |
 |---|---|---|
 | Cut a public tag at all | **settled — tags are cut.** `v0.9.0`, `v0.10.0`, `v0.11.0` and `v0.12.0` are published, each Linux-only and marked prerelease. Every tag still waits on the user's explicit word, every time | the user, explicitly (CLAUDE.md §Branches) |
-| macOS artifacts | Tag builds are universal, Developer ID signed, notarized, stapled, Gatekeeper-assessed, versioned, size-capped, checksummed, and publication-blocking. The app zip remains a workflow-only diagnostic artifact; the DMG is the public download | settled |
+| macOS artifacts | The workflow requires a universal, Developer ID signed, notarized, stapled, Gatekeeper-assessed, versioned, size-capped and checksummed DMG before publication. The app zip remains a workflow-only diagnostic artifact. A hosted credentialed rehearsal and actual final-DMG size are still owed | verify before tag |
 | Version + prerelease flag | **resolved by item 228 for the GitHub Release; the "and the site" half of the original premise was false.** `Cargo.toml` is pre-1.0. `release.yml`'s `plan` job now computes `prerelease` from the tag's major version (`< 1` ⇒ true) and the `publish` step passes it to `softprops/action-gh-release`, so `v0.9.0` publishes correctly marked prerelease — verified against that action's own source (`INPUT_PRERELEASE == "true"`), not just its docs. `deploy-web.yml`'s `version.json` `prerelease` field is a DIFFERENT thing sharing a name: `site/check.js`'s `checkState()` (locked by `site/check.test.js`) reads it only as "no tag has ever shipped" — the page never renders a stable/beta claim at all, so there was nothing on the site for a beta tag to invert. That field stays `false` for any real tag, unchanged | settled |
 | glibc floor | **RESOLVED 2026-08-06 — the linux job builds on `ubuntu-22.04` and the floor is `GLIBC_2.35`**, reaching Debian 12, Ubuntu 22.04 LTS and RHEL 9. Measured, not reasoned: `objdump -T` finds exactly two dynsyms that could raise the floor — `pidfd_spawnp` and `pidfd_getpid`, both weak, both from Rust std's OPTIONAL pidfd fast path for reaping a child it already spawned. ⚠️ Both are **unversioned** (`w D *UND*`, no `GLIBC_*` tag), so they never appear in the version-needs list: a re-check that greps that list for anything above 2.35 finds NOTHING and reads as "this note has gone stale." It has not — grep `objdump -T` for `pidfd` itself, or `readelf --dyn-syms`, and use GNU binutils rather than the host `objdump` on a Mac. awl references no PidFd API and every `std::process::Command` in the tree blocks on `.output()`/`.wait()`, so std's fork/exec fallback costs nothing observable. Binaries built on `debian:bookworm` and `ubuntu:22.04` both cap at 2.35 and render byte-identical PNGs. ⚠️ The cache key had to move with it: `Swatinem/rust-cache` mixes `runner.os`, which is `"Linux"` for both images, so it is keyed on `ImageOS` now | settled |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |
