@@ -204,7 +204,7 @@ fn push_beat_spacer<'a>(
     }
 }
 
-fn push_workspace_footer_spans<'a>(
+pub(super) fn push_workspace_footer_spans<'a>(
     spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
     footer_lines: &'a [String],
     footer_rows: usize,

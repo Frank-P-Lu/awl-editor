@@ -176,6 +176,7 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
     let mut clip_cells = 0usize;
     let mut workspace_fit_cells = 0usize;
     let mut workspace_clip_cells = 0usize;
+    let mut primary_row_workspaces = 0usize;
     for kind in OverlayKind::ALL {
         let fam = family(kind);
         // TALL-FITS: a corpus no bigger than the kind's own window cap, at a
@@ -187,6 +188,11 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         let ctx = format!("{kind:?}/{fam:?} tall-fits");
         if fam == Family::Workspace {
             assert_workspace_projection(&v, kind, &ctx);
+            primary_row_workspaces += usize::from(
+                kind.workspace_shape()
+                    .expect("workspace roster member has a shape")
+                    .rows_are_primary(),
+            );
         }
         assert_fits_and_no_cue(&p, ROOMY.0, small_n, &ctx);
         fit_cells += 1;
@@ -267,10 +273,13 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         clip_cells > 20,
         "the clipping arm graded too few cells: {clip_cells}"
     );
+    assert!(
+        primary_row_workspaces > 0 && primary_row_workspaces < workspace_fit_cells,
+        "both workspace row projections must be enrolled: {primary_row_workspaces} primary of {workspace_fit_cells}"
+    );
     assert_eq!(
-        (workspace_fit_cells, workspace_clip_cells),
-        (2, 2),
-        "both workspace projections must grade both the fits and clipping arms"
+        workspace_fit_cells, workspace_clip_cells,
+        "every workspace must grade both the fits and clipping arms"
     );
 }
 

@@ -776,6 +776,13 @@ impl TextPipeline {
                 geom.header_rows > 0 || !geom.plan.is_empty() || geom.empty.is_some(),
             );
         }
+        let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
+        super::overlay_shape::push_workspace_footer_spans(
+            &mut spans,
+            &footer_lines,
+            geom.footer_rows,
+            base.clone(),
+        );
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));
         self.panel_buffer
