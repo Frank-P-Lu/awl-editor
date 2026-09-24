@@ -332,9 +332,9 @@ impl TextPipeline {
     ///   Latin anchor on the row — a letter, a ligature, a space, end-of-line, an
     ///   empty row — reads no per-anchor ink at all, so anchors on the same
     ///   face/row cannot disagree; the height moves only with the face, row
-    ///   scale, and zoom/DPI the pad rides. Both boxes below are grown by
-    ///   [`CARET_INK_PAD`] top and bottom before the shared minimum-visible-body
-    ///   floor applies — WHICH box is grown splits on
+    ///   scale, and zoom/DPI the pad rides. The typical box uses [`CARET_INK_PAD`];
+    ///   the full Block envelope uses `CARET_BLOCK_INK_PAD`. Both pass through the shared
+    ///   minimum-visible-body floor — WHICH box is grown splits on
     ///   [`Self::effective_caret_look`]:
     ///
     ///   - **The literal Block caret** ([`CaretMode::Block`], including a Morph

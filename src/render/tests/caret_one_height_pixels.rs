@@ -339,3 +339,105 @@ fn every_anchor_draws_the_same_caret_height_in_real_pixels() {
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
 }
+
+/// The reported Paperbark failure, measured from rendered pixels rather than
+/// from the geometry that intended to draw them. The stable Block envelope must
+/// still contain the lowercase ink, but its quiet body may extend no more than
+/// eight logical pixels beyond either edge of an ordinary `a`. That is a
+/// presence allowance, not a request to hug the current glyph: every anchor
+/// keeps the one face/row height proved above.
+#[test]
+fn paperbark_block_caret_stays_proportionate_to_lowercase_ink() {
+    let _guard = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping the Paperbark lowercase-caret pixel law: no wgpu adapter");
+        return;
+    };
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    crate::menubar::set_menu_bar_on(false);
+    theme::set_active_by_name("Paperbark").unwrap();
+    p.sync_theme();
+
+    let mut checked = 0usize;
+    for &(zoom, dpi) in &[
+        (0.8_f32, 1.0_f32),
+        (1.0, 1.0),
+        (1.2, 1.0),
+        (0.8, 2.0),
+        (1.0, 2.0),
+        (1.2, 2.0),
+    ] {
+        p.set_dpi(dpi);
+
+        let mut text_view = view("aaaa", 0, 4);
+        text_view.zoom = zoom;
+        p.set_view(&text_view);
+        p.settle_caret();
+        p.prepare(&device, &queue, W, H).unwrap();
+        let (caret, text_without_caret) = caret_pixels(&mut p, &device, &queue);
+
+        let mut empty_view = view("", 0, 0);
+        empty_view.zoom = zoom;
+        p.set_view(&empty_view);
+        p.settle_caret();
+        p.prepare(&device, &queue, W, H).unwrap();
+        let (_, empty_without_caret) = caret_pixels(&mut p, &device, &queue);
+        let lowercase = diff_bounds(&text_without_caret, &empty_without_caret);
+
+        assert!(
+            lowercase.count > 0 && lowercase.height() >= (6.0 * zoom * dpi) as i32,
+            concat!(
+                "Paperbark z{} d{}: the lowercase fixture must render ",
+                "enough real ink to bound the caret"
+            ),
+            zoom,
+            dpi
+        );
+        assert!(
+            caret.top <= lowercase.top && caret.bottom >= lowercase.bottom,
+            concat!(
+                "Paperbark z{} d{}: the stable Block envelope must still ",
+                "contain the lowercase ink (caret {}..{}, ink {}..{})"
+            ),
+            zoom,
+            dpi,
+            caret.top,
+            caret.bottom,
+            lowercase.top,
+            lowercase.bottom
+        );
+        let top_overhang = lowercase.top - caret.top;
+        let bottom_overhang = caret.bottom - lowercase.bottom;
+        // One device pixel covers rounded-rect edge AA quantising differently
+        // over dark ink and the page. It does not scale with zoom or DPI; the
+        // authored allowance does.
+        let max_overhang = (8.0 * zoom * dpi).ceil() as i32 + 1;
+        assert!(
+            top_overhang <= max_overhang && bottom_overhang <= max_overhang,
+            concat!(
+                "Paperbark z{} d{}: the Block caret extends ",
+                "{}px above and {}px below lowercase ink; ",
+                "each edge must stay within {}px ",
+                "(8 logical px plus one device-pixel AA allowance)"
+            ),
+            zoom,
+            dpi,
+            top_overhang,
+            bottom_overhang,
+            max_overhang
+        );
+        checked += 1;
+    }
+
+    assert_eq!(
+        checked, 6,
+        "the Paperbark bound sweeps both DPIs and three zooms"
+    );
+    p.set_dpi(1.0);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}

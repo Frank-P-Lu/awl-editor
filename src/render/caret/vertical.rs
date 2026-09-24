@@ -190,14 +190,14 @@ impl TextPipeline {
 
     /// The literal Block caret's `(center_y, height)` on a proportional
     /// Latin row — [`Self::caret_cell_vertical_block`]'s ONLY caller besides
-    /// its own law tests wants exactly this pair, padded and floored the
-    /// same way [`Self::caret_cell_vertical_typical`] is, so a reader
-    /// comparing the two sees the one difference that matters: which box
-    /// backs it.
+    /// its own law tests wants exactly this pair, floored by the same visible
+    /// body rule as [`Self::caret_cell_vertical_typical`]. The full-ink
+    /// envelope uses [`caret_body::CARET_BLOCK_INK_PAD`]'s restrained margin rather than
+    /// adding the typical-letter box's larger [`CARET_INK_PAD`] a second time.
     ///
     /// ⚠️ NEVER TOUCHES THE ADJACENT ROW — measured, not assumed: on the
     /// roster's TIGHTEST bundled face (Bitter — Mopoke/Magpie), the ink
-    /// envelope plus both full [`CARET_INK_PAD`]s already overshoots the
+    /// envelope plus the former two full [`CARET_INK_PAD`]s overshot the
     /// row's own line height by a fraction of a px (the app renders every
     /// face at one FIXED line height, `render::LINE_HEIGHT`, independent of
     /// that face's own metrics — see [`super::super::facepitch`]'s module
@@ -219,8 +219,9 @@ impl TextPipeline {
         px: f32,
     ) -> (f32, f32) {
         let box_ = self.caret_block_ink_box(ascent, font);
-        let (_, floor_h) = caret_visual_body_dims(box_, px);
-        let ideal_h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        let pad = super::super::caret_body::CARET_BLOCK_INK_PAD;
+        let (_, floor_h) = super::super::caret_body::caret_visual_body_dims_with_pad(box_, px, pad);
+        let ideal_h = floor_h.max(box_.height + 2.0 * pad.px(px));
         let row_h = self.cursor_row_height();
         let clearance = Logical(1.0).px(px);
         let max_h = (row_h - clearance).max(box_.height);
