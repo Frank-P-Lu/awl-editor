@@ -7,7 +7,7 @@
 ## Open build and design tasks
 
 **13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, 667, 668, and 669.
+661, 662, 664, 665, 666, 667, and 669. Taste decision owed: 668.
 
 Queued work: release 663.
 
@@ -397,12 +397,13 @@ download artifacts satisfy the strict cap.
 
 ### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
 
-🟡 IN PROGRESS — /root/emphasis_668_analysis (codex), branch
-`codex/668-japanese-emphasis-study`. Japanese `*emphasis*` currently keeps the
-regular upright face, so the styling can disappear even though the Markdown
-remains intact. The user wants to compare treatments before deciding whether
-emphasis dots belong in awl. This is a design investigation, not approval to
-ship dots. Coordinate with 667's real Japanese `**bold**` work so the two
+🔵 OWED — prototype study `9f28df85` on branch
+`codex/668-japanese-emphasis-study`; no default selected. Japanese `*emphasis*`
+currently keeps the regular upright face, so the styling can disappear even
+though the Markdown remains intact. The user wants to compare treatments
+before deciding whether emphasis dots belong in awl. This is a design
+investigation, not approval to ship dots. Coordinate with 667's real Japanese
+`**bold**` work so the two
 Markdown roles remain visually distinct and both respect the
 under-50,000,000-byte download limit.
 
@@ -423,6 +424,11 @@ the world's authored typography; avoid a theme-name rendering branch or a
 runtime asset fetch. Present matched captures, bundle-size and implementation
 cost, a recommendation, and the exact remaining taste decision to the user.
 Only then queue or implement the chosen default.
+
+Matched native captures across six worlds and stress cases favor restrained dots:
+they stay visible in one-bit Wagtail, unlike ink, and avoid the line treatment's
+link ambiguity. The user still needs to choose whether dots above kana/kanji
+should become the default; the experimental branch is not a releasable change.
 
 ---
 
