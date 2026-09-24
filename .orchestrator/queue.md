@@ -6,12 +6,12 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
+661 and 666.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665, Paperbark caret sizing 666, Japanese bold support 667 and
-Japanese emphasis design investigation 668, and Japanese bracket/caret spacing
-669.
+Files repair 665, Japanese bold support 667, Japanese emphasis design
+investigation 668, and Japanese bracket/caret spacing 669.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
