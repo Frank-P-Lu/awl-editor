@@ -7,11 +7,11 @@
 ## Open build and design tasks
 
 **13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661 and 666.
+661, 666 and 667.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665, Japanese bold support 667, Japanese emphasis design
-investigation 668, and Japanese bracket/caret spacing 669.
+Files repair 665, Japanese emphasis design investigation 668, and Japanese
+bracket/caret spacing 669.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
@@ -359,7 +359,8 @@ taste choice.
 
 ### 667 — render real Japanese bold within the download cap (user decision, 2026-09-24)
 
-⚪ QUEUED — Japanese bold is essential to the user's writing experience. At
+🟡 IN PROGRESS — /root/japanese_bold (codex), branch `codex/667-japanese-bold`.
+Japanese bold is essential to the user's writing experience. At
 present `**bold**` parses and persists but per-script spans pin Japanese glyphs
 to Regular, because the five bundled Japanese families have only regular cuts.
 The user decided that every public installable app download must remain below
