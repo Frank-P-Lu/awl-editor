@@ -5,12 +5,12 @@
 //! decodes a Macintosh-platform (ASCII) `name` record, and macOS's `strings`
 //! has no `-e` flag to decode the Windows-platform UTF-16BE record every
 //! other bundled face actually uses, so that half of the check silently
-//! produced nothing for all 45 files. Three more of its "7 found" hits were
+//! produced nothing for all 50 files. Three more of its "7 found" hits were
 //! themselves false positives — `post`-table glyph names like
 //! `copyright.sc` (a small-caps variant name), not a `name`-table record at
 //! all. A fresh read via [`ttf_parser::Face::names`] — the SAME table
-//! `fontdb`/`skrifa` decode at runtime — found every one of the 45 bundled
-//! `.ttf` files carries a real copyright-bearing record: nameID 0 for 43 of
+//! `fontdb`/`skrifa` decode at runtime — found every one of the 50 bundled
+//! `.ttf` files carries a real copyright-bearing record: nameID 0 for 48 of
 //! them, and nameID 7 (trademark) for Monaspace Xenon's two instances, which
 //! `LICENSES.md`'s own per-face table already flags as reading its copyright
 //! from nameID 7. The claim was true; the measurement was not. This law
@@ -101,7 +101,7 @@ fn every_bundled_face_has_a_licenses_md_row_and_a_copyright_record() {
     assert!(
         on_disk.len() >= 40,
         "{FONTS_DIR}/*.ttf looks empty or the directory read failed — found \
-         {} files, expected the ~45-face roster (non-vacuity floor)",
+         {} files, expected the ~50-face roster (non-vacuity floor)",
         on_disk.len()
     );
 
