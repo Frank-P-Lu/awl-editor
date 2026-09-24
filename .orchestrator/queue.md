@@ -215,8 +215,9 @@ Follow the verification policy for integration gates. Reference:
 
 ### 662 — make the macOS download a signed, notarized release artifact
 
-⚪ QUEUED — requested by the user 2026-09-24. Apple signing and notarization
-setup are already complete, as the user confirmed. The current `release.yml`
+🟡 IN PROGRESS — /root/release_662 (codex), branch
+`codex/662-signed-macos`. Requested by the user 2026-09-24. Apple signing and
+notarization setup are already complete, as the user confirmed. The current `release.yml`
 builds an unsigned universal `Awl.app` and DMG only on dry runs; tag runs skip
 the mac job and publish Linux alone. A workflow artifact is a short-lived build
 receipt, not the public macOS download. The stale setup-state claims in
