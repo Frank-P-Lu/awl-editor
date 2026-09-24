@@ -15,6 +15,22 @@ pub(super) enum Paste {
     Read(u64),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ContextTarget {
+    Canvas,
+    Window,
+}
+
+/// The trusted DOM events that invalidate queued browser-paste work. Kept as
+/// data so the wasm listener installer and the native state-machine law cannot
+/// disagree about which focus door owns invalidation.
+pub(super) const CONTEXT_LISTENERS: &[(&str, ContextTarget, bool)] = &[
+    ("compositionstart", ContextTarget::Canvas, true),
+    ("compositionend", ContextTarget::Canvas, false),
+    ("blur", ContextTarget::Canvas, false),
+    ("blur", ContextTarget::Window, false),
+];
+
 impl PasteEvents {
     /// Composition or blur invalidates already queued deliveries and notices.
     pub(super) fn context_changed(&mut self, composing: bool) {
@@ -107,5 +123,36 @@ mod tests {
         assert!(events.claim_timeout(missing));
         assert!(!events.claim_timeout(missing));
         assert_eq!(events.paste(true, true), Paste::Read(epoch)); // late real paste
+    }
+
+    #[test]
+    fn browser_paste_context_listener_roster_invalidates_canvas_and_window_focus_changes() {
+        let _guard = crate::testlock::serial();
+        assert_eq!(
+            CONTEXT_LISTENERS,
+            [
+                ("compositionstart", ContextTarget::Canvas, true),
+                ("compositionend", ContextTarget::Canvas, false),
+                ("blur", ContextTarget::Canvas, false),
+                ("blur", ContextTarget::Window, false),
+            ]
+        );
+
+        for &(name, target, composing) in CONTEXT_LISTENERS {
+            let mut events = PasteEvents::default();
+            let Paste::Read(epoch) = events.paste(true, true) else {
+                panic!("{name} on {target:?}: fixture did not queue a payload")
+            };
+            let timeout = events.gesture(true, false).unwrap();
+            events.context_changed(composing);
+            assert!(
+                !events.accepts_delivery(epoch),
+                "{name} on {target:?}: queued payload survived"
+            );
+            assert!(
+                !events.claim_timeout(timeout),
+                "{name} on {target:?}: pending notice survived"
+            );
+        }
     }
 }

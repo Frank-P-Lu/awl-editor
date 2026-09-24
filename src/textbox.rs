@@ -399,6 +399,10 @@ mod tests;
 pub(crate) mod work;
 
 /// Clipboard line breaks and controls never become field submit gestures.
+/// Rust's [`char::is_control`] covers CR/LF/NEL but deliberately excludes the
+/// Unicode Line/Paragraph Separator scalars, so name those two separately.
 pub(crate) fn single_line(text: &str) -> String {
-    text.chars().filter(|c| !c.is_control()).collect()
+    text.chars()
+        .filter(|c| !c.is_control() && !matches!(c, '\u{2028}' | '\u{2029}'))
+        .collect()
 }

@@ -32,7 +32,11 @@ fn browser_paste_bulk_matches_typed_filters_with_unicode_and_selected_text() {
     let _guard = crate::testlock::serial();
     let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
     for field in TextField::ALL {
-        for payload in ["日本語 👩‍💻 e\u{301}/42.5%", ".%.%1.%.%", "\r\n\t\0"] {
+        for payload in [
+            "日本語 👩‍💻 e\u{301}/42.5%",
+            ".%.%1.%.%",
+            "\r\n\t\0\u{2028}\u{2029}",
+        ] {
             let mut bulk = app();
             let mut typed = app();
             summon(&mut bulk, field);
@@ -66,14 +70,14 @@ fn browser_paste_bulk_matches_typed_filters_with_unicode_and_selected_text() {
             select(&mut typed);
             crate::textbox::work::take();
             bulk.receive_browser_paste(Ok(payload.into()), true, &schedule::RecordingExit::new());
-            if payload.chars().all(char::is_control) {
+            if crate::textbox::single_line(payload).is_empty() {
                 assert_eq!(
                     crate::textbox::work::take(),
                     [0; 5],
                     "{field:?}: filtered paste does no field work"
                 );
             }
-            for c in payload.chars().filter(|c| !c.is_control()) {
+            for c in crate::textbox::single_line(payload).chars() {
                 if matches!(field, TextField::FindQuery | TextField::ReplaceText) {
                     typed.receive_browser_paste(
                         Ok(c.to_string()),

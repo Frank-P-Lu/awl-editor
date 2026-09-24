@@ -35,6 +35,13 @@ fn all_seven_fields_have_a_home_no_wildcard() {
     assert!(!TextField::ALL.is_empty(), "the sweep is non-vacuous");
 }
 
+#[test]
+fn single_line_omits_every_unicode_line_break_without_damaging_unicode_text() {
+    let _guard = crate::testlock::serial();
+    let payload = "日本\r\n語\u{0085}e\u{301}\u{2028}👩‍💻\u{2029}fin\t\0";
+    assert_eq!(single_line(payload), "日本語e\u{301}👩‍💻fin");
+}
+
 // --- B. UNICODE / BUFFER PARITY -----------------------------------------
 
 /// One (text, description) fixture per Unicode class the parity table

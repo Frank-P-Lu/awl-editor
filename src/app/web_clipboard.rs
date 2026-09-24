@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wasm_bindgen::{JsCast, closure::Closure};
 
 use super::AwlEvent;
-use super::browser_paste_events::{Paste, PasteEvents};
+use super::browser_paste_events::{CONTEXT_LISTENERS, ContextTarget, Paste, PasteEvents};
 
 pub struct Clipboard {
     pub(super) allow_gesture: Rc<Cell<bool>>,
@@ -115,21 +115,19 @@ impl Clipboard {
         for (name, callback) in [("keydown", key), ("paste", paste)] {
             self.listen(canvas.clone().into(), name, callback);
         }
-        for name in ["compositionstart", "compositionend", "blur"] {
+        for &(name, target, composing) in CONTEXT_LISTENERS {
             let events = self.events.clone();
             let callback = Closure::wrap(Box::new(move |event: web_sys::Event| {
                 if event.is_trusted() {
-                    events
-                        .borrow_mut()
-                        .context_changed(name == "compositionstart");
+                    events.borrow_mut().context_changed(composing);
                 }
             }) as Box<dyn FnMut(web_sys::Event)>);
-            // Window blur also covers switching browser tabs or applications
-            // while the canvas remains document.activeElement.
-            let target = if name == "blur" {
-                web_sys::window().map(Into::into)
-            } else {
-                Some(canvas.clone().into())
+            // Canvas blur owns focus moving to another element in this page;
+            // window blur also covers tabs/apps while the canvas remains the
+            // document's active element.
+            let target = match target {
+                ContextTarget::Canvas => Some(canvas.clone().into()),
+                ContextTarget::Window => web_sys::window().map(Into::into),
             };
             if let Some(target) = target {
                 self.listen(target, name, callback);
