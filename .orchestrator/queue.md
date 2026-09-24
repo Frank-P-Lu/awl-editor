@@ -6,10 +6,11 @@
 
 ## Open build and design tasks
 
-**11 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**12 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665, Paperbark caret sizing 666 and Japanese bold support 667.
+Files repair 665, Paperbark caret sizing 666, Japanese bold support 667 and
+Japanese emphasis design investigation 668.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
@@ -381,6 +382,35 @@ Japanese bold and offline use. Add shaping and rendered-pixel laws for Japanese
 bold in each face family, mixed-script text and zoom/DPI; confirm visible
 weight difference in native captures. Item 663 may release only after the actual
 download artifacts satisfy the strict cap.
+
+---
+
+### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
+
+⚪ QUEUED — Japanese `*emphasis*` currently keeps the regular upright face, so
+the styling can disappear even though the Markdown remains intact. The user
+wants to compare treatments before deciding whether emphasis dots belong in
+awl. This is a design investigation, not approval to ship dots. Coordinate
+with 667's real Japanese `**bold**` work so the two Markdown roles remain
+visually distinct and both respect the under-50,000,000-byte download limit.
+
+Prototype in awl with disposable text and real native captures, not an HTML
+mockup. Compare at least: small emphasis dots above Japanese glyphs; a related
+alternate face or modest weight treatment where a real face exists; and a quiet
+line treatment such as underline/bousen. A restrained ink-color treatment may
+serve as a fourth comparison. Keep synthetic slant and invisible Regular as
+explicit rejected baselines unless evidence changes that judgment. The W3C
+Japanese layout guidance describes these as editorial choices and notes that
+dots are traditional but less common; skip punctuation if testing dots.
+
+Use short and long phrases, punctuation, mixed Japanese/Latin runs, wrapped
+lines, headings, and both `*` and `**` spans across representative worlds,
+zoom and DPI. Measure line height, collisions, caret reveal, readability and
+whether underlining could be mistaken for a link. Preserve source bytes and
+the world's authored typography; avoid a theme-name rendering branch or a
+runtime asset fetch. Present matched captures, bundle-size and implementation
+cost, a recommendation, and the exact remaining taste decision to the user.
+Only then queue or implement the chosen default.
 
 ---
 
