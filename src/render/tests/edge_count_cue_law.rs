@@ -275,7 +275,8 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
     );
     assert!(
         primary_row_workspaces > 0 && primary_row_workspaces < workspace_fit_cells,
-        "both workspace row projections must be enrolled: {primary_row_workspaces} primary of {workspace_fit_cells}"
+        "both workspace row projections must be enrolled: \
+         {primary_row_workspaces} primary of {workspace_fit_cells}"
     );
     assert_eq!(
         workspace_fit_cells, workspace_clip_cells,
