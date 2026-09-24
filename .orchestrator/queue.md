@@ -52,7 +52,7 @@ captures belong in the public repo.
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
 🟡 IN PROGRESS — /root/files_select_all (codex), branch
-`codex/658-files-select-all`. On 2026-09-24 the user physically confirmed that
+`codex/658-files-select-all-physical`. On 2026-09-24 the user physically confirmed that
 Cmd-A in the Files search field does not select its query, and Backspace deletes
 only the last character. Earlier implementation and audit landed with 657 at
 `ef344429`. Prior automation delivered no trustworthy keyboard or `App::apply`
