@@ -353,6 +353,7 @@ mod tests {
                 "hit.md".into(),
                 "quiet quiet quiet ambermatch quiet quiet quiet".into(),
             )],
+            false,
         );
         for c in "ambermatch".chars() {
             search.push(c);

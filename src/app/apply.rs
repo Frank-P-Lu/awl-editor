@@ -300,6 +300,16 @@ impl App {
         let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
+        #[cfg(target_arch = "wasm32")]
+        if matches!(action, Action::OpenSearchFolder) {
+            // Synchronous localStorage cannot take a stable bounded snapshot
+            // before materializing a file. Refuse at the action door, before
+            // the picker gather can rescan or read a search corpus.
+            self.set_sticky_notice("search in folder is unavailable in the browser");
+            self.request_frame();
+            return false;
+        }
+
         // ESC COLLAPSES THE EXPANDED WORKING-SET PANEL — the surface's own
         // dismiss key, alongside the shared core's ordinary Cancel (clearing
         // the mark/selection) rather than instead of it. The panel is not part
