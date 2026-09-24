@@ -73,7 +73,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 [[file_size_mark]]
 file = "src/app/apply.rs"
 lines = 915
-reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder now refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Keeping these gates here preserves their ordering contract without duplicating it in callers."
+reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Recording-only before/after receipts stay at that same action door; their state formatter is owned by input/trace.rs."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -88,7 +88,7 @@ lines = 634
 file = "src/app/input/keys.rs"
 lines = 519
 # 508 -> 519: the active search surface owns its browser Yank notice.
-reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel now falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses."
+reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses. The browser search surface owns its Yank notice here. Recording-only guard receipts stay at the actual keyboard admission seam; their state formatter is owned by input/trace.rs."
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"

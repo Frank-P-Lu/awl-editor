@@ -45,6 +45,9 @@ impl App {
     /// The transition's typed render requests own the sync + redraw, exactly
     /// as on the keyboard door; this handler adds no trailing repaint path.
     pub(super) fn handle_menu_event(&mut self, id: String, exit: &dyn schedule::Exit) {
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!("native-menu received id={id:?}"));
+        }
         if crate::menu::resolve(&id)
             .is_some_and(|action| self.reject_menu_without_document(&action))
         {

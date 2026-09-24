@@ -298,6 +298,8 @@ impl App {
         door: crate::stats::Door,
     ) -> bool {
         let action = self.prepare_tutorial_action(action);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.trace_input_state("before", &action, door);
         self.pre_apply(&action, door);
 
         #[cfg(target_arch = "wasm32")]
@@ -332,6 +334,8 @@ impl App {
         }
 
         if self.reject_without_document(&action) {
+            #[cfg(not(target_arch = "wasm32"))]
+            self.trace_input_state("rejected-no-document", &action, door);
             return false;
         }
         #[cfg(target_arch = "wasm32")]
@@ -404,6 +408,9 @@ impl App {
             self.history_overlay_closed(history_accepted);
         }
         self.post_transition_effects(theme_overlay_before, theme_committed, theme_before);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        self.trace_input_state("after", &action, door);
 
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {

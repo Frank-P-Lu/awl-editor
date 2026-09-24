@@ -18,6 +18,8 @@ mod pointer_sync;
 mod text_door;
 mod text_focus;
 mod text_view;
+#[cfg(not(target_arch = "wasm32"))]
+mod trace;
 mod wheel;
 
 pub(in crate::app) use text_door::{TextDoor, TextEdit};
