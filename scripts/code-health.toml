@@ -72,8 +72,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 914
-reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder now refuses before any picker gather or storage read; the ten added lines keep that fail-closed rule at the action boundary rather than duplicating it in callers. Extracting the small gate would split the ordering contract without reducing state or work."
+lines = 915
+reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder now refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Keeping these gates here preserves their ordering contract without duplicating it in callers."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -292,8 +292,8 @@ reason = "`item_sections` gives a workspace one category name in its rail and le
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 929
-reason = "OverlayState is the one per-summon owner for picker payload, query, selection, route, and hint. Search in folder adds an incomplete-coverage fact beside its already-loaded corpus; its constructor and footer projection keep native live, replay, and view consumers consistent without a second partial-state registry. The sixteen-line growth stays at this existing state boundary rather than scattering ownership across callers."
+lines = 941
+reason = "OverlayState is the one per-summon owner for picker payload, query, selection, route, and hint. Search in folder keeps corpus coverage and per-query result-limit facts beside its loaded corpus; construction and footer projection keep native live, replay, and view consumers consistent without a second partial-state registry. The growth stays at this existing state boundary rather than scattering ownership across callers."
 
 [[file_size_mark]]
 file = "src/peek.rs"
