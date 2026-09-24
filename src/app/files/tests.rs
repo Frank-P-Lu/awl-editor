@@ -70,7 +70,8 @@ fn select_all_registers_the_cmd_a_menu_key_equivalent() {
     assert_eq!(
         crate::commands::native_accelerator_chord(command, &[]).as_deref(),
         Some("Cmd-A"),
-        "Cmd-A must be registered on the native Edit menu so AppKit routes its key equivalent through the Files query action gate"
+        "Cmd-A must be registered on the native Edit menu so AppKit routes \
+         its key equivalent through the Files query action gate"
     );
 }
 
