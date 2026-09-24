@@ -6,11 +6,12 @@
 
 ## Open build and design tasks
 
-**12 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
 Files repair 665, Paperbark caret sizing 666, Japanese bold support 667 and
-Japanese emphasis design investigation 668.
+Japanese emphasis design investigation 668, and Japanese bracket/caret spacing
+669.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
@@ -411,6 +412,35 @@ the world's authored typography; avoid a theme-name rendering branch or a
 runtime asset fetch. Present matched captures, bundle-size and implementation
 cost, a recommendation, and the exact remaining taste decision to the user.
 Only then queue or implement the chosen default.
+
+---
+
+### 669 — investigate the opening-bracket gap under the caret (user screenshot, 2026-09-24)
+
+⚪ QUEUED — in the supplied Japanese Paperbark screenshot, the visible gap
+between `の` and the focused `「` reads much too large to the user. The settled
+block caret appears to cover the narrow bracket ink while leaving its leading
+space bare. The screenshot alone does not establish whether that space is the
+font's full-width punctuation sidebearing, a separate shaping adjustment, or a
+caret-position error. Do not copy the private screenshot into the public repo.
+
+Reproduce with a disposable seeded document. Measure glyph advance and ink
+bounds for `の「`, the caret's full geometry, and the visible gap both with and
+without focus on `「`. `src/render/caret.rs` currently ink-aligns the settled
+block on proportional one-glyph anchors; test the user's idea of including
+some leading punctuation cell space in that block against keeping the current
+ink-only block and tightening the underlying punctuation layout. The W3C
+Japanese layout guidance permits a half-em before opening brackets and also
+describes reducing it for line adjustment; typography alone does not settle
+awl's focused appearance.
+
+Compare opening/closing brackets and punctuation at line start, mid-line and
+wrap boundaries across Japanese face families, zoom/DPI and caret modes.
+Preserve source bytes, insertion position, hit testing, selection, IME geometry
+and stable caret motion. Use matched native PNGs and pixel measurements to
+recommend one treatment; implement the smallest shared-owner correction if
+the evidence identifies a mechanical defect, and bring a genuine visual taste
+choice back to the user. Do not add a Paperbark-specific renderer branch.
 
 ---
 
