@@ -4,6 +4,14 @@ use std::collections::BTreeSet;
 
 use super::super::*;
 
+type FacePair = (
+    &'static str,
+    &'static [u8],
+    &'static [u8],
+    &'static str,
+    u16,
+);
+
 fn cmap(bytes: &[u8]) -> BTreeSet<u32> {
     let face = ttf_parser::Face::parse(bytes, 0).expect("valid bundled font");
     let mut out = BTreeSet::new();
@@ -29,7 +37,7 @@ fn family_names(bytes: &[u8]) -> BTreeSet<String> {
 #[test]
 fn every_heavy_face_preserves_its_regular_cmap_and_authentic_metadata() {
     let _g = crate::testlock::serial();
-    let pairs: &[(&str, &[u8], &[u8], &str, u16)] = &[
+    let pairs: &[FacePair] = &[
         (
             "Noto Sans JP",
             include_bytes!("../../../assets/fonts/NotoSansJP-Regular.ttf"),

@@ -783,7 +783,8 @@ fn japanese_markdown_bold_uses_real_heavy_companions_across_all_five_families() 
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping japanese_markdown_bold_uses_real_heavy_companions_across_all_five_families: no wgpu adapter"
+            "skipping japanese_markdown_bold_uses_real_heavy_companions_\
+             across_all_five_families: no wgpu adapter"
         );
         return;
     };
@@ -848,7 +849,8 @@ fn japanese_markdown_bold_uses_real_heavy_companions_across_all_five_families() 
         }
         assert!(
             checked >= 20,
-            "{world}: expected Japanese and Latin content across all emphasis forms, checked {checked}"
+            "{world}: expected Japanese and Latin content across all emphasis forms, \
+             checked {checked}"
         );
     }
     theme::set_active(theme::DEFAULT_THEME);
