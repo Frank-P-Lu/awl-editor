@@ -189,8 +189,14 @@ fn release_audit_rejects_each_headline_regression() {
     let (workflow, packager, size_check, preparer) = sources();
     let mutations = [
         (
-            "echo \"::error::macOS signing is required, but these credentials are missing:$missing\"\n              exit 1",
-            "echo \"::error::macOS signing is required, but these credentials are missing:$missing\"\n              true",
+            concat!(
+                "echo \"::error::macOS signing is required, ",
+                "but these credentials are missing:$missing\"\n              exit 1"
+            ),
+            concat!(
+                "echo \"::error::macOS signing is required, ",
+                "but these credentials are missing:$missing\"\n              true"
+            ),
             "missing-credentials-fail-closed",
         ),
         (
@@ -200,7 +206,11 @@ fn release_audit_rejects_each_headline_regression() {
         ),
         (
             "    needs: [plan, mac, linux]\n    runs-on: ubuntu-latest",
-            "    needs: [plan, mac, linux]\n    if: needs.plan.outputs.is_release == 'true'\n    runs-on: ubuntu-latest",
+            concat!(
+                "    needs: [plan, mac, linux]\n",
+                "    if: needs.plan.outputs.is_release == 'true'\n",
+                "    runs-on: ubuntu-latest"
+            ),
             "dry-run-prepares-public-payload",
         ),
         (
