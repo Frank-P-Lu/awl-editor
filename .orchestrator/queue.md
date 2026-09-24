@@ -329,7 +329,8 @@ product behavior.
 
 ### 666 — shorten the oversized Paperbark caret (user screenshot, 2026-09-24)
 
-⚪ QUEUED — the user reports that Paperbark's coral block caret is too tall. In
+🟡 IN PROGRESS — /root/paperbark_caret (codex), branch `codex/666-paperbark-caret`.
+The user reports that Paperbark's coral block caret is too tall. In
 the supplied screenshot, its rounded body rises noticeably above and falls
 below the adjacent lowercase text. The screenshot establishes the appearance,
 but its zoom, DPI, caret mode and settled/moving state are not known; reproduce
