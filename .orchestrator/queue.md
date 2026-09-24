@@ -268,12 +268,16 @@ Release. Treat any site redeploy as a separate explicit action.
 
 ### 664 — diagnose unreliable automated keyboard input in the live macOS app
 
-⚪ QUEUED — requested by the user 2026-09-24. During the Files query review,
-injected keys produced no keyboard or `App::apply` trace, app selection hung,
+🟡 IN PROGRESS — /root/input_664 (codex), branch `codex/664-live-key-ingress`.
+Requested by the user 2026-09-24. During the Files query review,
+some injected keys appeared to produce no keyboard or `App::apply` trace, app selection hung,
 and injected deletions gave inconsistent text (`star` → `sta`, `shared` →
 `hare`). Those observations do not identify where input was lost. The user's
 physical Cmd-A test remains evidence for item 658's Files defect; investigate
 the automation path separately so neither result is used to explain the other.
+A later trace audit found successful keymap and `App::apply` receipts in the
+disposable log, but no per-attempt injection provenance or focused-control
+state; the earlier blanket no-trace claim was too broad.
 
 Reproduce with a disposable document and config in a named release-build app
 session. Record the focused app/window/control, the injected key and timing,
