@@ -6,10 +6,10 @@
 
 ## Open build and design tasks
 
-**9 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**10 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665.
+Files repair 665, and Paperbark caret sizing 666.
 
 Outstanding review of landed work and hardware checks are listed separately below.
 
@@ -310,6 +310,35 @@ that fail under the old behavior across the focused text-field roster; audit
 neighboring surfaces and both input-source states, then verify physical Japanese
 typing in the bundled release app. Report any live-driver limits separately from
 product behavior.
+
+---
+
+### 666 — shorten the oversized Paperbark caret (user screenshot, 2026-09-24)
+
+⚪ QUEUED — the user reports that Paperbark's coral block caret is too tall. In
+the supplied screenshot, its rounded body rises noticeably above and falls
+below the adjacent lowercase text. The screenshot establishes the appearance,
+but its zoom, DPI, caret mode and settled/moving state are not known; reproduce
+those conditions before choosing a sizing change. Do not publish the private
+attachment path or copy the screenshot into the public repository.
+
+Inspect the shared vertical caret owner (`src/render/caret.rs` and its
+`caret::vertical` helpers), Paperbark's resolved face and metrics, and the
+existing one-height pixel laws. Measure the caret's rendered top, bottom and
+height against the row's actual ink and line box in a seeded, content-safe
+Paperbark capture. Compare nearby serif worlds and a smaller/larger zoom at 1x
+and 2x DPI; check lowercase, ascenders, descenders, spaces, empty lines and
+headings. Identify whether the excess comes from the face metrics, the shared
+minimum/padding, a tall row, or the active caret treatment before changing it.
+
+Make the resting caret read as proportionate to the text without losing its
+presence or clipping glyphs, and keep its height stable while typing across a
+row. Use the shared renderer and data-driven metrics rather than a Paperbark
+identity branch. Add a rendered-pixel bound that fails on the oversized
+appearance while preserving the existing stability law. Verify matching
+before/after PNG measurements and visual smoke in Paperbark plus adjacent worlds;
+ask the user to judge the final live feel if the measured fix still leaves a
+taste choice.
 
 ---
 
