@@ -93,7 +93,7 @@ pub fn cjk_evidence(text: &str) -> Option<Lang> {
                 }
             }
             Some(Script::Hangul) => has_hangul = true,
-            Some(Script::Bopomofo) | None => {}
+            Some(Script::Bopomofo) | Some(Script::Common) | None => {}
         }
     }
     resolve_evidence(false, has_simplified_only, has_traditional_only, has_hangul)
@@ -156,7 +156,7 @@ pub(crate) fn line_evidence(text: &str) -> LineEvidence {
                 }
             }
             Some(Script::Hangul) => ev.hangul = true,
-            Some(Script::Bopomofo) | None => {}
+            Some(Script::Bopomofo) | Some(Script::Common) | None => {}
         }
     }
     ev

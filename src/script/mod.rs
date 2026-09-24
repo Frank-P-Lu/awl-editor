@@ -1,6 +1,7 @@
 //! SCRIPT CLASSIFICATION — a pure Unicode-scalar-value classifier over the
 //! four non-Latin scripts the i18n round distinguishes (Kana / Hangul /
-//! Bopomofo / Han), and the ladders built on top of it:
+//! Bopomofo / Han), plus the CJK-common punctuation that must resolve through
+//! the same language ladder, and the ladders built on top of it:
 //!
 //!  - [`dominant_cjk`] scans a WHOLE document once for the doc-language
 //!    WRITE-BACK detector (`app/files/`'s untagged-doc-open path): an
@@ -37,12 +38,11 @@ use crate::frontmatter::Lang;
 use crate::theme::FontId;
 use std::ops::Range;
 
-/// The four non-Latin SCRIPTS awl distinguishes for doc-lang detection and
+/// The non-Latin SCRIPT classes awl distinguishes for doc-lang detection and
 /// per-run font resolution. Deliberately narrower than a full Unicode script
-/// database — just the signals the i18n ladder needs; a Latin/ASCII/digit/
-/// punctuation/whitespace codepoint classifies as `None` (see
-/// [`classify_char`]), since a Latin run never needs script-based resolution
-/// (it already shapes in the world's own display face).
+/// database — just the signals the i18n ladder needs. CJK-common punctuation
+/// has no natural language of its own, but still belongs on the selected CJK
+/// face; Latin/ASCII/digits/whitespace classify as `None`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Script {
     /// Hiragana + Katakana (+ their phonetic extensions) — unambiguously
@@ -58,41 +58,92 @@ pub enum Script {
     /// use Han characters); resolved by a doc tag or the `cjk_priority`
     /// tiebreak.
     Han,
+    /// CJK Symbols and Punctuation plus the punctuation members of Halfwidth
+    /// and Fullwidth Forms.  These marks are language-neutral, so they resolve
+    /// from the document tag/evidence/priority rather than claiming a natural
+    /// script. Keeping them classified here makes shaping and caret-cell
+    /// selection ask the same owner.
+    Common,
 }
 
 impl Script {
     /// This script's OWN unambiguous [`FontId`] mapping, independent of any
-    /// doc tag — ladder step (b). `Han` is deliberately `None`: it is
-    /// ambiguous among all four CJK languages and always needs either a
-    /// compatible doc tag (step a) or the `cjk_priority` tiebreak (step c).
+    /// doc tag — ladder step (b). `Han` and `Common` are deliberately `None`:
+    /// neither names one language, so each needs a compatible doc tag/context
+    /// (step a) or the `cjk_priority` tiebreak (step c).
     pub fn natural_font_id(self) -> Option<FontId> {
         match self {
             Script::Kana => Some(FontId::Ja),
             Script::Hangul => Some(FontId::Ko),
             Script::Bopomofo => Some(FontId::ZhHant),
-            Script::Han => None,
+            Script::Han | Script::Common => None,
         }
     }
 }
 
-/// Classify ONE scalar value's script. `None` for Latin/ASCII/digits/
-/// punctuation/whitespace/anything else — only the four CJK-family scripts
-/// classify as `Some`. Mirrors [`crate::render::spans::is_cjk`]'s codepoint
-/// ranges (kept in sync by hand — both are Unicode block membership tests),
-/// generalized to name WHICH script a codepoint belongs to rather than just
-/// "is this CJK".
+/// Classify ONE scalar value's CJK-family script role. `None` for Latin/ASCII/
+/// digits/whitespace/anything else. This is the one codepoint-membership owner
+/// used by both per-script shaping and the CJK caret cell.
 pub fn classify_char(c: char) -> Option<Script> {
     match c as u32 {
+        0x3000..=0x303F => Some(Script::Common), // CJK symbols & punctuation
         0x3040..=0x309F | 0x31F0..=0x31FF => Some(Script::Kana), // Hiragana + phonetic ext
-        0x30A0..=0x30FF => Some(Script::Kana),                   // Katakana
-        0xAC00..=0xD7A3 => Some(Script::Hangul),                 // Hangul syllables
+        0x30A0..=0x30FF => Some(Script::Kana),   // Katakana
+        0xAC00..=0xD7A3 => Some(Script::Hangul), // Hangul syllables
         0x1100..=0x11FF | 0x3130..=0x318F | 0xA960..=0xA97F | 0xD7B0..=0xD7FF => {
             Some(Script::Hangul) // Hangul Jamo (+ extended A/B)
         }
         0x3105..=0x312F | 0x31A0..=0x31BF => Some(Script::Bopomofo), // Bopomofo + ext
         0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF => Some(Script::Han),
+        0xFF01..=0xFF0F | 0xFF1A..=0xFF20 | 0xFF3B..=0xFF40 | 0xFF5B..=0xFF65 => {
+            Some(Script::Common) // fullwidth punctuation, halfwidth corner marks
+        }
+        0xFF66..=0xFF9F => Some(Script::Kana), // halfwidth katakana + voiced marks
         _ => None,
     }
+}
+
+/// Resolve the CJK script role at `byte` with the nearest textual context.
+/// Strong script characters return their own class. A CJK-common punctuation
+/// run first inherits the strong script immediately outside that run on the
+/// left, then on the right; Latin/whitespace at an edge blocks inheritance on
+/// that side. An isolated punctuation run remains [`Script::Common`] so the
+/// caller can use document tag/evidence, or leave it in the base display face
+/// when a Latin-only document supplies neither.
+///
+/// This is the one contextual owner shared by shaping and the caret. `byte`
+/// must be a scalar boundary in `text`; a non-boundary or non-CJK byte returns
+/// `None`.
+pub fn contextual_script_at(text: &str, byte: usize) -> Option<Script> {
+    let ch = text.get(byte..)?.chars().next()?;
+    let classified = classify_char(ch)?;
+    if classified != Script::Common {
+        return Some(classified);
+    }
+
+    let left = text[..byte]
+        .chars()
+        .rev()
+        .find_map(|candidate| match classify_char(candidate) {
+            Some(Script::Common) => None,
+            Some(script) => Some(Some(script)),
+            None => Some(None),
+        })
+        .flatten();
+    if left.is_some() {
+        return left;
+    }
+
+    let after = byte + ch.len_utf8();
+    let right = text[after..]
+        .chars()
+        .find_map(|candidate| match classify_char(candidate) {
+            Some(Script::Common) => None,
+            Some(script) => Some(Some(script)),
+            None => Some(None),
+        })
+        .flatten();
+    right.or(Some(Script::Common))
 }
 
 /// Maximal contiguous byte ranges sharing the SAME classified [`Script`]
@@ -100,8 +151,10 @@ pub fn classify_char(c: char) -> Option<Script> {
 /// generalization walks (mirrors [`crate::render::spans::cjk_runs`], now
 /// naming WHICH script each run is instead of a flat "is CJK"). A script
 /// boundary (e.g. Han -> Kana) always starts a new run even with zero bytes
-/// between them; a non-CJK byte (Latin/space/punctuation) ends the current
-/// run without starting a new one. Byte indices are valid `char` boundaries
+/// between them; a non-CJK byte (Latin/space/ASCII punctuation) ends the current
+/// run without starting a new one. CJK-common punctuation forms its own run so
+/// the language ladder, rather than the Latin display face's ambient fallback,
+/// selects its face. Byte indices are valid `char` boundaries
 /// (from `char_indices`), safe for `AttrsList::add_span`.
 pub fn script_runs(text: &str) -> Vec<(Range<usize>, Script)> {
     let mut runs = Vec::new();
@@ -144,6 +197,7 @@ pub fn dominant_cjk(text: &str) -> Option<Script> {
             Some(Script::Hangul) => return Some(Script::Hangul),
             Some(Script::Bopomofo) => has_bopomofo = true,
             Some(Script::Han) => has_han = true,
+            Some(Script::Common) => {}
             None => {}
         }
     }
@@ -161,14 +215,14 @@ pub fn dominant_cjk(text: &str) -> Option<Script> {
 /// default `[Ja, ZhHans,
 /// ZhHant, Ko]` — [`crate::frontmatter::DEFAULT_CJK_PRIORITY`]) to break Han's
 /// ambiguity. Kana/Hangul/Bopomofo are unambiguous and ignore the priority
-/// ladder entirely; only `Han` consults it, falling back to `Lang::Ja` if the
-/// configured ladder is empty (never panics — total function).
+/// ladder entirely; `Han` and context-free `Common` consult it, falling back to
+/// `Lang::Ja` if the configured ladder is empty (never panics — total function).
 pub fn doc_lang_for(script: Script, cjk_priority: &[Lang]) -> Lang {
     match script {
         Script::Kana => Lang::Ja,
         Script::Hangul => Lang::Ko,
         Script::Bopomofo => Lang::ZhHant,
-        Script::Han => cjk_priority.first().copied().unwrap_or(Lang::Ja),
+        Script::Han | Script::Common => cjk_priority.first().copied().unwrap_or(Lang::Ja),
     }
 }
 
@@ -181,10 +235,10 @@ impl Lang {
     pub fn font_id_for_script(self, script: Option<Script>) -> Option<FontId> {
         use Script::*;
         match (self, script) {
-            (Lang::Ja, Some(Kana) | Some(Han)) => Some(FontId::Ja),
-            (Lang::ZhHans, Some(Han)) => Some(FontId::ZhHans),
-            (Lang::ZhHant, Some(Han) | Some(Bopomofo)) => Some(FontId::ZhHant),
-            (Lang::Ko, Some(Hangul) | Some(Han)) => Some(FontId::Ko),
+            (Lang::Ja, Some(Kana) | Some(Han) | Some(Common)) => Some(FontId::Ja),
+            (Lang::ZhHans, Some(Han) | Some(Common)) => Some(FontId::ZhHans),
+            (Lang::ZhHant, Some(Han) | Some(Bopomofo) | Some(Common)) => Some(FontId::ZhHant),
+            (Lang::Ko, Some(Hangul) | Some(Han) | Some(Common)) => Some(FontId::Ko),
             _ => None,
         }
     }
@@ -196,7 +250,7 @@ impl Lang {
 ///
 ///  (a) the doc tag's own mapping for this run's script, if compatible;
 ///  (b) else the script's own unambiguous mapping ([`Script::natural_font_id`]);
-///  (c) else (a Han run with no compatible tag) the `cjk_priority` ladder;
+///  (c) else (a Han/Common run with no compatible tag) the `cjk_priority` ladder;
 ///  (d) else [`FontId::Latin`] (the base default / guaranteed floor — reached
 ///      only when `detected` is `None`, i.e. a run this ladder shouldn't
 ///      normally be asked about at all).
@@ -242,11 +296,17 @@ mod tests {
         assert_eq!(classify_char('ㄅ'), Some(Script::Bopomofo), "bopomofo");
         assert_eq!(classify_char('漢'), Some(Script::Han), "han/kanji/hanzi");
         assert_eq!(classify_char('字'), Some(Script::Han));
+        assert_eq!(classify_char('「'), Some(Script::Common));
+        assert_eq!(classify_char('！'), Some(Script::Common));
+        assert_eq!(classify_char('，'), Some(Script::Common));
+        assert_eq!(classify_char('ｶ'), Some(Script::Kana));
     }
 
     #[test]
-    fn classify_char_latin_ascii_digits_punct_are_none() {
-        for c in ['a', 'Z', '0', '9', ' ', '\n', '.', ',', '!', 'é', 'ñ'] {
+    fn classify_char_latin_ascii_digits_and_ascii_punct_are_none() {
+        for c in [
+            'a', 'Z', '0', '9', ' ', '\n', '.', ',', '!', 'é', 'ñ', 'Ａ', '１',
+        ] {
             assert_eq!(
                 classify_char(c),
                 None,
@@ -317,6 +377,32 @@ mod tests {
     fn dominant_cjk_pure_latin_is_none() {
         assert_eq!(dominant_cjk("nothing but english here"), None);
         assert_eq!(dominant_cjk(""), None);
+    }
+
+    #[test]
+    fn common_punctuation_is_not_document_language_evidence() {
+        let _guard = crate::testlock::serial();
+        assert_eq!(dominant_cjk("「」、。！？"), None);
+    }
+
+    #[test]
+    fn common_punctuation_inherits_only_immediate_cjk_context() {
+        let _guard = crate::testlock::serial();
+        let cases = [
+            ("の「", 3, Script::Kana),
+            ("「の", 0, Script::Kana),
+            ("这「", 3, Script::Han),
+            ("「國", 0, Script::Han),
+            ("한「", 3, Script::Hangul),
+            ("「한", 0, Script::Hangul),
+            ("漢「」", 3, Script::Han),
+            ("「」漢", 0, Script::Han),
+        ];
+        for (text, byte, want) in cases {
+            assert_eq!(contextual_script_at(text, byte), Some(want), "{text:?}");
+        }
+        assert_eq!(contextual_script_at("latin「only", 5), Some(Script::Common));
+        assert_eq!(contextual_script_at("「", 0), Some(Script::Common));
     }
 
     #[test]

@@ -3,16 +3,7 @@
 use super::*;
 
 pub(crate) fn is_cjk(c: char) -> bool {
-    matches!(c as u32,
-        0x3000..=0x303F   // CJK symbols & punctuation (、。「」…)
-        | 0x3040..=0x309F // Hiragana
-        | 0x30A0..=0x30FF // Katakana
-        | 0x31F0..=0x31FF // Katakana phonetic extensions
-        | 0x3400..=0x4DBF // CJK Unified Ideographs Extension A
-        | 0x4E00..=0x9FFF // CJK Unified Ideographs
-        | 0xF900..=0xFAFF // CJK Compatibility Ideographs
-        | 0xFF00..=0xFFEF // Halfwidth & Fullwidth Forms
-    )
+    crate::script::classify_char(c).is_some()
 }
 
 pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
@@ -35,19 +26,21 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 /// `text` — the render wiring for `crate::script`'s classifier + ladder,
 /// resolving an independent [`theme::FontId`] per run rather than one
 /// CJK-wide family span. Walks
-/// [`crate::script::script_runs`] (kana / hangul / bopomofo / han, each
-/// named) and resolves EACH run's [`theme::FontId`] via
+/// [`crate::script::script_runs`] (kana / hangul / bopomofo / han / CJK-common,
+/// each named) and resolves EACH run's [`theme::FontId`] via
 /// [`crate::script::resolve_font_id`]'s ladder — (a) the document's own
 /// frontmatter `lang:` tag, if compatible with the run's script; (b) else the
-/// script's own unambiguous mapping; (c) else (a Han run with no compatible
-/// tag) the `cjk_priority` tiebreak; (d) else no override at all (a
+/// script's own unambiguous mapping; (c) else (a Han/Common run with no
+/// compatible tag) the `cjk_priority` tiebreak; (d) else no override at all (a
 /// `FontId::Latin` result, or a script whose ladder resolved to nothing on
 /// this machine — `fonts.get` returns `None` either way, so the base doc face
 /// wins — the same degenerate fallback the old single-script version had).
 /// `cjk_priority` here is already the CALLER's effective ladder
 /// ([`crate::script::effective_cjk_priority`]) — the document's own Han
 /// evidence promoted to the front when decisive — so this function's own
-/// ladder never changed shape.
+/// ladder never changed shape. CJK-common punctuation first inherits immediate
+/// strong-script context. With none, an authored/detected document language
+/// owns it; a Latin-only document leaves it in the base display face.
 /// `fonts` is [`super::text::ScriptFonts`], resolved ONCE per reshape by
 /// [`TextPipeline::resolve_script_fonts`] — this function does no font-DB
 /// work itself, just the per-run ladder + span laying.
@@ -77,11 +70,24 @@ pub(crate) fn add_script_spans(
     text: &str,
     base: &Attrs,
     doc_lang: Option<crate::frontmatter::Lang>,
+    cjk_evidence: Option<crate::frontmatter::Lang>,
     cjk_priority: &[crate::frontmatter::Lang],
     fonts: &super::text::ScriptFonts,
 ) {
-    for (run, script) in crate::script::script_runs(text) {
-        let id = crate::script::resolve_font_id(doc_lang, Some(script), cjk_priority);
+    for (run, classified) in crate::script::script_runs(text) {
+        let script = crate::script::contextual_script_at(text, run.start).unwrap_or(classified);
+        // An isolated CJK-common mark in Latin-only text stays in the display
+        // face. A real document language (authored tag or decisive text
+        // evidence) owns it; otherwise only adjacent CJK context can enrol it.
+        let resolution_lang = if script == crate::script::Script::Common {
+            let Some(lang) = doc_lang.or(cjk_evidence) else {
+                continue;
+            };
+            Some(lang)
+        } else {
+            doc_lang
+        };
+        let id = crate::script::resolve_font_id(resolution_lang, Some(script), cjk_priority);
         let requested_weight = al.get_span(run.start).weight;
         let resolved = if id == theme::FontId::Ja && requested_weight.0 >= 600 {
             fonts.ja_bold.or(fonts.ja)
