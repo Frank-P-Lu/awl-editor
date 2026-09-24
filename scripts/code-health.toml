@@ -72,9 +72,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 904
-# 899 -> 904: browser Yank fails closed through the exhaustive effect interpreter.
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter. +12: the expanded working-set panel's own Esc-collapse arm, alongside the shared core's ordinary Cancel rather than instead of it — the panel is not part of `workspace_state`'s summoned-overlay precedence ladder (it draws in the margin, not as an overlay), so it needs its own arm here. +8: a held row drag aborts BEFORE that same Esc-collapse runs, so a stray Escape mid-drag can never replay a click or reorder against a row index the collapse just invalidated. +1: the exhaustive `apply_buffer_effect` match gains one arm, `BufferEffect::OpenScratch => self.open_scratch()`. Insert Table's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands. Item 527/528's palette dispatch reaches the one exhaustive live effect interpreter beside the other formatting commands, threading the new keymap flavor field. +13: threads search_root/search_corpus into the picker construction and resolves SearchFolder's combined accept path, beside the other per-kind construction/accept arms. +10: `retint_theme_now` picks a fresh warp-grid roam seed on every world activation, the one live commit path a headless replay never reaches, so a capture stays pinned to `warpgrid::DEFAULT_SEED`."
+lines = 914
+reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder now refuses before any picker gather or storage read; the ten added lines keep that fail-closed rule at the action boundary rather than duplicating it in callers. Extracting the small gate would split the ordering contract without reducing state or work."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -218,8 +217,8 @@ reason = "The `mod tests` block moved out to src/frontmatter/tests.rs (a sibling
 
 [[file_size_mark]]
 file = "src/fs.rs"
-lines = 334
-reason = "+3: the no-replace filesystem operation and its race-test fixture exports are native-only, keeping browser builds exhaustive without pretending to own a native destination."
+lines = 373
+reason = "The filesystem trait and its shared result types stay together so native, memory, and browser backends implement one exhaustive bounded-read contract. BoundedRead reports actual materialized bytes and complete/limit/failure separately, preventing callers from treating a truncated prefix as a file. This is the interface boundary, not a second file-reading owner."
 
 [[file_size_mark]]
 file = "src/history/store.rs"
@@ -293,9 +292,8 @@ reason = "`item_sections` gives a workspace one category name in its rail and le
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 913
-# +5: Files root and field focus remain per-summon facts on the sole state owner.
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape. +29: Save a Copy's payload, truthful shared-card title/footer owner, and exhaustive initializer values keep its folder-then-filename journey on the existing overlay mechanism. +47: `OverlayState::new_move_dest`, the Move navigator's own level constructor — folders-only rows plus its two contextual action rows (`Move here` pinned first at rest, `New folder…` synced live from the query), pure over caller-gathered data so a test can build a level without touching disk, mirroring `new_project`'s own shape one level down in this same file. +15: `move_filename`, the file Move is finding a destination for — a per-summon fact the directory-rebuilt LEVEL cannot know, so `title()` reads it to name the errand instead of the generic kind title, and it survives every descend/ascend through the same `carry_level_payload_from` seam `export_format`/`save_copy` already use. +58: `OverlayState::title()` folds the current root-relative destination into the Move/Export/Save-a-Copy card title once descended (`browse_dir` was already tracked, never rendered), reusing the one existing title-building owner rather than a second breadcrumb widget. TableDimsEdit joins the RenameEdit/LinkEdit/KeepEdit/ValueEdit sub-state family as a fifth sibling, with its own clamp/parse/pick verbs. +33: search_root/search_corpus, the picker's own already-loaded, budget-bounded corpus fields, beside the other per-kind construction state this struct already owns. +14: `new_marked` pins or releases the theme picker's own chrome to the world active at summon, one `if`/`else` ahead of the exhaustive row/field construction this constructor already does. +18: `OverlayState::new_cjk_lang` gains a leading \"Auto\" row (its own `auto` flag, its own pre-selection branch) ahead of the four languages."
+lines = 929
+reason = "OverlayState is the one per-summon owner for picker payload, query, selection, route, and hint. Search in folder adds an incomplete-coverage fact beside its already-loaded corpus; its constructor and footer projection keep native live, replay, and view consumers consistent without a second partial-state registry. The sixteen-line growth stays at this existing state boundary rather than scattering ownership across callers."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -626,8 +624,8 @@ reason = "One exhaustive pixel law over a nested sweep -- two worlds (one light,
 lint = "clippy::too_many_lines"
 file = "src/overlay/tests/row_meta_laws.rs"
 function = "representative_overlay"
-message = "this function has too many lines (115/100)"
-reason = "Item 527/528: visible_effective_bindings gained a third KeymapFlavor argument, wrapping this fixture's one call site across four lines. +11: SearchFolder's representative fixture, matching the other per-kind representative rows this function already builds."
+message = "this function has too many lines (116/100)"
+reason = "One representative-fixture constructor covers each overlay kind and its payload shape. Search in folder now carries the incomplete-coverage argument beside the corpus, so keeping its case here preserves roster completeness; splitting the match would hide omissions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -893,8 +891,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/main/run/chord.rs"
 function = "ReplaySession::apply_action_transition"
-message = "this function has too many lines (121/100)"
-reason = "The replay transition keeps one focused request, its borrowed config labels, and the make-overlay/browse closures alive through the shared apply_transition call, then records and expands that exact transition. The environment-specific gatherers remain separate and focused; extracting the remaining lifetime-bound setup would either copy config input on every action or split the ordering seam that keeps replay aligned with the live App. +4: after the shared transition, replay reconciles the selected deep Files candidate through OverlayState's same bounded owner as the live App before recording the observable state."
+message = "this function has too many lines (120/100)"
+reason = "The replay transition keeps one focused request, borrowed config labels, and the make-overlay/browse closures alive through the shared apply_transition call, then records and expands that transition. Environment-specific gatherers stay separate; extracting the remaining lifetime-bound setup would split the ordering seam that keeps replay aligned with the live App."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
