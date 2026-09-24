@@ -296,12 +296,16 @@ direct fix or to claim live behavior from headless replay alone.
 
 ### 665 — restore Japanese input focus in Files after Cmd-O (user report, 2026-09-24)
 
-⚪ QUEUED — the user reports that with Japanese input active, Cmd-O opens Files
+🟡 IN PROGRESS — /root/ime_665 (codex), branch `codex/665-ime-fields`.
+The user reports that with Japanese input active, Cmd-O opens Files
 but typing cannot reach its search field; the caret appears stuck in the
 background document. The exact macOS input-source state, whether preedit or
 commit is lost, and whether the document actually changes are unverified.
 This is distinct from 658's confirmed Cmd-A selection failure and 664's
 unreliable automated key injection; coordinate evidence without conflating them.
+Read-only source audit confirms that a delivered IME commit currently takes the
+document-text door and preedit/candidate geometry remain document-owned; the
+user's exact physical event sequence is still unverified.
 
 Reproduce in a disposable native release session with a seeded root/config and
 both Japanese and direct Latin input. Record input-source and composition state,
