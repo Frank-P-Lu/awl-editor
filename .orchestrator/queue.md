@@ -6,8 +6,7 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In implementation or review: 657, 659 and 661.
-Blocked: 651 and 658.
+**5 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -52,13 +51,13 @@ captures belong in the public repo.
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🔴 BLOCKED on trustworthy physical Cmd-A confirmation. A fresh release bundle
-built and assembled, but the bounded automation attempt delivered no keyboard or
-`App::apply` trace events; the app-selection call hung until interrupted. The CUA
-injector also produced inconsistent deletions (`star` → `sta`, `shared` → `hare`).
-Existing direct-action and real menu-click laws both pass, so product code must not
-change until a physical key-equivalent run distinguishes an awl defect from the
-automation door. Earlier implementation and audit landed with 657 at `ef344429`.
+🟡 IN PROGRESS — /root/files_select_all (codex), branch
+`codex/658-files-select-all`. On 2026-09-24 the user physically confirmed that
+Cmd-A in the Files search field does not select its query, and Backspace deletes
+only the last character. Earlier implementation and audit landed with 657 at
+`ef344429`. Prior automation delivered no trustworthy keyboard or `App::apply`
+trace events, so the physical report is the defect evidence; distinguish the key
+route from the already-passing direct-action and menu-click laws.
 
 In a disposable Bowerbird release session, typing `shared` in Files and pressing
 Cmd-A then Backspace left `hare`: the command did not select the query and the
@@ -135,11 +134,12 @@ chrome and removed blur.
 
 ### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
 
-🔴 BLOCKED on browser-backend direction after independent audit. Native/loading/UI
-work is committed at `7764e7ea`, but is not mergeable as complete: synchronous
-`localStorage.getItem` cannot bound a cross-tab replacement before materializing it.
-Transactional IndexedDB chunks preserve parity but expand the storage architecture;
-failing browser folder search closed is safe but a user-visible degradation.
+🟡 IN PROGRESS — /root/search_folder_fail_closed (codex), branch
+`codex/651-browser-fail-closed`. The user chose the fail-closed browser path on
+2026-09-24. Native/loading/UI work is committed at `7764e7ea`, but is not
+mergeable as complete: synchronous `localStorage.getItem` cannot bound a cross-tab
+replacement before materializing it. Browser folder search must refuse with a
+clear notice; do not add transactional storage in this round.
 
 Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
 `search_folder::load_corpus` synchronously with whole-file `read_to_string` before
@@ -147,10 +147,10 @@ showing the picker. `load_corpus` checks `max_file_bytes` only after reading and
 counts only retained files/bytes. Oversized or failed reads consume neither budget;
 the total retained-byte limit can also be exceeded by the last accepted file.
 
-Decision required: either move browser folder storage to transactional IndexedDB/
-OPFS chunks so the budget is enforceable, or make browser Search in folder fail
-closed with an explicit notice. There is no safe third option under the current
-synchronous localStorage backend.
+Decision: make browser Search in folder fail closed with an explicit notice.
+There is no safe budgeted-read path under the current synchronous localStorage
+backend. Preserve the native search path and avoid partially loading a browser
+corpus before refusing.
 
 Done/Verify after direction: count attempts and bytes at the actual FS seam; probe
 exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and read
