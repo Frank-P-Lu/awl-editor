@@ -6,9 +6,10 @@
 
 ## Open build and design tasks
 
-**8 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**9 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 
-Queued work: releases 662–663 and live-input investigation 664.
+Queued work: releases 662–663, live-input investigation 664 and Japanese-input
+Files repair 665.
 
 Outstanding review of landed work and hardware checks are listed separately below.
 
@@ -275,6 +276,40 @@ the intended field exactly once, and a failed sequence is observable rather
 than silently counted as a pass. Keep probe logs and captures free of private
 paths and document text. Do not use this investigation to delay item 658's
 direct fix or to claim live behavior from headless replay alone.
+
+---
+
+### 665 — restore Japanese input focus in Files after Cmd-O (user report, 2026-09-24)
+
+⚪ QUEUED — the user reports that with Japanese input active, Cmd-O opens Files
+but typing cannot reach its search field; the caret appears stuck in the
+background document. The exact macOS input-source state, whether preedit or
+commit is lost, and whether the document actually changes are unverified.
+This is distinct from 658's confirmed Cmd-A selection failure and 664's
+unreliable automated key injection; coordinate evidence without conflating them.
+
+Reproduce in a disposable native release session with a seeded root/config and
+both Japanese and direct Latin input. Record input-source and composition state,
+focused surface, caret/IME candidate position, preedit and commit delivery, query
+text and background-document bytes before and after Cmd-O, typing, conversion,
+Enter and Escape. Compare a pointer-focused Files search and other summoned text
+fields. Inspect the focus handoff, `WindowEvent::Ime` route and text ownership:
+`src/app/input/ime.rs` currently sends committed text through the document-text
+door, which is a lead to verify, not a diagnosed cause. Also check whether the
+search field can accept a Japanese composition when opened while IME is already
+active.
+
+Build one focused-text-surface owner for IME preedit and commit: the document
+receives text when it is focused, and a summoned text field receives text when
+it is focused. Files search must receive Japanese composition and committed text
+exactly once, show its active caret/preedit in the right place, and never edit
+the document behind it. Non-text surfaces must not insert into the background
+document. Preserve ordinary Cmd-O, Latin query input, cancellation, selection,
+undo and native menu routing. Add regression laws at the real App/IME boundary
+that fail under the old behavior across the focused text-field roster; audit
+neighboring surfaces and both input-source states, then verify physical Japanese
+typing in the bundled release app. Report any live-driver limits separately from
+product behavior.
 
 ---
 
