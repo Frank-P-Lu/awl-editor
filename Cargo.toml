@@ -319,6 +319,10 @@ web-sys = { version = "0.3", features = [
 ] }
 
 [dev-dependencies]
+# The Japanese heavy-face cmap and metadata laws also compile for the browser
+# test target. Native production already uses this locked parser for PDF export;
+# dev-only here keeps it out of the browser runtime dependency set.
+ttf-parser = "0.25.1"
 # PNG decode for the RENDERED-PIXEL frost regression (`tests/frost_rail_pixels.rs`,
 # the appearance-oracle guard CLAUDE.md's tripwire demands). Same version + feature
 # set as the runtime `image` dependency above, so no extra crate is compiled — a
