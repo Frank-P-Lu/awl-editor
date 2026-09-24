@@ -7,9 +7,9 @@
 ## Open build and design tasks
 
 **13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, 667, and 669.
+661, 662, 664, 665, 666, 667, 668, and 669.
 
-Queued work: release 663 and Japanese emphasis design investigation 668.
+Queued work: release 663.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
@@ -397,12 +397,14 @@ download artifacts satisfy the strict cap.
 
 ### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
 
-⚪ QUEUED — Japanese `*emphasis*` currently keeps the regular upright face, so
-the styling can disappear even though the Markdown remains intact. The user
-wants to compare treatments before deciding whether emphasis dots belong in
-awl. This is a design investigation, not approval to ship dots. Coordinate
-with 667's real Japanese `**bold**` work so the two Markdown roles remain
-visually distinct and both respect the under-50,000,000-byte download limit.
+🟡 IN PROGRESS — /root/emphasis_668_analysis (codex), branch
+`codex/668-japanese-emphasis-study`. Japanese `*emphasis*` currently keeps the
+regular upright face, so the styling can disappear even though the Markdown
+remains intact. The user wants to compare treatments before deciding whether
+emphasis dots belong in awl. This is a design investigation, not approval to
+ship dots. Coordinate with 667's real Japanese `**bold**` work so the two
+Markdown roles remain visually distinct and both respect the
+under-50,000,000-byte download limit.
 
 Prototype in awl with disposable text and real native captures, not an HTML
 mockup. Compare at least: small emphasis dots above Japanese glyphs; a related
