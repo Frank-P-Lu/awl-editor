@@ -6,10 +6,17 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**11 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
 
 Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665, and Paperbark caret sizing 666.
+Files repair 665, Paperbark caret sizing 666 and Japanese bold support 667.
+
+Release constraint decided by the user on 2026-09-24: each public, installable
+app download must be strictly smaller than 50,000,000 bytes. Measure the final
+compressed artifact, not an uncompressed binary or a workflow artifact wrapper.
+This applies to macOS DMG/app zip and Linux AppImage/tarball; the hosted browser
+demo and source archives are separate distribution paths. Do not publish an
+oversized artifact or trade away Japanese bold silently to meet the cap.
 
 Outstanding review of landed work and hardware checks are listed separately below.
 
@@ -219,8 +226,11 @@ app zip if useful) with checksum coverage to the same GitHub Release as Linux.
 A missing or partial signing setup must fail the macOS release job before
 publication; never attach an unsigned app as if it were ready for normal download.
 Keep dry runs nonpublishing and exercise the packaging and publish-file layout
-without making a tag. Update the release instructions and public download copy
-to describe the verified path.
+without making a tag. Enforce the under-50,000,000-byte download limit on the
+final compressed DMG and any published app zip. If a universal DMG cannot meet
+it, measure a smaller packaging/architecture plan and return a genuine product
+tradeoff for review; do not waive the size limit. Update the release instructions
+and public download copy to describe the verified path.
 
 Verify: inspect both architectures in the universal binary; verify bundle
 identity, signature, notarization/staple, DMG contents, checksums and artifact
@@ -238,7 +248,9 @@ the tag from the candidate's actual version rather than assuming that number
 will remain current. Publish the Linux x86_64 AppImage and tarball alongside the
 signed, notarized macOS DMG from the same tag. Keep the browser demo on its
 separate site deployment path; a zipped workflow artifact is not its main
-distribution.
+distribution. Depends on 667 for usable Japanese bold within the decided size
+limit; measure each final, public app download in bytes and refuse publication
+if any is 50,000,000 bytes or more.
 
 Work the exact-commit pre-tag checklist in `RELEASING.md`, including native and
 wasm gates, audit, profile parity, dry run, checksums, release notes and current
@@ -339,6 +351,36 @@ appearance while preserving the existing stability law. Verify matching
 before/after PNG measurements and visual smoke in Paperbark plus adjacent worlds;
 ask the user to judge the final live feel if the measured fix still leaves a
 taste choice.
+
+---
+
+### 667 — render real Japanese bold within the download cap (user decision, 2026-09-24)
+
+⚪ QUEUED — Japanese bold is essential to the user's writing experience. At
+present `**bold**` parses and persists but per-script spans pin Japanese glyphs
+to Regular, because the five bundled Japanese families have only regular cuts.
+The user decided that every public installable app download must remain below
+50,000,000 bytes. Do not solve the size constraint by leaving Japanese bold
+visually inert or requiring a runtime font download.
+
+Build: obtain licensed real bold companions for the Japanese faces used by the
+world roster, retaining each world's character and script coverage; register
+and resolve the actual weight for Markdown emphasis and any bold heading role.
+Keep regular Japanese and mixed Latin/Japanese spans stable, preserve plain-text
+bytes and undo, and avoid synthetic weight, tofu, or a surprise font-family
+change. If a family lacks a suitable bold cut, establish the least disruptive
+fallback with matched captures and bring a material taste conflict to the user.
+
+Measure font bytes, the release binary and final compressed macOS/Linux artifacts
+before and after on a reproducible candidate. The current five Japanese regular
+fonts occupy 17.2 MiB raw and 9.7 MiB as a standalone ZIP; those are an estimate
+anchor, not proof of the resulting release size. A local single-architecture
+release binary gzipped to 32.5 MB; that does not establish universal-DMG or
+AppImage headroom. Prefer measured font/packaging reductions that preserve
+Japanese bold and offline use. Add shaping and rendered-pixel laws for Japanese
+bold in each face family, mixed-script text and zoom/DPI; confirm visible
+weight difference in native captures. Item 663 may release only after the actual
+download artifacts satisfy the strict cap.
 
 ---
 
