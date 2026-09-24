@@ -286,8 +286,10 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 502
+lines = 505
 # 498 -> 502: query paste inserts once and refilters once.
+# 502 -> 505: the query caret owner also restores Files query focus on click/drag,
+# so Select All and Backspace route to that field after focus leaves it.
 reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches. +43: the query field's own caret door — `query_at_rest`, `query_char_left`/`query_char_right`, `query_home`/`query_end`, `query_set_caret` — the one seat both the mid-query gate and a pointer click/drag read. +8: `query_set_caret` routes a click through `rename_edit_set_caret` first when a rename edit is active, so a click can't be overwritten by the next keystroke's mirror. +14: `selected_asset_path()`, the Asset Cleaner preview's one input — the highlighted row's own resolved absolute path, gated on `RowMeta::Asset` rather than a kind check. +26: item_range_fracs' SearchFolder arm mirrors a search hit's match span, the same byte-identical shape every other per-kind arm here already follows. +10: the query's ONE growth door refuses to grow a query on a card that offers no field, which is where the Credits rail was filtering its own only row away. +6: `query_set_caret` routes a click through `link_edit_set_caret` too when a link edit is active, mirroring the rename branch immediately above it."
 
 [[file_size_mark]]
