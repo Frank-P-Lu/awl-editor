@@ -8,17 +8,17 @@ impl TextPipeline {
     /// box enters the result, so adjacent kanji on one script face cannot jitter.
     pub(in crate::render) fn caret_anchor_ideographic_cell(&self) -> Option<(f32, (f32, f32))> {
         let col = self.caret_anchor_col();
-        let ch = self
-            .buffer
-            .lines
-            .get(self.cursor_line)?
-            .text()
-            .chars()
-            .nth(col)?;
-        let script = crate::script::classify_char(ch)?;
+        let line = self.buffer.lines.get(self.cursor_line)?.text();
+        let byte = line.char_indices().nth(col)?.0;
+        let script = crate::script::contextual_script_at(line, byte)?;
+        let resolution_lang = if script == crate::script::Script::Common {
+            Some(self.doc_lang.or(self.han_evidence)?)
+        } else {
+            self.doc_lang
+        };
         let cjk_priority =
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
-        let id = crate::script::resolve_font_id(self.doc_lang, Some(script), &cjk_priority);
+        let id = crate::script::resolve_font_id(resolution_lang, Some(script), &cjk_priority);
         let (family, _) = self.script_fonts.get(id)?;
         let em = facepitch::ideographic_cell_em(family)?;
         let key = self.cursor_glyph_key_at(self.cursor_line, col)?;

@@ -4,7 +4,7 @@
 //! code-organization pass). See `theme` for the theme-switch reshape tests.
 
 use super::super::*;
-use super::headless_pipeline;
+use super::{headless_pipeline, view};
 
 /// THE NEVER-TOFU LAW (font-DB half — complements `theme::tests::
 /// every_font_id_has_a_nonempty_candidate_ladder_on_every_world`'s
@@ -230,6 +230,156 @@ fn ja_variety_worlds_resolve_their_new_bundled_face() {
     p.sync_theme();
 }
 
+/// CJK-common punctuation belongs to the document language, not to the Latin
+/// display face it happens to sit beside.  This is an outcome law over the real
+/// shaper: both kana and its neighbouring Japanese punctuation must resolve to
+/// Paperbark's one selected Japanese face.
+#[test]
+fn japanese_punctuation_shapes_in_the_same_resolved_face_as_adjacent_kana() {
+    let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Paperbark").expect("Paperbark is shipped");
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping Japanese punctuation face law: no wgpu adapter");
+        return;
+    };
+    p.sync_theme();
+    let expected = p
+        .resolve_font_id(theme::FontId::Ja)
+        .expect("Paperbark has a bundled Japanese face")
+        .0;
+    let text = "の「文」へ、。『』（）【】！？";
+    p.set_view(&view(text, 0, 1));
+
+    let mut checked = Vec::new();
+    for run in p.buffer.layout_runs() {
+        if run.line_i != 0 {
+            continue;
+        }
+        for glyph in run.glyphs.iter() {
+            let Some(ch) = text
+                .get(glyph.start..glyph.end)
+                .and_then(|s| s.chars().next())
+            else {
+                continue;
+            };
+            if !matches!(
+                ch,
+                'の' | 'へ'
+                    | '「'
+                    | '」'
+                    | '、'
+                    | '。'
+                    | '『'
+                    | '』'
+                    | '（'
+                    | '）'
+                    | '【'
+                    | '】'
+                    | '！'
+                    | '？'
+            ) {
+                continue;
+            }
+            let face = p
+                .font_system
+                .db()
+                .face(glyph.font_id)
+                .expect("shaped glyph maps to a registered face");
+            let actual = face.families[0].0.as_str();
+            assert_eq!(
+                actual, expected,
+                "U+{:04X} {ch:?} shaped in {actual:?}, not adjacent kana's resolved {expected:?}",
+                ch as u32
+            );
+            checked.push(ch);
+        }
+    }
+    assert_eq!(
+        checked.len(),
+        14,
+        "every punctuation/kana witness shaped: {checked:?}"
+    );
+}
+
+/// A document-evidence flip is a document-wide font-routing change, even when
+/// the edit itself touches one other line. Retained unchanged lines must match
+/// a cold pipeline after both adding and deleting the last decisive character;
+/// otherwise their shaped face disagrees with the caret's freshly computed CJK
+/// cell policy.
+#[test]
+fn evidence_flip_restyles_unchanged_common_punctuation_like_a_cold_pipeline() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Paperbark").expect("Paperbark is shipped");
+    let Some(mut warm) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no wgpu adapter");
+        return;
+    };
+    let Some(mut cold) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no second wgpu pipeline");
+        return;
+    };
+    warm.sync_theme();
+    cold.sync_theme();
+
+    fn punctuation_snapshot(p: &mut TextPipeline) -> (String, Vec<u32>, bool, u32) {
+        let font_id = p
+            .buffer
+            .layout_runs()
+            .find(|run| run.line_i == 0)
+            .and_then(|run| run.glyphs.first())
+            .expect("line 0 punctuation glyph")
+            .font_id;
+        let family = p
+            .font_system
+            .db()
+            .face(font_id)
+            .expect("punctuation glyph face")
+            .families[0]
+            .0
+            .clone();
+        let xs = p.line_glyph_xs(0).iter().map(|x| x.to_bits()).collect();
+        let cell = p.caret_anchor_ideographic_cell().is_some();
+        let caret_w = p.caret_pixel_rect().2.to_bits();
+        (family, xs, cell, caret_w)
+    }
+
+    let no_evidence = "「」\nx";
+    let japanese_evidence = "「」\nの";
+    warm.set_view(&view(no_evidence, 1, 1));
+
+    // Add the document's only decisive Japanese character on line 1, then
+    // move the caret to the untouched punctuation line without another edit.
+    warm.set_view(&view(japanese_evidence, 1, 1));
+    warm.set_view(&view(japanese_evidence, 0, 0));
+    cold.set_view(&view(japanese_evidence, 0, 0));
+    let warm_added = punctuation_snapshot(&mut warm);
+    let cold_added = punctuation_snapshot(&mut cold);
+    assert_eq!(warm_added, cold_added, "warm add must equal a cold reshape");
+    assert_eq!(warm_added.0, "Shippori Mincho");
+    assert!(warm_added.2, "Japanese evidence owns the punctuation cell");
+
+    // Delete that last decisive character. The same retained line must return
+    // to the cold no-evidence result rather than staying latched Japanese.
+    warm.set_view(&view(no_evidence, 1, 1));
+    warm.set_view(&view(no_evidence, 0, 0));
+    let Some(mut cold_deleted) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no deletion oracle pipeline");
+        return;
+    };
+    cold_deleted.sync_theme();
+    cold_deleted.set_view(&view(no_evidence, 0, 0));
+    let warm_deleted = punctuation_snapshot(&mut warm);
+    let cold_deleted = punctuation_snapshot(&mut cold_deleted);
+    assert_eq!(
+        warm_deleted, cold_deleted,
+        "warm delete must equal a cold reshape"
+    );
+    assert!(
+        !warm_deleted.2,
+        "no evidence leaves isolated punctuation neutral"
+    );
+}
+
 /// PER-FACE registration ("CJK companions" round): the one bundled Korean
 /// serif companion ([`render::FONT_CJK_COMPANION_FACES`]) registers under its
 /// exact expected family name — the same "verified through fontdb" guarantee
@@ -319,6 +469,7 @@ fn add_script_spans_ja_tagged_doc_with_hangul_run_uses_ko_not_ja() {
         text,
         &base,
         Some(crate::frontmatter::Lang::Ja),
+        None,
         &crate::frontmatter::DEFAULT_CJK_PRIORITY,
         &fonts,
     );
@@ -343,6 +494,7 @@ fn add_script_spans_ja_tagged_doc_with_han_run_uses_ja() {
         text,
         &base,
         Some(crate::frontmatter::Lang::Ja),
+        None,
         &crate::frontmatter::DEFAULT_CJK_PRIORITY,
         &fonts,
     );
@@ -369,7 +521,7 @@ fn add_script_spans_untagged_han_uses_cjk_priority_tiebreak() {
         crate::frontmatter::Lang::Ko,
     ];
     let mut al = glyphon::cosmic_text::AttrsList::new(&base);
-    add_script_spans(&mut al, text, &base, None, &priority, &fonts);
+    add_script_spans(&mut al, text, &base, None, None, &priority, &fonts);
     assert_eq!(family_name(&al, 0), Some("ZhHansFace".to_string()));
 }
 
@@ -392,6 +544,7 @@ fn add_script_spans_mixed_run_each_script_resolves_independently() {
         text,
         &base,
         Some(crate::frontmatter::Lang::Ja),
+        None,
         &crate::frontmatter::DEFAULT_CJK_PRIORITY,
         &fonts,
     );
@@ -405,6 +558,115 @@ fn add_script_spans_mixed_run_each_script_resolves_independently() {
     assert_eq!(family_name(&al, 2), Some("JaFace".to_string()));
     // "で" starts after "漢字" (2 kanji, 3 bytes each = byte 8) (kana).
     assert_eq!(family_name(&al, 8), Some("JaFace".to_string()));
+}
+
+#[test]
+fn cjk_common_punctuation_follows_context_without_rewriting_source_or_claiming_latin() {
+    let _guard = crate::testlock::serial();
+    let fonts = super::text::ScriptFonts {
+        ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(700))),
+        zh_hans: Some(("ZhHansFace", glyphon::Weight(400))),
+        zh_hant: Some(("ZhHantFace", glyphon::Weight(400))),
+        ko: Some(("KoFace", glyphon::Weight(400))),
+    };
+    let base = Attrs::new();
+    let zh_hans_first = [
+        crate::frontmatter::Lang::ZhHans,
+        crate::frontmatter::Lang::Ja,
+        crate::frontmatter::Lang::ZhHant,
+        crate::frontmatter::Lang::Ko,
+    ];
+    let zh_hant_first = [
+        crate::frontmatter::Lang::ZhHant,
+        crate::frontmatter::Lang::Ja,
+        crate::frontmatter::Lang::ZhHans,
+        crate::frontmatter::Lang::Ko,
+    ];
+    let cases = [
+        // First/last-line-edge forms exercise right and left inheritance.
+        (
+            "「の",
+            0,
+            None,
+            Some(crate::frontmatter::Lang::Ja),
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY[..],
+            Some("JaFace"),
+        ),
+        (
+            "の」",
+            3,
+            None,
+            Some(crate::frontmatter::Lang::Ja),
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY[..],
+            Some("JaFace"),
+        ),
+        (
+            "这「",
+            3,
+            None,
+            Some(crate::frontmatter::Lang::ZhHans),
+            &zh_hans_first[..],
+            Some("ZhHansFace"),
+        ),
+        (
+            "「國",
+            0,
+            None,
+            Some(crate::frontmatter::Lang::ZhHant),
+            &zh_hant_first[..],
+            Some("ZhHantFace"),
+        ),
+        (
+            "한「",
+            3,
+            None,
+            Some(crate::frontmatter::Lang::Ko),
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY[..],
+            Some("KoFace"),
+        ),
+        // Bare Han stays ambiguous and reads the configured tiebreak.
+        (
+            "漢「",
+            3,
+            None,
+            None,
+            &zh_hans_first[..],
+            Some("ZhHansFace"),
+        ),
+        // With no adjacent CJK, tag, or evidence, punctuation remains in the
+        // Latin display attrs rather than turning every bracket Japanese.
+        (
+            "latin「only",
+            5,
+            None,
+            None,
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY[..],
+            None,
+        ),
+        // A punctuation-only boundary line may still use decisive document
+        // evidence supplied by another line.
+        (
+            "「",
+            0,
+            None,
+            Some(crate::frontmatter::Lang::Ko),
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY[..],
+            Some("KoFace"),
+        ),
+    ];
+
+    for (text, byte, doc_lang, evidence, priority, want) in cases {
+        let source = text.as_bytes().to_vec();
+        let mut al = glyphon::cosmic_text::AttrsList::new(&base);
+        add_script_spans(&mut al, text, &base, doc_lang, evidence, priority, &fonts);
+        assert_eq!(family_name(&al, byte).as_deref(), want, "{text:?}");
+        assert_eq!(
+            text.as_bytes(),
+            source,
+            "font routing never changes source bytes"
+        );
+    }
 }
 
 #[test]
@@ -425,6 +687,7 @@ fn add_script_spans_unresolved_script_leaves_base_face() {
         &mut al,
         text,
         &base,
+        None,
         None,
         &crate::frontmatter::DEFAULT_CJK_PRIORITY,
         &fonts,
@@ -458,6 +721,7 @@ fn add_script_spans_selects_real_japanese_bold_and_keeps_it_upright() {
         text,
         &base,
         Some(crate::frontmatter::Lang::Ja),
+        None,
         &crate::frontmatter::DEFAULT_CJK_PRIORITY,
         &fonts,
     );

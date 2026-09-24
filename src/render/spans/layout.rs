@@ -106,6 +106,7 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
     pub(in crate::render) md_spans: &'a [(std::ops::Range<usize>, crate::markdown::MdKind)],
     pub(in crate::render) syn_spans: &'a [(std::ops::Range<usize>, crate::syntax::SynKind)],
     pub(in crate::render) doc_lang: Option<crate::frontmatter::Lang>,
+    pub(in crate::render) cjk_evidence: Option<crate::frontmatter::Lang>,
     pub(in crate::render) cjk_priority: &'a [crate::frontmatter::Lang],
     pub(in crate::render) fonts: &'a super::text::ScriptFonts,
     pub(in crate::render) cursor_byte: usize,
@@ -223,6 +224,7 @@ pub(in crate::render) fn build_line_attrs(
         line_text,
         &lb,
         ctx.doc_lang,
+        ctx.cjk_evidence,
         ctx.cjk_priority,
         ctx.fonts,
     );
