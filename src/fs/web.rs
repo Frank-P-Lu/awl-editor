@@ -111,7 +111,6 @@ mod backend {
     use std::io;
     use std::path::Path;
     use std::time::Duration;
-    use wasm_bindgen::prelude::*;
 
     const FILE_PREFIX: &str = "awlfs:F:";
     const DIR_PREFIX: &str = "awlfs:D:";
