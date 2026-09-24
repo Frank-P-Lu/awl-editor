@@ -9,16 +9,17 @@ pull request (linux build + test, wasm build + smoke) — the merge gate, not a
 release step. This doc is the one-time setup for the two release pipelines, plus
 how to actually cut a release.
 
-**A tag publishes Linux only.** The mac and web jobs build on a dry run and are
-skipped on a tag, so no unsigned `.app` can reach a public Release. §5 is the
-pre-tag checklist, including the two decisions that are still open.
+**A tag currently publishes Linux only.** The mac and web jobs build on a dry
+run and are skipped on a tag. Apple signing and notarization are configured;
+the macOS release job still needs to be enabled and verified before a signed
+app can join a public Release. §5 is the pre-tag checklist.
 
-## 1. Apple setup (macOS signing + notarization)
+## 1. Apple signing and notarization
 
-Signing is **optional but gated** — without these five secrets, `release.yml`
-still builds an unsigned universal `Awl.app` + `.dmg` (loudly logged as
-unsigned). Set all five together or none; a partial set is treated as "not
-configured."
+The Apple signing and notarization setup is complete. The workflow gates its
+signing steps to release tags, but the mac job itself is still disabled for tag
+runs. Dry runs produce an unsigned universal `Awl.app` and `.dmg`. The steps
+below document how to renew the credentials if needed.
 
 **(a) Export your Developer ID Application certificate as a `.p12`:**
 
@@ -144,7 +145,7 @@ treat a missing licence file as a hard failure, not a warning.
 |---|---|
 | `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `SHA256SUMS` (covering both) | GitHub Release (tag) |
 | same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
-| `Awl.app` (universal, unsigned until §1 is done) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
+| `Awl.app` (universal, unsigned on dry runs) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
@@ -326,12 +327,12 @@ meaningful, which is the point of the split — a synthesised combined receipt
 would re-bundle exactly what was deliberately unbundled, and would have to lie
 about scope to call itself a receipt.
 
-### Still open — decisions, not tasks
+### Release decisions and current status
 
 | Decision | State today | Owner |
 |---|---|---|
 | Cut a public tag at all | **settled — tags are cut.** `v0.9.0`, `v0.10.0`, `v0.11.0` and `v0.12.0` are published, each Linux-only and marked prerelease. Every tag still waits on the user's explicit word, every time | the user, explicitly (CLAUDE.md §Branches) |
-| macOS artifacts | none of the five Apple secrets in §1 are set; the mac job is skipped on a tag so an unsigned `.app` cannot publish | the user — needs a paid Apple Developer Program membership |
+| macOS artifacts | Apple signing and notarization are configured. The mac job is still skipped on a tag; queue item 662 tracks enabling and verifying signed publication | queued |
 | Version + prerelease flag | **resolved by item 228 for the GitHub Release; the "and the site" half of the original premise was false.** `Cargo.toml` is pre-1.0. `release.yml`'s `plan` job now computes `prerelease` from the tag's major version (`< 1` ⇒ true) and the `publish` step passes it to `softprops/action-gh-release`, so `v0.9.0` publishes correctly marked prerelease — verified against that action's own source (`INPUT_PRERELEASE == "true"`), not just its docs. `deploy-web.yml`'s `version.json` `prerelease` field is a DIFFERENT thing sharing a name: `site/check.js`'s `checkState()` (locked by `site/check.test.js`) reads it only as "no tag has ever shipped" — the page never renders a stable/beta claim at all, so there was nothing on the site for a beta tag to invert. That field stays `false` for any real tag, unchanged | settled |
 | glibc floor | **RESOLVED 2026-08-06 — the linux job builds on `ubuntu-22.04` and the floor is `GLIBC_2.35`**, reaching Debian 12, Ubuntu 22.04 LTS and RHEL 9. Measured, not reasoned: `objdump -T` finds exactly two dynsyms that could raise the floor — `pidfd_spawnp` and `pidfd_getpid`, both weak, both from Rust std's OPTIONAL pidfd fast path for reaping a child it already spawned. ⚠️ Both are **unversioned** (`w D *UND*`, no `GLIBC_*` tag), so they never appear in the version-needs list: a re-check that greps that list for anything above 2.35 finds NOTHING and reads as "this note has gone stale." It has not — grep `objdump -T` for `pidfd` itself, or `readelf --dyn-syms`, and use GNU binutils rather than the host `objdump` on a Mac. awl references no PidFd API and every `std::process::Command` in the tree blocks on `.output()`/`.wait()`, so std's fork/exec fallback costs nothing observable. Binaries built on `debian:bookworm` and `ubuntu:22.04` both cap at 2.35 and render byte-identical PNGs. ⚠️ The cache key had to move with it: `Swatinem/rust-cache` mixes `runner.os`, which is `"Linux"` for both images, so it is keyed on `ImageOS` now | settled |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |

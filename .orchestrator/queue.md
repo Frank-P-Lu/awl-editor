@@ -6,7 +6,10 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+**8 open numbered tasks.** In implementation or review: 651, 657, 658, 659 and 661.
+
+Queued work: releases 662–663 and live-input investigation 664.
+
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -197,6 +200,81 @@ can test routing but cannot prove OS clipboard access. Add targeted regression l
 that fail with the old behavior; record browser versions and unavailable coverage.
 Follow the verification policy for integration gates. Reference:
 [Clipboard events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
+
+---
+
+### 662 — make the macOS download a signed, notarized release artifact
+
+⚪ QUEUED — requested by the user 2026-09-24. Apple signing and notarization
+setup are already complete, as the user confirmed. The current `release.yml`
+builds an unsigned universal `Awl.app` and DMG only on dry runs; tag runs skip
+the mac job and publish Linux alone. A workflow artifact is a short-lived build
+receipt, not the public macOS download. The stale setup-state claims in
+`RELEASING.md` were corrected when this work was queued. Never print secret values.
+
+Build: make tag runs produce a universal macOS app using the existing Developer
+ID signing and notarization setup, staple it, and attach a versioned DMG (and
+app zip if useful) with checksum coverage to the same GitHub Release as Linux.
+A missing or partial signing setup must fail the macOS release job before
+publication; never attach an unsigned app as if it were ready for normal download.
+Keep dry runs nonpublishing and exercise the packaging and publish-file layout
+without making a tag. Update the release instructions and public download copy
+to describe the verified path.
+
+Verify: inspect both architectures in the universal binary; verify bundle
+identity, signature, notarization/staple, DMG contents, checksums and artifact
+names on the actual candidate. Record what the hosted macOS runner proves and
+what still needs a launch on a real user's Mac. Do not tag or publish in this
+item; item 663 owns the release cut.
+
+---
+
+### 663 — release one version with Linux and macOS downloads
+
+⚪ QUEUED — requested by the user 2026-09-24; depends on 662 and a frozen,
+integrated release candidate. `Cargo.toml` currently names 0.13.0, but choose
+the tag from the candidate's actual version rather than assuming that number
+will remain current. Publish the Linux x86_64 AppImage and tarball alongside the
+signed, notarized macOS DMG from the same tag. Keep the browser demo on its
+separate site deployment path; a zipped workflow artifact is not its main
+distribution.
+
+Work the exact-commit pre-tag checklist in `RELEASING.md`, including native and
+wasm gates, audit, profile parity, dry run, checksums, release notes and current
+CI status. Confirm the existing Linux hardware checks on a real desktop or
+record the untested combinations honestly. Inspect the final file list and
+download instructions before the tag push. The user's request here queues the
+release; obtain the explicit go to cut the tag and publish at execution time.
+After publication, verify both platform downloads and checksums from the public
+Release. Treat any site redeploy as a separate explicit action.
+
+---
+
+### 664 — diagnose unreliable automated keyboard input in the live macOS app
+
+⚪ QUEUED — requested by the user 2026-09-24. During the Files query review,
+injected keys produced no keyboard or `App::apply` trace, app selection hung,
+and injected deletions gave inconsistent text (`star` → `sta`, `shared` →
+`hare`). Those observations do not identify where input was lost. The user's
+physical Cmd-A test remains evidence for item 658's Files defect; investigate
+the automation path separately so neither result is used to explain the other.
+
+Reproduce with a disposable document and config in a named release-build app
+session. Record the focused app/window/control, the injected key and timing,
+native event delivery, keymap action and `App::apply` receipt at each attempt.
+Compare with physical input and a direct App-level action on the same state;
+check focus handoff, modifier state, event injection and screenshot freshness.
+Identify the first boundary that diverges before changing code. Repair the
+owned app/harness boundary if one is found; if the loss is in an external
+automation service or macOS permission layer, report a minimal reproducer and
+use a trustworthy supported driver for the missing evidence instead.
+
+Verify repeatability across fresh sessions and several key sequences, including
+Cmd-A, deletion and plain typing. Confirm a successful injected sequence reaches
+the intended field exactly once, and a failed sequence is observable rather
+than silently counted as a pass. Keep probe logs and captures free of private
+paths and document text. Do not use this investigation to delay item 658's
+direct fix or to claim live behavior from headless replay alone.
 
 ---
 
