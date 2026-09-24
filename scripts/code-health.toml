@@ -72,7 +72,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 915
+# +7: recording-only before/after receipts remain at the one action admission door.
+lines = 922
 reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Recording-only before/after receipts stay at that same action door; their state formatter is owned by input/trace.rs."
 
 [[file_size_mark]]
@@ -86,7 +87,8 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/app/input/keys.rs"
-lines = 519
+# +27: recording-only guard receipts stay at the one native keyboard ingress.
+lines = 546
 # 508 -> 519: the active search surface owns its browser Yank notice.
 reason = "The event-to-present flight recorder needs its winit-receipt and keymap-resolve points at this one dispatch seam; there is no second place a press is received or resolved. Item 527/528's which-key panel falls back to seeded chords when a command has no config override, reading the same active_seed_tables selection point dispatch uses. The browser search surface owns its Yank notice here. Recording-only guard receipts stay at the actual keyboard admission seam; their state formatter is owned by input/trace.rs."
 
@@ -105,7 +107,7 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 643
+lines = 635
 # 641 -> 643: the exhaustive projection mirrors browser paste policy.
 # +16: the exhaustive live projection carries Files location/query focus and
 # Settings' explicit focus state; no second ViewState construction path exists.
@@ -141,7 +143,8 @@ reason = "The parked slots become a named `Parked<T>` struct carrying the RAIL-A
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 129
+# +2: the focused-field schema ledger row and version bump share one owner.
+lines = 131
 # 127 -> 129: schema /218 records Theme Switch/Cancel hit rectangles.
 # +4: schema 215 records Settings focus and reserves 216/217 in the one ledger;
 # the overlay ViewState projection is now enrolled as a focused sibling module.
@@ -149,12 +152,14 @@ reason = "Each schema addition includes its `/N` ledger row and moves with `SCHE
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 365
+# +3: the headless ViewState constructor keeps the new field projection inert.
+lines = 368
 reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. +6: `overlay_query_caret` now threads the real caret through from a live-replay `OverlayInfo`, falling back to the query's own end only for a hand-built synthetic override. +1: mirrors `opts.overlay.query_selection` into `overlay_query_selection` for the headless capture path. Insert Table's overlay_table_dims mirrors the same field into the headless capture path's own separate ViewState construction chain. +3: the headless replay path mirrors `opts.overlay.asset_preview` into `overlay_asset_preview` the same way `sync_view` does, so an ordinary `--keys` capture reaches the preview panel. +9: the same `offers_query` derivation for the capture door, so a photographed card and a live one agree about whether a query field exists. +5: derives `overlay_query_placeholder` from the capture mode string via `OverlayKind::from_mode` then `field_placeholder`, so a `--screenshot`/`--keys` capture of Insert-link's empty field renders the same ghost text the live app does."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 884
+# +16: the one sidecar writer serializes focused text and candidate geometry.
+lines = 900
 # +5: Settings focus is serialized in both populated and null overlay arms.
 reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight. Shrank 871 -> 857: `buffers_json` moved out to sit beside its own type, `BuffersInfo`, in `capture/opts.rs`, rather than growing this file for the working-set stack's files[]/active_index. +11: `hud_json` serializes the optional selection word/grapheme figures from the same HUD report the renderer consumes. +3: `overlay.query_caret` in both the populated and no-overlay literal arms. +8: the sole serializer gains `overlay.asset_preview` (via `asset_preview_report()`), in lockstep in both the populated and no-overlay literal arms."
 
@@ -274,7 +279,8 @@ reason = "+163: the menu bar's own pixel-space declarations. Six pads move off b
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"
-lines = 649
+# +1: enroll the focused text recipient's capture module at its owner.
+lines = 650
 # 632 -> 649: edit fields insert and mirror external text in one batch.
 reason = "LINKS V2's URL field: the typed value moves from a permanently-\"selected\" duplicate row into the shared `OverlayState::query` seam `RenameEdit` already proved, so `LinkEdit::prompt` sheds the text/verb it no longer owns, `new_link_edit` seeds a fixed click-to-commit row label plus an immediate `link_edit_mirror()` call, and the char/word-motion doors each gain their own mirror call so a pointer-placed or motion-moved caret is the field's own caret. Net growth is mostly widened doc comments naming the new seam, not new state."
 
@@ -294,7 +300,8 @@ reason = "`item_sections` gives a workspace one category name in its rail and le
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 941
+# +2: the per-summon text-focus identity stays with the overlay lifetime.
+lines = 943
 reason = "OverlayState is the one per-summon owner for picker payload, query, selection, route, and hint. Search in folder keeps corpus coverage and per-query result-limit facts beside its loaded corpus; construction and footer projection keep native live, replay, and view consumers consistent without a second partial-state registry. The growth stays at this existing state boundary rather than scattering ownership across callers."
 
 [[file_size_mark]]
@@ -317,7 +324,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 3129
+# +4: enroll shared focused-field rendering and its pixel laws.
+lines = 3133
 # +31: Japanese heavy-face bytes, companion family map, and one registration loop
 # stay beside the existing bundled font roster and font-system construction owner.
 # 3094 -> 3098: Files control fill/rim pipelines join exhaustive render state.
@@ -368,7 +376,8 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1301
+# +1: enroll the shared field-composition chrome owner.
+lines = 1302
 # +8: Files row/action/layout data and its focused geometry module are exposed at
 # the shared chrome boundary.
 reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero. +13: the float-panel border's outset moves off an inline literal onto a named, documented `FLOAT_BORDER_RING_PX` constant, so the docked-tab seam merge can size its own overlap against the ring's real width instead of guessing it. +1: declares the gutter's own lava frost seeds as a sibling module, split out to keep gutter.rs under its production ceiling. +1: declares the new overlay_query_field module beside its sibling overlay_draw/overlay_rows, split out to keep overlay_draw.rs under its own file-size mark. +151: re-exports the count-cue arithmetic (window_edge_counts, resolve_window_and_cue, OverlayGeom's cue_reserved/cue_above/cue_below split) through the shared chrome surface, plus the new fit_rows submodule split out of overlay_rows.rs to keep it under its own file-size mark. Insert Table's dimension-picker geometry module is declared beside the other per-overlay-kind chrome owners. +1: declares the new `asset_preview` submodule beside the other per-overlay-kind chrome owners. +27: `PanelShape::selection_span` (the band's two edges in the caret's own coordinate shape), `field_view_window_offset` (the field-scroll rule stated once so the band and the caret cross by the same arithmetic), and the `panel_selection` submodule declaration split out to keep `panel.rs` under its own ceiling. +5: re-exports the start surface's convention-truthful Go-to chord label so the capture sidecar can report the exact string the folder line drew, rather than a second derivation of its own. +16: `PanelHit` gains four click targets the reference bordered chrome adds (nav prev/next, Replace, Replace all); re-exports `ControlSpan`/`PanelControlSpans` so `panel.rs` and `panel_draw.rs` share one control-span owner; declares `panel_controls` and `panel_draw`, the latter split out of `panel.rs` (the upload + hit-test half) to keep it under its own ceiling."
@@ -386,7 +395,8 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 554
+# +2: overlay draw dispatch passes the focused preedit through shared chrome.
+lines = 556
 # 550 -> 554: Files control pipelines park in the shared overlay draw pass.
 # +5: Files surface gating stays beside the overlay draw dispatch it controls.
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit. Insert Table's dimension-picker grid draw joins the other overlay pipelines this shared upload owner already serves. +8: `prepare_asset_preview`/`park_asset_preview` join the shared overlay prepare/park pass, drawn after the card so painter's order never hides the preview. +21: every overlay draw branch resolves its chrome geometry through the shared UI metric owner in this single painter-ordered upload pass, keeping document zoom out of card marks, rules, selection bands, and rotated-location bounds without creating per-surface draw owners."
@@ -448,7 +458,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 598
+# +2: the exhaustive pipeline constructor seeds focused-field geometry inertly.
+lines = 600
 # 594 -> 598: the exhaustive constructor seeds both Files control pipelines.
 # +9: the sole exhaustive TextPipeline constructor seeds the new inert fields.
 # +1: the exhaustive `TextPipeline::new` literal seeds `overlay_rows_focused`
@@ -463,7 +474,8 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 603
+# +2: the sole ViewState mirror carries focused-field state into the pipeline.
+lines = 605
 # +9: the sole ViewState mirror carries the new Files and Settings projections.
 # +1: the one ViewState-to-pipeline mirror copies `overlay_rows_focused` beside
 # the other overlay fields, preventing partial renderer state.
@@ -513,13 +525,15 @@ reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind acc
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
-lines = 452
+# +14: IME commit routes through the existing find/replace panel field owner.
+lines = 466
 # 443 -> 452: focused-field PasteText and query-jump routing stay together.
 reason = "+46: `intercept_action`, the panel's routed-Action door (the one a macOS menu key equivalent, a menu/context-menu click and a palette `Effect::RunAction` reach), with the module-doc note on why a key-level guard cannot see them, plus the Cmd-A arm in the key door that calls the same `select_all_focused_field` owner. +29: `intercept_action` gains a `buffer` parameter and an `Action::SearchPanel(PanelControl)` arm, so the panel's own CLICK vocabulary (`app/input/mouse.rs::panel_click`'s only dispatch) resolves through the exact same `step`/`toggle_case_and_jump`/`replace_current`/`replace_all` functions the matching keyboard chord already drives, closing the summoned-layer bypass a click into `workspace_state.core_slots()` used to be."
 
 [[file_size_mark]]
 file = "src/search/mod.rs"
-lines = 626
+# +3: the panel exposes its focused text recipient to the shared IME owner.
+lines = 629
 # 611 -> 626: bulk paste mutates once and recomputes the query once.
 reason = "+42: `select_all_focused_field` — the ONE owner both panel doors call for the select-all verb — and the three selection accessors the render projection and the laws read (`focused_selection`, `query_selection`, `replacement_selection`), with the doc naming why the verb never recomputes or jumps. +24: `PanelControl`, the panel's own clickable-control roster — `render::PanelHit`'s click-target set minus `Elsewhere`/`None` — carried as `Action::SearchPanel`'s payload so a click resolves through `actions::apply_transition` like every other input door."
 
@@ -637,8 +651,8 @@ reason = "One representative-fixture constructor covers each overlay kind and it
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (303/100)"
-# 301 -> 303: the exhaustive per-frame projection also mirrors browser paste policy.
+message = "this function has too many lines (306/100)"
+# +3: reconcile transient text focus before the one exhaustive frame projection.
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens. +1: mirrors the query field's own seeded selection range into `overlay_query_selection`, beside the other query-caret mirrors. +3: mirrors `overlay_asset_preview` from `selected_asset_path()`, beside the other summoned-surface mirrors this function already owns. +1: mirrors overlay_match_highlights from the search picker. +1: mirrors the working set's outline-rail appetite (`parked_wants_rail()`) into `set_wants_outline_rail`, beside the other per-frame mirrors this one exhaustive projection site already owns. +4: `search_field_selection`, the find/replace panel's focused-field selection, mirrored from the panel's own focus rule. +2: Insert-link's `overlay_query_placeholder` (`OverlayKind::field_placeholder`), asked of the same summoned-picker owner every other per-kind question here already goes through. 1: the no-document start surface's folder-naming line's own inert default join the exhaustive projection."
 
 [[clippy_exception]]
@@ -918,8 +932,8 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (536/100)"
-# 532 -> 536: the exhaustive constructor initializes the Files fill and rim pipelines.
+message = "this function has too many lines (538/100)"
+# +2: the exhaustive constructor seeds the focused-field projection inertly.
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default. +1: `squiggle_projection`'s construction beside its sibling `squiggle_cache` initializer (item 633)."
 
 [[clippy_exception]]
@@ -1462,7 +1476,8 @@ reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_geometry.rs"
 function = "TextPipeline::sync_view_fields"
-message = "this function has too many lines (123/100)"
+message = "this function has too many lines (125/100)"
+# +2: the sole frame mirror also carries the focused-field recipient.
 reason = "The one ViewState-to-pipeline mirror (see the file_size_mark reason above for the full roster it already carries): item 540's table-dims picker adds a single measurement, overlay_table_dims_hint_w, via measure_workspace_hint_text_px -- the same shaper the spell popup's own overlay_spell_w measurement already uses at this seam -- so the card-width geometry function can size itself without a FontSystem in hand. First diagnostic to cross the 100-line clippy floor at this seam (103/100); the mirror stays one function so a new theme/view field is never wired to only some pipelines. +1: mirrors `overlay_asset_preview` from the view beside the pipeline's other per-frame syncs. +1: mirrors overlay_match_highlights from the view. +1: mirrors `search_field_selection` from the view. +1: mirrors `overlay_query_placeholder` from the view, beside the other per-frame overlay-field mirrors. start_folder` from the view beside the pipeline's other per-frame syncs."
 
 [[clippy_exception]]
@@ -1478,3 +1493,31 @@ file = "src/render/tests/hover_slop_law.rs"
 function = "a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it"
 message = "this function has too many lines (103/100)"
 reason = "One real-pipeline scenario proving the item's own named live hazard end to end, swept over list style x DPI in one loop rather than four near-duplicate functions -- the menu-bar pin/restore this session added (capture ambient, force off, restore) is the same three lines chrome_panels.rs's own convention costs, and belongs beside the scenario it protects, not a second helper."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/app/input/keys.rs"
+function = "App::dispatch_pressed_key"
+message = "this function has too many lines (101/100)"
+reason = "The shared press tail keeps dismissal, search interception, rebind capture and keymap resolution in one ordered path for physical keys and live-script replay. Recording-only search receipts sit at that guard; extracting a single line would separate the decision from the receipt it explains."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/modes.rs"
+function = "settled_viewstate"
+message = "this function has too many lines (103/100)"
+reason = "The headless capture's one ViewState constructor mirrors every field needed for a settled frame. The focused-text default is inert here; keeping it in this constructor makes missing fields fail at the exhaustive seam."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/sidecar.rs"
+function = "write_sidecar"
+message = "this function has too many lines (101/100)"
+reason = "The sole sidecar writer binds the live focused-field projection and prepared geometry to the same frame and redaction path as the existing fields. Splitting just this addition would create a second serializer boundary."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/release_workflow_law.rs"
+function = "release_audit"
+message = "this function has too many lines (104/100)"
+reason = "One test audit reads the release workflow, public-size guard and payload preparer together; its checks are interdependent because a dry run must prepare the same checked download set that a tag publishes."
