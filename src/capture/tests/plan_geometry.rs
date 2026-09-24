@@ -89,7 +89,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         // pinning this to `false` would fold a state no summon can reach. Every
         // card-shaped kind still answers `None` and folds exactly as before.
         workspace: ov.kind.workspace_shape().is_some(),
-        detail_focus: false,
+        detail_focus: ov.detail_focus,
         diff_scroll: 0,
         empty: ov.empty_notice(),
         show_hidden: false,
