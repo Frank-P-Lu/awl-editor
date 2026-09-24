@@ -87,33 +87,45 @@ fn assert_room_ink_visible(
     let (w, h) = size;
     let frost = p.frost_mode();
     let card = p.overlay_card_rect().expect("contextual card");
+    // The shaped and blank rows can draw different document carets. Remove
+    // those pixels so only prose can witness the Room beyond the card.
+    p.caret_pipeline.prepare_empty();
+    p.caret_trail_pipeline.prepare_empty();
+    p.caret_glyph_pipeline.clear();
     let with_prose = render_frame(p, device, queue, w, h);
 
     let blank = "\n".repeat(DENSE.lines().count());
     p.set_view(&contextual_view(kind, &blank));
     p.prepare(device, queue, w, h).unwrap();
+    p.caret_pipeline.prepare_empty();
+    p.caret_trail_pipeline.prepare_empty();
+    p.caret_glyph_pipeline.clear();
     let without_prose = render_frame(p, device, queue, w, h);
 
     let step = dpi.round().max(1.0) as usize;
-    let mut visible = 0usize;
-    for y in (0..h).step_by(step) {
-        for x in (0..w).step_by(step) {
-            let px = x as f32 + 0.5;
-            let py = y as f32 + 0.5;
-            let in_card =
-                px >= card[0] && px < card[0] + card[2] && py >= card[1] && py < card[1] + card[3];
-            let in_frost = frost.is_some_and(|mode| {
-                crate::render::blur::footprint_mask_for(mode, dpi, px, py) > 0.0
-            });
-            if !in_card
-                && !in_frost
-                && with_prose[(y * w + x) as usize] != without_prose[(y * w + x) as usize]
-            {
-                visible += 1;
-            }
-        }
-    }
-    assert!(visible > 0, "{ctx}: no Room pixels survived outside chrome");
+    // Thin face ink may land only on an odd device-pixel phase at 2x density.
+    // Visit every phase, stopping at the first real prose pixel.
+    let visible = (0..step).any(|phase_y| {
+        (0..step).any(|phase_x| {
+            (phase_y..h as usize).step_by(step).any(|y| {
+                (phase_x..w as usize).step_by(step).any(|x| {
+                    let px = x as f32 + 0.5;
+                    let py = y as f32 + 0.5;
+                    let in_card = px >= card[0]
+                        && px < card[0] + card[2]
+                        && py >= card[1]
+                        && py < card[1] + card[3];
+                    let in_frost = frost.is_some_and(|mode| {
+                        crate::render::blur::footprint_mask_for(mode, dpi, px, py) > 0.0
+                    });
+                    !in_card
+                        && !in_frost
+                        && with_prose[y * w as usize + x] != without_prose[y * w as usize + x]
+                })
+            })
+        })
+    });
+    assert!(visible, "{ctx}: no prose pixels survived outside chrome");
 }
 
 fn covered_by_chrome(
