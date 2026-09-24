@@ -47,6 +47,7 @@ use change::{ChangedLines, TextChange};
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
     pub ja: Option<(&'static str, glyphon::Weight)>,
+    pub ja_bold: Option<(&'static str, glyphon::Weight)>,
     pub zh_hans: Option<(&'static str, glyphon::Weight)>,
     pub zh_hant: Option<(&'static str, glyphon::Weight)>,
     pub ko: Option<(&'static str, glyphon::Weight)>,
@@ -172,8 +173,10 @@ impl TextPipeline {
     /// bundled nor a system candidate is installed (see `theme::CJK_MINCHO`/
     /// `CJK_GOTHIC`'s bundled-first priority order). Walks `theme::cjk` in
     /// order and returns the FIRST family present, paired with the registered
-    /// weight of that family's face nearest 400. Since the Japanese-bundle
-    /// round the FIRST candidate is always a bundled embedded face (Noto Serif
+    /// weight of that family's face nearest 400. The separate Japanese-heavy
+    /// resolver maps this Regular result to its authentic 600/700 companion.
+    /// After the Japanese-bundle round the FIRST candidate is always a bundled
+    /// embedded face (Noto Serif
     /// JP / Noto Sans JP, registered in [`build_font_system`] — see
     /// [`FONT_CJK_FACES`]), so on every machine `resolve_cjk` deterministically
     /// resolves there UNLESS `AWL_CJK_FORCE=system` (the jp-compare dev knob)
@@ -230,21 +233,51 @@ impl TextPipeline {
         None
     }
 
+    fn resolve_ja_bold_in(
+        &self,
+        regular: Option<(&'static str, glyphon::Weight)>,
+    ) -> Option<(&'static str, glyphon::Weight)> {
+        Self::resolve_ja_bold_in_db(self.font_system.db(), regular)
+    }
+
+    /// Kept as a DB-only seam so the authentic family/weight mapping remains
+    /// testable on hosts where no GPU adapter can construct a full pipeline.
+    pub(super) fn resolve_ja_bold_in_db(
+        db: &glyphon::cosmic_text::fontdb::Database,
+        regular: Option<(&'static str, glyphon::Weight)>,
+    ) -> Option<(&'static str, glyphon::Weight)> {
+        let (regular_family, _) = regular?;
+        let (_, bold_family) = crate::render::JA_BOLD_COMPANION_FAMILIES
+            .iter()
+            .find(|(regular, _)| regular.eq_ignore_ascii_case(regular_family))?;
+        db.faces()
+            .filter(|f| {
+                f.weight.0 >= 600
+                    && f.families
+                        .iter()
+                        .any(|(name, _)| name.eq_ignore_ascii_case(bold_family))
+            })
+            .min_by_key(|f| (f.weight.0 as i32 - glyphon::Weight::BOLD.0 as i32).abs())
+            .map(|f| (*bold_family, glyphon::Weight(f.weight.0)))
+    }
+
     /// Pre-resolved per-script `(family, weight)` faces for ONE reshape —
-    /// resolved ONCE (four small font-DB walks, the same cost class
+    /// resolved ONCE (five small font-DB walks, the same cost class
     /// `resolve_cjk` always paid for one script) rather than per RUN, mirroring
     /// the existing "resolve once, apply per line" shape. `latin` has no
     /// entry: a Latin-classified run never needs an override span (the base
     /// doc attrs already shape in the world's own display face).
     ///
-    /// All four resolve against ONE `theme::active()` snapshot, so a reshape's
-    /// four override spans — and the sidecar block derived from them — always
+    /// All five resolve against ONE `theme::active()` snapshot, so a reshape's
+    /// script override spans — and the sidecar block derived from them — always
     /// describe a single world, never a mix of the world before a concurrent
     /// flip and the world after.
     pub(super) fn resolve_script_fonts(&self) -> ScriptFonts {
         let world = theme::active();
+        let ja = self.resolve_font_id_in(&world, theme::FontId::Ja);
         ScriptFonts {
-            ja: self.resolve_font_id_in(&world, theme::FontId::Ja),
+            ja,
+            ja_bold: self.resolve_ja_bold_in(ja),
             zh_hans: self.resolve_font_id_in(&world, theme::FontId::ZhHans),
             zh_hant: self.resolve_font_id_in(&world, theme::FontId::ZhHant),
             ko: self.resolve_font_id_in(&world, theme::FontId::Ko),

@@ -322,6 +322,22 @@ fn bold_toggle_through_apply_transition_is_one_undoable_edit() {
 }
 
 #[test]
+fn japanese_bold_toggle_preserves_utf8_bytes_and_is_one_undoable_edit() {
+    let _g = crate::testlock::serial();
+    let original = "日本語 and English";
+    let mut b = drive_format(original, Some(0), original.len(), &Action::Bold);
+    assert_eq!(b.text(), "**日本語 and English**");
+    assert_eq!(
+        b.selection_range(),
+        Some((2, original.chars().count() + 2)),
+        "selection coordinates remain character-based across multibyte UTF-8"
+    );
+    b.undo();
+    assert_eq!(b.text().as_bytes(), original.as_bytes());
+    assert_eq!(b.text(), original);
+}
+
+#[test]
 fn bullet_list_toggle_through_apply_transition_round_trips_and_undoes() {
     // Select the two content lines (cols 0..4 over "a\nb\n") and toggle a bullet list.
     let mut b = drive_format("a\nb\nc\n", Some(0), 4, &Action::ToggleBulletList);
