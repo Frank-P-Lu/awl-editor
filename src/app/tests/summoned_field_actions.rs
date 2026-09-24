@@ -114,6 +114,10 @@ pub(super) fn summon(app: &mut App, field: TextField) {
             ov.set_query_text("zoom");
             ov.start_value_edit("zoom".to_string(), "Zoom".to_string());
             app.workspace_state.install_overlay_for_test(ov);
+            assert!(
+                app.workspace_state
+                    .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls)
+            );
         }
         TextField::FindQuery => {
             app.workspace_state
