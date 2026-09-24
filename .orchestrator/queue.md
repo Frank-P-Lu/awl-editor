@@ -6,8 +6,18 @@
 
 ## Open build and design tasks
 
-**5 open numbered tasks.** In implementation or review: 657, 659 and 661.
-Blocked: 651 and 658.
+**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
+661, 662, 664, 665, 666, 667, and 669.
+
+Queued work: release 663 and Japanese emphasis design investigation 668.
+
+Release constraint decided by the user on 2026-09-24: each public, installable
+app download must be strictly smaller than 50,000,000 bytes. Measure the final
+compressed artifact, not an uncompressed binary or a workflow artifact wrapper.
+This applies to macOS DMG/app zip and Linux AppImage/tarball; the hosted browser
+demo and source archives are separate distribution paths. Do not publish an
+oversized artifact or trade away Japanese bold silently to meet the cap.
+
 Outstanding review of landed work and hardware checks are listed separately below.
 
 ### 657 — restore the approved Files composition (user report, 2026-09-12)
@@ -52,13 +62,13 @@ captures belong in the public repo.
 
 ### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
 
-🔴 BLOCKED on trustworthy physical Cmd-A confirmation. A fresh release bundle
-built and assembled, but the bounded automation attempt delivered no keyboard or
-`App::apply` trace events; the app-selection call hung until interrupted. The CUA
-injector also produced inconsistent deletions (`star` → `sta`, `shared` → `hare`).
-Existing direct-action and real menu-click laws both pass, so product code must not
-change until a physical key-equivalent run distinguishes an awl defect from the
-automation door. Earlier implementation and audit landed with 657 at `ef344429`.
+🟡 IN PROGRESS — /root/files_select_all (codex), branch
+`codex/658-files-select-all-physical`. On 2026-09-24 the user physically confirmed that
+Cmd-A in the Files search field does not select its query, and Backspace deletes
+only the last character. Earlier implementation and audit landed with 657 at
+`ef344429`. Prior automation delivered no trustworthy keyboard or `App::apply`
+trace events, so the physical report is the defect evidence; distinguish the key
+route from the already-passing direct-action and menu-click laws.
 
 In a disposable Bowerbird release session, typing `shared` in Files and pressing
 Cmd-A then Backspace left `hare`: the command did not select the query and the
@@ -135,11 +145,12 @@ chrome and removed blur.
 
 ### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
 
-🔴 BLOCKED on browser-backend direction after independent audit. Native/loading/UI
-work is committed at `7764e7ea`, but is not mergeable as complete: synchronous
-`localStorage.getItem` cannot bound a cross-tab replacement before materializing it.
-Transactional IndexedDB chunks preserve parity but expand the storage architecture;
-failing browser folder search closed is safe but a user-visible degradation.
+🟡 IN PROGRESS — /root/search_folder_fail_closed (codex), branch
+`codex/651-browser-fail-closed`. The user chose the fail-closed browser path on
+2026-09-24. Native/loading/UI work is committed at `7764e7ea`, but is not
+mergeable as complete: synchronous `localStorage.getItem` cannot bound a cross-tab
+replacement before materializing it. Browser folder search must refuse with a
+clear notice; do not add transactional storage in this round.
 
 Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
 `search_folder::load_corpus` synchronously with whole-file `read_to_string` before
@@ -147,10 +158,10 @@ showing the picker. `load_corpus` checks `max_file_bytes` only after reading and
 counts only retained files/bytes. Oversized or failed reads consume neither budget;
 the total retained-byte limit can also be exceeded by the last accepted file.
 
-Decision required: either move browser folder storage to transactional IndexedDB/
-OPFS chunks so the budget is enforceable, or make browser Search in folder fail
-closed with an explicit notice. There is no safe third option under the current
-synchronous localStorage backend.
+Decision: make browser Search in folder fail closed with an explicit notice.
+There is no safe budgeted-read path under the current synchronous localStorage
+backend. Preserve the native search path and avoid partially loading a browser
+corpus before refusing.
 
 Done/Verify after direction: count attempts and bytes at the actual FS seam; probe
 exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and read
@@ -197,6 +208,250 @@ can test routing but cannot prove OS clipboard access. Add targeted regression l
 that fail with the old behavior; record browser versions and unavailable coverage.
 Follow the verification policy for integration gates. Reference:
 [Clipboard events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
+
+---
+
+### 662 — make the macOS download a signed, notarized release artifact
+
+🟡 IN PROGRESS — /root/release_662 (codex), branch
+`codex/662-signed-macos`. Requested by the user 2026-09-24. Apple signing and
+notarization setup are already complete, as the user confirmed. The current `release.yml`
+builds an unsigned universal `Awl.app` and DMG only on dry runs; tag runs skip
+the mac job and publish Linux alone. A workflow artifact is a short-lived build
+receipt, not the public macOS download. The stale setup-state claims in
+`RELEASING.md` were corrected when this work was queued. Never print secret values.
+
+Build: make tag runs produce a universal macOS app using the existing Developer
+ID signing and notarization setup, staple it, and attach a versioned DMG (and
+app zip if useful) with checksum coverage to the same GitHub Release as Linux.
+A missing or partial signing setup must fail the macOS release job before
+publication; never attach an unsigned app as if it were ready for normal download.
+Keep dry runs nonpublishing and exercise the packaging and publish-file layout
+without making a tag. Enforce the under-50,000,000-byte download limit on the
+final compressed DMG and any published app zip. If a universal DMG cannot meet
+it, measure a smaller packaging/architecture plan and return a genuine product
+tradeoff for review; do not waive the size limit. Update the release instructions
+and public download copy to describe the verified path.
+
+Verify: inspect both architectures in the universal binary; verify bundle
+identity, signature, notarization/staple, DMG contents, checksums and artifact
+names on the actual candidate. Record what the hosted macOS runner proves and
+what still needs a launch on a real user's Mac. Do not tag or publish in this
+item; item 663 owns the release cut.
+
+---
+
+### 663 — release one version with Linux and macOS downloads
+
+⚪ QUEUED — requested by the user 2026-09-24; depends on 662 and a frozen,
+integrated release candidate. `Cargo.toml` currently names 0.13.0, but choose
+the tag from the candidate's actual version rather than assuming that number
+will remain current. Publish the Linux x86_64 AppImage and tarball alongside the
+signed, notarized macOS DMG from the same tag. Keep the browser demo on its
+separate site deployment path; a zipped workflow artifact is not its main
+distribution. Depends on 667 for usable Japanese bold within the decided size
+limit; measure each final, public app download in bytes and refuse publication
+if any is 50,000,000 bytes or more.
+
+Work the exact-commit pre-tag checklist in `RELEASING.md`, including native and
+wasm gates, audit, profile parity, dry run, checksums, release notes and current
+CI status. Confirm the existing Linux hardware checks on a real desktop or
+record the untested combinations honestly. Inspect the final file list and
+download instructions before the tag push. The user's request here queues the
+release; obtain the explicit go to cut the tag and publish at execution time.
+After publication, verify both platform downloads and checksums from the public
+Release. Treat any site redeploy as a separate explicit action.
+
+---
+
+### 664 — diagnose unreliable automated keyboard input in the live macOS app
+
+🟡 IN PROGRESS — /root/input_664 (codex), branch `codex/664-live-key-ingress`.
+Requested by the user 2026-09-24. During the Files query review,
+some injected keys appeared to produce no keyboard or `App::apply` trace, app selection hung,
+and injected deletions gave inconsistent text (`star` → `sta`, `shared` →
+`hare`). Those observations do not identify where input was lost. The user's
+physical Cmd-A test remains evidence for item 658's Files defect; investigate
+the automation path separately so neither result is used to explain the other.
+A later trace audit found successful keymap and `App::apply` receipts in the
+disposable log, but no per-attempt injection provenance or focused-control
+state; the earlier blanket no-trace claim was too broad.
+
+Reproduce with a disposable document and config in a named release-build app
+session. Record the focused app/window/control, the injected key and timing,
+native event delivery, keymap action and `App::apply` receipt at each attempt.
+Compare with physical input and a direct App-level action on the same state;
+check focus handoff, modifier state, event injection and screenshot freshness.
+Identify the first boundary that diverges before changing code. Repair the
+owned app/harness boundary if one is found; if the loss is in an external
+automation service or macOS permission layer, report a minimal reproducer and
+use a trustworthy supported driver for the missing evidence instead.
+
+Verify repeatability across fresh sessions and several key sequences, including
+Cmd-A, deletion and plain typing. Confirm a successful injected sequence reaches
+the intended field exactly once, and a failed sequence is observable rather
+than silently counted as a pass. Keep probe logs and captures free of private
+paths and document text. Do not use this investigation to delay item 658's
+direct fix or to claim live behavior from headless replay alone.
+
+---
+
+### 665 — restore Japanese input focus in Files after Cmd-O (user report, 2026-09-24)
+
+🟡 IN PROGRESS — /root/ime_665 (codex), branch `codex/665-ime-fields`.
+The user reports that with Japanese input active, Cmd-O opens Files
+but typing cannot reach its search field; the caret appears stuck in the
+background document. The exact macOS input-source state, whether preedit or
+commit is lost, and whether the document actually changes are unverified.
+This is distinct from 658's confirmed Cmd-A selection failure and 664's
+unreliable automated key injection; coordinate evidence without conflating them.
+Read-only source audit confirms that a delivered IME commit currently takes the
+document-text door and preedit/candidate geometry remain document-owned; the
+user's exact physical event sequence is still unverified.
+
+Reproduce in a disposable native release session with a seeded root/config and
+both Japanese and direct Latin input. Record input-source and composition state,
+focused surface, caret/IME candidate position, preedit and commit delivery, query
+text and background-document bytes before and after Cmd-O, typing, conversion,
+Enter and Escape. Compare a pointer-focused Files search and other summoned text
+fields. Inspect the focus handoff, `WindowEvent::Ime` route and text ownership:
+`src/app/input/ime.rs` currently sends committed text through the document-text
+door, which is a lead to verify, not a diagnosed cause. Also check whether the
+search field can accept a Japanese composition when opened while IME is already
+active.
+
+Build one focused-text-surface owner for IME preedit and commit: the document
+receives text when it is focused, and a summoned text field receives text when
+it is focused. Files search must receive Japanese composition and committed text
+exactly once, show its active caret/preedit in the right place, and never edit
+the document behind it. Non-text surfaces must not insert into the background
+document. Preserve ordinary Cmd-O, Latin query input, cancellation, selection,
+undo and native menu routing. Add regression laws at the real App/IME boundary
+that fail under the old behavior across the focused text-field roster; audit
+neighboring surfaces and both input-source states, then verify physical Japanese
+typing in the bundled release app. Report any live-driver limits separately from
+product behavior.
+
+---
+
+### 666 — shorten the oversized Paperbark caret (user screenshot, 2026-09-24)
+
+🟡 IN PROGRESS — /root/paperbark_caret (codex), branch `codex/666-paperbark-caret`.
+The user reports that Paperbark's coral block caret is too tall. In
+the supplied screenshot, its rounded body rises noticeably above and falls
+below the adjacent lowercase text. The screenshot establishes the appearance,
+but its zoom, DPI, caret mode and settled/moving state are not known; reproduce
+those conditions before choosing a sizing change. Do not publish the private
+attachment path or copy the screenshot into the public repository.
+
+Inspect the shared vertical caret owner (`src/render/caret.rs` and its
+`caret::vertical` helpers), Paperbark's resolved face and metrics, and the
+existing one-height pixel laws. Measure the caret's rendered top, bottom and
+height against the row's actual ink and line box in a seeded, content-safe
+Paperbark capture. Compare nearby serif worlds and a smaller/larger zoom at 1x
+and 2x DPI; check lowercase, ascenders, descenders, spaces, empty lines and
+headings. Identify whether the excess comes from the face metrics, the shared
+minimum/padding, a tall row, or the active caret treatment before changing it.
+
+Make the resting caret read as proportionate to the text without losing its
+presence or clipping glyphs, and keep its height stable while typing across a
+row. Use the shared renderer and data-driven metrics rather than a Paperbark
+identity branch. Add a rendered-pixel bound that fails on the oversized
+appearance while preserving the existing stability law. Verify matching
+before/after PNG measurements and visual smoke in Paperbark plus adjacent worlds;
+ask the user to judge the final live feel if the measured fix still leaves a
+taste choice.
+
+---
+
+### 667 — render real Japanese bold within the download cap (user decision, 2026-09-24)
+
+🟡 IN PROGRESS — /root/japanese_bold (codex), branch `codex/667-japanese-bold`.
+Japanese bold is essential to the user's writing experience. At
+present `**bold**` parses and persists but per-script spans pin Japanese glyphs
+to Regular, because the five bundled Japanese families have only regular cuts.
+The user decided that every public installable app download must remain below
+50,000,000 bytes. Do not solve the size constraint by leaving Japanese bold
+visually inert or requiring a runtime font download.
+
+Build: obtain licensed real bold companions for the Japanese faces used by the
+world roster, retaining each world's character and script coverage; register
+and resolve the actual weight for Markdown emphasis and any bold heading role.
+Keep regular Japanese and mixed Latin/Japanese spans stable, preserve plain-text
+bytes and undo, and avoid synthetic weight, tofu, or a surprise font-family
+change. If a family lacks a suitable bold cut, establish the least disruptive
+fallback with matched captures and bring a material taste conflict to the user.
+
+Measure font bytes, the release binary and final compressed macOS/Linux artifacts
+before and after on a reproducible candidate. The current five Japanese regular
+fonts occupy 17.2 MiB raw and 9.7 MiB as a standalone ZIP; those are an estimate
+anchor, not proof of the resulting release size. A local single-architecture
+release binary gzipped to 32.5 MB; that does not establish universal-DMG or
+AppImage headroom. Prefer measured font/packaging reductions that preserve
+Japanese bold and offline use. Add shaping and rendered-pixel laws for Japanese
+bold in each face family, mixed-script text and zoom/DPI; confirm visible
+weight difference in native captures. Item 663 may release only after the actual
+download artifacts satisfy the strict cap.
+
+---
+
+### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
+
+⚪ QUEUED — Japanese `*emphasis*` currently keeps the regular upright face, so
+the styling can disappear even though the Markdown remains intact. The user
+wants to compare treatments before deciding whether emphasis dots belong in
+awl. This is a design investigation, not approval to ship dots. Coordinate
+with 667's real Japanese `**bold**` work so the two Markdown roles remain
+visually distinct and both respect the under-50,000,000-byte download limit.
+
+Prototype in awl with disposable text and real native captures, not an HTML
+mockup. Compare at least: small emphasis dots above Japanese glyphs; a related
+alternate face or modest weight treatment where a real face exists; and a quiet
+line treatment such as underline/bousen. A restrained ink-color treatment may
+serve as a fourth comparison. Keep synthetic slant and invisible Regular as
+explicit rejected baselines unless evidence changes that judgment. The W3C
+Japanese layout guidance describes these as editorial choices and notes that
+dots are traditional but less common; skip punctuation if testing dots.
+
+Use short and long phrases, punctuation, mixed Japanese/Latin runs, wrapped
+lines, headings, and both `*` and `**` spans across representative worlds,
+zoom and DPI. Measure line height, collisions, caret reveal, readability and
+whether underlining could be mistaken for a link. Preserve source bytes and
+the world's authored typography; avoid a theme-name rendering branch or a
+runtime asset fetch. Present matched captures, bundle-size and implementation
+cost, a recommendation, and the exact remaining taste decision to the user.
+Only then queue or implement the chosen default.
+
+---
+
+### 669 — investigate the opening-bracket gap under the caret (user screenshot, 2026-09-24)
+
+🟡 IN PROGRESS — /root/bracket_669_analysis (codex), branch
+`codex/669-cjk-punctuation`. In the supplied Japanese Paperbark screenshot,
+the visible gap between `の` and the focused `「` reads much too large to the
+user. The settled block caret appears to cover the narrow bracket ink while
+leaving its leading space bare. The screenshot alone does not establish whether
+that space is the font's full-width punctuation sidebearing, a separate shaping
+adjustment, or a caret-position error. Do not copy the private screenshot into
+the public repo.
+
+Reproduce with a disposable seeded document. Measure glyph advance and ink
+bounds for `の「`, the caret's full geometry, and the visible gap both with and
+without focus on `「`. `src/render/caret.rs` currently ink-aligns the settled
+block on proportional one-glyph anchors; test the user's idea of including
+some leading punctuation cell space in that block against keeping the current
+ink-only block and tightening the underlying punctuation layout. The W3C
+Japanese layout guidance permits a half-em before opening brackets and also
+describes reducing it for line adjustment; typography alone does not settle
+awl's focused appearance.
+
+Compare opening/closing brackets and punctuation at line start, mid-line and
+wrap boundaries across Japanese face families, zoom/DPI and caret modes.
+Preserve source bytes, insertion position, hit testing, selection, IME geometry
+and stable caret motion. Use matched native PNGs and pixel measurements to
+recommend one treatment; implement the smallest shared-owner correction if
+the evidence identifies a mechanical defect, and bring a genuine visual taste
+choice back to the user. Do not add a Paperbark-specific renderer branch.
 
 ---
 
