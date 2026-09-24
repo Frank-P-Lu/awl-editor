@@ -713,6 +713,7 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "preedit",
             "preedit_cursor",
             "ime_target",
+            "ime_preedit_ended",
             "ime_enabled",
         ],
         "keyboard state roster drifted"

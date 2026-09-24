@@ -13,12 +13,14 @@ impl App {
             Ime::Enabled => {
                 self.input.keyboard.ime_enabled = true;
                 self.input.keyboard.ime_target = None;
+                self.input.keyboard.ime_preedit_ended = false;
                 self.input.keyboard.preedit.clear();
             }
             Ime::Disabled => {
                 self.input.keyboard.ime_enabled = false;
                 self.input.keyboard.preedit.clear();
                 self.input.keyboard.ime_target = None;
+                self.input.keyboard.ime_preedit_ended = false;
                 self.input.keyboard.preedit_cursor = 0;
             }
             Ime::Preedit(text, cursor) => {
@@ -26,7 +28,15 @@ impl App {
                     // Platforms can retire marked text immediately BEFORE its
                     // commit. Keep its recipient across that empty preedit.
                     self.input.keyboard.preedit.clear();
+                    self.input.keyboard.ime_preedit_ended = true;
                     return;
+                }
+                // An empty preedit can also cancel without committing. A new
+                // marked run starts a fresh composition, even when the platform
+                // keeps IME enabled across cancellation and a focus change.
+                if self.input.keyboard.ime_preedit_ended {
+                    self.input.keyboard.ime_target = None;
+                    self.input.keyboard.ime_preedit_ended = false;
                 }
                 self.focus_platform_text();
                 let target = self.focused_text_target();
@@ -43,6 +53,7 @@ impl App {
             }
             Ime::Commit(text) => {
                 self.input.keyboard.preedit.clear();
+                self.input.keyboard.ime_preedit_ended = false;
                 self.focus_platform_text();
                 let target = self.focused_text_target();
                 let owner = self

@@ -64,6 +64,7 @@ struct KeyboardInput {
     preedit: String,
     preedit_cursor: usize,
     ime_target: Option<TextTarget>,
+    ime_preedit_ended: bool,
     ime_enabled: bool,
 }
 
@@ -124,6 +125,7 @@ impl InputRuntime {
                 preedit: String::new(),
                 preedit_cursor: 0,
                 ime_target: None,
+                ime_preedit_ended: false,
                 ime_enabled: false,
             },
             pointer: PointerInput {

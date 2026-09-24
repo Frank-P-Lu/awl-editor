@@ -184,6 +184,68 @@ fn ime_preedit_empty_preedit_commit_and_disable_keep_one_recipient() {
 }
 
 #[test]
+fn ime_cancelled_composition_restarts_without_platform_enable_after_focus_changes() {
+    let _g = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    for field in TextField::ALL {
+        for via_menu in [false, true] {
+            let mut app = app();
+            summon(&mut app, field);
+            let before = doc_state(&app);
+            app.on_ime(Ime::Preedit("にほん".into(), None));
+            app.on_ime(Ime::Preedit(String::new(), None));
+            if via_menu {
+                crate::menubar::set_open(Some(0));
+                app.sync_view(true);
+                crate::menubar::set_open(None);
+            } else {
+                summon(&mut app, field);
+            }
+            select_field(&mut app, field);
+            let committed = if field == TextField::SettingsValue {
+                "125"
+            } else {
+                "新"
+            };
+            app.on_ime(Ime::Preedit(committed.into(), None));
+            let mut view = ViewState::base();
+            app.project_text_input(&mut view);
+            assert_eq!(
+                view.field_input.unwrap().text,
+                committed,
+                "{field:?}, menu={via_menu}"
+            );
+            app.on_ime(Ime::Commit(committed.into()));
+            assert_eq!(
+                field_text(&app, field).as_deref(),
+                Some(committed),
+                "{field:?}, menu={via_menu}"
+            );
+            assert_eq!(doc_state(&app), before, "{field:?}, menu={via_menu}");
+        }
+    }
+}
+
+#[test]
+fn ime_focus_change_without_platform_empty_keeps_stale_preedit_and_commit_rejected() {
+    let _g = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    for field in TextField::ALL {
+        let mut app = app();
+        summon(&mut app, field);
+        let before = doc_state(&app);
+        app.on_ime(Ime::Preedit("にほん".into(), None));
+        summon(&mut app, field);
+        let old = field_text(&app, field);
+        app.on_ime(Ime::Preedit("にほんご".into(), None));
+        assert!(app.input.preedit().is_empty(), "{field:?}");
+        app.on_ime(Ime::Commit("日本語".into()));
+        assert_eq!(field_text(&app, field), old, "{field:?}");
+        assert_eq!(doc_state(&app), before, "{field:?}");
+    }
+}
+
+#[test]
 fn ime_late_commit_cannot_cross_dismissal_or_reopened_surface_identity() {
     let _g = crate::testlock::serial();
     let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
