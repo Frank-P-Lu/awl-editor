@@ -1,8 +1,8 @@
 name: release
 
 # Cuts a GitHub Release. Builds three things — a macOS universal (.app +
-# .dmg), a Linux tar.gz, and a zipped web (trunk) bundle — and publishes one
-# of them; see WHAT A TAG PUBLISHES TODAY below.
+# .dmg), Linux downloads, and a zipped web (trunk) bundle. A tag publishes
+# the signed/notarized macOS DMG and both Linux downloads.
 #
 # Triggers:
 #   - push of a `v*` tag        -> real release, artifacts attached to the tag's GH Release
@@ -15,15 +15,8 @@ name: release
 # with zero tags and zero releases created. Signing/notarizing on the mac
 # job is independently gated on its own secrets (see below) — a dry run
 # with no signing secrets configured produces an UNSIGNED .app + .dmg, which
-# is the expected, fully-testable-today path.
-#
-# WHAT A TAG PUBLISHES TODAY: Linux only. The mac and web jobs build on a
-# DRY RUN — that is what keeps the whole pipeline honest — and are skipped
-# on a tag, so an unsigned .app can never reach a public Release by
-# accident. macOS ships when Apple signing + notarization are configured
-# (RELEASING.md §1); the web build ships as the live site via
-# deploy-web.yml, not as a download. Flip both `if:` conditions and the
-# publish job's `needs`/`files` together when that changes.
+# is the default nonpublishing rehearsal. The explicit credentialed rehearsal
+# exercises signing/notarization without a tag and still cannot publish.
 
 on:
   push:
@@ -35,6 +28,10 @@ on:
         description: "Dry run (skip GitHub Release attach; upload as workflow artifacts instead)"
         type: boolean
         default: true
+      credentialed_macos_rehearsal:
+        description: "Sign and notarize macOS during this nonpublishing manual run"
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -63,6 +60,7 @@ jobs:
     outputs:
       is_release: ${{ steps.plan.outputs.is_release }}
       version: ${{ steps.plan.outputs.version }}
+      sign_macos: ${{ steps.plan.outputs.sign_macos }}
       # Pre-1.0 is a beta, marked prerelease on the GitHub Release — the
       # rule is "major version 0", the same discriminator a v1.0.0 launch
       # flips by construction. Computed from the tag's own version rather
@@ -74,25 +72,35 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "is_release=true" >> "$GITHUB_OUTPUT"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             MAJOR="${VERSION%%.*}"
             if [ "$MAJOR" -lt 1 ] 2>/dev/null; then
-              echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+              IS_PRERELEASE=true
             else
-              echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+              IS_PRERELEASE=false
             fi
+            {
+              echo "is_release=true"
+              echo "version=$VERSION"
+              echo "sign_macos=true"
+              echo "is_prerelease=$IS_PRERELEASE"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "is_release=false" >> "$GITHUB_OUTPUT"
-            echo "version=0.0.0-dryrun" >> "$GITHUB_OUTPUT"
-            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.credentialed_macos_rehearsal }}" = "true" ]; then
+              SIGN_MACOS=true
+            else
+              SIGN_MACOS=false
+            fi
+            {
+              echo "is_release=false"
+              echo "version=0.0.0-dryrun"
+              echo "is_prerelease=true"
+              echo "sign_macos=$SIGN_MACOS"
+            } >> "$GITHUB_OUTPUT"
           fi
 
   mac:
     name: mac (universal .app + .dmg)
     needs: plan
-    # Dry runs only — see the header. A tag must not produce an unsigned .app.
-    if: needs.plan.outputs.is_release != 'true'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -129,6 +137,7 @@ jobs:
             target/aarch64-apple-darwin/release/awl \
             target/x86_64-apple-darwin/release/awl
           lipo -info target/universal/awl
+          lipo -verify_arch arm64 x86_64 target/universal/awl
 
       # Self-diagnostic for the "hdiutil: create failed - No space left on
       # device" class of failure (GitHub mac runners' system temp volume has
@@ -143,7 +152,7 @@ jobs:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: |
           mkdir -p dist-mac
-          scripts/package-macos.sh --reclaim target/universal/awl dist-mac
+          AWL_SKIP_DMG=1 scripts/package-macos.sh --reclaim target/universal/awl dist-mac
 
       # --- Signing + notarization: GATED on secrets existing --------------
       # Required secrets (all-or-nothing — see RELEASING.md "Apple setup"):
@@ -152,29 +161,45 @@ jobs:
       #   APPLE_API_KEY_ID     App Store Connect API key id
       #   APPLE_API_ISSUER     App Store Connect API issuer id
       #   APPLE_API_KEY_B64    base64-encoded .p8 API key file
-      # Without them (or on a dry run) every step below SKIPS with a loud
-      # log line, and the job still produces an UNSIGNED .app + .dmg — the
-      # pipeline stays fully testable with no Apple developer account.
+      # A tag and an explicit credentialed rehearsal both fail closed when
+      # any credential is missing. The default manual dry run remains unsigned.
       - name: Check signing secrets
         id: signing
+        env:
+          SIGN_MACOS: ${{ needs.plan.outputs.sign_macos }}
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY_B64 }}
         run: |
-          if [ -n "${{ secrets.MACOS_CERT_P12 }}" ] && [ -n "${{ secrets.MACOS_CERT_PASSWORD }}" ] && \
-             [ -n "${{ secrets.APPLE_API_KEY_ID }}" ] && [ -n "${{ secrets.APPLE_API_ISSUER }}" ] && \
-             [ -n "${{ secrets.APPLE_API_KEY_B64 }}" ]; then
+          missing=""
+          [ -n "$MACOS_CERT_P12" ] || missing="$missing MACOS_CERT_P12"
+          [ -n "$MACOS_CERT_PASSWORD" ] || missing="$missing MACOS_CERT_PASSWORD"
+          [ -n "$APPLE_API_KEY_ID" ] || missing="$missing APPLE_API_KEY_ID"
+          [ -n "$APPLE_API_ISSUER" ] || missing="$missing APPLE_API_ISSUER"
+          [ -n "$APPLE_API_KEY_B64" ] || missing="$missing APPLE_API_KEY_B64"
+          if [ -z "$missing" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Signing secrets not fully configured (need MACOS_CERT_P12, MACOS_CERT_PASSWORD, APPLE_API_KEY_ID, APPLE_API_ISSUER, APPLE_API_KEY_B64) — skipping codesign/notarize. Producing an UNSIGNED .app + .dmg. See RELEASING.md 'Apple setup'."
             echo "available=false" >> "$GITHUB_OUTPUT"
+            if [ "$SIGN_MACOS" = "true" ]; then
+              echo "::error::macOS signing is required, but these credentials are missing:$missing"
+              exit 1
+            fi
+            echo "Unsigned nonpublishing macOS dry run (credentialed rehearsal not requested)."
           fi
 
       - name: Import signing certificate to a temp keychain
-        if: steps.signing.outputs.available == 'true' && needs.plan.outputs.is_release == 'true'
+        if: needs.plan.outputs.sign_macos == 'true'
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
+          umask 077
           KEYCHAIN_PATH="$RUNNER_TEMP/awl-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
+          trap 'rm -f "$RUNNER_TEMP/cert.p12"' EXIT
           echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -187,70 +212,99 @@ jobs:
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
       - name: codesign Awl.app
-        if: steps.signing.outputs.available == 'true' && needs.plan.outputs.is_release == 'true'
+        if: needs.plan.outputs.sign_macos == 'true'
         run: |
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
           if [ -z "$IDENTITY" ]; then
             echo "::error::No 'Developer ID Application' identity found in the imported certificate."
             exit 1
           fi
-          codesign --deep --force --options runtime --sign "$IDENTITY" "dist-mac/Awl.app"
+          codesign --force --options runtime --timestamp --sign "$IDENTITY" "dist-mac/Awl.app"
           codesign --verify --deep --strict --verbose=2 "dist-mac/Awl.app"
 
       - name: notarytool submit + staple
-        if: steps.signing.outputs.available == 'true' && needs.plan.outputs.is_release == 'true'
+        if: needs.plan.outputs.sign_macos == 'true'
         env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY_B64 }}
         run: |
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/Awl-notarize.zip" "$RUNNER_TEMP/notary-result.json"' EXIT
           echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           ditto -c -k --keepParent "dist-mac/Awl.app" "$RUNNER_TEMP/Awl-notarize.zip"
           xcrun notarytool submit "$RUNNER_TEMP/Awl-notarize.zip" \
             --key "$RUNNER_TEMP/AuthKey.p8" \
             --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER" \
-            --wait
+            --wait --output-format json > "$RUNNER_TEMP/notary-result.json"
+          STATUS="$(plutil -extract status raw -o - "$RUNNER_TEMP/notary-result.json")"
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Apple notarization status was '$STATUS', expected 'Accepted'."
+            cat "$RUNNER_TEMP/notary-result.json"
+            exit 1
+          fi
           xcrun stapler staple "dist-mac/Awl.app"
-          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/Awl-notarize.zip"
+          xcrun stapler validate "dist-mac/Awl.app"
+          spctl --assess --type execute --verbose=4 "dist-mac/Awl.app"
 
-      - name: Re-create Awl.dmg (post-sign/staple)
-        if: steps.signing.outputs.available == 'true' && needs.plan.outputs.is_release == 'true'
+      - name: Create versioned Awl.dmg
+        env:
+          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
         run: |
           df -h
-          # Same hardening as package-macos.sh's own DMG step (see its
-          # module doc for the full story): stage under dist-mac/
-          # (workspace-relative) rather than the system mktemp -d/$TMPDIR
-          # default, point hdiutil's own scratch work at a workspace-local
-          # TMPDIR, and — the confirmed actual fix — pass an explicit
-          # `-size` computed from the staged folder's APPARENT byte size
-          # (`stat -f%z`, not `du`) so hdiutil's own sparse-aware auto-size
-          # estimate can never undersize the scratch image against a
-          # `lipo`-produced (potentially sparse) universal binary.
-          AWL_SKIP_DMG=0 bash -c '
-            rm -f dist-mac/Awl.dmg
-            WORK="dist-mac/.dmg-restage"
-            rm -rf "$WORK"
-            mkdir -p "$WORK/staging" "$WORK/tmp"
-            cp -R dist-mac/Awl.app "$WORK/staging/"
-            ln -s /Applications "$WORK/staging/Applications"
-            APPARENT_BYTES="$(find "$WORK/staging" -type f -exec stat -f%z {} + | awk "{sum+=\$1} END{print sum+0}")"
-            DMG_SIZE_MB=$(( (APPARENT_BYTES * 2 / 1024 / 1024) + 64 ))
-            echo "==> sizing DMG scratch image: ${DMG_SIZE_MB}m (from ${APPARENT_BYTES} apparent bytes staged)"
-            TMPDIR="$PWD/$WORK/tmp" hdiutil create -volname "Awl" -srcfolder "$WORK/staging" -size "${DMG_SIZE_MB}m" -ov -format UDZO dist-mac/Awl.dmg
-            rm -rf "$WORK"
-          '
+          scripts/package-macos.sh --dmg-only dist-mac/Awl.app "dist-mac/$DMG"
 
-      - name: Zip Awl.app (for artifact upload)
-        run: ditto -c -k --keepParent dist-mac/Awl.app dist-mac/Awl-macos-universal.app.zip
+      - name: Validate and checksum macOS artifacts
+        env:
+          SIGN_MACOS: ${{ needs.plan.outputs.sign_macos }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+          APP_ZIP: awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent dist-mac/Awl.app "dist-mac/$APP_ZIP"
+          MAX_BYTES=50000000
+          for artifact in "dist-mac/$DMG" "dist-mac/$APP_ZIP"; do
+            BYTES="$(stat -f%z "$artifact")"
+            echo "macOS artifact size: $artifact = $BYTES bytes (limit $MAX_BYTES)"
+            if [ "$BYTES" -ge "$MAX_BYTES" ]; then
+              echo "::error::$artifact is $BYTES bytes; every compressed macOS download must be under $MAX_BYTES bytes."
+              exit 1
+            fi
+          done
+          hdiutil verify "dist-mac/$DMG"
+          MOUNT="$RUNNER_TEMP/awl-dmg-mount"
+          mkdir -p "$MOUNT"
+          trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true' EXIT
+          hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
+          scripts/package-macos.sh --verify "$MOUNT/Awl.app"
+          lipo -verify_arch arm64 x86_64 "$MOUNT/Awl.app/Contents/MacOS/awl"
+          BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
+          [ "$BUNDLE_VERSION" = "$VERSION" ] || { echo "::error::DMG bundle version is '$BUNDLE_VERSION', expected '$VERSION'."; exit 1; }
+          if [ "$SIGN_MACOS" = "true" ]; then
+            codesign --verify --deep --strict --verbose=2 "$MOUNT/Awl.app"
+            xcrun stapler validate "$MOUNT/Awl.app"
+            spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
+          fi
+          (cd dist-mac && shasum -a 256 "$DMG" > "$DMG.sha256")
+          (cd dist-mac && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
 
       - uses: actions/upload-artifact@v7
         with:
           name: awl-macos
           path: |
-            dist-mac/Awl-macos-universal.app.zip
-            dist-mac/Awl.dmg
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg.sha256
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip.sha256
           retention-days: 14
+
+      - name: Remove temporary signing keychain
+        if: always() && needs.plan.outputs.sign_macos == 'true'
+        run: |
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/Awl-notarize.zip" "$RUNNER_TEMP/notary-result.json"
+          security delete-keychain "$RUNNER_TEMP/awl-signing.keychain-db" 2>/dev/null || true
 
   linux:
     name: linux (release tar.gz)
@@ -398,9 +452,8 @@ jobs:
 
   publish:
     name: publish GitHub Release
-    # Linux only — the mac and web jobs do not run on a tag at all, so they
-    # cannot be depended on here and cannot be attached by accident.
-    needs: [plan, linux]
+    # A failed/skipped mac job blocks publication just as a failed Linux job.
+    needs: [plan, mac, linux]
     if: needs.plan.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -413,12 +466,17 @@ jobs:
       # `artifacts/awl-linux/` subdirectory that was not there. Naming it
       # downloads exactly this one artifact's files flat into `path`, so the
       # location is fixed by the input rather than by what else the run
-      # happened to upload. A tag builds Linux alone, so there is nothing
-      # else to fetch anyway.
+      # happened to upload. Linux and macOS are fetched into explicit sibling
+      # directories so adding one cannot silently reshape the other.
       - uses: actions/download-artifact@v8
         with:
           name: awl-linux
-          path: artifacts
+          path: artifacts/linux
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: awl-macos
+          path: artifacts/mac
 
       # SHA256SUMS covers exactly the files about to be attached, computed
       # from the artifacts themselves rather than transcribed. `sha256sum -c
@@ -433,22 +491,25 @@ jobs:
         env:
           TARBALL: awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
           APPIMAGE: awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
+          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
         run: |
           mkdir -p release
+          (cd artifacts/linux && sha256sum -c "$TARBALL.sha256" "$APPIMAGE.sha256")
+          (cd artifacts/mac && sha256sum -c "$DMG.sha256")
           # Fail LOUDLY and by name if the layout ever moves again. `cp`'s own
           # "No such file or directory" names a path without saying what was
           # actually there, which is the diagnosis this step owes its reader:
           # this job runs only on a real tag, so a bad run here is a broken
           # public release, and it has no dry run standing behind it.
-          for f in "$TARBALL" "$APPIMAGE"; do
-            if [ ! -f "artifacts/$f" ]; then
-              echo "::error::expected artifacts/$f — downloaded tree was:"
+          for pair in "linux/$TARBALL" "linux/$APPIMAGE" "mac/$DMG"; do
+            if [ ! -f "artifacts/$pair" ]; then
+              echo "::error::expected artifacts/$pair — downloaded tree was:"
               find artifacts -type f | sed 's/^/  /'
               exit 1
             fi
-            cp "artifacts/$f" release/
+            cp "artifacts/$pair" release/
           done
-          (cd release && sha256sum "$TARBALL" "$APPIMAGE" > SHA256SUMS)
+          (cd release && sha256sum "$TARBALL" "$APPIMAGE" "$DMG" > SHA256SUMS)
           cat release/SHA256SUMS
 
       # The release body IS the install page — a reader arrives here from the
@@ -467,8 +528,16 @@ jobs:
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
           fail_on_unmatched_files: true
           body: |
-            **Linux x86_64.** macOS builds from source until Apple signing and
-            notarization are in place; Windows uses the web editor.
+            **macOS (Apple Silicon + Intel).** Download the signed, notarized
+            universal DMG, verify it, open it, and drag Awl to Applications:
+
+            ```sh
+            grep 'macos-universal.dmg$' SHA256SUMS | shasum -a 256 -c -
+            open awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+            ```
+
+            **Linux x86_64.** Choose the AppImage or tarball below. Windows
+            uses the web editor.
 
             **AppImage (recommended)** — one file, desktop-integrated (launcher
             name + icon):
@@ -503,8 +572,9 @@ jobs:
             fetches anything at runtime.
 
             GPL-3.0-only. `LICENSE`, `NOTICE`, `CREDITS.md`,
-            `THIRD-PARTY-LICENSES.md` and licences ride inside both downloads.
+            `THIRD-PARTY-LICENSES.md` and licences ride inside every download.
           files: |
             release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
             release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
+            release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
             release/SHA256SUMS

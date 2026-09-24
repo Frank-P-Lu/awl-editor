@@ -77,7 +77,7 @@ editing, yes; the IDE zoo, no.
 | Platform | What to get |
 |---|---|
 | Linux x86_64 | `awl-0.13.0-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-editor/releases) |
-| macOS | build from source below — a signed, notarized build is not ready yet |
+| macOS (Apple Silicon + Intel) | signed, notarized `awl-0.13.0-macos-universal.dmg` from [Releases](https://github.com/Frank-P-Lu/awl-editor/releases) |
 | Windows | the browser build |
 
 Unpack and run — the archive contains one directory and installs nothing:
@@ -93,6 +93,11 @@ Verify the download against the release's `SHA256SUMS` first:
 ```sh
 sha256sum -c SHA256SUMS
 ```
+
+On macOS, verify the DMG's line from `SHA256SUMS` with
+`grep 'macos-universal.dmg$' SHA256SUMS | shasum -a 256 -c -`, open the
+universal DMG, and drag Awl to Applications. The app is Developer ID signed,
+notarized, and stapled.
 
 Put it on your PATH with `install -Dm755 awl ~/.local/bin/awl`. The binary needs
 a working Vulkan driver plus fontconfig, libxkbcommon, and the Wayland or X11

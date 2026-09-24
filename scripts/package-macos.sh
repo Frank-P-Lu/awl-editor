@@ -19,6 +19,11 @@
 #     (output-dir defaults to `dist`) and assembles Awl.app with
 #     `packaging/mas/entitlements.plist` copied into Resources/.
 #
+#   scripts/package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>
+#     Create a DMG from an already assembled (and possibly signed/stapled)
+#     bundle. The release workflow uses this after notarization so the DMG
+#     contains the exact app it validated.
+#
 # Produces (ordinary):
 #   <output-dir>/Awl.app/Contents/{MacOS/awl, Info.plist, Resources/}
 #   <output-dir>/Awl.dmg          (only if `hdiutil` succeeds — see below)
@@ -138,15 +143,61 @@ verify_bundle_identity() {
   echo "==> bundle identity OK: Awl / Awl / awl / Awl.icns  ($app)"
 }
 
+# One owner for DMG layout and hdiutil hardening. Both ordinary local
+# packaging and the post-notarization release path call this function.
+create_dmg() {
+  local app="$1"
+  local output="$2"
+  local out_dir dmg_work dmg_staging apparent_bytes dmg_size_mb
+  out_dir="$(cd "$(dirname "$output")" && pwd)"
+  output="$out_dir/$(basename "$output")"
+
+  verify_bundle_identity "$app"
+  echo "==> creating $output"
+
+  # Stage BOTH the DMG source-folder copy AND hdiutil's own scratch/temp work
+  # under the output directory rather than the system temporary volume. The
+  # explicit size avoids hdiutil's sparse-file auto-size undershoot observed
+  # on hosted macOS runners; stat's apparent size is intentional here.
+  dmg_work="$out_dir/.dmg-work"
+  rm -rf "$dmg_work"
+  mkdir -p "$dmg_work/staging" "$dmg_work/tmp"
+  dmg_staging="$dmg_work/staging"
+  cp -R "$app" "$dmg_staging/"
+  ln -s /Applications "$dmg_staging/Applications"
+
+  # Keep the same licence documents visible beside the app and inside it.
+  for doc in LICENSE NOTICE CREDITS.md THIRD-PARTY-LICENSES.md; do
+    [ -f "$ROOT/$doc" ] && cp "$ROOT/$doc" "$dmg_staging/$doc"
+  done
+
+  echo "==> disk space before hdiutil:"
+  df -h
+  apparent_bytes="$(find "$dmg_staging" -type f -exec stat -f%z {} + | awk '{sum+=$1} END{print sum+0}')"
+  dmg_size_mb=$(( (apparent_bytes * 2 / 1024 / 1024) + 64 ))
+  echo "==> sizing DMG scratch image: ${dmg_size_mb}m (from ${apparent_bytes} apparent bytes staged)"
+
+  if ! TMPDIR="$dmg_work/tmp" hdiutil create -volname "Awl" -srcfolder "$dmg_staging" \
+    -size "${dmg_size_mb}m" -ov -format UDZO "$output"; then
+    rm -rf "$dmg_work"
+    echo "!! hdiutil failed while creating $output" >&2
+    return 1
+  fi
+  rm -rf "$dmg_work"
+  echo "==> $output created"
+}
+
 MAS=0
 RECLAIM=0
 VERIFY_ONLY=0
+DMG_ONLY=0
 POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
     --mas) MAS=1 ;;
     --reclaim) RECLAIM=1 ;;
     --verify) VERIFY_ONLY=1 ;;
+    --dmg-only) DMG_ONLY=1 ;;
     -h|--help)
       sed -n '2,68p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
@@ -163,6 +214,14 @@ if [[ "$VERIFY_ONLY" -eq 1 ]]; then
   APP_TO_VERIFY="${POSITIONAL[0]:?usage: package-macos.sh --verify <path-to-Awl.app>}"
   verify_bundle_identity "$APP_TO_VERIFY"
   exit $?
+fi
+
+if [[ "$DMG_ONLY" -eq 1 ]]; then
+  APP_TO_PACKAGE="${POSITIONAL[0]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>}"
+  DMG_OUTPUT="${POSITIONAL[1]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>}"
+  mkdir -p "$(dirname "$DMG_OUTPUT")"
+  create_dmg "$APP_TO_PACKAGE" "$DMG_OUTPUT"
+  exit 0
 fi
 
 if [[ "$MAS" -eq 1 ]]; then
@@ -400,59 +459,4 @@ if [ "${AWL_SKIP_DMG:-0}" = "1" ]; then
   exit 0
 fi
 
-echo "==> creating Awl.dmg"
-# Stage BOTH the DMG source-folder copy AND hdiutil's own scratch/temp work
-# under $OUT_DIR — a directory the caller controls (in CI, a workspace-
-# relative path, e.g. `dist-mac`) — instead of the system `mktemp -d`/
-# $TMPDIR default. `TMPDIR` is the documented lever for redirecting hdiutil's
-# OWN scratch work (there is no `-tmpdir` flag), so it's exported
-# workspace-local only around the `hdiutil create` call below. Cheap
-# precautionary hardening either way, kept even though it turned out NOT to
-# be this round's actual root cause (see below) — it can only help.
-DMG_WORK="$OUT_DIR/.dmg-work"
-rm -rf "$DMG_WORK"
-mkdir -p "$DMG_WORK/staging" "$DMG_WORK/tmp"
-trap 'rm -rf "$DMG_WORK"' EXIT
-DMG_STAGING="$DMG_WORK/staging"
-cp -R "$APP" "$DMG_STAGING/"
-ln -s /Applications "$DMG_STAGING/Applications"
-# Same licensing docs, also visible at the DMG's top level (alongside the
-# .app + the Applications shortcut) — the common "read this before you drag
-# it over" placement, redundant with the copies already inside the bundle.
-for doc in LICENSE NOTICE CREDITS.md THIRD-PARTY-LICENSES.md; do
-  [ -f "$ROOT/$doc" ] && cp "$ROOT/$doc" "$DMG_STAGING/$doc"
-done
-
-echo "==> disk space before hdiutil (self-diagnostic for the 'No space left on device' failure class):"
-df -h
-
-# THE ACTUAL ROOT CAUSE (found live, this round): the two prior CI failures
-# were NOT genuine disk exhaustion — a `df -h` added right before this exact
-# hdiutil call on the failing runner showed 96 GiB free on EVERY volume, and
-# the failure text ("could not access .../MacOS/awl - No space left on
-# device") names the bundled BINARY specifically. `hdiutil create -srcfolder`
-# (no `-size`) auto-estimates its scratch image's size and can undersize it
-# in ways that have nothing to do with real host disk pressure — reproduced
-# LOCALLY with a synthetic sparse file (`truncate -s 500m` over a 4 KiB real
-# payload: tiny on-disk allocation, huge apparent size), which hit the exact
-# same failure text on a machine with hundreds of GB free (a `lipo`-produced
-# universal binary CAN be sparse on APFS from inter-slice alignment padding —
-# the originally-suspected trigger; CHECKED against this app's OWN real
-# `lipo -create` output, though, and it was NOT measurably sparse — apparent
-# size and on-disk allocation agreed to within one block). So the exact
-# trigger inside GitHub's virtualized macOS runner is unconfirmed, but the
-# SYMPTOM (auto-size undershoot despite ample real free space) is real and
-# reproducible, and matches the standard community workaround reported
-# across multiple `actions/runner-images` hdiutil issues: pass an explicit
-# `-size` and sidestep hdiutil's own estimate entirely, whatever throws it
-# off. Sized off the staging folder's APPARENT bytes (`stat -f%z`, NOT `du`,
-# which would repeat the same kind of undercount if the source ever IS
-# sparse) with a generous 2x + 64 MiB margin — cheap insurance, since the
-# image is compressed down to real content size in the FINAL (UDZO) output
-# regardless; the margin only costs a briefly-larger temp scratch file.
-APPARENT_BYTES="$(find "$DMG_STAGING" -type f -exec stat -f%z {} + | awk '{sum+=$1} END{print sum+0}')"
-DMG_SIZE_MB=$(( (APPARENT_BYTES * 2 / 1024 / 1024) + 64 ))
-echo "==> sizing DMG scratch image: ${DMG_SIZE_MB}m (from ${APPARENT_BYTES} apparent bytes staged)"
-
-TMPDIR="$DMG_WORK/tmp" hdiutil create -volname "Awl" -srcfolder "$DMG_STAGING" -size "${DMG_SIZE_MB}m" -ov -format UDZO "$OUT_DIR/Awl.dmg"
-echo "==> $OUT_DIR/Awl.dmg created"
+create_dmg "$APP" "$OUT_DIR/Awl.dmg"

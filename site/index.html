@@ -59,9 +59,9 @@
           <span>Linux</span>
           <small>x86_64 tar.gz</small>
         </a>
-        <a href="https://github.com/Frank-P-Lu/awl-editor#build--run">
+        <a href="https://github.com/Frank-P-Lu/awl-editor/releases">
           <span>macOS</span>
-          <small>Build from source</small>
+          <small>Signed universal DMG</small>
         </a>
         <a href="editor/">
           <span>Windows</span>
@@ -76,8 +76,9 @@ cd awl-0.13.0-linux-x86_64
         <p>Check it against the release's <code>SHA256SUMS</code> first with
           <code>sha256sum -c SHA256SUMS</code>. awl needs a working Vulkan
           driver, fontconfig, libxkbcommon, and Wayland or X11; the archive's
-          <code>README.txt</code> names the packages per distro. A signed macOS
-          build is not ready yet.</p>
+          <code>README.txt</code> names the packages per distro. On macOS,
+          verify the DMG's line in <code>SHA256SUMS</code>, open the universal
+          image, and drag the signed, notarized Awl app to Applications.</p>
       </div>
     </section>
   </main>
