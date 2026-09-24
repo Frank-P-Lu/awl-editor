@@ -156,6 +156,9 @@ fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, qu
         );
     }
 
+    // Magpie's Diagonal workspace is deliberately bare: its spine and
+    // connector read directly against the crisp room, rather than inventing a
+    // Pane card for Settings. The no-frost claim belongs to that composition.
     crate::theme::set_active_by_name("Magpie").unwrap();
     p.sync_theme();
     p.set_view(&controls);
@@ -167,18 +170,75 @@ fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, qu
     );
     assert_eq!(
         p.panel_card.instance_count(),
-        1,
-        "crisp Settings still needs one opaque card"
+        0,
+        "Magpie's Diagonal Settings must not grow a Pane card"
     );
+
+    // Force the Pane composition for the same Settings workspace. Its
+    // card is the real opaque backing owner, so prove it with a document A/B:
+    // dense prose must reach the exact safe interior with the workspace absent,
+    // then disappear completely when the one-surface workspace is present. A
+    // mere instance count would stay green for a removed or transparent fill.
+    crate::theme::set_active_by_name("Bowerbird").unwrap();
+    p.sync_theme();
+    crate::render::set_list_style_test_override(Some(crate::theme::ListStyle::Pane));
+    let mut dense = settings_view();
+    dense.overlay_rows_focused = true;
+    dense.text = super::frost_feather::DENSE.into();
+    p.set_view(&dense);
+    p.prepare(device, queue, W, H).unwrap();
+    let dense_workspace = render_frame(p, device, queue, W, H);
+    let card = p.overlay_pane_fills_probe();
+    assert_eq!(card.len(), 1, "Pane Settings owns one workspace backing");
     assert_eq!(
-        crate::theme::pane_surface_for(
-            crate::render::overlay_chrome_theme(),
-            crate::render::effective_card_elevation()
-        )
-        .rgba_bytes()[3],
-        255,
-        "Settings' replacement for frost must be opaque"
+        p.panel_card.instance_count(),
+        1,
+        "Pane Settings uploads its one workspace backing through panel_card"
     );
+    let card = card[0];
+    let inset = p.overlay_card_opaque_inset_probe(card);
+    let interior = Region::new(
+        card[0] + inset,
+        card[1] + inset,
+        card[2] - 2.0 * inset,
+        card[3] - 2.0 * inset,
+    );
+
+    let mut empty = settings_view();
+    empty.overlay_rows_focused = true;
+    p.set_view(&empty);
+    p.prepare(device, queue, W, H).unwrap();
+    let empty_workspace = render_frame(p, device, queue, W, H);
+
+    let mut uncovered_dense = dense;
+    uncovered_dense.overlay_active = false;
+    p.set_view(&uncovered_dense);
+    p.prepare(device, queue, W, H).unwrap();
+    let bare_dense = render_frame(p, device, queue, W, H);
+    let mut uncovered_empty = empty;
+    uncovered_empty.overlay_active = false;
+    p.set_view(&uncovered_empty);
+    p.prepare(device, queue, W, H).unwrap();
+    let bare_empty = render_frame(p, device, queue, W, H);
+    let uncovered = diff_region(&bare_dense, &bare_empty, W as i64, H as i64, interior);
+    assert_eq!(
+        diff_region(
+            &dense_workspace,
+            &empty_workspace,
+            W as i64,
+            H as i64,
+            interior
+        )
+        .differing,
+        0,
+        "Pane Settings must mask document changes throughout its opaque interior"
+    );
+    assert!(
+        uncovered.differing > 100,
+        "fixture must put document ink behind the workspace interior before opacity is graded: \
+         {uncovered:?}"
+    );
+    crate::render::set_list_style_test_override(None);
 }
 
 #[test]
