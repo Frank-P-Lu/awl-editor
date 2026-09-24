@@ -301,6 +301,85 @@ fn japanese_punctuation_shapes_in_the_same_resolved_face_as_adjacent_kana() {
     );
 }
 
+/// A document-evidence flip is a document-wide font-routing change, even when
+/// the edit itself touches one other line. Retained unchanged lines must match
+/// a cold pipeline after both adding and deleting the last decisive character;
+/// otherwise their shaped face disagrees with the caret's freshly computed CJK
+/// cell policy.
+#[test]
+fn evidence_flip_restyles_unchanged_common_punctuation_like_a_cold_pipeline() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Paperbark").expect("Paperbark is shipped");
+    let Some(mut warm) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no wgpu adapter");
+        return;
+    };
+    let Some(mut cold) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no second wgpu pipeline");
+        return;
+    };
+    warm.sync_theme();
+    cold.sync_theme();
+
+    fn punctuation_snapshot(p: &mut TextPipeline) -> (String, Vec<u32>, bool, u32) {
+        let font_id = p
+            .buffer
+            .layout_runs()
+            .find(|run| run.line_i == 0)
+            .and_then(|run| run.glyphs.first())
+            .expect("line 0 punctuation glyph")
+            .font_id;
+        let family = p
+            .font_system
+            .db()
+            .face(font_id)
+            .expect("punctuation glyph face")
+            .families[0]
+            .0
+            .clone();
+        let xs = p.line_glyph_xs(0).iter().map(|x| x.to_bits()).collect();
+        let cell = p.caret_anchor_ideographic_cell().is_some();
+        let caret_w = p.caret_pixel_rect().2.to_bits();
+        (family, xs, cell, caret_w)
+    }
+
+    let no_evidence = "「」\nx";
+    let japanese_evidence = "「」\nの";
+    warm.set_view(&view(no_evidence, 1, 1));
+
+    // Add the document's only decisive Japanese character on line 1, then
+    // move the caret to the untouched punctuation line without another edit.
+    warm.set_view(&view(japanese_evidence, 1, 1));
+    warm.set_view(&view(japanese_evidence, 0, 0));
+    cold.set_view(&view(japanese_evidence, 0, 0));
+    let warm_added = punctuation_snapshot(&mut warm);
+    let cold_added = punctuation_snapshot(&mut cold);
+    assert_eq!(warm_added, cold_added, "warm add must equal a cold reshape");
+    assert_eq!(warm_added.0, "Shippori Mincho");
+    assert!(warm_added.2, "Japanese evidence owns the punctuation cell");
+
+    // Delete that last decisive character. The same retained line must return
+    // to the cold no-evidence result rather than staying latched Japanese.
+    warm.set_view(&view(no_evidence, 1, 1));
+    warm.set_view(&view(no_evidence, 0, 0));
+    let Some(mut cold_deleted) = headless_pipeline() else {
+        eprintln!("skipping CJK evidence restyle law: no deletion oracle pipeline");
+        return;
+    };
+    cold_deleted.sync_theme();
+    cold_deleted.set_view(&view(no_evidence, 0, 0));
+    let warm_deleted = punctuation_snapshot(&mut warm);
+    let cold_deleted = punctuation_snapshot(&mut cold_deleted);
+    assert_eq!(
+        warm_deleted, cold_deleted,
+        "warm delete must equal a cold reshape"
+    );
+    assert!(
+        !warm_deleted.2,
+        "no evidence leaves isolated punctuation neutral"
+    );
+}
+
 /// PER-FACE registration ("CJK companions" round): the one bundled Korean
 /// serif companion ([`render::FONT_CJK_COMPANION_FACES`]) registers under its
 /// exact expected family name — the same "verified through fontdb" guarantee

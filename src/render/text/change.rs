@@ -84,7 +84,17 @@ impl super::TextPipeline {
             Option<crate::frontmatter::Lang>,
         ),
     ) -> TextChange {
-        let (prefix, old_end, new_end) = self.unchanged_band(new_lines);
+        let (mut prefix, mut old_end, mut new_end) = self.unchanged_band(new_lines);
+        let scope_changed = old_scope != (self.doc_lang, self.han_evidence);
+        // Document language and decisive CJK evidence participate in every
+        // line's font attrs. If either flips, unchanged text cannot retain its
+        // prior AttrsList: widen the splice to rebuild every line through the
+        // same `build_line_attrs` owner as the edited band.
+        if scope_changed {
+            prefix = 0;
+            old_end = self.buffer.lines.len();
+            new_end = new_lines.len();
+        }
         let touches_boundary = self.md_enabled
             && (self.buffer.lines[prefix..old_end]
                 .iter()
@@ -103,9 +113,7 @@ impl super::TextPipeline {
             prefix,
             old_end,
             new_end,
-            geometry_safe: !touches_boundary
-                && !reservation_changed
-                && old_scope == (self.doc_lang, self.han_evidence),
+            geometry_safe: !touches_boundary && !reservation_changed && !scope_changed,
         }
     }
 

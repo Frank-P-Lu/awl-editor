@@ -317,163 +317,128 @@ fn mixed_latin_cjk_cell_transitions_stay_bounded() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// The reported `の「` seam, measured on all five bundled Japanese families at
-/// three zooms and both display densities. The opening bracket must shape in
-/// the same resolved face as the kana, receive the same ideographic-cell caret
-/// policy, and keep every horizontal consumer on the shaped advance. Moving
-/// focus away may remove the caret, but it may not reshape the line.
-#[test]
-fn japanese_opening_bracket_face_cell_and_horizontal_geometry_agree_across_matrix() {
-    let _guard = crate::testlock::serial();
-    let _restore = crate::testlock::misc::TogglesRestore::capture();
-    let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping Japanese punctuation geometry matrix: no wgpu adapter");
-        return;
-    };
-    crate::caret::set_mode(CaretMode::Block);
+type BracketMeasurement = (&'static str, f32, f32, f32, f32, f32, f32);
+
+fn measure_japanese_bracket_cell(
+    p: &mut TextPipeline,
+    world: &'static str,
+    expected_family: &str,
+    zoom: f32,
+    dpi: f32,
+) -> BracketMeasurement {
     let text = "の「文」へ";
-    let worlds = [
-        ("Paperbark", "Shippori Mincho"),
-        ("Saltpan", "Noto Serif JP"),
-        ("Currawong", "Noto Sans JP"),
-        ("Galah", "Zen Maru Gothic"),
-        ("Mopoke", "Klee One"),
-    ];
-    let mut cells = 0usize;
-    let mut measured = Vec::new();
+    let mut focused = view(text, 0, 1);
+    focused.zoom = zoom;
+    p.set_view(&focused);
+    p.settle_caret();
 
-    for &dpi in &[1.0f32, 2.0] {
-        p.set_dpi(dpi);
-        for &(world, expected_family) in &worlds {
-            theme::set_active_by_name(world).unwrap();
-            p.sync_theme();
-            for &zoom in &[0.8f32, 1.0, 1.6] {
-                let mut focused = view(text, 0, 1);
-                focused.zoom = zoom;
-                p.set_view(&focused);
-                p.settle_caret();
+    let xs = p.line_glyph_xs(0);
+    let advance = xs[2] - xs[1];
+    let key = p
+        .cursor_glyph_key_at(0, 1)
+        .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: bracket glyph"));
+    let actual_family = p
+        .font_system
+        .db()
+        .face(key.font_id)
+        .expect("bracket glyph face")
+        .families[0]
+        .0
+        .clone();
+    assert_eq!(actual_family, expected_family, "{world} z{zoom} d{dpi}");
+    assert!(
+        p.caret_anchor_ideographic_cell().is_some(),
+        "{world} z{zoom} d{dpi}: U+300C must use the CJK cell"
+    );
+    let font_size = p.metrics.font_size;
+    assert!(
+        advance >= font_size * 0.9 && advance <= font_size * 1.1,
+        concat!(
+            "{} z{:.1} d{:.0}: bracket advance {:.2} is not one ",
+            "ideographic cell around font size {:.2}"
+        ),
+        world,
+        zoom,
+        dpi,
+        advance,
+        font_size
+    );
 
-                let xs = p.line_glyph_xs(0);
-                let advance = xs[2] - xs[1];
-                let key = p
-                    .cursor_glyph_key_at(0, 1)
-                    .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: bracket glyph"));
-                let actual_family = p
-                    .font_system
-                    .db()
-                    .face(key.font_id)
-                    .expect("bracket glyph face")
-                    .families[0]
-                    .0
-                    .clone();
-                assert_eq!(actual_family, expected_family, "{world} z{zoom} d{dpi}");
-                assert!(
-                    p.caret_anchor_ideographic_cell().is_some(),
-                    "{world} z{zoom} d{dpi}: U+300C must use the CJK cell"
-                );
-                assert!(
-                    advance >= p.metrics.font_size * 0.9 && advance <= p.metrics.font_size * 1.1,
-                    "{world} z{zoom} d{dpi}: bracket advance {advance:.2} is not one ideographic cell around font size {:.2}",
-                    p.metrics.font_size
-                );
+    let bracket_ink = p
+        .caret_anchor_raster_box()
+        .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: bracket raster"));
+    let (caret_cx, _, caret_w, _, _, _, _) = p.caret_geometry();
+    let caret_left = caret_cx - caret_w * 0.5;
+    let bracket_cell_left = p.text_left() + xs[1];
+    let leading = bracket_ink.left;
+    let trailing = advance - bracket_ink.left - bracket_ink.width;
 
-                let bracket_ink = p
-                    .caret_anchor_raster_box()
-                    .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: bracket raster"));
-                let (caret_cx, _, caret_w, _, _, _, _) = p.caret_geometry();
-                let caret_left = caret_cx - caret_w * 0.5;
-                let bracket_cell_left = p.text_left() + xs[1];
-                let leading = bracket_ink.left;
-                let trailing = advance - bracket_ink.left - bracket_ink.width;
+    let (ime_x, ime_y, ime_w, ime_h) = p.caret_pixel_rect();
+    assert!((ime_x - bracket_cell_left).abs() < 1e-3);
+    assert!((ime_w - advance).abs() < 1e-3);
+    let (_, hit_col) = p.hit_test_scroll(
+        bracket_cell_left + advance * 0.25,
+        ime_y + ime_h * 0.5,
+        ScrollPos::default(),
+    );
+    assert_eq!(hit_col, 1, "{world} z{zoom} d{dpi}: bracket midpoint hit");
 
-                let (ime_x, ime_y, ime_w, ime_h) = p.caret_pixel_rect();
-                assert!((ime_x - bracket_cell_left).abs() < 1e-3);
-                assert!((ime_w - advance).abs() < 1e-3);
-                let (_, hit_col) = p.hit_test_scroll(
-                    bracket_cell_left + advance * 0.25,
-                    ime_y + ime_h * 0.5,
-                    ScrollPos::default(),
-                );
-                assert_eq!(hit_col, 1, "{world} z{zoom} d{dpi}: bracket midpoint hit");
+    let mut selected = view(text, 0, 2);
+    selected.zoom = zoom;
+    selected.selection = Some(((0, 1), (0, 2)));
+    p.set_view(&selected);
+    let selection = p.selection_rects();
+    assert_eq!(
+        selection.len(),
+        1,
+        "{world} z{zoom} d{dpi}: one selection row"
+    );
+    assert!((selection[0][0] - bracket_cell_left).abs() < 1e-3);
+    assert!((selection[0][2] - advance).abs() < 1e-3);
 
-                let mut selected = view(text, 0, 2);
-                selected.zoom = zoom;
-                selected.selection = Some(((0, 1), (0, 2)));
-                p.set_view(&selected);
-                let selection = p.selection_rects();
-                assert_eq!(
-                    selection.len(),
-                    1,
-                    "{world} z{zoom} d{dpi}: one selection row"
-                );
-                assert!((selection[0][0] - bracket_cell_left).abs() < 1e-3);
-                assert!((selection[0][2] - advance).abs() < 1e-3);
+    let mut composing = view("の文」へ", 0, 1);
+    composing.zoom = zoom;
+    composing.preedit = "「".to_string();
+    p.set_view(&composing);
+    let preedit = p.preedit_rects();
+    assert_eq!(preedit.len(), 1, "{world} z{zoom} d{dpi}: one preedit row");
+    assert!((preedit[0][0] - bracket_cell_left).abs() < 1e-3);
+    assert!((preedit[0][2] - advance).abs() < 1e-3);
 
-                // `ViewState::text` is the committed source; the renderer
-                // splices the preedit at the source caret and advances its
-                // effective caret to the provisional text's end.
-                let mut composing = view("の文」へ", 0, 1);
-                composing.zoom = zoom;
-                composing.preedit = "「".to_string();
-                p.set_view(&composing);
-                let preedit = p.preedit_rects();
-                assert_eq!(preedit.len(), 1, "{world} z{zoom} d{dpi}: one preedit row");
-                assert!((preedit[0][0] - bracket_cell_left).abs() < 1e-3);
-                assert!((preedit[0][2] - advance).abs() < 1e-3);
+    let mut unfocused = view(text, 0, 0);
+    unfocused.zoom = zoom;
+    p.set_view(&unfocused);
+    let unfocused_xs = p.line_glyph_xs(0);
+    assert_eq!(
+        unfocused_xs.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+        xs.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+        "{world} z{zoom} d{dpi}: focus must not reshape punctuation"
+    );
+    let kana_ink = p
+        .caret_anchor_raster_box()
+        .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: kana raster"));
+    let kana_ink_right = p.text_left() + xs[0] + kana_ink.left + kana_ink.width;
+    let visible_gap = caret_left - kana_ink_right;
+    (world, zoom, dpi, advance, leading, trailing, visible_gap)
+}
 
-                // Focus away from U+300C. Plain text has no focus-sensitive
-                // styling, so the face and every source-column boundary stay
-                // bit-identical.
-                let mut unfocused = view(text, 0, 0);
-                unfocused.zoom = zoom;
-                p.set_view(&unfocused);
-                let unfocused_xs = p.line_glyph_xs(0);
-                assert_eq!(
-                    unfocused_xs.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
-                    xs.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
-                    "{world} z{zoom} d{dpi}: focus must not reshape punctuation"
-                );
-                let kana_ink = p
-                    .caret_anchor_raster_box()
-                    .unwrap_or_else(|| panic!("{world} z{zoom} d{dpi}: kana raster"));
-                let kana_ink_right = p.text_left() + xs[0] + kana_ink.left + kana_ink.width;
-                let visible_gap = caret_left - kana_ink_right;
-                measured.push((world, zoom, dpi, advance, leading, trailing, visible_gap));
-                cells += 1;
-            }
-        }
-    }
-
-    assert_eq!(cells, worlds.len() * 3 * 2);
-    for row in measured {
-        eprintln!(
-            "U+300C world={} zoom={:.1} dpi={:.0} advance={:.2}px leading={:.2}px trailing={:.2}px kana-ink-to-caret={:.2}px",
-            row.0, row.1, row.2, row.3, row.4, row.5, row.6
-        );
-    }
-
-    // A narrow wrapped line exercises the same caret/IME/hit geometry after
-    // reflow. Every U+300C on later visual rows must still map to its shaped
-    // one-em cell; the font-routing change never edits the source.
+fn assert_wrapped_japanese_bracket_geometry(p: &mut TextPipeline) {
     p.set_dpi(1.0);
     p.set_size(320.0, 420.0);
     theme::set_active_by_name("Paperbark").unwrap();
     p.sync_theme();
     let wrapped = "日本語の「文」を静かに書く。".repeat(12);
     let source = wrapped.as_bytes().to_vec();
-    let bracket_cols: Vec<usize> = wrapped
+    let bracket_cols = wrapped
         .chars()
         .enumerate()
-        .filter_map(|(col, ch)| (ch == '「').then_some(col))
-        .collect();
+        .filter_map(|(col, ch)| (ch == '「').then_some(col));
     let mut saw_later_row = false;
     for col in bracket_cols {
         p.set_view(&view(&wrapped, 0, col));
         let rows = p.visual_rows(0);
         assert!(rows.len() > 1, "narrow fixture must wrap");
         let row = pick_row(&rows, col);
-        // VisualRow::xs is indexed by the logical line's global character
-        // column even for a wrapped continuation.
         let cell_x = p.text_left() + row.xs[col];
         let advance = row.xs[col + 1] - row.xs[col];
         let (ime_x, ime_y, ime_w, ime_h) = p.caret_pixel_rect();
@@ -496,6 +461,59 @@ fn japanese_opening_bracket_face_cell_and_horizontal_geometry_agree_across_matri
         source,
         "reflow never changes source bytes"
     );
+}
+
+/// The reported `の「` seam, measured on all five bundled Japanese families at
+/// three zooms and both display densities. Shaping, caret, hit, selection, IME,
+/// focus, and wrapped-line geometry must agree on the same one-em cell.
+#[test]
+fn japanese_opening_bracket_face_cell_and_horizontal_geometry_agree_across_matrix() {
+    let _guard = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping Japanese punctuation geometry matrix: no wgpu adapter");
+        return;
+    };
+    crate::caret::set_mode(CaretMode::Block);
+    let worlds = [
+        ("Paperbark", "Shippori Mincho"),
+        ("Saltpan", "Noto Serif JP"),
+        ("Currawong", "Noto Sans JP"),
+        ("Galah", "Zen Maru Gothic"),
+        ("Mopoke", "Klee One"),
+    ];
+    let mut cells = 0usize;
+    let mut measured = Vec::new();
+
+    for &dpi in &[1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        for &(world, expected_family) in &worlds {
+            theme::set_active_by_name(world).unwrap();
+            p.sync_theme();
+            for &zoom in &[0.8f32, 1.0, 1.6] {
+                measured.push(measure_japanese_bracket_cell(
+                    &mut p,
+                    world,
+                    expected_family,
+                    zoom,
+                    dpi,
+                ));
+                cells += 1;
+            }
+        }
+    }
+
+    assert_eq!(cells, worlds.len() * 3 * 2);
+    for row in measured {
+        eprintln!(
+            concat!(
+                "U+300C world={} zoom={:.1} dpi={:.0} advance={:.2}px ",
+                "leading={:.2}px trailing={:.2}px kana-ink-to-caret={:.2}px"
+            ),
+            row.0, row.1, row.2, row.3, row.4, row.5, row.6
+        );
+    }
+    assert_wrapped_japanese_bracket_geometry(&mut p);
 
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);

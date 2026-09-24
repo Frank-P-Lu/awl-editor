@@ -29,8 +29,10 @@
 //! Pure + deterministic (no clock, no I/O) — every function here is a plain
 //! `&str`/`char` -> value transform, unit-testable with no GPU/buffer/theme.
 
+mod context;
 mod evidence;
 
+pub use context::contextual_script_at;
 pub(crate) use evidence::{EvidenceCounts, LineEvidence, line_evidence};
 pub use evidence::{cjk_evidence, effective_cjk_priority};
 
@@ -101,49 +103,6 @@ pub fn classify_char(c: char) -> Option<Script> {
         0xFF66..=0xFF9F => Some(Script::Kana), // halfwidth katakana + voiced marks
         _ => None,
     }
-}
-
-/// Resolve the CJK script role at `byte` with the nearest textual context.
-/// Strong script characters return their own class. A CJK-common punctuation
-/// run first inherits the strong script immediately outside that run on the
-/// left, then on the right; Latin/whitespace at an edge blocks inheritance on
-/// that side. An isolated punctuation run remains [`Script::Common`] so the
-/// caller can use document tag/evidence, or leave it in the base display face
-/// when a Latin-only document supplies neither.
-///
-/// This is the one contextual owner shared by shaping and the caret. `byte`
-/// must be a scalar boundary in `text`; a non-boundary or non-CJK byte returns
-/// `None`.
-pub fn contextual_script_at(text: &str, byte: usize) -> Option<Script> {
-    let ch = text.get(byte..)?.chars().next()?;
-    let classified = classify_char(ch)?;
-    if classified != Script::Common {
-        return Some(classified);
-    }
-
-    let left = text[..byte]
-        .chars()
-        .rev()
-        .find_map(|candidate| match classify_char(candidate) {
-            Some(Script::Common) => None,
-            Some(script) => Some(Some(script)),
-            None => Some(None),
-        })
-        .flatten();
-    if left.is_some() {
-        return left;
-    }
-
-    let after = byte + ch.len_utf8();
-    let right = text[after..]
-        .chars()
-        .find_map(|candidate| match classify_char(candidate) {
-            Some(Script::Common) => None,
-            Some(script) => Some(Some(script)),
-            None => Some(None),
-        })
-        .flatten();
-    right.or(Some(Script::Common))
 }
 
 /// Maximal contiguous byte ranges sharing the SAME classified [`Script`]
@@ -383,26 +342,6 @@ mod tests {
     fn common_punctuation_is_not_document_language_evidence() {
         let _guard = crate::testlock::serial();
         assert_eq!(dominant_cjk("「」、。！？"), None);
-    }
-
-    #[test]
-    fn common_punctuation_inherits_only_immediate_cjk_context() {
-        let _guard = crate::testlock::serial();
-        let cases = [
-            ("の「", 3, Script::Kana),
-            ("「の", 0, Script::Kana),
-            ("这「", 3, Script::Han),
-            ("「國", 0, Script::Han),
-            ("한「", 3, Script::Hangul),
-            ("「한", 0, Script::Hangul),
-            ("漢「」", 3, Script::Han),
-            ("「」漢", 0, Script::Han),
-        ];
-        for (text, byte, want) in cases {
-            assert_eq!(contextual_script_at(text, byte), Some(want), "{text:?}");
-        }
-        assert_eq!(contextual_script_at("latin「only", 5), Some(Script::Common));
-        assert_eq!(contextual_script_at("「", 0), Some(Script::Common));
     }
 
     #[test]

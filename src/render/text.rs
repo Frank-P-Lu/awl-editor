@@ -942,7 +942,6 @@ impl TextPipeline {
         // base so the glyphs grow with the row. Non-heading lines get scale 1.0,
         // i.e. the byte-identical plain base.
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
-        let md = self.md_enabled;
         let doc_lang = self.doc_lang;
         let cjk_priority =
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
@@ -950,7 +949,7 @@ impl TextPipeline {
             base: &attrs,
             base_font_size: base_fs,
             base_line_height: base_lh,
-            md,
+            md: self.md_enabled,
             md_spans: &md_spans,
             syn_spans: &syn_spans,
             doc_lang,
@@ -999,7 +998,7 @@ impl TextPipeline {
             (change.prefix, change.old_end, change.new_end),
             line_attrs,
         );
-        self.outline_headings = if md {
+        self.outline_headings = if self.md_enabled {
             crate::markdown::headings_from_spans(text, &md_spans)
         } else {
             Vec::new()
@@ -1075,7 +1074,6 @@ impl TextPipeline {
         let cjk_priority =
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
-        let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
         let image_heights = std::mem::take(&mut self.image_heights);
@@ -1100,7 +1098,7 @@ impl TextPipeline {
             base: &attrs,
             base_font_size: base_fs,
             base_line_height: base_lh,
-            md,
+            md: self.md_enabled,
             md_spans: &md_spans,
             syn_spans: &syn_spans,
             doc_lang,
@@ -1159,9 +1157,9 @@ impl TextPipeline {
             self.last_conceal_selection = self.selection;
             return;
         }
-        // GATE: caret-line or selection changes can toggle conceal; pure scroll and
-        // idle redraw cannot. `force` covers reshapes, which drop attrs. Comparing
-        // the WHOLE selection makes same-line start/end/clear changes re-run the
+        // GATE: caret-line or selection changes can toggle conceal; scroll/idle cannot.
+        // `force` covers reshapes, which drop attrs. The WHOLE selection makes
+        // same-line start/end/clear changes re-run the
         // idempotent rescan rather than risk a missed reveal transition.
         if !force
             && self.last_conceal_cursor_line == Some(self.cursor_line)
@@ -1190,7 +1188,6 @@ impl TextPipeline {
         let cjk_priority =
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
-        let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
         let mut image_heights = std::mem::take(&mut self.image_heights);
@@ -1201,7 +1198,7 @@ impl TextPipeline {
             base: &attrs,
             base_font_size: base_fs,
             base_line_height: base_lh,
-            md,
+            md: self.md_enabled,
             md_spans: &md_spans,
             syn_spans: &syn_spans,
             doc_lang,
