@@ -7,11 +7,9 @@
 ## Open build and design tasks
 
 **13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 666 and 667.
+661, 662, 664, 665, 666, 667, and 669.
 
-Queued work: releases 662–663, live-input investigation 664 and Japanese-input
-Files repair 665, Japanese emphasis design investigation 668, and Japanese
-bracket/caret spacing 669.
+Queued work: release 663 and Japanese emphasis design investigation 668.
 
 Release constraint decided by the user on 2026-09-24: each public, installable
 app download must be strictly smaller than 50,000,000 bytes. Measure the final
@@ -428,12 +426,14 @@ Only then queue or implement the chosen default.
 
 ### 669 — investigate the opening-bracket gap under the caret (user screenshot, 2026-09-24)
 
-⚪ QUEUED — in the supplied Japanese Paperbark screenshot, the visible gap
-between `の` and the focused `「` reads much too large to the user. The settled
-block caret appears to cover the narrow bracket ink while leaving its leading
-space bare. The screenshot alone does not establish whether that space is the
-font's full-width punctuation sidebearing, a separate shaping adjustment, or a
-caret-position error. Do not copy the private screenshot into the public repo.
+🟡 IN PROGRESS — /root/bracket_669_analysis (codex), branch
+`codex/669-cjk-punctuation`. In the supplied Japanese Paperbark screenshot,
+the visible gap between `の` and the focused `「` reads much too large to the
+user. The settled block caret appears to cover the narrow bracket ink while
+leaving its leading space bare. The screenshot alone does not establish whether
+that space is the font's full-width punctuation sidebearing, a separate shaping
+adjustment, or a caret-position error. Do not copy the private screenshot into
+the public repo.
 
 Reproduce with a disposable seeded document. Measure glyph advance and ink
 bounds for `の「`, the caret's full geometry, and the visible gap both with and
