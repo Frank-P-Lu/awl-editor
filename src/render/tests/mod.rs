@@ -157,7 +157,11 @@ mod hud;
 mod hybrid_band_snap;
 mod images;
 mod insert_link_field;
+/// Reads font metadata through native-only `ttf_parser` test tooling.
+#[cfg(not(target_arch = "wasm32"))]
 mod japanese_bold_assets;
+/// Requires the native headless GPU harness for pixel comparisons.
+#[cfg(not(target_arch = "wasm32"))]
 mod japanese_bold_pixels;
 mod layout_oracle;
 mod list_surfaces;
