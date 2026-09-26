@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, 667, and 669. Taste decision owed: 668.
+**14 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
+661, 662, 664, 665, 666, 667, 669, and 670. Taste decision owed: 668.
 
 Queued work: release 663.
 
@@ -466,6 +466,23 @@ choice back to the user. Do not add a Paperbark-specific renderer branch.
 The font mismatch and document-evidence cache defect are fixed across the shared
 renderer. The remaining 15 px Paperbark kana-to-caret gap is a measured font
 sidebearing/caret-width taste decision; current ink-hugging fill is unchanged.
+
+---
+
+### 670 — scroll the compact working set directly (user decision, 2026-09-26)
+
+🟡 IN PROGRESS — /root (codex), branch `codex/670-direct-working-set-scroll`.
+The compact margin currently hides overflow behind a clickable `+ N more…`
+row. Replace that step with wheel/trackpad scrolling over the compact list
+itself. Keep a bounded footprint, active-file visibility on activation, stable
+ordering, and click/close/drag targeting of the rows actually drawn. Every
+open file, including one under another remembered root, must be reachable by
+scroll without opening a second panel. Make the root of a cross-folder file
+legible. Audit the row projection, hit testing, pointer and keyboard routes,
+headless App capture, and live scrolling. Add a regression law that fails with
+the old button-only behavior and verify it alongside neighboring one-file,
+many-file, cross-root and narrow-margin states. Remove this item after the
+combined candidate lands and passes its required gates.
 
 ---
 
