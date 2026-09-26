@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, 667, 669, and 670. Taste decision owed: 668.
+**12 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
+661, 662, 664, 665, 666, and 669. Taste decision owed: 668.
 
 Queued work: release 663.
 
@@ -249,9 +249,10 @@ the tag from the candidate's actual version rather than assuming that number
 will remain current. Publish the Linux x86_64 AppImage and tarball alongside the
 signed, notarized macOS DMG from the same tag. Keep the browser demo on its
 separate site deployment path; a zipped workflow artifact is not its main
-distribution. Depends on 667 for usable Japanese bold within the decided size
-limit; measure each final, public app download in bytes and refuse publication
-if any is 50,000,000 bytes or more.
+distribution. Real Japanese bold landed at `2dfb6a9e`; the local arm64 release
+binary gzips to 42,970,158 bytes, which is not a packaged download. Measure
+each final, public app download in bytes and refuse publication if any is
+50,000,000 bytes or more.
 
 Work the exact-commit pre-tag checklist in `RELEASING.md`, including native and
 wasm gates, audit, profile parity, dry run, checksums, release notes and current
@@ -364,37 +365,6 @@ taste choice.
 
 ---
 
-### 667 — render real Japanese bold within the download cap (user decision, 2026-09-24)
-
-🟡 IN PROGRESS — /root/japanese_bold (codex), branch `codex/667-japanese-bold`.
-Japanese bold is essential to the user's writing experience. At
-present `**bold**` parses and persists but per-script spans pin Japanese glyphs
-to Regular, because the five bundled Japanese families have only regular cuts.
-The user decided that every public installable app download must remain below
-50,000,000 bytes. Do not solve the size constraint by leaving Japanese bold
-visually inert or requiring a runtime font download.
-
-Build: obtain licensed real bold companions for the Japanese faces used by the
-world roster, retaining each world's character and script coverage; register
-and resolve the actual weight for Markdown emphasis and any bold heading role.
-Keep regular Japanese and mixed Latin/Japanese spans stable, preserve plain-text
-bytes and undo, and avoid synthetic weight, tofu, or a surprise font-family
-change. If a family lacks a suitable bold cut, establish the least disruptive
-fallback with matched captures and bring a material taste conflict to the user.
-
-Measure font bytes, the release binary and final compressed macOS/Linux artifacts
-before and after on a reproducible candidate. The current five Japanese regular
-fonts occupy 17.2 MiB raw and 9.7 MiB as a standalone ZIP; those are an estimate
-anchor, not proof of the resulting release size. A local single-architecture
-release binary gzipped to 32.5 MB; that does not establish universal-DMG or
-AppImage headroom. Prefer measured font/packaging reductions that preserve
-Japanese bold and offline use. Add shaping and rendered-pixel laws for Japanese
-bold in each face family, mixed-script text and zoom/DPI; confirm visible
-weight difference in native captures. Item 663 may release only after the actual
-download artifacts satisfy the strict cap.
-
----
-
 ### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
 
 🔵 OWED — prototype study `9f28df85` on branch
@@ -402,10 +372,9 @@ download artifacts satisfy the strict cap.
 currently keeps the regular upright face, so the styling can disappear even
 though the Markdown remains intact. The user wants to compare treatments
 before deciding whether emphasis dots belong in awl. This is a design
-investigation, not approval to ship dots. Coordinate with 667's real Japanese
-`**bold**` work so the two
-Markdown roles remain visually distinct and both respect the
-under-50,000,000-byte download limit.
+investigation, not approval to ship dots. Compare against the landed real
+Japanese `**bold**` so the two Markdown roles remain visually distinct and
+respect the under-50,000,000-byte download limit.
 
 Prototype in awl with disposable text and real native captures, not an HTML
 mockup. Compare at least: small emphasis dots above Japanese glyphs; a related
@@ -466,23 +435,6 @@ choice back to the user. Do not add a Paperbark-specific renderer branch.
 The font mismatch and document-evidence cache defect are fixed across the shared
 renderer. The remaining 15 px Paperbark kana-to-caret gap is a measured font
 sidebearing/caret-width taste decision; current ink-hugging fill is unchanged.
-
----
-
-### 670 — scroll the compact working set directly (user decision, 2026-09-26)
-
-🟡 IN PROGRESS — /root (codex), branch `codex/670-direct-working-set-scroll`.
-The compact margin currently hides overflow behind a clickable `+ N more…`
-row. Replace that step with wheel/trackpad scrolling over the compact list
-itself. Keep a bounded footprint, active-file visibility on activation, stable
-ordering, and click/close/drag targeting of the rows actually drawn. Every
-open file, including one under another remembered root, must be reachable by
-scroll without opening a second panel. Make the root of a cross-folder file
-legible. Audit the row projection, hit testing, pointer and keyboard routes,
-headless App capture, and live scrolling. Add a regression law that fails with
-the old button-only behavior and verify it alongside neighboring one-file,
-many-file, cross-root and narrow-margin states. Remove this item after the
-combined candidate lands and passes its required gates.
 
 ---
 
