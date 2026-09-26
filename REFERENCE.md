@@ -375,7 +375,7 @@ whichever line the caret is on.
 <!-- GENERATED:reference-markdown:BEGIN -->
 ### Constructs
 
-The file stays plain text. Only the render changes. The Supported Markdown guide has full syntax and portability notes.
+The file stays plain text. Only its appearance changes.
 
 | Construct | Written as |
 |---|---|

@@ -96,3 +96,71 @@ Performance claims require release before/after measurements and counters at the
 work owner. Report remaining full-document work and latency boundaries honestly.
 Infrastructure should make these guarantees easier to establish, not replace them
 with procedural counts. Releases and tags still require explicit user authorization.
+
+## Outcome audits
+
+Audit agents use Sonnet medium on Claude or `gpt-5.6-terra` at `medium` on OpenAI.
+Enumerate state × surface × world along the changed axis, asserting outcomes per
+cell using pixels and sidecars. Required triggers:
+
+- A new axis value: probe the full surface roster.
+- An identity-gated refactor: audit outcomes; byte identity preserves existing bugs.
+- A user-reported bug: audit neighboring states and surfaces.
+- A degradation arm: probe that state, name its compensation, and law-test it.
+- Pre-tag: sweep journeys across worlds.
+
+Every render-touching round gets a visual smoke over about five gallery shots,
+using affordance-locating questions such as “which row is selected?” An audit that
+finds a defect ends with the missing law test.
+
+## Test globals and GPU evidence
+
+Every test and every `cfg(test)` global reader/writer takes the one process-wide
+reentrant `crate::testlock::serial()` guard. Do not reintroduce ordered per-module
+locks. `config::ENV_LOCK` separately serializes environment mutation. The guard
+restores snapshotted state, including forced render overrides, even during unwind.
+`capture::sidecar::write_sidecar`, filesystem globals, and `test_gpu::arrive` assert
+ownership in tests.
+
+The shared GPU is mutable global state even when a caller only borrows handles.
+The guard must outlive the resources, including their destructors; a helper-local
+lock cannot protect returned resources. Use `test_gpu::adapter_present()` for an
+adapter skip check before taking the guard. A privately created device is outside
+this shared-device rule, but cannot supply another device's counter baseline.
+Investigate filtered runs as well as full runs when diagnosing counter races.
+
+Restore captured ambient values, not values inferred from `cfg!(target_os = …)`.
+The native gate's `menubar-full` arm runs every binary unit test under the opposite
+`AWL_MENU_BAR_FORCE` branch and records `menubar=full:<branch>`. A name filter is
+not a substitute. Set environment variables explicitly in script laws and sweep
+both CI and non-CI behavior; inherited environment is an uncontrolled test input.
+
+GPU allocation laws use `gpu_alloc::probe` on the actual device and assert only
+classes whose counters respond. In wgpu-hal 29.0.3, Vulkan texture counters can
+walk negative because normal creation does not increment them; `CoreCounters` is
+empty. Prove cross-backend claims on a second backend. Software Vulkan does not
+stand in for hosted virtualised Metal. The hosted macOS build/test job gates main;
+the separate `render::tests` job is tolerated red as declared in the workflow.
+
+## Laws must detect their subject
+
+Derive enrollment from the roster, assert that it is nonempty and independent of
+configuration, and name enrolled cases in failures. Check that the assertion would
+reject the actual broken state. Appearance treatments need a presence floor as
+well as a contrast floor: deleting a selection wash must not improve its score.
+Sweep relevant DPI, geometry, backend, entry point, test filter, and environment
+branches. A law's configuration is part of its claim.
+
+Validate defect reports against the product and the measurement tool's actual
+behavior, including dependency filtering and host tool differences. If the premise
+is false, report “premise false, oracle repaired,” not “fixed.” Read values for
+human taste decisions from the product rather than an agent's report. Spot-check
+generated references against the code they describe, probing both sides of any
+condition the generator collapsed.
+
+Performance evidence uses release `--bench-perf`, `--bench-frame`, or
+`--bench-theme-burst` as appropriate, with a base measurement and counters proving
+the intended work ran. Headless paths remain deterministic, without clock,
+animation, or randomness; live animation captures its settled state. When replay
+passes but live behavior fails, check buffer-swap caches, resize/page-drag
+invalidation, and redraw scheduling.

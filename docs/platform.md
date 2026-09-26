@@ -131,3 +131,18 @@
 
 - Palette "Check for Updates" (native_only). **The binary never makes a network request** — it records a local `last-update-check` marker and hands `/check?v=<version>` off to the OS browser (the same `App::follow_link` seam as "Report a Problem"). The site compares against its own same-origin `version.json` (generated at deploy, never committed).
 - The About card gains a quiet "checked … ago" line (`sync_update_checked`, mirrors `HudSaved`). Headless: field stays `None` → fixed `"checked —"` placeholder; `Effect::CheckForUpdates` is a headless no-op. A startup/ambient check was rejected (dilutes zero-network, is launch telemetry by another name).
+
+## Live GPU probe validity
+
+Keep soak windows foregrounded: without `NSWindowOcclusionStateVisible`, wgpu
+returns Occluded before `nextDrawable()`, with zero acquisitions and presentations.
+A locked or sleeping display has the same effect. Successful `LIVE-PROBE shot`
+messages do not establish that frames were presented. Check the screen lock at
+both ends of every live run, not only at `live-probe.sh` preflight:
+
+```sh
+ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked
+```
+
+No result means unlocked. `caffeinate -d -i -t <seconds>` prevents sleep but cannot
+unlock the screen; ask the user to unlock it when necessary.

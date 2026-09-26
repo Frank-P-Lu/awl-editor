@@ -278,7 +278,7 @@ impl BackgroundPipeline {
         pass.draw(0..3, 0..1);
         if self.shader == 10 {
             pass.set_pipeline(&self.tunnel_pipeline);
-            pass.draw(0..6, 0..10_528);
+            pass.draw(0..6, 0..24_576);
         }
     }
 }

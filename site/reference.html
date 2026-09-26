@@ -34,10 +34,8 @@
   <!-- ====================== REFERENCE ====================== -->
   <!-- Every table between a GENERATED:reference-*:BEGIN/END marker pair is
        emitted by src/reference/ from awl's own rosters and diffed byte-for-byte
-       against them by src/reference/law.rs. This page is NOT a hand-mirror of
-       REFERENCE.md (the accepted drift risk guide.html carries against
-       GUIDE.md): it is the same rows through an HTML emitter, so the two
-       documents cannot disagree about a fact. Do not edit a table here —
+       against them by src/reference/law.rs. REFERENCE.md uses the same rows
+       through a Markdown emitter. Do not edit a table here —
        run scripts/regen-reference.sh.
 
        The sidebar between the reference-nav markers is generated the same
@@ -55,15 +53,7 @@
       <h2 class="section-title" style="margin-bottom:1.5rem">Every command, key, setting, world, and construct.</h2>
 
       <div class="credits-body">
-        <p>Nothing on this page is transcribed by hand. Each table is built from
-        the same roster the running app reads, and a test rebuilds every table
-        on each run and fails if this page differs by a byte.</p>
-        <p><a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/REFERENCE.md">REFERENCE.md</a>
-        is the same reference as a file in the repository.
-        <a href="/supported-markdown.html">Supported Markdown</a> gives the
-        fuller syntax guide.
-        <a href="/guide.html">The guide</a> explains how awl's pieces fit
-        together and is a separate document.</p>
+        <p>Commands, keyboard shortcuts, settings, and Markdown syntax.</p>
 
         <div class="ref-layout">
 <!-- GENERATED:reference-nav:BEGIN -->
@@ -443,11 +433,7 @@
         <section class="ref-section" id="worlds">
         <h2>Worlds</h2>
         <p>A world is a complete visual environment: ground, ink ladder, display
-        face, mono face, section-break ornament, and background.
-        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/THEMES.md">THEMES.md</a>
-        states the laws a world must satisfy;
-        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/WORLDS.md">WORLDS.md</a>
-        describes each world's flavour.</p>
+        face, mono face, section-break ornament, and background.</p>
 <!-- GENERATED:reference-worlds:BEGIN -->
 <p class="note">The default world is Saltpan. `--list-worlds` prints this roster; `--theme &lt;World&gt;` selects one for a single run.</p>
 <div class="table-scroll">
@@ -488,7 +474,7 @@
         markdown on whichever line the caret is on.</p>
 <!-- GENERATED:reference-markdown:BEGIN -->
 <h3 id="markdown-constructs">Constructs</h3>
-<p class="note">The file stays plain text. Only the render changes. The Supported Markdown guide has full syntax and portability notes.</p>
+<p class="note">The file stays plain text. Only its appearance changes.</p>
 <div class="table-scroll">
 <table>
 <thead>
@@ -517,6 +503,134 @@
 </table>
 </div>
 <!-- GENERATED:reference-markdown:END -->
+<!-- GENERATED:supported-markdown:BEGIN -->
+<p>awl keeps documents as ordinary plain text. This page describes the syntax awl renders; unsupported syntax remains editable text. It does not promise parity with an unnamed Markdown dialect.</p>
+<h2>Syntax awl renders</h2>
+<section class="markdown-construct">
+<h3>ATX headings</h3>
+<pre><code class="language-markdown"># Heading
+## Subheading</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A six-level heading ladder with larger type.</td><td>The caret or a selection on the line shows its # markers.</td><td>Heading; Cycle heading</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Bold, italic, and bold italic</h3>
+<pre><code class="language-markdown">**bold** and *italic* and ***both***</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Weighted or italic text.</td><td>The caret or a selection on the line shows the delimiters.</td><td>Bold; Italic</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Inline code</h3>
+<pre><code class="language-markdown">Use `code` here.</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Monospace text with a quiet pill.</td><td>The caret or a selection on the line shows the backticks.</td><td>Inline code</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Fenced code blocks</h3>
+<pre><code class="language-markdown">```rust
+let answer = 42;
+```</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A monospace block panel. Recognised language tags add quiet syntax roles.</td><td>The caret anywhere in the block, or a selection touching it, shows its fences and language tag.</td><td>Code block</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Indented code blocks</h3>
+<pre><code class="language-markdown">    plain code</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A plain monospace code block.</td><td>Its source remains visible; it has no fence to conceal.</td><td>—</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Blockquotes</h3>
+<pre><code class="language-markdown">&gt; quoted text</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Quiet quoted text with a hanging quotation mark.</td><td>The caret or a selection on the line shows the &gt; marker.</td><td>Blockquote</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Bulleted and numbered lists</h3>
+<pre><code class="language-markdown">- first
+- second
+
+1. one
+2. two</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A list with quiet markers.</td><td>The caret or a selection on a line shows its marker.</td><td>Bullet list; Numbered list</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Task lists</h3>
+<pre><code class="language-markdown">- [ ] open
+- [x] done</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Open and completed task markers; completed text recedes.</td><td>The source remains editable on its line.</td><td>Task list</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Inline links</h3>
+<pre><code class="language-markdown">[awl](https://awl-editor.fly.dev)</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Link text in the document ink, with a quiet baseline underline.</td><td>The caret or a selection on the line shows brackets and destination.</td><td>Insert link…</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Images</h3>
+<pre><code class="language-markdown">![A description](image.png)</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A local image when inline images are enabled; otherwise its source stays visible.</td><td>The caret or a selection on the line overlays editable source on a dimmed image.</td><td>Paste can insert an image reference</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>YAML frontmatter</h3>
+<pre><code class="language-markdown">---
+title: A note
+lang: en
+---</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Metadata is hidden away from the block when WYSIWYG is on.</td><td>The caret anywhere in the block, or a selection touching it, reveals the whole block.</td><td>Tag document language</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Thematic breaks</h3>
+<pre><code class="language-markdown">---</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A centred section-break ornament.</td><td>The caret or a selection on the line shows the typed break.</td><td>—</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Tables</h3>
+<pre><code class="language-markdown">| Name | Value |
+| --- | --- |
+| awl | editor |</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A composed grid; header cells and structure stay legible.</td><td>The caret row, or rows touched by a selection, show their source over the grid.</td><td>Align table</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Highlight</h3>
+<pre><code class="language-markdown">==highlighted text==</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Full-ink text on a warm highlighter wash.</td><td>The caret or a selection on the line shows the == delimiters.</td><td>Highlight</td><td>awl-specific extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Strikethrough</h3>
+<pre><code class="language-markdown">~~removed text~~</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Receding text with a strike line.</td><td>The caret or a selection on the line shows the ~~ delimiters.</td><td>Strikethrough</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Footnotes</h3>
+<pre><code class="language-markdown">A note[^source]
+
+[^source]: Its text</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A quiet superscript reference and a composed numbered definition.</td><td>The caret or a selection on the line shows the exact label, marker, and indentation.</td><td>Insert footnote</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Bare URLs</h3>
+<pre><code class="language-markdown">See https://example.com/track?utm_source=x for details.</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>The domain, followed by a quiet ellipsis when a path or query is hidden, both carrying the same quiet baseline underline as an inline link. A URL with nothing past its domain shows in full, with no ellipsis.</td><td>The caret or a selection on the line shows the full address.</td><td>—</td><td>awl-specific extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Smart dashes and ellipsis</h3>
+<pre><code class="language-markdown">double -- dash, triple --- dash, and an ellipsis...</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>An en dash, an em dash, and a horizontal ellipsis.</td><td>The caret or a selection on the line shows the literal dashes or dots.</td><td>—</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<h2>Not supported / deliberately different</h2>
+<section class="markdown-construct">
+<h3>Setext headings</h3>
+<pre><code class="language-markdown">A heading
+---</code></pre>
+<p>Not a heading in awl. A run of three or more dashes renders as a thematic break.</p>
+</section>
+<section class="markdown-construct">
+<h3>Reference-style links</h3>
+<pre><code class="language-markdown">[text][key]
+
+[key]: https://example.com</code></pre>
+<p>No special link preview. The source remains editable text.</p>
+</section>
+<section class="markdown-construct">
+<h3>Raw HTML</h3>
+<pre><code class="language-markdown">&lt;mark&gt;text&lt;/mark&gt;</code></pre>
+<p>No HTML rendering. The source remains editable text.</p>
+</section>
+<!-- GENERATED:supported-markdown:END -->
         </section>
 
         <section class="ref-section" id="command-line">
@@ -636,13 +750,8 @@
     <div class="wrap">
       <p class="foot-mark">awl</p>
       <nav class="foot-links">
-        <a href="https://github.com/Frank-P-Lu/awl-editor">GitHub</a>
         <a href="/editor/">Try the editor</a>
-        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md">Philosophy</a>
-        <a href="/guide.html">Guide</a>
         <a href="/reference.html">Reference</a>
-        <a href="/supported-markdown.html">Supported Markdown</a>
-        <a href="/themes.html">Worlds</a>
       </nav>
       <p class="foot-meta">
         GPL-3.0<span class="sep">·</span>by Frank Lu<span class="sep">·</span>zero-network (native)<span class="sep">·</span>built in Rust on wgpu

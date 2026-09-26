@@ -1,14 +1,11 @@
 //! src/save_model_law.rs — THE SAVE-MODEL PROSE LAW.
 //!
-//! `docs_catalog_law.rs` next door pins the site guide's CHORDS and COMMAND
-//! NAMES to the live catalog, and `keytoken.rs` does the same for the markdown
-//! docs through their `{{key:}}` / `{{cmd:}}` tokens. Neither can see the thing
-//! pinned here: the running prose that states what saving DOES.
+//! Key tokens verify command labels; these laws verify what saving does.
 //!
 //! That prose is where the expensive drift lives. A sentence promising that a
 //! manual save force-writes over an outside change, or offering a "reopen"
 //! path, cites no chord and no command name — so it survives every existing
-//! law, on all three surfaces at once, for as long as nobody rereads it.
+//! law, on every enrolled surface at once, for as long as nobody rereads it.
 //!
 //! So the two laws below pin it from BOTH ends. The retired promise may not
 //! reappear anywhere; and the vocabulary that replaced it must be the
@@ -19,15 +16,12 @@
 
 use crate::commands;
 
-/// The three docs that state awl's save model to a user. Each spells the same
-/// facts its own way — Markdown cites chords through `{{key:}}` tokens, the
-/// static site hand-types the glyph — so only the vocabulary is asserted here,
-/// never the sentence.
-fn save_model_docs() -> [(&'static str, &'static str); 3] {
+/// Authored documents that state the save model. Assert shared vocabulary,
+/// while allowing each document to explain the behavior in its own words.
+fn save_model_docs() -> [(&'static str, &'static str); 2] {
     [
         ("GUIDE.md", crate::embedded_docs::GUIDE_MD),
         ("samples/welcome.md", crate::embedded_docs::WELCOME_MD),
-        ("site/guide.html", crate::embedded_docs::SITE_GUIDE_HTML),
     ]
 }
 

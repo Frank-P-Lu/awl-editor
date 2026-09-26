@@ -10,8 +10,8 @@ light/dark).
 ```
 site/
   index.html      the landing page (single document, links style.css)
+  reference.html  commands, settings, and Markdown syntax
   themes.html     generated public gallery of every product world
-  guide.html      the user guide page
   credits.html    third-party assets and dependencies
   check.html      the "Check for updates" page
   style.css       all styles — tokens lifted from DESIGN.md's ink ladder + amber
@@ -40,13 +40,13 @@ installs the default world's 32px asset here. Do not edit it by hand.
    (no signed build yet), and the web-editor route for Windows, under an
    unpack-and-run note with the checksum and runtime-library facts.
 
-Human navigation is deliberately limited to GitHub, Try, Philosophy, and Guide.
+Human navigation is limited to Try and Reference.
 `llms.txt` remains available to machines but is not linked from human pages.
 
 ### Social image (`img/social.png`)
 
 `img/social.png` is the Open Graph / Twitter Card image for every hand-authored
-page (`index.html`, `guide.html`, `credits.html`, `check.html`), wired via each
+page (`index.html`, `credits.html`, `check.html`), wired via each
 page's `og:image`/`twitter:image` meta. It is a real headless capture, not an
 HTML mockup — produced by `scripts/hero-image.sh` from `scripts/hero-specimen.md`
 (the Firetail "write Markdown / now with lava lamps" composition), rendered

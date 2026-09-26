@@ -69,6 +69,7 @@ fn nav_hrefs(page: &str) -> Vec<String> {
 /// normalised to root-relative so the two copies can be compared as written.
 #[test]
 fn every_site_page_offers_the_same_navigation() {
+    let _guard = crate::testlock::serial();
     let pages = site_pages();
     let mut reference: Option<(String, Vec<String>)> = None;
     for (name, text) in &pages {
@@ -97,6 +98,7 @@ fn every_site_page_offers_the_same_navigation() {
 /// the requirement the user stated in so many words.
 #[test]
 fn the_reference_is_reachable_from_every_site_page() {
+    let _guard = crate::testlock::serial();
     for (name, text) in site_pages() {
         assert!(
             nav_hrefs(&text)
@@ -107,24 +109,11 @@ fn the_reference_is_reachable_from_every_site_page() {
     }
 }
 
-/// The detailed Markdown guide is a first-class documentation destination,
-/// not a link hidden only inside the large Reference page.
-#[test]
-fn supported_markdown_is_reachable_from_every_site_page() {
-    for (name, text) in site_pages() {
-        assert!(
-            nav_hrefs(&text)
-                .iter()
-                .any(|h| h.ends_with("supported-markdown.html")),
-            "site/{name} does not link to Supported Markdown"
-        );
-    }
-}
-
 /// `site/llms.txt` is a third enumeration of awl's documents. It goes stale the
 /// moment a document exists that it does not name.
 #[test]
 fn llms_txt_names_the_reference() {
+    let _guard = crate::testlock::serial();
     let txt = std::fs::read_to_string(site_dir().join("llms.txt")).expect("site/llms.txt");
     assert!(
         txt.contains("REFERENCE.md"),
@@ -135,6 +124,7 @@ fn llms_txt_names_the_reference() {
 
 #[test]
 fn readme_and_llms_name_supported_markdown() {
+    let _guard = crate::testlock::serial();
     let llms = std::fs::read_to_string(site_dir().join("llms.txt")).expect("site/llms.txt");
     assert!(
         llms.contains("SUPPORTED-MARKDOWN.md"),
@@ -159,6 +149,7 @@ fn readme_and_llms_name_supported_markdown() {
 /// `trunk build`) and its emitted scratch-assembly editor page.
 #[test]
 fn every_authored_site_page_carries_the_same_analytics_beacon() {
+    let _guard = crate::testlock::serial();
     let pages = site_pages();
     let beacon = "src=\"//gc.zgo.at/count.js\"";
     let code = "data-goatcounter=\"https://fluflu.goatcounter.com/count\"";

@@ -2,10 +2,7 @@
 //! (`super::rows`), rendered as GFM markdown for `REFERENCE.md` and as HTML for
 //! `site/reference.html`.
 //!
-//! There is deliberately no third path: the site copy is not a hand-mirror of
-//! the markdown (the accepted-drift arrangement `site/guide.html` carries
-//! against `GUIDE.md`), it is the SAME rows through a different emitter, so the
-//! two documents cannot disagree about a fact even in principle.
+//! Both documents use the same rows through different emitters.
 
 /// One table cell. The distinction matters to the emitters, not to the rows:
 /// [`Cell::Code`] becomes a backtick span in markdown and a `<code>` element in

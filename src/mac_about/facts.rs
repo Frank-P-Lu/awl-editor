@@ -41,7 +41,7 @@ pub const ATTRIBUTION: &str = "Frank Lu · GPL-3.0";
 /// The "Docs" button's fixed destination — the published guide on awl's own
 /// site. Opened ONLY by an explicit click (see the parent module); nothing in
 /// this window fetches anything, ever.
-pub const DOCS_URL: &str = "https://awl-editor.fly.dev/guide.html";
+pub const DOCS_URL: &str = "https://awl-editor.fly.dev/reference.html";
 
 /// The "GitHub" button's fixed destination — the source repository.
 pub const GITHUB_URL: &str = "https://github.com/Frank-P-Lu/awl-editor";

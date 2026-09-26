@@ -47,7 +47,7 @@ session_restore = false
 [keys]
 zoom_in = "C-M-z"
 bold = "C-M-b"
-go_to_file = "C-M-o"
+files = "C-M-o"
 search_forward = "C-M-s"
 toggle_outline = "C-M-v"
 align_table = "C-M-a"

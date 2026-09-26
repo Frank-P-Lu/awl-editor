@@ -130,11 +130,11 @@ fn supported_markdown_pages_match_the_roster() {
     assert_eq!(
         extract(
             SITE_SUPPORTED_MARKDOWN_HTML,
-            "site/supported-markdown.html",
+            "site/reference.html",
             "supported-markdown"
         ),
         super::supported_markdown_html().trim_matches('\n'),
-        "site/supported-markdown.html has drifted from the Markdown roster — {REGEN}"
+        "site/reference.html has drifted from the Markdown roster — {REGEN}"
     );
 }
 
@@ -151,7 +151,7 @@ fn supported_markdown_enrolment_is_exact() {
     {
         for (doc_name, doc) in [
             ("SUPPORTED-MARKDOWN.md", SUPPORTED_MARKDOWN_MD),
-            ("site/supported-markdown.html", SITE_SUPPORTED_MARKDOWN_HTML),
+            ("site/reference.html", SITE_SUPPORTED_MARKDOWN_HTML),
         ] {
             let needle = format!("### {name}");
             let html_needle = format!("<h3>{name}</h3>");

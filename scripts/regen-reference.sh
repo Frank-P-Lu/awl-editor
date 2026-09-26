@@ -50,7 +50,7 @@ if not blocks:
 targets = {"md": pathlib.Path("REFERENCE.md"), "html": pathlib.Path("site/reference.html")}
 targets.update({
     "supported-md": pathlib.Path("SUPPORTED-MARKDOWN.md"),
-    "supported-html": pathlib.Path("site/supported-markdown.html"),
+    "supported-html": pathlib.Path("site/reference.html"),
 })
 touched = 0
 for kind, path in targets.items():

@@ -35,9 +35,8 @@ pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
 
-/// `site/reference.html` — the marketing site's copy of the reference. NOT a
-/// hand-mirror (the arrangement `site/guide.html` carries against `GUIDE.md`):
-/// the same rows through an HTML emitter, held to the tree by the same law.
+/// The site reference uses the same generated rows through an HTML emitter,
+/// held to the tree by the same law.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub const SITE_REFERENCE_HTML: &str = include_str!("../site/reference.html");
 
@@ -47,7 +46,7 @@ pub const SITE_REFERENCE_HTML: &str = include_str!("../site/reference.html");
 pub const SUPPORTED_MARKDOWN_MD: &str = include_str!("../SUPPORTED-MARKDOWN.md");
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub const SITE_SUPPORTED_MARKDOWN_HTML: &str = include_str!("../site/supported-markdown.html");
+pub const SITE_SUPPORTED_MARKDOWN_HTML: &str = SITE_REFERENCE_HTML;
 
 /// The repo's `WORLDS.md` — the hand-written flavour reference for the theme
 /// worlds. Only its MEMBERSHIP is law-checked against `theme::THEMES`
@@ -92,14 +91,6 @@ pub const FONT_LICENSES_MD: &str = include_str!("../assets/fonts/LICENSES.md");
 /// `assets/fonts/OFL.txt` — the SIL Open Font License text the inventory cites.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub const FONT_OFL_TXT: &str = include_str!("../assets/fonts/OFL.txt");
-
-/// `site/guide.html` — the hand-mirrored marketing-site copy of `GUIDE.md`
-/// (see that file's own header comment: an accepted, LOGGED drift risk against
-/// the real doc). Test-only: verified against the live catalog by
-/// `docs_catalog_law.rs`, never read at runtime (the site is served as a
-/// static file, not by the binary).
-#[cfg(test)]
-pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
 
 /// The repo's `CAPTURE.md` — verified test-only against
 /// `capture::SCHEMA_VERSION` by `capture::tests::schema_ledger`, so

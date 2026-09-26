@@ -1007,10 +1007,11 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // by taste alone — see `render/tests/warp_one_tunnel_item268.rs`.
 
 // The projection is the approved study's camera, expressed in logical pixels.
-// `focal = min(viewport) * .72`; its z range is the study's literal range.
+// Keep the near composition fixed while continuing the tube into the distance.
 const WARP_FOCAL_FRAC: f32 = 0.72;
 const WARP_NEAR_Z: f32 = 0.72;
-const WARP_FAR_Z: f32 = 10.8;
+const WARP_BODY_Z: f32 = 10.8;
+const WARP_FAR_Z: f32 = 24.0;
 const WARP_TAU: f32 = 6.2831853;
 const WARP_RAIL_COUNT: f32 = 24.0;
 const WARP_RAIL_MAJOR_EVERY: f32 = 6.0;
@@ -1066,9 +1067,7 @@ const WARP_EDGE_FADE_MAX_PX: f32 = 56.0;
 // narrows, leaving the major scaffold alone.
 const WARP_NARROW_LO_PX: f32 = 84.0;
 const WARP_NARROW_HI_PX: f32 = 210.0;
-// The sampled study itself ends at z=10.8. A narrow feather retires lines into
-// that far section and outside the near opening; no infinite log lattice exists
-// beyond either bound to alias into a knot.
+// The far end thins and fades before the bounded mesh ends.
 // Mutation arms for page-derived scale, margin-derived placement, and reversed
 // travel. Each threshold occupies its own unit-wide band.
 const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
@@ -1159,7 +1158,7 @@ fn warp_project(
     let centre = mix(
         room_centre,
         vanish,
-        warp_bend((z - WARP_NEAR_Z) / (WARP_FAR_Z - WARP_NEAR_Z)),
+        warp_bend((z - WARP_NEAR_Z) / (WARP_BODY_Z - WARP_NEAR_Z)),
     );
     let angle = theta + warp_roll(world_z, spin);
     let radius = warp_radius(theta, world_z, fold, twist);
@@ -1167,8 +1166,8 @@ fn warp_project(
 }
 
 const WARP_RING_SEGMENTS: u32 = 128u;
-const WARP_RING_SLOTS: u32 = 65u;
-const WARP_RAIL_SEGMENTS: u32 = 92u;
+const WARP_RING_SLOTS: u32 = 153u;
+const WARP_RAIL_SEGMENTS: u32 = 208u;
 const WARP_RAIL_SLOTS: u32 = 24u;
 const WARP_RING_INSTANCES: u32 = WARP_RING_SEGMENTS * WARP_RING_SLOTS;
 
@@ -1221,7 +1220,8 @@ struct TunnelVsOut {
 };
 
 fn warp_depth_alpha(z: f32) -> f32 {
-    return clamp((0.90 - z * 0.060) / 0.58, 0.35, 1.0);
+    return (1.0 - smoothstep(20.0, WARP_FAR_Z, z))
+        * mix(1.0, 0.4, smoothstep(8.0, 20.0, z)) / (1.0 + 0.008 * z * z);
 }
 
 fn warp_segment_point(theta: f32, z: f32, motion: WarpMotion, camera: vec4<f32>) -> vec2<f32> {
@@ -1255,22 +1255,24 @@ fn vs_tunnel(
     if (iid < WARP_RING_INSTANCES) {
         let ring_i = iid / WARP_RING_SEGMENTS;
         let segment_i = iid % WARP_RING_SEGMENTS;
-        let rings = clamp(round(g.warp_shape.z), 1.0, f32(WARP_RING_SLOTS - 1u));
-        let step_z = (WARP_FAR_Z - WARP_NEAR_Z) / rings;
+        let rings = clamp(round(g.warp_shape.z), 1.0, 64.0);
+        let step_z = (WARP_BODY_Z - WARP_NEAR_Z) / rings;
         let offset_z = fract(motion.travel_z / step_z) * step_z;
         let z = WARP_NEAR_Z + f32(ring_i) * step_z - offset_z;
-        if (f32(ring_i) <= rings && z >= WARP_NEAR_Z * 0.72 && z <= WARP_FAR_Z) {
+        if (z >= WARP_NEAR_Z * 0.72 && z <= WARP_FAR_Z) {
             let theta0 = WARP_TAU * f32(segment_i) / f32(WARP_RING_SEGMENTS);
             let theta1 = WARP_TAU * f32(segment_i + 1u) / f32(WARP_RING_SEGMENTS);
             a = warp_segment_point(theta0, z, motion, camera);
             b = warp_segment_point(theta1, z, motion, camera);
-            let projected_step = camera.z * step_z / max(z * z, 0.01);
-            visibility = warp_depth_alpha(z)
-                * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
             // Keep emphasis on the same world section when a depth slot recycles.
             let world_ring = f32(ring_i) + floor(motion.travel_z / step_z);
             major = select(0u, 1u, world_ring - floor(world_ring / WARP_MAJOR_EVERY) * WARP_MAJOR_EVERY == 0.0);
-            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u);
+            let projected_step = camera.z * step_z / max(z * z, 0.01)
+                * select(1.0, WARP_MAJOR_EVERY, major == 1u);
+            visibility = warp_depth_alpha(z)
+                * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
+            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u)
+                * mix(1.0, 0.22, smoothstep(2.0, WARP_FAR_Z, z));
         }
     } else {
         family = 1u;
@@ -1290,7 +1292,8 @@ fn vs_tunnel(
             visibility = min(warp_depth_alpha(z0), warp_depth_alpha(z1))
                 * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
             major = select(0u, 1u, rail_i % u32(WARP_RAIL_MAJOR_EVERY) == 0u);
-            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u);
+            half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u)
+                * mix(1.0, 0.22, smoothstep(2.0, WARP_FAR_Z, (z0 + z1) * 0.5));
         }
     }
 

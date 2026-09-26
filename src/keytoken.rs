@@ -134,19 +134,6 @@ pub fn key_token_spec(
         })
 }
 
-/// Every [`SYNTHETIC`] chord's Mac-glyph LABEL (`"⌘⌥I"`) — the non-catalog
-/// half of "every valid Mac chord label", for a consumer (the docs-vs-catalog
-/// law's HTML-surface check, `docs_catalog_law.rs`) that needs the WHOLE valid
-/// set without duplicating [`SYNTHETIC`]'s own hardcoded spec. Test-only: its
-/// one consumer is itself `cfg(test)`.
-#[cfg(test)]
-pub(crate) fn synthetic_mac_glyphs() -> Vec<String> {
-    SYNTHETIC
-        .iter()
-        .map(|(_, mac, _)| crate::keyspec::mac_glyph_chord(mac))
-        .collect()
-}
-
 /// Resolve `slug_want`'s command DISPLAY NAME straight from the live catalog
 /// (`commands::COMMANDS`, keyed the same way `[keys]` rebinding is — via
 /// [`commands::slug`]), for a `{{cmd:slug}}` token. `None` for an unknown slug

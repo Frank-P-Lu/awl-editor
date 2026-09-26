@@ -82,7 +82,7 @@ fn every_direction_finds_its_arc_where_one_tunnel_predicts_it() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    use crate::warpgrid::projection::{FAR_Z, NEAR_Z, Point, Projection};
+    use crate::warpgrid::projection::{BODY_Z, NEAR_Z, Point, Projection};
     let (fold, twist) = match kite() {
         theme::Background::WarpedGrid { fold, twist, .. } => (fold, twist),
         _ => unreachable!(),
@@ -110,7 +110,7 @@ fn every_direction_finds_its_arc_where_one_tunnel_predicts_it() {
             travel_z: 0.0,
             spin: 0.0,
         };
-        let step_z = (FAR_Z - NEAR_Z) / 58.0;
+        let step_z = (BODY_Z - NEAR_Z) / 58.0;
         let mut graded = 0usize;
         let mut confirmed = 0usize;
         for ring_i in (5..=55).step_by(5) {

@@ -378,18 +378,15 @@ no reliable cross-desktop signal yet.
 
 ## Settings, and the config file behind them
 
-**"{{cmd:settings}}" ({{key:settings}}) is a summoned workspace, not an
-overlay.** It takes the viewport: a category rail — All, Editor,
-Appearance, Writing, Files, Keybindings, Advanced — beside the rows it
-governs. Up/Down moves the category, Enter or Right transfers focus into
-the settings, Left comes back to the rail — except on a row whose value
-is a slider, where Left and Right adjust it and the footer says so —
-Backspace on an empty search field comes back as well,
-Tab moves focus between the two either way, and Esc leaves for the editor
-from wherever you are — exactly where you left it. On a window too narrow
-to hold both, the workspace shows one region at a time and the same keys
-move between them. Every change applies live; a
-sticky one is written to the config in the same step.
+**"{{cmd:settings}}" ({{key:settings}})** opens a workspace with categories,
+search, and settings controls. Tab moves through these three focus stops;
+Shift-Tab moves backward. When search has no matches, the controls stop is skipped.
+Up/Down moves through the focused category or control list. Enter or Right
+moves from categories into controls; Left returns to categories unless the
+selected control is a slider, where Left/Right adjusts its value. Typing focuses
+search. Esc returns to the editor from any of these stops.
+
+Every change applies live. Persistent settings are written to the config file.
 
 **The settings are a plain text file, and you can edit it directly.**
 The Advanced category's "Edit config as text" row opens `config.toml`

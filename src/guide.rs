@@ -1,9 +1,8 @@
 //! src/guide.rs — the embedded GUIDE.md text, `include_str!`'d at build time
 //! (zero network, mirroring `credits.rs`'s exact pattern).
 //!
-//! GUIDE.md carries no in-app door: it is a site/source document only (the
-//! source `site/guide.html` is hand-mirrored from, per `docs_catalog_law.rs`),
-//! not opened into a buffer by any live or headless path. Its `{{key:slug}}`
+//! GUIDE.md is a repository document with no in-app opening command.
+//! Its `{{key:slug}}`
 //! chord tokens (see `keytoken.rs`) still resolve against the live catalog —
 //! `keytoken::tests`' starting-docs laws sweep it via `embedded_docs::
 //! STARTING_DOCS` — so a stale or renamed chord in the checked-in prose still

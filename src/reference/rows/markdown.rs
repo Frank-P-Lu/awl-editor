@@ -294,10 +294,7 @@ pub(crate) fn markdown() -> Vec<Block> {
     }
     vec![block(
         Some("Constructs"),
-        Some(concat!(
-            "The file stays plain text. Only the render changes. The Supported Markdown ",
-            "guide has full syntax and portability notes.",
-        )),
+        Some("The file stays plain text. Only its appearance changes."),
         constructs,
     )]
 }

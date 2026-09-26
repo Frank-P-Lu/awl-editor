@@ -8,7 +8,7 @@
 use super::bands_waves::{bg_desc_for, headless_dq};
 use super::warped_grid::{INK_FLOOR, kite, render_travel_axis_dpi};
 use crate::theme;
-use crate::warpgrid::projection::{FAR_Z, NEAR_Z, Point, Projection, RAILS};
+use crate::warpgrid::projection::{BODY_Z, NEAR_Z, Point, Projection, RAILS};
 
 fn with_density(bg: theme::Background, density: f32) -> theme::Background {
     match bg {
@@ -221,7 +221,7 @@ pub(super) fn projected_reference_landmarks_are_visible_at_both_viewports_and_dp
     ] {
         let pixels = field(&device, &queue, w, h, col_left, col_w, dpi, axis);
         let p = projection(w, h, axis);
-        let step_z = (FAR_Z - NEAR_Z) / 58.0;
+        let step_z = (BODY_Z - NEAR_Z) / 58.0;
         let mut seen = 0usize;
         let mut enrolled = 0usize;
 
@@ -245,7 +245,7 @@ pub(super) fn projected_reference_landmarks_are_visible_at_both_viewports_and_dp
         for rail_i in 0..RAILS {
             let theta = std::f32::consts::TAU * rail_i as f32 / RAILS as f32;
             for segment_i in (4..88).step_by(7) {
-                let z = NEAR_Z + (FAR_Z - NEAR_Z) * segment_i as f32 / 92.0;
+                let z = NEAR_Z + (BODY_Z - NEAR_Z) * segment_i as f32 / 92.0;
                 let point = p.point(theta, z);
                 if on_canvas_margin(point, w, h, col_left, col_w) {
                     enrolled += 1;
@@ -293,7 +293,7 @@ pub(super) fn the_visible_far_section_is_folded_not_a_circular_target() {
             .step_by(2)
             .filter(|&theta_i| {
                 let theta = std::f32::consts::TAU * theta_i as f32 / 128.0;
-                pixels.strongest_near(p.point(theta, FAR_Z), 2) > INK_FLOOR
+                pixels.strongest_near(p.point(theta, BODY_Z), 2) > INK_FLOOR
             })
             .count()
     };
@@ -305,32 +305,35 @@ pub(super) fn the_visible_far_section_is_folded_not_a_circular_target() {
     );
 }
 
-/// Distant sections retain readable ink at both display scales.
+/// The tube continues beyond its original endpoint, with lighter distant ink.
 #[test]
-fn distant_sections_remain_visible() {
+fn distant_sections_continue_with_lighter_ink() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
     for dpi in [1.0, 2.0] {
         let axis = (0.80, 0.24);
-        let pixels = field(&device, &queue, 1200, 800, 312.0, 576.0, dpi, axis);
+        let mut desc = bg_desc_for(kite());
+        desc.warp_ribs = 10.0;
+        desc.density = 1.0;
+        let pixels = field_desc(&device, &queue, 1200, 800, 0.0, 1200.0, dpi, axis, desc);
         let p = projection(1200, 800, axis);
-        let mut strengths = Vec::new();
-        for ring_i in [45, 50, 55] {
-            let z = NEAR_Z + ring_i as f32 * (FAR_Z - NEAR_Z) / 58.0;
-            for theta_i in (0..128).step_by(4) {
-                let point = p.point(std::f32::consts::TAU * theta_i as f32 / 128.0, z);
-                if on_canvas_margin(point, 1200, 800, 312.0, 576.0) {
-                    strengths.push(pixels.strongest_near(point, 2));
-                }
-            }
-        }
-        assert!(strengths.len() >= 30);
-        let median = percentile(&mut strengths, 50);
+        let strengths = |ring: f32| {
+            let z = NEAR_Z + ring * (BODY_Z - NEAR_Z) / 10.0;
+            (0..128)
+                .step_by(2)
+                .map(|i| {
+                    pixels.strongest_near(p.point(std::f32::consts::TAU * i as f32 / 128.0, z), 1)
+                })
+                .collect::<Vec<_>>()
+        };
+        let near = percentile(&mut strengths(5.0), 50);
+        let far = percentile(&mut strengths(15.0), 50);
+        assert!(far >= 2, "dpi={dpi}: extended section lacks ink: {far}");
         assert!(
-            median >= 40,
-            "dpi={dpi}: distant section median ink {median}"
+            far * 3 < near * 2,
+            "dpi={dpi}: distant ink {far} competes with near ink {near}"
         );
     }
 }
@@ -380,7 +383,7 @@ fn projected_edge_crossings(
     edge: f32,
     page_is_right: bool,
 ) -> (usize, usize) {
-    let step_z = (FAR_Z - NEAR_Z) / 58.0;
+    let step_z = (BODY_Z - NEAR_Z) / 58.0;
     let mut enrolled = 0usize;
     let mut confirmed = 0usize;
     for ring_i in (5..=55).step_by(5) {
@@ -468,7 +471,7 @@ fn page_and_margin_strengths(
 ) -> (Vec<i32>, Vec<i32>) {
     let mut page = Vec::new();
     let mut margin = Vec::new();
-    let step_z = (FAR_Z - NEAR_Z) / 58.0;
+    let step_z = (BODY_Z - NEAR_Z) / 58.0;
     for ring_i in (5..=55).step_by(5) {
         let z = NEAR_Z + ring_i as f32 * step_z;
         for theta_i in (0..128).step_by(2) {

@@ -1,52 +1,5 @@
-//! src/doc_counts_law.rs — THE ROSTER-COUNT LAWS, for the reader-facing docs
-//! and for the tree's own comments.
-//!
-//! WHY THIS EXISTS: `GUIDE.md` shipped a spelled-out world count one short of
-//! the roster, `site/guide.html` mirrored the same sentence, and
-//! `ACCESSIBILITY.md` gave a third number — three different answers to a
-//! question `theme::THEMES` already answers exactly. A roster size typed into
-//! prose is a second copy of a compiled-in fact; it rots on the next roster
-//! change with nothing to catch it, and a reader comparing two docs finds the
-//! product unsure how many worlds it has.
-//!
-//! THE ARRANGEMENT IS IN THREE PARTS, because the three surfaces have
-//! different seams:
-//!
-//! 1. The docs awl RENDERS ([`crate::embedded_docs::STARTING_DOCS`]) carry no
-//!    digits at all. They write `{{count:worlds}}`, and
-//!    [`crate::keytoken::render_key_tokens`] substitutes `theme::THEMES.len()`
-//!    at open/seed time — the same seam `{{key:}}`/`{{cmd:}}` already use.
-//!    [`the_starting_docs_state_no_literal_world_count`] is the ban that keeps
-//!    the digits out; [`the_rendered_starting_docs_state_the_live_world_count`]
-//!    is its companion PRESENCE-and-VALUE floor, because a ban alone is
-//!    satisfied by deleting the sentence it guards.
-//! 2. `site/guide.html` is the hand-mirrored marketing copy, which has no
-//!    substitution seam at all (`docs_catalog_law.rs`'s header documents that
-//!    arrangement and why it is accepted). Its digits stay literal, and
-//!    [`the_site_guide_mirror_states_the_live_world_count`] holds them to the
-//!    roster.
-//! 3. The tree's OWN comments have no seam and no reader-facing digits worth
-//!    keeping, so [`no_source_comment_types_the_world_roster_size`] bans the
-//!    literal outright and asks for roster-relative phrasing instead. That
-//!    half is a BAN rather than a value law on purpose — see its own header.
-//!
-//! ⚠️ SOURCING, not transcription, is the residual risk once a number is
-//! generated: a generated figure states a wrong answer with a law behind it if
-//! the generator reads the wrong roster.
-//! [`the_world_count_token_agrees_with_the_worlds_md_roster`] is the cross-check
-//! — it compares the token's answer against a DIFFERENT document's
-//! independently parsed world list, so aiming `{{count:worlds}}` at any other
-//! roster in the crate makes the pair disagree instead of agreeing on a lie.
-//!
-//! SCOPE, stated so a reader knows what is NOT covered. Only the two GUIDE
-//! surfaces are held to the roster's value, and only for the PLURAL noun. The
-//! wider doc web states world counts that are deliberately SUBSETS ("11
-//! proportional worlds", "18 upright worlds", "the two diagonal worlds") and
-//! baked historical measurements ("0 of 960 000 pixels differ on eight
-//! worlds"); a subset count is a different claim from a roster size, and a
-//! blanket value law over every doc would be wrong about all of them. The
-//! singular ("awl's one monochrome world") is a claim about one world's
-//! uniqueness, not about the roster's size, and is likewise out of scope.
+//! Documentation world counts resolve through the live roster.
+//! Starting documents use count tokens; source comments use roster-relative language.
 #![cfg(test)]
 
 /// English cardinals a doc might spell out, up to comfortably past any roster
@@ -260,30 +213,6 @@ fn the_rendered_starting_docs_state_the_live_world_count() {
          which is the shape it exists to rule out. Restore the count (as \
          `{{{{count:worlds}}}} worlds`) or retire both laws together."
     );
-}
-
-/// THE MIRROR LAW. `site/guide.html` is hand-typed with no substitution seam,
-/// so its digits are literal and this is the only thing standing between the
-/// public page and a stale count. Same presence floor as above: the page must
-/// carry the claim, and the claim must be the roster's.
-#[test]
-fn the_site_guide_mirror_states_the_live_world_count() {
-    let _g = crate::testlock::serial();
-    let want = crate::theme::THEMES.len();
-    let found = world_counts(crate::embedded_docs::SITE_GUIDE_HTML);
-    assert!(
-        !found.is_empty(),
-        "site/guide.html states no world count — the marketing page's Looks \
-         section carried one, and this law is vacuous without it"
-    );
-    for (phrase, n) in found {
-        assert_eq!(
-            n, want,
-            "site/guide.html says {phrase:?} but `theme::THEMES` carries \
-             {want} worlds. That page is a hand mirror of GUIDE.md with no \
-             `{{{{count:}}}}` seam (see docs_catalog_law.rs) — edit the digits."
-        );
-    }
 }
 
 /// THE SOURCING CROSS-CHECK, against the generated-document hazard: a figure

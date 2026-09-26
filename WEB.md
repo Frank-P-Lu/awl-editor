@@ -10,6 +10,12 @@ This is an **exploration demo**, not a shipped product. It renders, you can type
 markdown styles live, themes switch, and your edits survive a reload. The rough
 edges are listed honestly under *Limitations*.
 
+Software rendering is unsupported. Use a browser with working hardware graphics
+acceleration and a working GPU driver. Software-backed rendering may display the
+editor but can make typing and scrolling visibly laggy; there is no dedicated
+reduced rendering mode. The WebGL2 fallback remains available: the graphics API
+and whether it is hardware-accelerated are separate concerns.
+
 ## Build & run
 
 Prerequisites (one-time):

@@ -5,7 +5,8 @@
 //! ink at reference landmarks rather than maintaining a second rasterizer.
 
 pub const NEAR_Z: f32 = 0.72;
-pub const FAR_Z: f32 = 10.8;
+pub const BODY_Z: f32 = 10.8;
+pub const FAR_Z: f32 = 24.0;
 pub const FOCAL_FRAC: f32 = 0.72;
 pub const RAILS: usize = 24;
 
@@ -38,7 +39,7 @@ impl Projection {
     }
 
     pub fn section_centre(self, z: f32) -> Point {
-        let p = ((z - NEAR_Z) / (FAR_Z - NEAR_Z)).clamp(0.0, 1.0);
+        let p = ((z - NEAR_Z) / (BODY_Z - NEAR_Z)).clamp(0.0, 1.0);
         let bend = p * p * (3.0 - 2.0 * p);
         Point {
             x: self.width * 0.5 + (self.vanish.x - self.width * 0.5) * bend,
@@ -118,6 +119,7 @@ mod tests {
 
     #[test]
     fn approved_sections_keep_the_full_multiplicative_radial_span() {
+        let _g = crate::testlock::serial();
         for z in [NEAR_Z, 1.5, 3.0, 6.0, FAR_Z] {
             let radii = section_radii(approved(), z);
             let lo = radii.iter().copied().fold(f32::INFINITY, f32::min);
@@ -132,6 +134,7 @@ mod tests {
 
     #[test]
     fn centreline_path_is_depth_dependent_and_independent_of_fold() {
+        let _g = crate::testlock::serial();
         let p = approved();
         let straight = Projection { fold: 0.0, ..p };
         for z in [NEAR_Z, 1.5, 3.0, 6.0, FAR_Z] {
@@ -145,6 +148,7 @@ mod tests {
 
     #[test]
     fn section_roll_and_fixed_theta_longitudinal_curvature_are_real() {
+        let _g = crate::testlock::serial();
         let p = approved();
         assert!((p.roll(1.5) - p.roll(6.0)).abs() > 0.05);
         let a = p.point(0.37, 1.5);
@@ -162,6 +166,7 @@ mod tests {
 
     #[test]
     fn transit_sections_do_not_collapse_to_concentric_targets() {
+        let _g = crate::testlock::serial();
         let p = Projection {
             vanish: Point { x: 600.0, y: 400.0 },
             ..approved()

@@ -14,6 +14,14 @@ run and are skipped on a tag. Apple signing and notarization are configured;
 the macOS release job still needs to be enabled and verified before a signed
 app can join a public Release. §5 is the pre-tag checklist.
 
+## Graphics support
+
+Software rendering is unsupported. awl targets hardware-accelerated graphics
+with a working GPU driver. A software adapter may still open the editor, but
+typing and scrolling can be visibly laggy; awl provides no dedicated reduced
+rendering mode. On Linux, use a working hardware Vulkan driver. Software-adapter
+CI remains useful for correctness checks, not interactive performance acceptance.
+
 ## 1. Apple signing and notarization
 
 The Apple signing and notarization setup is complete. The workflow gates its

@@ -22,7 +22,7 @@ COPY assets ./assets
 COPY shaders ./shaders
 COPY samples ./samples
 COPY GUIDE.md REFERENCE.md WORLDS.md CREDITS.md CAPTURE.md PHILOSOPHY.md ./
-COPY site/reference.html site/guide.html ./site/
+COPY site/reference.html ./site/
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release && cp /src/target/release/awl /awl

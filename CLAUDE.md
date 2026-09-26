@@ -1,127 +1,134 @@
-# CLAUDE.md / AGENTS.md — working on awl-editor
+# Working on awl
 
-> Lean core. Per-feature mechanism detail lives in `docs/` — each file names when to read it; read the matching doc before working in that area. **This file states rules and facts in the present tense. It carries no history and cites no queue items — `git log -p CLAUDE.md` is the history, and `.orchestrator/queue.md` is the work.** AGENTS.md is a symlink to this file; edit here.
+AGENTS.md is a symlink to this file; edit CLAUDE.md. Keep this entry point concise:
+repository-wide rules belong here, mechanisms in the linked docs, history in git,
+and work status in `.orchestrator/queue.md`.
 
-awl is a calm, opinionated plain-text editor for prose and light code — Rust + wgpu + winit + glyphon. One core, two builds: native desktop (macOS Metal, Linux Vulkan) and browser (wasm32, WebGPU with a WebGL2 fallback). Native macOS ⌘ bindings are the advertised keymap, quietly doubled with Emacs/`mg` — both slots fire. A personal tool with a widened audience: people who aren't programmers but like computers, writing, novelty, and beauty.
+## Product
 
-Start with `PHILOSOPHY.md` — the identity, priorities, and product boundary. The other contract docs: DESIGN.md (the feel), THEMES.md (world laws), CAPTURE.md (headless verification), ARCHITECTURE.md (module map), WEB.md (browser build), RELEASING.md, ACCESSIBILITY.md.
+Start with [PHILOSOPHY.md](PHILOSOPHY.md). awl is a calm, opinionated plain-text
+editor for prose and light code, built with Rust, wgpu, winit, and glyphon. Native
+and browser builds share one core. Markdown stays plain text; rendering becomes
+rich and the caret reveals editable source. Preserve editing correctness, Unicode,
+undo, save fidelity, and immediate response. No Word-style document model, styled
+clipboard, general formatting toolbar, or IDE machinery. Runtime is offline:
+no telemetry, asset fetching, or required service.
 
-## Direction
+Follow [DESIGN.md](DESIGN.md): the caret is the accent, hierarchy uses value,
+choices use summoned surfaces, and syntax has four roles. Prototype design in awl
+with real captures; do not build HTML mockups. Themes are data through one renderer;
+a theme-specific code path calls for design review.
 
-awl is a WYSIWYG editor on the Obsidian Live-Preview model: the file stays plain text, only the render becomes rich, and any line shows raw markdown while the caret is on it. The committed work is finishing that model — images inline, tables as real grids — through the markdown formatting commands. It is not a Word clone (no styled clipboard or general formatting toolbar) and carries no IDE machinery (LSP, multi-cursor, project tree). Contract: PHILOSOPHY.md §§1, 5.
+## Read before working in an area
 
-## Build & test
+Read the matching documents before editing; do not load the entire list for every task.
 
-Read `docs/verification.md` before choosing checks or dispatching work. It owns
-verification scope: cheap checks first, targeted worker checks, then one full gate
-on the integrated candidate. Do not duplicate full gates by default.
+| Work | Required reference |
+| --- | --- |
+| Checks, tests, audits, or implementation dispatch | [docs/verification.md](docs/verification.md) |
+| Capture plans or evidence | [docs/harness-reach.md](docs/harness-reach.md), [CAPTURE.md](CAPTURE.md) |
+| Architecture or App ownership | [ARCHITECTURE.md](ARCHITECTURE.md), [docs/app-domains.md](docs/app-domains.md) |
+| Configuration, bindings, page width | [docs/config.md](docs/config.md) |
+| Markdown styling, conceal, formatting, links | [docs/markdown.md](docs/markdown.md) |
+| Fonts, CJK, fallback | [docs/fonts.md](docs/fonts.md) |
+| Syntax or spell scoping | [docs/syntax.md](docs/syntax.md) |
+| Layout, chrome, pickers, render state | [docs/render.md](docs/render.md) |
+| Worlds | [THEMES.md](THEMES.md) |
+| Persistence, menus, sessions, GPU faults, live probes | [docs/platform.md](docs/platform.md) |
+| Browser build | [WEB.md](WEB.md) |
+| Release pipeline or publishing | [RELEASING.md](RELEASING.md) |
+| Accessibility | [ACCESSIBILITY.md](ACCESSIBILITY.md) |
+| Licensing or dependencies | [docs/licensing.md](docs/licensing.md) |
+| Queue orchestration or design-session decisions | [.orchestrator/README.md](.orchestrator/README.md) |
+
+## Build and verification
+
+Use incremental builds; never `cargo clean`. Match the surrounding code's style.
+On macOS, run the bundled app with `scripts/dev-app.sh`. Measure performance and
+judge feel in release builds, with before/after measurements witnessing real work.
 
 ```sh
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
-cargo build && scripts/native-gate.sh  # from the repo root; emits full-suite receipt
+cargo build
+scripts/native-gate.sh
+scripts/web-smoke.sh
 ```
 
-Incremental builds only (a clean rebuild is slow — no `cargo clean`). Edit in place, matching the file's own style. Judge feel in `--release`: dev frames are 10–20× slower, so perf claims are only honest there.
+Choose scope through `docs/verification.md`: cheap checks, targeted tests and
+required outcome audits, then one full gate on the frozen integrated candidate.
+Workers normally deliver targeted evidence. Only a `scripts/native-gate.sh` receipt
+authorizes the phrase “full native suite”; filtered runs and binary unit tests do
+not. State tested commit, configuration, skips, and hardware limits. Local Metal
+and software adapters do not establish hosted virtualised-Metal behavior.
 
-To RUN it on macOS use `scripts/dev-app.sh`, not `cargo run`: a bare binary has no bundle, so the menu bar reads `awl` and Stage Manager draws the generic tile — two surfaces macOS will not honor without one (docs/platform.md).
-
-## Verify headlessly
+For a headless capture:
 
 ```sh
-cargo run -- --screenshot OUT.png [file]    # writes OUT.png + OUT.json sidecar
+cargo run -- --screenshot OUT.png [file]
 ```
 
-Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>`, `--caret-mode`, `--measure`, `--screenshot-motion[-v|-d]`, `--screenshot-app` (the same chords into a real headless `App`), `--semantic-json` (that App's accessibility tree, no PNG), `--root/--workspace/--default-folder`, `--config`, `--debug`, `--hud`. Schema + semantics: CAPTURE.md. The schema number is one const, `capture::SCHEMA_VERSION`.
+Read the capture references before selecting a driver. Ordinary captures drive the
+shared core; `--screenshot-app` drives a real headless App. Neither proves every
+live interaction. Sidecars prove state; PNG pixel arithmetic proves appearance.
+Timing, live feel, and taste require human confirmation. Extend the harness toward
+real behavior when needed. Render changes require the outcome audits and visual
+smoke defined in the verification policy.
 
-The sidecar is the source of truth for state; the PNG for geometry and appearance. The harness verifies state, geometry, colors, and deterministic single-frame trajectories; it cannot verify timing, feel over real time, or taste — flag those for live human confirmation rather than claiming them verified.
+## Engineering rules
 
-An ordinary capture drives the shared core, not the live `App` — so a transition the `App` owns (settings writes, buffer switching, config reload) is classified Unsupported and skipped. `--screenshot-app` drives the same `--keys` chords into a REAL headless `App` and writes the same schema from its state, stamped `driver: "live-app"`; it is hermetic and skips nothing. `docs/harness-reach.md` maps the edge, per effect and per picker; check it before promising a capture over live-`App` state — briefs have asked for ones that could not exist.
-
-Tripwire: the sidecar is a state oracle, not an appearance oracle — it once reported `selected_index: 2` while the row rendered fully invisible (Wagtail). Appearance claims (visible, distinct, legible) are asserted by arithmetic over the PNG's pixels.
-
-## Spot-check audits (standing policy)
-
-Audit agents run at the production tier: Sonnet medium on Claude or `gpt-5.6-terra` at `medium` on OpenAI. Probe form: enumerate state × surface × world, sampled along the changed axis, asserting the outcome per cell with pixel/sidecar arithmetic. Triggers: a new axis value (probe the full surface roster); an identity-gated refactor (follow with an outcome audit — byte-identity preserves pre-existing bugs); a user-reported bug (audit its neighborhood; bugs cluster); a degradation arm ships (probe the degraded state; its compensating mechanism gets named and law-tested); pre-tag (a journey sweep across worlds). Every render-touching round gets a vision-smoke: affordance-locating questions over ~5 gallery shots ("which row is selected?"), never "does this look fine?". An audit that finds something ends by writing the missing law test.
-
-## Feature docs — read before working in the area
-
-- `docs/config.md` — config.toml, `[keys]` rebinding, keymap flavors, Linux keep-list, retired defaults, page width.
-- `docs/markdown.md` — span styling, heading ladder + variable row heights, conceal mechanics, formatting commands, Insert-link.
-- `docs/fonts.md` — display faces, per-world mono, CJK ladder + never-tofu law, frontmatter lang, theme-preview debounce.
-- `docs/syntax.md` — the Alabaster four-role philosophy, two-tier comments, `role_style_for`, spell scoping in code.
-- `docs/render.md` — adaptive column, RenderCaps (themes as data), overlay/chrome personality, settings-in-palette, rowlayout.
-- `docs/platform.md` — debug panel/HUD/copy pulse, autosave + history, line endings, daemon/EDITOR=awl, menu bar, session restore, updates, GPU faults + `--soak-gpu`.
-- `docs/licensing.md` — GPL-3.0-only, asset licenses, generated third-party list, audit cadence + standing advisories.
-- `docs/harness-reach.md` — how far the headless harness reaches: the three verification tiers, the live-only census, the per-effect capture table. **Read before writing a Verify clause that asks for a capture.**
-
-## Tripwires (hard-won facts; mechanisms in the docs)
-
-- wgpu macOS occlusion gate: a window without `NSWindowOcclusionStateVisible` returns Occluded before `nextDrawable()` → `acquires=0 presents=0`. It looks like a GPU bug; it is OS occlusion state. Soak windows must stay foregrounded. **A locked or slept display is the same gate, and it fails SILENTLY: `--live-script` writes successful-looking `LIVE-PROBE shot … ok` lines while presenting zero frames, and `live-probe.sh` only checks the lock in PREFLIGHT — so RE-CHECK IT AT BOTH ENDS of any live run** (`ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` returning nothing is unlocked). Hold the display with `caffeinate -d -i -t <seconds>`; **`caffeinate` prevents sleep and cannot unlock a locked screen**, so offering it is never a substitute for asking for an unlock. (platform)
-- IBM Plex Mono ships as Weight 300; a default-400 request drops it and mono worlds fall through to proportional `.SF NS`. `mono_safe_weight()` compensates. (fonts)
-- `C-k` stays kill-line on Linux in both flavors, so Insert-link has no default Linux binding. `C-c`/`C-v` stay native under EITHER flavor by construction — `Config::effective_linux_keep` filters them out of the `emacs` preset's own contribution, so Omarchy/Hyprland's Super+C/V-as-Ctrl+C/V forwarding just works with no config. `C-x` is NOT filtered: under `keymap = "emacs"` it deliberately reverts to the emacs prefix, and the flavor seeds the classic continuations onto it (C-x C-s Save, C-x C-f Go to, C-x k Finish file, C-x h Select all) — one `[keys] cut = "C-x"` line trades the prefix back for native Cut. The `emacs` flavor also seeds a Linux-only classic Meta (Alt) layer (M-x palette, M-w copy, M-f/M-b/M-d/M-Backspace word motion+delete, M-v page up, M-</M-> document ends, M-% find & replace), inert on Mac and under the `native` flavor. Both seed tables flow through one selection point, `keymap::platform::active_seed_tables`, read alike by dispatch and every label surface. **MOUSE chords are outside the keep-list entirely** — it is composed and compared as KEY chords through `keyspec::parse_chord`, so a mouse chord has no spelling in that grammar and can collide with none of the `C-c`/`C-x` rules; the follow gestures therefore get their own roster with its own selection point, `keymap::follow::active_follow_gestures` (its own module, because it is a different GRAMMAR and not merely a different table) (⌘-click on Mac; Ctrl-click AND middle-click on Linux under BOTH flavors — middle-click's old `keymap = "emacs"`-only gate was widened away by user decision, since it collided with nothing under `native`, and the function dropped its `flavor` parameter along with the gate). The follow roster IS `[keys]`-rebindable, through a deliberate second grammar (`keyspec::parse_pointer_chord`, spelling `click`/`middle-click`/`right-click` behind the same modifier prefixes a key chord takes) that stays structurally separate from `parse_chord`/`canonical_binding` — a mouse chord still has no spelling in the KEY grammar the keep-list reads, so the collision-immunity above survives the rebind. `[keys] follow = "…"` REPLACES the platform default wholesale (not additive, unlike an ordinary command rebind); an unparsable entry is dropped with a note naming the line, default kept, same shape a bad key chord already gets. (config)
-- Conceal reveal changes glyph advances, not just color: `refresh_rule_conceal` invalidates `row_geom` alongside its reshape. (markdown)
-- Menu Quit/Edit items are routed through `App::apply`, never muda-predefined (predefined Quit bypasses teardown; predefined Edit selectors silently no-op on a wgpu NSView), and the returned `muda::Menu` stays alive for the app's lifetime — dropping it makes menu clicks use-after-free. **A MENU KEY EQUIVALENT IS NOT A KEY:** AppKit answers it in `performKeyEquivalent:` against the main menu *before* the key window sees the event, so ⌘A never becomes a winit key — it fires Edit ▸ Select all as an `Action`, as a menu/context-menu click and a palette row's `Effect::RunAction` also do. **So a guard that consumes every KEY guards nothing**: a summoned surface needs its gate at the ACTION level (`actions::intercept_action`), and no capture door can see the gap, because `--keys` and `--screenshot-app` both enter through the key drivers the guard already stops. (platform)
-- AppKit objects free themselves out from under Rust ownership in two shapes, not one. A programmatically created `NSWindow` has `releasedWhenClosed` **YES** by default, so its close button frees the window while a `Retained` handle still points at it and the next summon is a use-after-free; set it NO and let one owner hold it (`mac_about`: a main-thread `thread_local` for the process lifetime). `NSButton`'s target is unretained — target a view's own window, which outlives it, rather than an object that may not. Same failure as the dropped `muda::Menu` above, different object. (platform)
-- Capture gates: daemon, autosave/history, and session restore exist only on the live App; the headless path is structurally free of them. Git-managed files record no history snapshot — their timeline is `git log` alone. (platform)
-- Cache-key discipline: anything keyed by `buffer.version()` also keys by buffer identity or clears on swap — versions restart at 0 per open, and the collision has already served a stale document once.
-- Test-global locking: one process-wide reentrant guard, `crate::testlock::serial()`, taken by every test and every `cfg(test)` global writer — **and every READER of a swappable global**, because an unguarded reader against a disciplined writer is the same race from the other end. Enforced, not conventional: `capture::sidecar::write_sidecar`, `fs::active`/`set_active`/`current_dir` assert the hold under `cfg(test)`, so an unguarded caller panics by name on its first run instead of flaking someone else's merge. The guard also RESTORES what it snapshots — world, page, spellcheck, and every forced render override — on the unwinding path too, so a fixture that sets a global and dies cannot poison a different test in a different file; a leaked `ListStyle::Bars` once made an unrelated jump-hint law report a clip that was not one, green single-threaded and red under a wide `--test-threads`. **The shared test GPU is one of these globals and does not read like one:** `test_gpu::arrive` — the single choke point behind both doors to the process-wide `(Device, Queue)` — asserts the hold too, because one device is one object population and one set of wgpu-hal counters, and a test that merely *borrows a handle* is mutating them. Reaching it unguarded is a rolling corruption of any counter baseline that **passes alone, passes unfiltered, and fails only under a filter like `cargo test render::`**. Two corollaries: the guard must outlive the RESOURCES, not the call — a `TextPipeline` dropped at the closing brace still moves the counters, so a lock a helper takes and returns cannot discharge the obligation; and an "is there an adapter?" skip clause is a question about the machine, answered by `test_gpu::adapter_present()` rather than by reaching the device before any guard exists. ⚠️ The assertion covers every path through that door; a test that builds its OWN device is outside both it and this rule, which is fine until a law reads counters off a device it did not create. Three rounds of ABBA deadlocks retired the ordered per-module locks; don't reintroduce them. (`config::ENV_LOCK` separately serializes env mutation.)
-- A `cfg(test)` setter can be a **no-op on the dev host and a real mutation everywhere else**, which makes the leak it causes structurally invisible here. `menu_bar`'s default is `false` on macOS and `true` elsewhere, so a fixture calling `set_menu_bar_on(false)` leaks nothing locally and leaks a global on Linux — a process-global leak audit then fires on sixty CI tests and zero local ones. **`scripts/native-gate.sh` reproduces that class for you on every local gate** — its `menubar-full` arm runs EVERY binary unit test under `AWL_MENU_BAR_FORCE` set to the branch this host does not run ambiently, and the receipt says `menubar=full:<branch>`. Do not stand a name filter in for it: a census found 1455 unit tests reading that flag without pinning it, of which the filter this arm replaced reached two, and all three laws that shipped blind to the axis were in the remainder. A fix that passes unforced has not been tested, and one such half-fix was very nearly pushed as complete. One layer down, `cfg!(target_os = …)` inside a test reflects **the host that COMPILED it**, not the branch the value actually took, so a restore written that way restores the wrong value under any forcing — capture the ambient value instead.
-- wgpu-hal's per-backend counters are NOT uniformly maintained, and a careful reading of the source is not enough to know which are. In 29.0.3 the **Vulkan** backend never increments `textures` on `create_texture` (its only `textures.add(1)` is `add_raw_texture`, for externally-owned images) while `destroy_texture` still decrements — so on every Vulkan device the live texture count starts at zero and walks *negative*. Metal, gles and dx12 balance. An oracle derived by reading that source, and validated on this host's Metal alone, went red on first contact with CI's lavapipe. The design that holds does not read source at all: `gpu_alloc::probe` creates one object per class on the device that is actually present, and the laws assert only over classes that *responded*. **Ask the device, not the docs** — and prove a cross-backend claim on a second backend before landing it. (`CoreCounters` is empty in 29.0.3, so wgpu-level accounting is not an alternative.)
-- Two git/CI mechanics that destroy work quietly. **`git stash` — or anything that resets the index wholesale — CLEARS `MERGE_HEAD`**, so a stash taken to inspect a merged-but-uncommitted tree turns the next `git commit` into a single-parent commit: the content lands, the branch reads as never merged, `git merge-base --is-ancestor` answers NO forever. Read the working tree directly or `git show :<path>` instead, and **verify a merge landed as one — `git log --format=%p -1 <sha>` must show two hashes.** Separately, `ci.yml` sets `concurrency.cancel-in-progress: true`, so pushing over an in-flight run kills it; **an absent `conclusion` is a STATUS, not "nothing to see" — read `status`, and note that reading it is not the same as waiting for it.**
-- The release pipeline has one job no rehearsal reaches: **`publish` runs only on a tag and every dry run skips it, so treat it as permanently unexercised** — the next change to it ships straight to the public, and it earns loud, self-diagnosing failure modes rather than terse ones. (It had never executed at all before the first tag, and failed there on a `download-artifact` call with no `name:`, under a history of green dry runs.) Relatedly, `Swatinem/rust-cache` mixes `runner.os` into its key and that is the literal string `"Linux"` for every Ubuntu image, so a cache built on one runner version restores onto another and the build dies loading a proc-macro against the wrong libc — key on `ImageOS`. (releasing)
-- Zero-network is a design invariant: awl never phones home or fetches at runtime; a future language pack is a file. License facts are never fabricated — the unverifiable gets flagged. (licensing)
-
-## Engineering principles
-
-- Source audits protect behavior and ownership. Prefer type/module boundaries or syntax-aware checks over exact counts and spellings. Existing audits remain enforced until their replacements prove the same rule; see `docs/verification.md`.
-- Same behavior ⇒ same code — merge, don't align. Extract one owner of the rule, route every consumer through it, make the bypass module-private, and add a law test with a no-wildcard match so a new member can't dodge the sweep.
-- File/function size is a design-review trigger, not an automatic extraction order. Around 500 file lines or 100 function lines, extract a coherent owner when that improves clarity; otherwise document the cohesion reason in the existing code-health exception mechanism. Routine reviewed size exceptions need no user approval. See `docs/verification.md`; hard safety limits and unrelated lints remain enforced.
-- Untested behavior doesn't exist. Test at the purest reachable seam (unit > sidecar > capture); live-only behavior is flagged for human confirmation.
-- A law must fail on the bug it names — and the axis it sweeps is the one the author *didn't* think of. The recurring way a green law hides a real defect is by checking only imagined cases: one window geometry, a hardcoded mono-face list, hand-picked icon near-pairs while the true closest pair goes unpinned, a drag test that never advances the clock. Sweep the axis (all geometries, the whole roster, the empirical worst case), and **prove non-vacuity by breaking the product and watching the law go red** — headline laws have survived the exact regression they were named for.
-- **A green law dies at its ENROLMENT or at its SUBJECT far more often than at its assertion, and re-reading the assertion catches none of the three shapes.** (a) **The law is satisfiable by deleting its own subject:** a contrast floor over a selection band gets *happier* as the band fades toward the page, so a wash at `0x04` alpha — four bytes from the page — passes while reporting a *better* ratio than the shipped one. A floor over a treatment needs a companion **presence** floor, set under the roster's tightest real value. (b) **The law is satisfied by the broken state:** two per-margin tunnel axes were symmetric about the room's centre, so "both flanks show rings at the same radius from the centre" was true *of the defect*; the law that works asks the margins to be the same tunnel as the one under the page. (c) **The enrolment predicate never matches, or matches differently elsewhere:** a representative gated on `if let Background::Dots = <world>.background` swept nothing for the life of the law after that world changed ground, and a plate-visibility gate keyed on a luminance delta enrolled a different set of worlds on Metal than on lavapipe — so the graded SET was a property of the GPU. **Derive the enrolment from the roster rather than pinning it to a named member, name what enrolled in the failure message, and prove the enrolment itself is not configuration-dependent.**
-- **A check runs in one configuration, and that configuration is itself an untested hypothesis.** Five times a green check has been structurally incapable of seeing its subject, and in none of them was the *law* wrong — the **setting it ran under** was. (a) Every capture runs at `--capture-dpi 1`, the one scale at which a chrome pad left in device pixels looks correct; chrome padding shipped at half its tuned size on every Retina display. (b) Briefs named `code-health.py`, which carries the structural ratchets but not the clippy arms; two lanes reported clean and `main` went red on six errors only `code-health.sh` can see. (c) An allocation oracle validated on this host's real Metal was falsified on first contact with CI's lavapipe. (d) Laws that pass alone and pass unfiltered can still fail under a filter like `cargo test render::` — so they never fail CI and always fail a developer. (e) **The ambient ENVIRONMENT is one of these configurations, and a script law inherits it silently.** `.orchestrator/disk-preflight.sh` answers a CI environment on a branch of its own, before fleet policy is consulted; every hosted runner exports `CI`; and `scripts/test-disk-preflight.sh` set `CI=1` explicitly for its two CI laws while letting every FLEET law inherit whatever the shell had. So each half of that suite ran in exactly one place and never the other — the fleet laws here and nowhere else, the CI branch nowhere but a runner — and the gating `linux` job was red for the life of the law while the developer gate was green. A law that reads an environment variable it did not set is testing the host it happens to be on: **state the axis at one owner and sweep both branches**, the way `native-gate.sh` already forces the menu-bar branch this host does not run ambiently. **The question to ask of any green result is not only "does this law sweep the right axis" but "has this check ever run anywhere but here": the other DPI, the other backend, the other entry point, the other filter, the other ambient environment.** Prefer a check that reports the configuration it ran in, so a reader can see what it did not cover.
-- **A DEFECT REPORT IS A HYPOTHESIS, AND THE MEASUREMENT THAT PRODUCED IT IS PART OF WHAT NEEDS CHECKING.** Two items in one wave were briefed, dispatched and worked on a premise that dissolved on first real measurement, and **both false premises were authored by an orchestrator** — the tier that writes briefs rather than the tier that runs them. (a) "The font licence doc is false for 38 of 45 faces" was produced by `strings -e b`; **macOS ships BSD `strings`, which has no `-e`**, so the UTF-16 pass measured nothing and the absence of output was read as absence of copyright. All 45 faces carry one. (b) "The AT-SPI bridge publishes no line runs" was produced by a probe asserting a shape **AccessKit deliberately filters** — `common_filter` excludes `Role::TextRun`, so zero accessible children is correct on both backends. Neither was a lane's error; both cost a lane a full round. **So: an orchestrator's own measurement carries no privilege, and the first question a lane asks of its brief is whether the defect exists — with a parser rather than a text scanner, and against the dependency's own behaviour rather than its documentation.** A brief that survives that question loses nothing; one that does not was going to waste the round anyway. **When a premise dies, the item closes as "premise false, oracle repaired" — not as fixed**, because the two read identically on a board six weeks later and only one of them means the product changed. ⚠️ **And a LANE's report carries no privilege either — a figure owed to a human for a taste call is read out of the product, never out of the report that landed it.** A shader veil constant was carried onto a board at `0.20` while the shader said `0.13`, and the taste question was one step from being put to the user about a number not in the tree.
-- **Generating a document from a roster is not safety — it moves the error from transcription to SOURCING**, and a generated table states its wrong answer with a law behind it. A user-facing reference generated from awl's own rosters shipped three such errors in one pass: a dispatch route printed as a config key the loader never reads, a numeric band's minimum printed as its step because the readout formatter clamps first, and a per-construct property asked once with the caller's precomputed flag, inverting every line-scoped row. **So spot-check a sample of generated entries against the code they claim to describe, and make each check probe the axis the generator collapsed** — ask the property on both sides of the condition and require the pair to differ.
-- The harness stays real: verified behavior is live behavior. When a bug won't reproduce headlessly, extend the harness toward reality rather than stubbing around it.
-- Spend complexity where the product is. Editing edge-cases (graphemes, wrap, undo coalescing, CRLF, boundary motion) are the product — spend generously, test exhaustively. Infrastructure complexity is a smell: themes are data through one renderer, and a theme needing its own code path means the design is wrong. When cutting, cut machinery, never editing correctness.
-- Perf is measured: `--bench-perf`, `--bench-frame`, `--bench-theme-burst`; record a before on base, and make the bench witness the work (assert a reshape count — one theme bench "measured" 5ms while nothing reshaped).
-
-## Conventions
-
-- Input path: keys → `keymap.rs` (`Action`) → `actions.rs::apply_transition`. Every interaction stays drivable by `--keys` and visible in the sidecar.
-- Determinism: the headless path has no clock, animation, or randomness; live-only animation captures its settled state.
-- Per-frame work is O(visible), not O(doc) — follow the proto-cache shape in `render/rects.rs`.
-- Picker rows go through `render/rowlayout` (docs/render.md), never hand-placed.
-- Comments state what the code can't say about itself. Not history ("BEFORE this existed…"), not design memos, not a changelog — that belongs in the commit message, which is where `git log -p` will find it. **Don't cite queue items, rounds or shas in code or in this file**; name the mechanism instead, so the comment stays true after the item is closed and the board is compressed.
-- Design discipline (DESIGN.md): one accent — the caret; figure/ground by value; summoned overlays over persistent chrome; four syntax roles, no rainbow.
-- No web artifacts: design ideas are prototyped in awl via headless capture, not HTML mockups.
-- The repo is public: tracked files carry no personal-machine paths or private-notes references — `$HOME` over `/Users/<name>`, "the repo root" over absolute paths, "the user's notes (private)" over their location. **A lane does not have to WRITE a path to leak one — it only has to capture.** Sidecars are sanitised for you (`capture::redact` rewrites `$HOME` to `~` in the one writer every door funnels through, CAPTURE.md "Paths are home-relative"), and shipped binaries at the build seam (`scripts/with-remap.sh`). Neither reaches the PNG or `overlay.items`, which photograph whatever directory the picker was pointed at: capture a file picker against a seeded `--root` and an explicit `--config`, never the ambient ones.
-- A new `ViewState` field gets an inert default in `ViewState::base()`; the one exhaustive construction site is `sync_view`, which must fail to compile on the new field — forcing a conscious render decision.
-- When replay is clean but the user still sees it, hunt the live-only classes: stale caches across buffer swaps, missing invalidation on resize/page-drag, redraw-scheduling gaps.
-
-## Docs voice (user-set)
-
-User-facing docs (CREDITS, GUIDE, welcome/tour, site pages) are matter-of-fact: tables and short declarative sentences, facts traced to verified sources, no filler. PHILOSOPHY/DESIGN keep their personal register.
+- Give each behavior one owner, route all consumers through it, and make bypasses
+  private. Use exhaustive law tests so new roster members cannot escape coverage.
+- Test at the purest real seam. Confirm a reported defect and its measurement;
+  prove headline regression laws fail when the bug is reintroduced. Sweep the
+  changed configuration axis, including relevant environment and platform branches.
+- Preserve source audits until replacements prove the same guarantees. Size
+  thresholds trigger design review, not automatic extraction; record justified
+  exceptions through the existing code-health mechanism.
+- Input flows through keys → `keymap.rs` Actions → `actions::apply_transition`.
+  Keep interactions replayable and observable. Native menu actions also need
+  action-level interception; a key-only guard cannot protect them.
+- Keep per-frame work O(visible). Picker rows use `render/rowlayout`. Cache keys
+  using `buffer.version()` also need buffer identity or invalidation on swap.
+- New `ViewState` fields get inert defaults in `ViewState::base()`; keep `sync_view`
+  exhaustive so adding a field forces a render decision.
+- Every test and every test-global reader/writer holds `crate::testlock::serial()`;
+  keep the guard alive through shared GPU resource destruction. Details and
+  environment-locking rules are in the verification policy.
+- Comments explain mechanisms, not incident history, queue items, rounds, or shas.
+  User-facing docs use short, factual prose with verified sources; PHILOSOPHY and
+  DESIGN keep their personal register. Never invent license facts.
+- Public files and captures contain no personal-machine paths or private-note
+  references. Seed file-picker captures with an explicit `--root` and `--config`;
+  sidecar redaction does not sanitize photographed rows. The user's private notes
+  may be read, never written.
 
 ## Branches & pushing
 
-Development happens on local `main` (it may run ahead of origin; `git remote show origin` is the default-branch truth). A green train — a receipt from `scripts/native-gate.sh`, wasm — authorizes a push; CI minutes are a non-concern. The receipt is the only authorization to call the native tier “full native suite”: `cargo test --bin awl` is binary unit tests and any filtered invocation is targeted tests; counts never prove scope. Prose-only policy and queue edits use diff/link checks and cite the prior validated commit without relabelling its receipt. Embedded docs, fixtures, and scripts are executable inputs with applicable checks; see `docs/verification.md`.
+Development happens on local `main`; verify the remote default with
+`git remote show origin`. Before every commit, check `pwd`, the current branch,
+and the staged diff. Stage explicit paths only, never `git add -u` or `-A`.
+Preserve unrelated work. Never stash or reset the index during an uncommitted merge;
+verify a merge commit has two parents.
 
-**The receipt is hardware-bounded: it certifies "sound on the hardware the receipts run on, with virtualised-GPU behaviour untested by any local gate."** The gate uses whatever GPU the host has — on the dev machine, real Apple Silicon Metal — and a wedge has stayed green there while red on hosted macOS's virtualised Metal for ~140 commits. **A software adapter is not a stand-in for that axis, and this is measured rather than assumed:** CI's `linux` job runs this same gate against Mesa lavapipe and stayed green through that entire streak, and a local lavapipe container never once reproduced it. **The only arm that has ever seen this axis is CI's hosted-mac jobs**, and that arm is deliberately split: `mac (build + test, minus render::tests)` GATES `main` directly, while `mac (render::tests)` is tolerated red and pinned by name in the workflow file itself.
+Never commit or mutate the candidate while your gate runs. Commit, freeze, gate,
+then push. Add new files before `code-health.sh`, which checks tracked files.
+A green native receipt plus wasm checks authorizes a push. Prose-only policy/queue
+changes use diff/link checks and cite the prior validated commit without relabelling
+its receipt. Check in-flight CI before pushing; a newer push cancels it. Missing
+`conclusion` means inspect `status` and wait when required.
 
-Tags and releases wait for the user's explicit word, every time. **Worktree branches never push.** A worktree agent verifies its base with `git merge --ff-only main` and stops to report if it won't fast-forward. The merge train inspects and integrates one branch at a time, then runs the full suite on the bounded combined candidate as specified in `docs/verification.md`; for structs with per-call-site initializers, grep the construction sites before declaring a merge done (git merges a missing field cleanly and fails to compile later). A genuine product/taste conflict is grounds to abort and hand back.
+Tags and releases require the user's explicit word every time. Release dry runs
+skip `publish`; changes there need self-diagnosing failures and cannot claim
+rehearsal coverage. Worktree branches never push. Worktree agents first run
+`git merge --ff-only main` and report if it cannot fast-forward. Integrate branches
+sequentially, inspect struct construction sites, and gate the combined candidate.
+Hand back genuine product/taste conflicts.
 
-⚠️ **Verify WHERE you are and WHAT you are staging, immediately before every commit: `pwd` and `git rev-parse --abbrev-ref HEAD`, and `git add` explicit paths — never `-u`, never `-A`.** Three distinct failures share that one root: `git add -u` in a shared tree sweeping another session's source; staged changes riding across a `git checkout -b`; and — the least obvious — **the Bash tool's working directory PERSISTS between calls**, so an agent that `cd`s into a worktree to check status and then commits puts those commits on that worktree's branch.
-
-⚠️ **Never commit while your own gate is running.** The suite records HEAD at start and end and invalidates itself when they differ (`HEAD changed while the suite ran`), so a mid-run commit throws away the whole run. Commit first, then gate, then push. Related: `code-health.sh` only sees **tracked** files, so run it after `git add`, not before.
-
-## Open decisions & known divergences (do not re-discover)
-
-- **CRLF / lone-CR / U+2028 (resolved — the VS Code model, docs/platform.md):** the rope is always pure `\n`; load normalizes, save restores via `Buffer::disk_bytes`; a lone `\r`/NEL/LS/PS is content. EOL is document metadata, not on the undo timeline.
-- **History ownership (settled):** a git-managed file's timeline is `git log` alone. Loose files snapshot on every save, pruned by the aged ladder. Autosave still writes git files (writing ≠ version-meddling).
-- **Shift-PageDown/PageUp** deliberately do not extend a selection (documented non-movers in the `is_motion` test); promoting them is a conscious follow-up, not a bug.
-- **Shared orchestration board:** build queues, dependencies, and status live in `.orchestrator/queue.md` — the one tool-neutral source of truth (ROADMAP.md is product direction). A queue orchestrator reads `.orchestrator/README.md` before every dispatch wave. Its protocol: claim on the board and commit before writing code; work in a worktree named on the claim line; board writes are orchestrator-only — workers report shas + outcomes. Every dispatched worker gets an explicit model and effort chosen by role; never silently inherit the orchestrator's defaults. Inheritance is allowed only when the brief deliberately records that the worker needs the same model and effort.
-- **Design-session flow (README §Design sessions):** brainstormed decisions land as self-contained queue items committed with an `orchestrator: decisions` subject; git is the log — no decisions file. The user's notes (private, outside the repo) are the user's space: agents read there, never write.
+Queue orchestrators read `.orchestrator/README.md` before each dispatch wave.
+Claim and commit before implementation; use the claimed worktree. Only orchestrators
+write the board; workers report shas and outcomes. Choose explicit model/effort by
+role; inheritance needs a deliberate statement in the brief. Design decisions land
+as self-contained queue items with an `orchestrator: decisions` commit.
 
 ## Worktree lifecycle
 

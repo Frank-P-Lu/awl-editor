@@ -39,3 +39,8 @@ search_forward = ["Cmd-F", "C-s"]        # up to 2 chords, capped at 2
 - **One classifier — `page::PageClass`:** `of_syntax`/`of_path` — a recognized code language = `Code`; markdown / scratch / `.txt`/`.env` = `Prose`. `Buffer::page_class` and `TextPipeline::page_class` both delegate here (can't disagree with the syntax gate). `Config::measure_for(class)` is the other shared owner.
 - **Wiring:** every reader of "what measure applies" goes through `PageClass::of_*` + `Config::measure_for` (can't drift). Buffer open/switch resyncs via `App::sync_page_measure` (live) / the `replay_keys` Goto arm (headless). `set_size`'s wrap-width comparison already invalidates `row_geom` on a measure-only change.
 - Sidecar `page.class` (`"prose"`/`"code"`). Taste calls: `--measure` only pins the starting buffer; session-restore of a different-class buffer doesn't re-sync (narrow gap).
+
+## Selection motion boundary
+
+Shift-PageDown and Shift-PageUp deliberately do not extend selection. They are
+non-movers in the `is_motion` test; changing this is a product decision.
