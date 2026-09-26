@@ -271,8 +271,7 @@ reaching the end again (an End, or a char-step that lands there) restores the
 list-nav reading on the very next keypress.
 
 Schema `/210` adds **`overlay.window.cue_above`** / **`overlay.window.cue_below`**:
-the faint positional COUNT CUE ("↑ 3 more" / "↓ 41 more", extending the
-`+ N more…` idiom `workingset.rs` already uses for the resting stack) that
+the faint positional COUNT CUE ("↑ 3 more" / "↓ 41 more") that
 draws when a candidate window clips the corpus. Each is `null` when nothing
 is hidden past that edge, else the ITEM count — never a display-line count: a
 sectioned card (the theme picker) windows DISPLAY LINES (headers + item

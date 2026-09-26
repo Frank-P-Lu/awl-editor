@@ -13,10 +13,15 @@ impl App {
         }
     }
 
-    /// A wheel over the EXPANDED WORKING-SET PANEL scrolls it, not the
-    /// document — hit-tested against the SAME rect the lava carve uses.
+    /// A wheel over an overflowing compact working set scrolls its visible
+    /// file window directly. The older expanded panel retains its own route
+    /// for callers that explicitly open it.
     pub(super) fn try_working_set_panel_scroll(&mut self, delta: MouseScrollDelta) -> bool {
-        if !self.document.working_set().is_expanded() {
+        if scroll_zoom_intent(self.input.keyboard.mods.state()) {
+            return false;
+        }
+        let working = self.document.working_set();
+        if !working.is_expanded() && working.len() <= crate::workingset::RESTING_FILES {
             return false;
         }
         let (px, py) = self.input.pointer.cursor_px;
@@ -24,7 +29,9 @@ impl App {
             .frame
             .gpu()
             .and_then(|g| g.pipeline.gutter_stack_bounds(g.config.height))
-            .is_some_and(|[x, y, w, h]| px >= x && px < x + w && py >= y && py < y + h);
+            .is_some_and(|[left, top, right, bottom]| {
+                px >= left && px < right && py >= top && py < bottom
+            });
         if !over_panel {
             return false;
         }
@@ -36,7 +43,11 @@ impl App {
         };
         if lines.abs() >= 1.0 {
             let delta = -lines.round() as isize; // wheel up = toward the top
-            self.document.working_set_mut().scroll_expanded(delta);
+            if self.document.working_set().is_expanded() {
+                self.document.working_set_mut().scroll_expanded(delta);
+            } else {
+                self.document.working_set_mut().scroll_direct(delta);
+            }
             self.sync_view(false);
         }
         self.request_frame();

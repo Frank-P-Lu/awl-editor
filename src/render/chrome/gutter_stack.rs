@@ -56,7 +56,7 @@ pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 
 /// The pre-shaped close lane. EVERY row of the stack shapes this exact run
-/// before anything else on the line, even a `More`/`Overflow` row that can
+/// before anything else on the line, even an `Overflow` row that can
 /// never reveal it and even while it is transparent: a LEADING span in a
 /// right-aligned line grows the row's own shaped width into the ragged
 /// margin a shorter-than-budget name already leaves empty, so revealing it
@@ -285,7 +285,7 @@ pub(super) fn stack_spans(
         // more, so it wears the row's OWN name ink at rest (blending in) and
         // flips to [`close_mark_hover_ink`] under the live pointer. `hover`
         // can only ever name a `File`/`Group` row (`stack_hit_from_plan`'s
-        // own enrolment), so a `More`/`Overflow` row's mark stays
+        // own enrolment), so an `Overflow` row's mark stays
         // shaped-but-transparent always.
         let closable = matches!(
             line.kind,

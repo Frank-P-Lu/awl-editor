@@ -957,10 +957,10 @@ pub(super) fn scroll_window(
 /// not items, and passing its display-line total here double-counts them),
 /// and the corpus size — and answers which edges the window clips. A list
 /// that fits (`top == 0 && visible == n_items`) answers `(None, None)`, so a
-/// picker that never clips draws neither half — extending the `+ N more…`
-/// idiom (`workingset.rs`) rather than duplicating it: that row is a
-/// resting-stack EXPAND affordance and stays exactly as it is; this is a
-/// passive position cue for an already-scrolling window.
+/// picker that never clips draws neither half. This is a passive position cue
+/// for an already-scrolling window.
+/// The compact margin uses its own direct window instead of this helper.
+/// The expanded panel also owns a separate row projection.
 pub(crate) fn window_edge_counts(
     top: usize,
     visible: usize,

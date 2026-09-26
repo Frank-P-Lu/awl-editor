@@ -454,15 +454,10 @@ fn buffers_seven(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
     v["buffers"].clone()
 }
 
-/// **THE OVERFLOW ROW'S COUNT IS EXACT ON THE REAL LIVE-APP CHAIN** — the same
-/// claim `workingset::tests::overflow_count_is_exact_and_the_active_file_is_
-/// always_in_the_visible_window` proves at the pure model seam, driven here
-/// through real `Cmd-o` chords into a real headless `App` instead, so the
-/// live margin (`app/viewstate.rs`'s `sync_view`) and the sidecar
-/// (`app/capture_state.rs`'s fold) are proven to agree with the model rather
-/// than assumed to.
+/// The compact margin shows only real files when its window fills. The
+/// App capture must not restore the old expandable overflow button.
 #[test]
-fn the_overflow_row_counts_every_hidden_file_on_the_real_chain() {
+fn the_compact_window_has_no_expand_row_on_the_real_chain() {
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-working-set-overflow-{}", std::process::id())),
     );
@@ -473,16 +468,9 @@ fn the_overflow_row_counts_every_hidden_file_on_the_real_chain() {
         "overflow-seven",
         &format!("{TO_BBB} {TO_CCC} {TO_DDD} {TO_EEE} {TO_FFF} {TO_GGG}"),
     );
-    let files = opened["files"].as_array().expect("files is an array");
     assert_eq!(
-        files.len(),
-        6,
-        "five visible file rows plus one overflow row: {files:?}"
-    );
-    assert_eq!(
-        files.last().unwrap(),
-        &serde_json::json!("+ 2 more…"),
-        "seven open, five drawn, two hidden — aaa.md and bbb.md, the two the window slid past"
+        opened["files"],
+        serde_json::json!(["ccc.md", "ddd.md", "eee.md", "fff.md", "ggg.md"])
     );
 }
 

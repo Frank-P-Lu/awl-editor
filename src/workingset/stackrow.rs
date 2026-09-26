@@ -15,22 +15,14 @@ pub enum StackRowKind {
     /// active-file plate; it may also show the close mark, closing itself.
     #[default]
     File,
-    /// The collapsed view's single generic overflow affordance — a resting-
-    /// stack row, and drawn ONLY there: clicking it EXPANDS the panel
-    /// (`app/input/gutter.rs::gutter_stack_click`).
-    More { hidden: usize },
     /// A project heading in the expanded cross-project panel. May also show
     /// the close mark — its own, closing every file under its root, never a
     /// switch target of its own.
     Group { active: bool },
     /// The expanded panel's own PASSIVE scroll-position cue — `↑ N
     /// more` (`up: true`) pinned above the window when rows are hidden above
-    /// it, `↓ N more` below when rows remain below. Deliberately a DIFFERENT
-    /// kind than `More`: that row is an actionable resting-stack EXPAND
-    /// affordance, and reusing it here would make a passive position cue
-    /// clickable through the exact same door — hit-tested and filtered out
-    /// exactly like `Group` (`gutter_hit::stack_hit_from_plan`), never a
-    /// second close/switch target.
+    /// it, `↓ N more` below when rows remain below. It is passive, filtered
+    /// out by `gutter_hit::stack_hit_from_plan`.
     Overflow { up: bool, hidden: usize },
 }
 
@@ -44,10 +36,8 @@ pub struct StackRow {
     pub parent: String,
     /// Is this the file the reader is currently editing?
     pub active: bool,
-    /// Whether this row is a file, the one overflow affordance, or a project
-    /// heading. [`super::WorkingSet::stack_rows`] (the resting stack) emits
-    /// `File` and, once the active root's group overflows
-    /// [`super::RESTING_FILES`], one trailing `More`;
+    /// Whether this row is a file, a passive positional cue, or a project
+    /// heading. [`super::WorkingSet::direct_rows`] emits file rows only;
     /// [`super::WorkingSet::expanded_rows`] (the transient scrollable panel)
     /// emits `File` and `Group` heading rows.
     pub kind: StackRowKind,

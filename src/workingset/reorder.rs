@@ -18,34 +18,9 @@ use super::panel::{DrawnRow, Panel, PanelRow};
 use super::{OpenFile, WorkingSet};
 
 impl WorkingSet {
-    /// THE `self.files` SLOT a drawn RESTING-STACK row names, window-aware —
-    /// the fix for a real bug [`WorkingSet::stack_rows`]'s own hold-still
-    /// window exposed: that method draws `group[start..]`, so row 0 of the
-    /// drawn stack is `group[start]`, not `group[0]`, whenever the window has
-    /// slid away from the top. A resolver that indexed `group(root)` directly
-    /// (this method's predecessor) agreed with the draw only while `start`
-    /// happened to be `0` — dormant until a root's group ever grew past
-    /// [`super::RESTING_FILES`] and the active file forced a slide.
-    ///
-    /// Deliberately answers for a group of ONE file too (`row: 0`): the
-    /// single-file identity line resolves through this exact door
-    /// (`GutterLine::Name` → row 0,
-    /// `render::chrome::gutter_hit::stack_hit_from_plan`) even though
-    /// [`WorkingSet::stack_rows`] itself draws no STACK for a group that small
-    /// — "is a row drawn" and "is a stack drawn" are different questions, and
-    /// only the second one gates on group length.
-    pub fn resting_row_index(&self, root: &Path, row: usize) -> Option<usize> {
-        let group = self.group(root);
-        if group.is_empty() {
-            return None;
-        }
-        let start = self.resting_start(root, &group);
-        group.get(start + row).copied()
-    }
-
     /// The group-relative slot `key` currently occupies within `root`'s own
     /// group — the origin half of a drag, resolved once the row under the
-    /// press has already named a file (through [`WorkingSet::resting_row_index`]
+    /// press has already named a file (through [`WorkingSet::direct_row_index`]
     /// or [`WorkingSet::expanded_row_open_file`]) rather than re-deriving it
     /// from a row index a second way.
     pub fn group_index_of(&self, root: &Path, key: &BufferKey) -> Option<usize> {
@@ -62,11 +37,9 @@ impl WorkingSet {
     /// the clamp: a row outside `origin_root`'s own block never returns an
     /// index a drag could use to cross into another root's group.
     ///
-    /// The RESTING stack draws only the active root's own group, so every row
-    /// it shows already belongs to `origin_root` by construction — window-aware
-    /// via [`WorkingSet::resting_start`], the same computation
-    /// [`WorkingSet::stack_rows`] draws from, so drag and draw can never
-    /// disagree about which group slot a given row names.
+    /// The compact stack can include several roots; its row resolver reads
+    /// the same direct window that drawing uses and clamps a foreign target
+    /// to the source root's nearest in-group slot.
     ///
     /// The EXPANDED panel mixes roots ([`WorkingSet::expanded_full`]), so a row
     /// outside `origin_root`'s own contiguous block (its heading plus every
@@ -91,8 +64,14 @@ impl WorkingSet {
             return 0;
         }
         let Panel::Expanded { .. } = self.panel else {
-            let start = self.resting_start(origin_root, &group);
-            return (start + row).min(last);
+            let Some(at) = self.direct_row_index(row) else {
+                return last;
+            };
+            return group
+                .iter()
+                .position(|&slot| slot >= at)
+                .unwrap_or(last)
+                .min(last);
         };
         let full = self.expanded_full();
         let Some(block_start) = full
@@ -138,7 +117,7 @@ impl WorkingSet {
     ///
     /// Never touches [`WorkingSet::active_index`]'s FILE identity, even when
     /// the active file is the one that moved: only its absolute slot (and,
-    /// through [`WorkingSet::recompute_resting_window`], its position inside
+    /// through [`WorkingSet::reveal_direct`], its position inside
     /// the hold-still window) can shift. A drag reorders the row it grabs; it
     /// does not also activate it, so a background row can be reordered
     /// without disturbing what the reader is looking at.
@@ -162,7 +141,7 @@ impl WorkingSet {
         if let Some(key) = active_key {
             self.active = self.files.iter().position(|f| f.key == key);
         }
-        self.recompute_resting_window();
+        self.reveal_direct();
     }
 }
 

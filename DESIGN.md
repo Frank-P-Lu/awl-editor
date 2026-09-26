@@ -263,10 +263,10 @@ The Outline may click-to-jump. It is not a resizable or focusable file-tree
 substitute.
 
 The bottom-left identity's working-set stack carries the same license: it may
-click-to-switch, and its overflow row may expand into a transient scrollable
-panel grouped by project — but it remains orientation, never a persistent
-file-tree or project-manager sidebar. The expanded panel is summoned and
-dismissed (Esc, click-away, choosing a row), not a standing surface.
+click-to-switch and scroll directly through open files, including files retained
+under another folder. It remains orientation, never a persistent file-tree or
+project-manager sidebar. The visible rows stay bounded, and switching to a file
+reveals it without changing the stable open order.
 
 File navigation follows **folder → file → writing**. The working set answers
 what is already open. **Files** and **Recent** answer what to open from the named

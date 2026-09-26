@@ -23,11 +23,19 @@ fn provisional_labels_number_only_when_simultaneous_fresh_rows_need_distinguishi
     ws.open(BufferKey::Fresh(11), None, root());
     ws.open(BufferKey::Fresh(12), None, root());
 
-    let labels: Vec<String> = ws.stack_rows(&root()).into_iter().map(|r| r.leaf).collect();
+    let labels: Vec<String> = ws
+        .direct_rows(&root())
+        .into_iter()
+        .map(|r| r.leaf)
+        .collect();
     assert_eq!(labels, ["scratch", "untitled", "untitled 2"]);
 
     ws.close_key(&BufferKey::Fresh(11));
-    let labels: Vec<String> = ws.stack_rows(&root()).into_iter().map(|r| r.leaf).collect();
+    let labels: Vec<String> = ws
+        .direct_rows(&root())
+        .into_iter()
+        .map(|r| r.leaf)
+        .collect();
     assert_eq!(labels, ["scratch", "untitled"]);
 }
 
@@ -273,9 +281,9 @@ fn rekey_active_is_a_no_op_with_nothing_active() {
 }
 
 /// **A FRESHLY OPENED FILE, AMONG SEVERAL ALREADY OPEN, IS ACTIVE IN THE VERY
-/// SAME [`WorkingSet::stack_rows`] CALL THAT FIRST DRAWS IT** — no separate
+/// SAME [`WorkingSet::direct_rows`] CALL THAT FIRST DRAWS IT** — no separate
 /// activation step and no frame of delay, because [`WorkingSet::open`] sets
-/// `self.active` unconditionally before returning and `stack_rows` re-derives
+/// `self.active` unconditionally before returning and `direct_rows` re-derives
 /// every row's `active` flag from that field fresh on each call (no cache to
 /// go stale). The margin's plate is a pure function of that flag
 /// (`render::chrome::gutter_stack::plate_rects`' own `file.active` filter,
@@ -297,7 +305,7 @@ fn a_freshly_opened_file_among_several_is_active_immediately() {
     // row (or the old active row) is marked.
     opened(&mut ws, "a.md");
     assert_eq!(
-        ws.stack_rows(&root())
+        ws.direct_rows(&root())
             .iter()
             .map(|r| r.active)
             .collect::<Vec<_>>(),
@@ -310,7 +318,7 @@ fn a_freshly_opened_file_among_several_is_active_immediately() {
     // (their screenshot was the single-file case only).
     opened(&mut ws, "c.md");
     assert_eq!(
-        ws.stack_rows(&root())
+        ws.direct_rows(&root())
             .iter()
             .map(|r| r.active)
             .collect::<Vec<_>>(),
@@ -497,75 +505,77 @@ fn fit_parent_never_overruns_its_budget_and_never_lies_about_depth() {
 
 /// **THE ONE-FILE CONTRACT, AND IT IS ABOUT THE GROUP RATHER THAN THE SET.**
 ///
-/// The margin widens only when the ACTIVE ROOT holds more than one file, so the
-/// count that decides it is [`WorkingSet::group`]'s, never [`WorkingSet::len`]'s.
-/// The two agree in the easy case and part company in the one this surface
-/// exists for: a buffer retained from another project keeps its slot in the set
-/// while contributing nothing to this project's stack. A `len()`-based gate
-/// passes every single-root test ever written and then draws a stack of one the
-/// first time a second root is involved — so this asserts the empty answer at
-/// `len() == 2`, where the two rules disagree.
+/// A second file opens the compact stack even when it belongs to another root.
 #[test]
-fn a_stack_appears_only_once_the_active_root_holds_two_files() {
+fn a_second_file_in_another_root_appears_directly_in_the_compact_stack() {
     let mut ws = WorkingSet::default();
     opened(&mut ws, "index.md");
     assert!(
-        ws.stack_rows(&root()).is_empty(),
+        ws.direct_rows(&root()).is_empty(),
         "one file under the root must draw no stack"
     );
 
-    // A second file, but under ANOTHER root: the set now holds two, the active
-    // root's group still holds one, and the margin must stay a single line.
     let other = PathBuf::from("/proj/archive");
     let far = other.join("old.md");
     ws.open(BufferKey::path(&far), Some(far.clone()), other.clone());
     assert_eq!(ws.len(), 2, "the set holds both files");
-    assert!(
-        ws.stack_rows(&root()).is_empty(),
-        "a file parked under another root must not summon this root's stack"
-    );
-    assert!(
-        ws.stack_rows(&other).is_empty(),
-        "nor the other root's, which also holds one"
-    );
-
-    // The second file under the ACTIVE root is what widens it.
-    opened(&mut ws, "journal/field-notes.md");
-    let rows = ws.stack_rows(&root());
-    // The FILE rows are still exactly the group, in opening order, excluding
-    // the other root — the group filter is unchanged by residual 3.
-    let file_rows: Vec<&StackRow> = rows
-        .iter()
-        .filter(|r| matches!(r.kind, StackRowKind::File))
-        .collect();
+    let rows = ws.direct_rows(&root());
     assert_eq!(
-        file_rows
-            .iter()
+        rows.iter()
             .map(|r| format!("{}{}", r.parent, r.leaf))
             .collect::<Vec<_>>(),
-        vec!["index.md", "journal/field-notes.md"],
-        "the FILE rows are the group, in opening order, and exclude the other root"
+        vec!["index.md", "archive/old.md"]
     );
-    assert_eq!(
-        file_rows.iter().filter(|r| r.active).count(),
-        1,
-        "exactly one row is the reader's current file"
-    );
+    assert!(rows.iter().all(|r| r.kind == StackRowKind::File));
+    assert!(rows[1].active);
+}
+
+#[test]
+fn compact_margin_scrolls_directly_through_all_roots_without_an_expand_row() {
+    let _guard = crate::testlock::serial();
+    let mut ws = WorkingSet::default();
+    for i in 0..7 {
+        opened(&mut ws, &format!("f{i}.md"));
+    }
+    let other = PathBuf::from("/proj/archive");
+    let far = other.join("old.md");
+    ws.open(BufferKey::path(&far), Some(far), other);
+    assert!(ws.set_active(0));
+
+    let labels = |ws: &WorkingSet| {
+        ws.margin_rows(&root())
+            .into_iter()
+            .map(|row| (format!("{}{}", row.parent, row.leaf), row.kind))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(labels(&ws).len(), RESTING_FILES);
+    assert_eq!(labels(&ws)[0].0, "f0.md");
     assert!(
-        file_rows[1].active,
-        "the file just opened is the active one"
+        labels(&ws)
+            .iter()
+            .all(|(_, kind)| *kind == StackRowKind::File)
     );
-    // RESIDUAL 3's overflow row: the OTHER root's file is hidden from this
-    // group, but it is still an OPEN buffer nowhere else on screen, so the
-    // generic `+ N more…` row must count it — "same-root overflow and other
-    // roots alike" (the queue item's own wording). Before residual 3 this
-    // group drew no overflow row at all; the trailing row is the deliberate
-    // change, not a regression.
+
+    ws.scroll_direct(1000);
     assert_eq!(
-        rows.last().map(|r| &r.kind),
-        Some(&StackRowKind::More { hidden: 1 }),
-        "the one file parked under the other root is hidden, and counted"
+        ws.active_index(),
+        Some(0),
+        "scrolling does not activate a file"
     );
+    assert_eq!(labels(&ws).last().unwrap().0, "archive/old.md");
+    assert_eq!(ws.direct_row_index(RESTING_FILES - 1), Some(7));
+    assert_eq!(ws.direct_row_index(RESTING_FILES), None);
+
+    ws.scroll_direct(-1);
+    let scrolled = labels(&ws);
+    assert_eq!(scrolled[0].0, "f2.md");
+    assert_eq!(
+        labels(&ws),
+        scrolled,
+        "a passive read never recentres the window"
+    );
+    assert!(ws.set_active(0));
+    assert_eq!(labels(&ws)[0].0, "f0.md", "activation reveals its own file");
 }
 
 /// **WHICH ROW IS MARKED ACTIVE, SWEPT OVER EVERY SLOT.** A stack that marked
@@ -580,7 +590,7 @@ fn exactly_the_activated_row_is_marked_in_every_slot() {
             opened(&mut ws, n);
         }
         assert!(ws.set_active(target));
-        let rows = ws.stack_rows(&root());
+        let rows = ws.direct_rows(&root());
         let marked: Vec<usize> = rows
             .iter()
             .enumerate()
@@ -658,13 +668,13 @@ fn resting_window_holds_still_when_the_newly_active_file_is_already_visible() {
     // happened to leave it.
     assert!(ws.set_active(0));
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
         "known baseline window"
     );
 
     assert!(ws.set_active(7), "f7 exists");
-    let window_a = file_leaves(&ws.stack_rows(&root()));
+    let window_a = file_leaves(&ws.direct_rows(&root()));
     assert_eq!(
         window_a,
         vec!["f3.md", "f4.md", "f5.md", "f6.md", "f7.md"],
@@ -672,7 +682,7 @@ fn resting_window_holds_still_when_the_newly_active_file_is_already_visible() {
     );
 
     assert!(ws.set_active(3), "f3 exists");
-    let window_b = file_leaves(&ws.stack_rows(&root()));
+    let window_b = file_leaves(&ws.direct_rows(&root()));
     assert_eq!(
         window_b, window_a,
         "f3 was already the window's own top row — activating it must not move a single drawn row"
@@ -704,7 +714,7 @@ fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
     ten(&mut ws);
     assert!(ws.set_active(0));
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
         "fresh window anchored at the top"
     );
@@ -713,7 +723,7 @@ fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
     // EXACTLY at the new bottom row, not recentre the window around it.
     assert!(ws.set_active(9));
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f5.md", "f6.md", "f7.md", "f8.md", "f9.md"],
         "the window slides down by the minimum distance that reveals f9"
     );
@@ -721,7 +731,7 @@ fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
     // f5 is already the window's own top row: hold still.
     assert!(ws.set_active(5));
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f5.md", "f6.md", "f7.md", "f8.md", "f9.md"],
         "f5 was already visible; the window must not move"
     );
@@ -731,19 +741,15 @@ fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
     // direction.
     assert!(ws.set_active(0));
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
         "the window slides up by the minimum distance that reveals f0"
     );
 }
 
-/// **THE ACTIVE FILE IS ALWAYS REPRESENTED, and the overflow row's count is
-/// EXACT — swept over every slot rather than one hand-picked activation.**
-/// Two roots are open at once so the count has to include a hidden buffer
-/// that is not even in this root's own group ("same-root overflow and other
-/// roots alike", the queue item's own wording).
+/// Activating any file reveals it in the compact window without an expand row.
 #[test]
-fn overflow_count_is_exact_and_the_active_file_is_always_in_the_visible_window() {
+fn the_active_file_is_revealed_in_the_compact_window_across_roots() {
     let mut ws = WorkingSet::default();
     ten(&mut ws);
     let other = PathBuf::from("/proj/archive");
@@ -756,9 +762,10 @@ fn overflow_count_is_exact_and_the_active_file_is_always_in_the_visible_window()
     assert!(ws.set_active(0));
     assert_eq!(ws.len(), 12, "ten notes files plus two archive files");
 
-    for target in 0..10 {
+    for target in 0..ws.len() {
         assert!(ws.set_active(target), "f{target} exists");
-        let rows = ws.stack_rows(&root());
+        let root = ws.active_root().unwrap().to_path_buf();
+        let rows = ws.direct_rows(&root);
         let visible_files = file_leaves(&rows);
         assert!(
             visible_files.len() <= RESTING_FILES,
@@ -766,20 +773,10 @@ fn overflow_count_is_exact_and_the_active_file_is_always_in_the_visible_window()
             visible_files.len()
         );
         assert!(
-            visible_files.contains(&format!("f{target}.md")),
+            active_file_shown(&rows),
             "target={target}: the active file is not in the drawn window {visible_files:?}"
         );
-        let more = rows.iter().find_map(|r| match r.kind {
-            StackRowKind::More { hidden } => Some(hidden),
-            _ => None,
-        });
-        let expected_hidden = ws.len() - visible_files.len();
-        assert_eq!(
-            more,
-            Some(expected_hidden),
-            "target={target}: the +N more row must count every open buffer this window \
-             does not draw, across both roots"
-        );
+        assert!(rows.iter().all(|r| r.kind == StackRowKind::File));
     }
 }
 
@@ -983,9 +980,6 @@ fn expanded_row_group_root_names_the_drawn_headings_own_root_at_every_scroll_pos
                         r.kind
                     );
                 }
-                StackRowKind::More { .. } => {
-                    unreachable!("the expanded panel draws no More row")
-                }
             }
         }
     }
@@ -1076,7 +1070,7 @@ fn reveal_and_max_scroll_still_reach_the_groups_own_last_file() {
 
 /// **ROW→FILE RESOLUTION AGREES WITH THE DRAWN ROW**, in the expanded panel's
 /// own multi-root, scrolled index space — the click-resolution counterpart to
-/// `expanded_rows`, swept the same way `stack_rows`' row→file door is swept
+/// `expanded_rows`, swept the same way `direct_rows`' row→file door is swept
 /// elsewhere in this file.
 #[test]
 fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
@@ -1113,7 +1107,6 @@ fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
                     "row {row} is a passive overflow cue and must name no file"
                 );
             }
-            StackRowKind::More { .. } => unreachable!("the expanded panel draws no More row"),
         }
     }
     assert!(
@@ -1256,17 +1249,14 @@ fn a_same_leaf_root_directly_under_the_shared_ancestor_draws_no_quiet_parent() {
     );
 }
 
-/// **`resting_row_index` AGREES WITH THE DRAWN WINDOW AFTER IT SLIDES** — the
-/// window-offset bug a naive `group(root)[row]` resolution carries: once the
-/// hold-still window has moved away from the top, row 0 of the drawn stack is
-/// `group[start]`, not `group[0]`.
+/// The direct row resolver agrees with the drawn window after a scroll.
 ///
 /// Non-vacuity: the naive resolution is computed alongside the real one and
 /// asserted to DISAGREE at this exact window, so the fixture is proved to
 /// actually exercise the slid case rather than one where `start` happens to
 /// still be `0`.
 #[test]
-fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
+fn direct_row_index_agrees_with_the_drawn_window_after_it_slides() {
     let mut ws = WorkingSet::default();
     ten(&mut ws);
     // A known fresh baseline window ([0..5)) before the real sequence, exactly
@@ -1277,7 +1267,7 @@ fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
     assert!(ws.set_active(7), "f7 exists");
     // The hold-still law (asserted elsewhere) puts the window at [3..8).
     assert_eq!(
-        file_leaves(&ws.stack_rows(&root())),
+        file_leaves(&ws.direct_rows(&root())),
         vec!["f3.md", "f4.md", "f5.md", "f6.md", "f7.md"],
         "precondition: the window has slid to start=3"
     );
@@ -1285,7 +1275,7 @@ fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
     let naive: Vec<usize> = ws.group(&root());
     for (row, &naive_at) in naive.iter().enumerate().take(RESTING_FILES) {
         let resolved = ws
-            .resting_row_index(&root(), row)
+            .direct_row_index(row)
             .unwrap_or_else(|| panic!("row {row} of a full window must resolve"));
         assert_eq!(
             ws.files()[resolved].leaf(),
@@ -1299,17 +1289,10 @@ fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
              disagree here, or this fixture proves nothing about the slide"
         );
     }
-    // `RESTING_FILES` (row 5, the +more row's own slot in a 10-file group)
-    // still resolves — `group[start + 5] = group[8]`, f8's real slot, one
-    // past the visible window but still inside the group. Only a row far
-    // enough to run past the group's own length resolves to nothing.
+    // A row past the five drawn slots never resolves to a hidden file.
+    assert_eq!(ws.direct_row_index(RESTING_FILES), None);
     assert_eq!(
-        ws.resting_row_index(&root(), RESTING_FILES)
-            .map(|at| ws.files()[at].leaf()),
-        Some("f8.md".to_string())
-    );
-    assert_eq!(
-        ws.resting_row_index(&root(), 50),
+        ws.direct_row_index(50),
         None,
         "a row far past the group's own length names no file"
     );
@@ -1319,8 +1302,7 @@ fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
     let mut lone = WorkingSet::default();
     opened(&mut lone, "only.md");
     assert_eq!(
-        lone.resting_row_index(&root(), 0)
-            .map(|at| lone.files()[at].leaf()),
+        lone.direct_row_index(0).map(|at| lone.files()[at].leaf()),
         Some("only.md".to_string())
     );
 }

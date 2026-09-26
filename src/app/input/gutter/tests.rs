@@ -8,17 +8,13 @@ use std::sync::Arc;
 
 /// The FILE rows the MARGIN would draw for `app`, as labels — read through the
 /// same owner the renderer reads (`ViewState`'s `gutter_files` comes from
-/// `stack_rows(active_root())`), so the law's row indices are the drawn ones.
-/// Filtered to `StackRowKind::File`: every law below asserts row→file
-/// resolution, and the trailing `+ N more…` row (residual 3's overflow
-/// affordance, present once a hidden buffer exists anywhere) names no file at
-/// all — including it here would assert a leaf/parent pair for a row that is
-/// not one.
+/// `margin_rows(active_root())`), so the law's row indices are the drawn ones.
+/// Filtered to `StackRowKind::File` because expanded headings name roots.
 fn drawn_labels(app: &App) -> Vec<String> {
     let working = app.document.working_set();
     working
         .active_root()
-        .map(|root| working.stack_rows(root))
+        .map(|root| working.margin_rows(root))
         .unwrap_or_default()
         .iter()
         .filter(|row| matches!(row.kind, crate::workingset::StackRowKind::File))
@@ -75,7 +71,7 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
         let labels = drawn_labels(&app);
         assert_eq!(
             labels,
-            vec!["index.md", "alpha.md", "journal/field.md"],
+            vec!["index.md", "archive/log.md", "alpha.md", "journal/field.md"],
             "the margin draws the files in stable OPEN order"
         );
 
@@ -86,6 +82,7 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
             resolved,
             vec![
                 Some(PathBuf::from("/ws/notes/index.md")),
+                Some(PathBuf::from("/ws/archive/log.md")),
                 Some(PathBuf::from("/ws/notes/alpha.md")),
                 Some(PathBuf::from("/ws/notes/journal/field.md")),
             ],
@@ -208,8 +205,8 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
         let labels = drawn_labels(&app);
         assert_eq!(
             labels,
-            vec!["index.md", "alpha.md", "journal/field.md"],
-            "the drawn group excludes the foreign-root file"
+            vec!["index.md", "archive/log.md", "alpha.md", "journal/field.md"],
+            "the compact margin includes the foreign-root file with its root label"
         );
 
         for (row, label) in labels.iter().enumerate() {
@@ -230,6 +227,52 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
             app.gutter_stack_row_key(labels.len()),
             None,
             "a row past the end of the stack names no buffer either"
+        );
+    });
+}
+
+#[test]
+fn scrolled_compact_rows_resolve_the_file_actually_drawn() {
+    let _guard = crate::testlock::serial();
+    let mut mem = crate::fs::InMemoryFs::new().with_dir("/ws/notes");
+    for i in 0..7 {
+        mem = mem.with_file(format!("/ws/notes/f{i}.md"), "note\n");
+    }
+    let mem = Arc::new(
+        mem.with_dir("/ws/archive")
+            .with_file("/ws/archive/old.md", "old\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/f0.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        for i in 1..7 {
+            app.load_path(PathBuf::from(format!("/ws/notes/f{i}.md")));
+        }
+        app.load_path(PathBuf::from("/ws/archive/old.md"));
+        app.load_path(PathBuf::from("/ws/notes/f0.md"));
+        app.document.working_set_mut().scroll_direct(1000);
+        let labels = drawn_labels(&app);
+        assert_eq!(
+            labels,
+            ["f3.md", "f4.md", "f5.md", "f6.md", "archive/old.md"]
+        );
+        for (row, label) in labels.iter().enumerate() {
+            let path = app
+                .gutter_stack_row_path(row)
+                .expect("drawn file has a path");
+            assert_eq!(
+                path.file_name().unwrap().to_string_lossy(),
+                label.rsplit('/').next().unwrap()
+            );
+        }
+        assert_eq!(
+            app.gutter_stack_row_path(crate::workingset::RESTING_FILES),
+            None
         );
     });
 }
@@ -357,9 +400,6 @@ fn every_expanded_panel_row_resolves_to_the_file_it_names() {
                         None,
                         "row {row} is a passive overflow cue and must name no file"
                     );
-                }
-                crate::workingset::StackRowKind::More { .. } => {
-                    unreachable!("the expanded panel draws no More row")
                 }
             }
         }

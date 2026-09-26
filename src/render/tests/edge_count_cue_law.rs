@@ -3,9 +3,7 @@
 //! A windowed candidate list gave no indication of how much sat off-screen —
 //! "there is no scroll bar so like how do i even know where my files are".
 //! DECIDED: no literal scrollbar, a faint text cue at the window's edges
-//! ("↑ 3 more" / "↓ 41 more"), extending the `+ N more…` idiom
-//! (`workingset.rs`'s resting-stack overflow row — an EXPAND affordance, and
-//! untouched by this item; this cue lives only in the scrolling views). One
+//! ("↑ 3 more" / "↓ 41 more"). One
 //! windowing owner: [`crate::render::chrome::window_edge_counts`], read at
 //! both card families (flat `overlay.rs`, grouped `theme_picker.rs`) through
 //! the shared budget fixed point `resolve_window_and_cue`. **The SUMMONED
@@ -39,8 +37,7 @@
 //! `window_plan` turns them into a display-line count. This law's own
 //! arithmetic oracle (`visible_items`, below) is read off `PlannedRow::item`
 //! rather than a line count, so a family that regressed into billing
-//! headers as hidden items would fail it directly. (b) The resting stack's
-//! `+ N more…` row stays exactly as it is — it is never touched by this file.
+//! headers as hidden items would fail it directly.
 //!
 //! **THE GEOMETRY AXIS** (the item's own callout: one window alone is
 //! exactly the shape of law that would go green while blind to this) is

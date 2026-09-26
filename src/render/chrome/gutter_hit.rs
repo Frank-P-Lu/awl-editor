@@ -29,7 +29,7 @@ pub struct GutterStackHit {
     /// The row's own [`crate::workingset::StackRowKind`] — the pointer route's
     /// answer to "what kind of row is this", read off the SAME drawn
     /// [`StackRow`](crate::workingset::StackRow) `row` indexes rather than
-    /// re-derived. A `More` row never carries a close mark
+    /// re-derived. An `Overflow` row never carries a close mark
     /// ([`super::gutter_stack::stack_spans`]'s own gate); a `Group` heading's
     /// own mark closes its whole group rather than itself. Either way a
     /// caller branches on `kind` BEFORE trusting [`Self::is_close`] — `intent`
@@ -132,8 +132,8 @@ impl TextPipeline {
     /// THE MARGIN STACK'S OWN BOUNDING BAND `[left, top, right, bottom]` — the
     /// same rect the lava carve uses ([`Self::gutter_carve_rect`]), exposed
     /// here because the wheel route needs the same region a scroll gesture
-    /// must land inside to move the expanded panel rather than the document
-    /// sitting behind it. `None` when the block is hidden.
+    /// must land inside to move the compact rows or expanded panel rather than
+    /// the document sitting behind it. `None` when the block is hidden.
     pub fn gutter_stack_bounds(&self, height: u32) -> Option<[f32; 4]> {
         self.gutter_carve_rect(height)
     }

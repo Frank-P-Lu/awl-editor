@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 
 use crate::buffers::BufferKey;
 
+mod direct;
 mod panel;
 mod prototype;
 pub use prototype::{prototype_move_from_env, prototype_move_rows};
@@ -149,9 +150,7 @@ pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> P
     path.parent().unwrap_or(&path).to_path_buf()
 }
 
-/// THE RESTING STACK'S OWN ROW CAP — the number of FILE rows the collapsed
-/// margin draws before folding the rest behind one `+ N more…` row. Fixed at
-/// the number the user judged in the working-set residual-3 gallery.
+/// The compact margin's maximum number of simultaneously drawn file rows.
 pub const RESTING_FILES: usize = 5;
 
 /// The open files, in the order the margin draws them, plus which one is active.
@@ -162,10 +161,8 @@ pub const RESTING_FILES: usize = 5;
 pub struct WorkingSet {
     files: Vec<OpenFile>,
     active: Option<usize>,
-    /// The RESTING stack's own hold-still window: the root it was last
-    /// computed for, and the first visible slot within that root's group.
-    /// `None` until the first activation. See [`Self::recompute_resting_window`].
-    resting_window: Option<(PathBuf, usize)>,
+    /// First file in the compact, directly scrollable margin window.
+    direct_scroll: usize,
     panel: panel::Panel,
 }
 
@@ -249,20 +246,10 @@ impl WorkingSet {
         true
     }
 
-    /// Recompute everything that depends on WHICH slot is active, after any
-    /// mutation that can change it (open/re-activate, switch, close). Two
-    /// independent recomputations, each a no-op when it does not apply:
-    ///
-    /// * The resting stack's hold-still window ([`Self::recompute_resting_window`]).
-    /// * The expanded panel's reveal — "any activation re-reveals it"
-    ///   (`CLAUDE.md`'s brief for this surface): if the panel is open when the
-    ///   active slot changes, its scroll re-centres on the new active row
-    ///   through the SAME minimal-jump formula opening it uses
-    ///   ([`Self::expanded_reveal_scroll`]), rather than staying wherever a
-    ///   PREVIOUS reader's scroll left it. A working set that drops below two
-    ///   files closes the panel outright — there is nothing left to expand.
+    /// Reveal the active file in the compact window after an activation.
+    /// The expanded panel's own view follows if one was explicitly opened.
     fn on_active_changed(&mut self) {
-        self.recompute_resting_window();
+        self.reveal_direct();
         if self.len() < 2 {
             self.panel = panel::Panel::Resting;
         } else if matches!(self.panel, panel::Panel::Expanded { .. }) {
@@ -270,57 +257,6 @@ impl WorkingSet {
                 scroll: self.expanded_reveal_scroll(),
             };
         }
-    }
-
-    /// THE HOLD-STILL / MINIMAL-SLIDE LAW.
-    ///
-    /// The gallery's rejected candidate re-derived the resting window from
-    /// nothing but the active file's index EVERY time, which is what let an
-    /// already-visible row jump across the window on the very next activation
-    /// (`collapsed-jitter.png` — the law's own non-vacuity proof in `tests.rs`
-    /// reproduces that stateless formula inline as its red arm). This is
-    /// STATEFUL instead: the window remembered here only MOVES when the newly
-    /// active file has left it, and then by the minimum distance that brings
-    /// it back — never re-centring on a file the reader was already looking
-    /// at.
-    ///
-    /// A window computed for a DIFFERENT root (or none yet) falls back to the
-    /// same fresh reveal the rejected candidate used — there is no PREVIOUS
-    /// window to hold still against the first time a root is visited.
-    fn recompute_resting_window(&mut self) {
-        let Some(active) = self.active else {
-            self.resting_window = None;
-            return;
-        };
-        let root = self.files[active].root.clone();
-        let group = self.group(&root);
-        let Some(active_in_group) = group.iter().position(|&at| at == active) else {
-            self.resting_window = None;
-            return;
-        };
-        let max_start = group.len().saturating_sub(RESTING_FILES);
-        let start = match &self.resting_window {
-            Some((prev_root, prev_start)) if *prev_root == root => {
-                let prev_start = (*prev_start).min(max_start);
-                if active_in_group >= prev_start && active_in_group < prev_start + RESTING_FILES {
-                    // HOLD STILL: the newly active file is already inside the
-                    // drawn window, so nothing about it moves.
-                    prev_start
-                } else if active_in_group < prev_start {
-                    // SLIDE UP by exactly enough to reveal it at the window's
-                    // own top edge — never further.
-                    active_in_group
-                } else {
-                    // SLIDE DOWN by exactly enough to reveal it at the
-                    // window's own bottom edge.
-                    (active_in_group + 1).saturating_sub(RESTING_FILES)
-                }
-            }
-            _ => active_in_group
-                .saturating_sub(RESTING_FILES.saturating_sub(1))
-                .min(max_start),
-        };
-        self.resting_window = Some((root, start.min(max_start)));
     }
 
     pub fn files(&self) -> &[OpenFile] {
@@ -360,75 +296,8 @@ impl WorkingSet {
         self.files.iter().position(|f| &f.key == key)
     }
 
-    /// THE ROWS THE MARGIN DRAWS for `root`'s group — and **empty whenever that
-    /// group holds fewer than two files.**
-    ///
-    /// That emptiness is the whole one-file contract, and it lives HERE so it
-    /// lives exactly once. The bottom identity widens into a stack only when
-    /// there is a working set to show; with a single file open the renderer is
-    /// handed nothing and draws its own lone identity line instead — which
-    /// still wears the active file's plate and ink, off the same two owners a
-    /// stack row reads (`render::chrome::gutter_stack`). A second `len() <= 1`
-    /// guard further down would be a second place for this rule to be true, and
-    /// the day they disagree the margin grows a row for a set of one.
-    ///
-    /// The count that GATES the stack is the ACTIVE ROOT'S GROUP, never
-    /// [`Self::len`]: a file parked under another project must not summon a
-    /// stack in this one. Once gated, the window shown is bounded to
-    /// [`RESTING_FILES`] rows through [`Self::recompute_resting_window`]'s
-    /// hold-still/minimal-slide state, with one trailing `+ N more…` row
-    /// whenever anything is hidden — counting every open buffer this window
-    /// does not draw, in this root's own overflow AND every other root alike,
-    /// since that row is the margin's one door to all of them (the panel this
-    /// overflow row expands: [`Self::expanded_rows`]).
-    /// THE RESTING STACK'S OWN WINDOW START for `root`'s group, in
-    /// group-relative units — the ONE computation [`Self::stack_rows`] draws
-    /// from and [`Self::resting_row_index`] resolves a pointer against, so a
-    /// click, a drag, and the drawn window can never disagree about which
-    /// group slot row 0 names. Mirrors [`Self::recompute_resting_window`]'s own
-    /// fallback formula (a window computed for a DIFFERENT root, or none yet,
-    /// falls back to the same fresh reveal that method's own last arm uses),
-    /// but never WRITES `resting_window` — this is the read-only half, asked
-    /// by any caller that needs the number without mutating state.
-    fn resting_start(&self, root: &Path, group: &[usize]) -> usize {
-        let max_start = group.len().saturating_sub(RESTING_FILES);
-        match &self.resting_window {
-            Some((r, s)) if r.as_path() == root => (*s).min(max_start),
-            _ => {
-                let active_in_group = self
-                    .active_index()
-                    .and_then(|active| group.iter().position(|&at| at == active));
-                active_in_group
-                    .map(|a| {
-                        a.saturating_sub(RESTING_FILES.saturating_sub(1))
-                            .min(max_start)
-                    })
-                    .unwrap_or(0)
-            }
-        }
-    }
-
-    pub fn stack_rows(&self, root: &Path) -> Vec<StackRow> {
-        let group = self.group(root);
-        if group.len() < 2 {
-            return Vec::new();
-        }
-        let start = self.resting_start(root, &group);
-        let visible = &group[start..(start + RESTING_FILES).min(group.len())];
-        let mut rows: Vec<StackRow> = visible.iter().map(|&at| self.file_row(at)).collect();
-        let hidden = self.len().saturating_sub(visible.len());
-        if hidden > 0 {
-            rows.push(StackRow {
-                leaf: format!("+ {hidden} more…"),
-                kind: StackRowKind::More { hidden },
-                ..StackRow::default()
-            });
-        }
-        rows
-    }
-
-    /// The one row projection both [`Self::stack_rows`] and
-    /// [`Self::expanded_rows`] build a `File` row from, so the two views cannot
+    /// The one row projection both the compact and expanded views use, so
+    /// they cannot
     /// describe the same open file differently.
     fn file_row(&self, at: usize) -> StackRow {
         let leaf = match self.files[at].key {
@@ -479,7 +348,7 @@ impl WorkingSet {
         if self.is_expanded() {
             self.expanded_rows()
         } else {
-            self.stack_rows(root)
+            self.direct_rows(root)
         }
     }
 }

@@ -18,8 +18,8 @@ use crate::app::*;
 /// release ([`App::end_row_drag`]), mirroring [`super::drags::RangeDrag`]'s
 /// own "arm at press, resolve every move, settle on release" shape.
 ///
-/// A press on this row does NOT switch the file immediately — unlike the
-/// close zone and the `More` row, which stay instant — because it does not
+/// A press on this row does NOT switch the file immediately — unlike its
+/// close zone, which stays instant — because it does not
 /// yet know whether the gesture is a click or the start of a drag. Deferring
 /// mirrors [`super::mouse::press_at_char`]'s own phantom-selection-click fix
 /// for TEXT (`PointerInput::arm_text_drag_if_moved`): switching immediately
@@ -76,19 +76,16 @@ impl App {
         if working.is_expanded() {
             return working.expanded_row_open_file(row);
         }
-        let root = working.active_root()?;
-        // Window-aware: `stack_rows` draws `group(root)[start..]`, so row 0 of
-        // the drawn stack is `group[start]`, not `group[0]`, once the
-        // hold-still window has slid away from the top
-        // (`WorkingSet::resting_row_index`'s own doc).
-        let at = working.resting_row_index(root, row)?;
+        // The compact margin is a direct window over stable open order,
+        // including files retained under a different root.
+        let at = working.direct_row_index(row)?;
         working.files().get(at)
     }
 
     /// THE ROOT A DRAWN GROUP-HEADING ROW NAMES — the close route's own
     /// resolution for a heading, mirroring [`Self::gutter_stack_row_key`] for
-    /// a file. Only the expanded panel ever draws a `Group` row (the resting
-    /// stack's own `stack_rows` emits `File`/`More` alone), so this is
+    /// a file. Only the expanded panel ever draws a `Group` row (the compact
+    /// stack emits `File` alone), so this is
     /// structurally `None` outside it — no root check of its own is needed.
     pub(in crate::app) fn gutter_stack_row_group_root(&self, row: usize) -> Option<PathBuf> {
         self.document.working_set().expanded_row_group_root(row)
@@ -130,7 +127,7 @@ impl App {
     /// dragged file's own group, is proved at THIS seam instead — without a
     /// window.
     ///
-    /// `false` when `from_row` names no file (a `More`/`Group` row, or a row
+    /// `false` when `from_row` names no file (a `Group`/`Overflow` row, or a row
     /// past the drawn window); the caller is expected to have already gated
     /// on `hit.kind == StackRowKind::File` and `!hit.is_close()` before ever
     /// arming a drag, exactly as [`Self::gutter_stack_click`] does for an
@@ -169,8 +166,6 @@ impl App {
     /// * a FILE row's own CLOSE zone routes to [`App::close_buffer`]
     ///   IMMEDIATELY, on press — the one removal owner, and never a drag
     ///   handle: pressing the close mark always means close;
-    /// * the one `More` row EXPANDS the transient scrollable panel
-    ///   ([`crate::workingset::WorkingSet::expand`]), immediately;
     /// * a `Group` heading's SWITCH half is inert (filtered out before this
     ///   function ever sees it — `render::chrome::gutter_hit::stack_hit_from_plan`),
     ///   so a press elsewhere on it stays click-away; its own CLOSE zone
@@ -215,11 +210,6 @@ impl App {
             return false;
         };
         match hit.kind {
-            crate::workingset::StackRowKind::More { .. } => {
-                self.document.working_set_mut().expand();
-                self.sync_view(true);
-                self.request_frame();
-            }
             // Filtered out before the hit-test ever answers a row for it
             // (`stack_hit_from_plan`); a named, no-op arm rather than folded
             // into the wildcard so a future row kind cannot fall silently

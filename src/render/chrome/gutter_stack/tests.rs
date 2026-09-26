@@ -143,7 +143,6 @@ fn fit_rows_reclaims_the_full_budget_for_the_label() {
     let long_leaf = "a-name-long-enough-to-fill-every-budget-this-law-tries.md";
     let kinds = [
         crate::workingset::StackRowKind::File,
-        crate::workingset::StackRowKind::More { hidden: 3 },
         crate::workingset::StackRowKind::Group { active: false },
         crate::workingset::StackRowKind::Overflow {
             up: true,
@@ -173,7 +172,7 @@ fn fit_rows_reclaims_the_full_budget_for_the_label() {
 /// per kind, but proved as one shared shape: whatever `stack_spans` draws for
 /// a row, the very first characters of that row's own shaped line (after its
 /// row-separating newline, on every row but the first) are the close mark's
-/// text, for every member of `StackRowKind`. A `More`/`Overflow` row can
+/// text, for every member of `StackRowKind`. An `Overflow` row can
 /// never reveal it (`stack_hit_from_plan`'s own enrolment keeps `hover` from
 /// ever naming one), but it still shapes the identical leading run every
 /// other kind does — a uniform ragged-edge growth, never one that only grows
@@ -182,7 +181,6 @@ fn fit_rows_reclaims_the_full_budget_for_the_label() {
 fn every_row_kind_shapes_the_same_leading_mark_uniformly() {
     let kinds = [
         crate::workingset::StackRowKind::File,
-        crate::workingset::StackRowKind::More { hidden: 3 },
         crate::workingset::StackRowKind::Group { active: false },
         crate::workingset::StackRowKind::Overflow {
             up: true,

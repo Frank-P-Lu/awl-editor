@@ -37,7 +37,7 @@ fn seeded() -> WorkingSet {
 fn capture_buffers(dir: &Path, tag: &str, ws: &WorkingSet) -> serde_json::Value {
     let out = dir.join(format!("{tag}.png"));
     let opts = CaptureOpts {
-        working_set: ws.stack_rows(Path::new(ROOT)),
+        working_set: ws.margin_rows(Path::new(ROOT)),
         ..CaptureOpts::default()
     };
     capture_with(&out, &Buffer::from_str("hello\n"), &opts).expect("capture");
@@ -73,7 +73,7 @@ fn the_sidecar_working_set_is_the_real_one_in_stable_open_order() {
 
     let opened = capture_buffers(&dir, "opened", &ws);
     let labels: Vec<String> = ws
-        .stack_rows(Path::new(ROOT))
+        .margin_rows(Path::new(ROOT))
         .iter()
         .map(|row| format!("{}{}", row.parent, row.leaf))
         .collect();
