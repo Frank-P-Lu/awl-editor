@@ -305,6 +305,36 @@ pub(super) fn the_visible_far_section_is_folded_not_a_circular_target() {
     );
 }
 
+/// Distant sections retain readable ink at both display scales.
+#[test]
+fn distant_sections_remain_visible() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    for dpi in [1.0, 2.0] {
+        let axis = (0.80, 0.24);
+        let pixels = field(&device, &queue, 1200, 800, 312.0, 576.0, dpi, axis);
+        let p = projection(1200, 800, axis);
+        let mut strengths = Vec::new();
+        for ring_i in [45, 50, 55] {
+            let z = NEAR_Z + ring_i as f32 * (FAR_Z - NEAR_Z) / 58.0;
+            for theta_i in (0..128).step_by(4) {
+                let point = p.point(std::f32::consts::TAU * theta_i as f32 / 128.0, z);
+                if on_canvas_margin(point, 1200, 800, 312.0, 576.0) {
+                    strengths.push(pixels.strongest_near(point, 2));
+                }
+            }
+        }
+        assert!(strengths.len() >= 30);
+        let median = percentile(&mut strengths, 50);
+        assert!(
+            median >= 40,
+            "dpi={dpi}: distant section median ink {median}"
+        );
+    }
+}
+
 /// The bounded projection is not required to fill every arbitrary sliver of a
 /// panoramic page. It is required to remain one visible surface in both margins
 /// of the two supported capture geometries, at rest and in transit.

@@ -718,66 +718,46 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 // MOTION: determinism, the invisible wrap, and the composed still.
 // ---------------------------------------------------------------------------
 
-/// The retired log-polar hierarchy-repeat assertion is superseded by the
-/// projected surface's actual motion invariant: linear-z travel is continuous
-/// through the old named wrap instant, and costs no more than the same small
-/// time step at ordinary positions. This grades the real folded surface; it
-/// does not flatten the subject to manufacture a periodic circular lattice.
+/// Recycling a depth slot must preserve each moving section's emphasis.
+/// Probe both travel directions at the actual slot boundaries, where a
+/// slot-based major/minor classification would jump to the neighboring ring.
 #[test]
 fn projected_linear_z_travel_is_continuous_at_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    let worst = |a: &[[u8; 4]], b: &[[u8; 4]]| {
-        a.iter()
-            .zip(b.iter())
-            .map(|(p, q)| {
-                (0..3)
-                    .map(|k| (p[k] as i32 - q[k] as i32).abs())
-                    .max()
-                    .unwrap_or(0)
-            })
-            .max()
-            .unwrap_or(0)
-    };
-    let wrap_folded = warpgrid::wrap_seconds(kite().forward_drift());
-    let wrap_cells = warpgrid::forward_cells(wrap_folded, kite().forward_drift());
-    let step_delta = |cells: f32| -> i32 {
-        let before = render_travel(
-            &device,
-            &queue,
-            bg_desc_for(kite()),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            cells - 0.02,
-        );
-        let after = render_travel(
-            &device,
-            &queue,
-            bg_desc_for(kite()),
-            W,
-            H,
-            COL_LEFT,
-            COL_W,
-            cells + 0.02,
-        );
-        worst(&before, &after)
-    };
-    let continuity_delta = step_delta(wrap_cells);
-    // Two arbitrary reference points, well clear of the wrap cell count
-    // (5.0) and of each other, so the reference is a property of ordinary
-    // continuous motion rather than of one coincidentally-picked point.
-    let reference = step_delta(wrap_cells + 1.37).max(step_delta(wrap_cells + 2.81));
-    assert!(
-        (continuity_delta as f32) <= reference as f32 * 1.5 + 5.0,
-        "the folded field costs {continuity_delta} at the hierarchy-repeat boundary but only \
-         {reference} at an arbitrary travel point for the identical tiny step — a fold that \
-         jumps there would cost far more than ordinary continuous motion elsewhere, not read \
-         as a stutter rather than a roll"
-    );
+    let step_z = (10.8 - 0.72) / 58.0;
+    for dpi in [1.0, 2.0] {
+        for boundary in [-6.0, -1.0, 1.0, 2.0, 5.0, 6.0] {
+            let draw = |offset: f32| {
+                render_travel_axis_dpi(
+                    &device,
+                    &queue,
+                    bg_desc_for(kite()),
+                    (W as f32 * dpi) as u32,
+                    (H as f32 * dpi) as u32,
+                    COL_LEFT * dpi,
+                    COL_W * dpi,
+                    (boundary * step_z + offset) * warpgrid::FORWARD_SPEED_SCALE / 1.7,
+                    (0.80, 0.24),
+                    dpi,
+                )
+            };
+            let before = draw(-0.00001);
+            let after = draw(0.00001);
+            let changed = before
+                .iter()
+                .zip(&after)
+                .filter(|(p, q)| (0..3).any(|k| (p[k] as i32 - q[k] as i32).abs() > 12))
+                .count();
+            let fraction = changed as f32 / before.len() as f32;
+            assert!(
+                fraction < 0.001,
+                "dpi={dpi} boundary={boundary}: emphasis jumped on {fraction:.5} of pixels"
+            );
+        }
+    }
 }
 
 /// EVERY CALM PATH RESOLVES TO THE ONE COMPOSED STILL, driven through the
@@ -889,7 +869,7 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "warp_path(world_z)",
         "warp_roll(world_z, spin)",
         "fn warp_depth_alpha(z: f32) -> f32 {",
-        "clamp((0.78 - z * 0.075) / 0.58, 0.15, 1.0)",
+        "clamp((0.90 - z * 0.060) / 0.58, 0.35, 1.0)",
         "if (in.family == 1u || in.major == 0u) {",
         "mask *= margin_only;",
     ] {

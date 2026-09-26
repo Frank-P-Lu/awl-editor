@@ -1221,7 +1221,7 @@ struct TunnelVsOut {
 };
 
 fn warp_depth_alpha(z: f32) -> f32 {
-    return clamp((0.78 - z * 0.075) / 0.58, 0.15, 1.0);
+    return clamp((0.90 - z * 0.060) / 0.58, 0.35, 1.0);
 }
 
 fn warp_segment_point(theta: f32, z: f32, motion: WarpMotion, camera: vec4<f32>) -> vec2<f32> {
@@ -1267,7 +1267,9 @@ fn vs_tunnel(
             let projected_step = camera.z * step_z / max(z * z, 0.01);
             visibility = warp_depth_alpha(z)
                 * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
-            major = select(0u, 1u, ring_i % 5u == 0u);
+            // Keep emphasis on the same world section when a depth slot recycles.
+            let world_ring = f32(ring_i) + floor(motion.travel_z / step_z);
+            major = select(0u, 1u, world_ring - floor(world_ring / WARP_MAJOR_EVERY) * WARP_MAJOR_EVERY == 0.0);
             half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u);
         }
     } else {
