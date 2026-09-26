@@ -645,6 +645,26 @@ pub static FONT_JA_VARIETY_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/KleeOne-Regular.ttf"),
 ];
 
+/// Genuine heavy companions for every bundled Japanese family. The first four
+/// register under the Regular face's family at weight 700. Fontworks' authentic
+/// 600 cut keeps its untouched legacy family `Klee One SemiBold` and typographic
+/// family `Klee One`; fontdb resolves the latter without metadata rewriting.
+pub static FONT_JA_BOLD_FACES: &[&[u8]] = &[
+    include_bytes!("../assets/fonts/NotoSerifJP-Bold.ttf"),
+    include_bytes!("../assets/fonts/NotoSansJP-Bold.ttf"),
+    include_bytes!("../assets/fonts/ShipporiMincho-Bold.ttf"),
+    include_bytes!("../assets/fonts/ZenMaruGothic-Bold.ttf"),
+    include_bytes!("../assets/fonts/KleeOne-SemiBold.ttf"),
+];
+
+pub static JA_BOLD_COMPANION_FAMILIES: &[(&str, &str)] = &[
+    ("Noto Serif JP", "Noto Serif JP"),
+    ("Noto Sans JP", "Noto Sans JP"),
+    ("Shippori Mincho", "Shippori Mincho"),
+    ("Zen Maru Gothic", "Zen Maru Gothic"),
+    ("Klee One", "Klee One"),
+];
+
 /// BUNDLED per-script SIMPLIFIED-CHINESE + KOREAN faces — the "Chinese round"
 /// (the user + his boyfriend's own font picks: 思源宋体/思源黑体, "Source Han",
 /// is Adobe/Google's shared design for the Noto Serif/Sans SC family; 京华
@@ -1125,6 +1145,17 @@ fn build_font_system() -> FontSystem {
     // no dependency on a system CJK face. Named only via per-run CJK `AttrsList`
     // spans (never a `Theme::font`), so this changes zero Latin display shaping.
     for &face_bytes in FONT_JA_VARIETY_FACES {
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
+    }
+
+    // Register the real Japanese heavy cuts after their Regular companions.
+    // Script spans select one only when Markdown/heading styling requested a
+    // heavy weight; ordinary Japanese remains on the exact Regular face.
+    for &face_bytes in FONT_JA_BOLD_FACES {
         font_system
             .db_mut()
             .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(

@@ -52,13 +52,11 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 /// [`TextPipeline::resolve_script_fonts`] — this function does no font-DB
 /// work itself, just the per-run ladder + span laying.
 ///
-/// WEIGHT + STYLE PIN (bold/italic-breaks-Japanese fix): each per-script span
-/// PINS the run's weight AND style to the resolved face's REGISTERED values —
-/// `.weight(wt)` (the concrete weight nearest 400 the font DB has for that
-/// family) and `.style(Normal)`. Every bundled CJK face
-/// ([`crate::render::FONT_CJK_FACES`] / [`FONT_ZH_KO_FACES`]) registers ONLY at
-/// Regular/400/Normal — there is no bold or italic CJK cut in v1 — so pinning is
-/// exactly "the resolved face's registered values", never a guess. This layer
+/// WEIGHT + STYLE RESOLUTION: each per-script span pins upright style and a REAL
+/// registered face. Japanese has a bundled heavy companion for every family, so
+/// a Markdown/heading request of weight >= 600 selects that companion (including
+/// Fontworks' authentic Klee One SemiBold at 600). Other scripts, and ordinary
+/// Japanese, keep the resolved Regular weight. This layer
 /// runs LAST over the markdown layer in [`build_line_attrs`] (script spans UNDER
 /// nothing that re-weights a CJK run), and `AttrsList::add_span` REPLACES the
 /// whole run range, so a `**bold**` (Weight 700) / `*italic*` (Style::Italic)
@@ -68,14 +66,12 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 /// faces — a 700/italic request would drop the 400/Normal bundled JP face and
 /// tofu/system-fall mid-sentence). The pin derives from `base` (the plain doc
 /// attrs, already Normal), so even a styled base can never leak a synthetic
-/// slant/weight onto a CJK run. The emphasis still reads — via the revealed
+/// slant onto a CJK run. The emphasis still reads — via the revealed
 /// `**`/`*` markers on the caret's line and the surrounding Latin styling.
 ///
-/// LOGGED TASTE CALL: NO synthetic bold/italic for CJK in v1 — a CJK run in a
-/// `**bold**`/`*italic*` span renders at the bundled face's own Regular weight,
-/// upright, rather than letting glyphon synthesize an oblique or drop to a
-/// heavier fallback. A future real JP/zh/ko bold-or-italic bundled face would
-/// lift this clamp (resolve the emphasis to that cut instead of pinning Normal).
+/// There is still no synthetic slant: Japanese italic remains upright, and
+/// zh/ko continue to pin their real Regular faces until genuine companions are
+/// bundled.
 pub(crate) fn add_script_spans(
     al: &mut glyphon::cosmic_text::AttrsList,
     text: &str,
@@ -86,7 +82,13 @@ pub(crate) fn add_script_spans(
 ) {
     for (run, script) in crate::script::script_runs(text) {
         let id = crate::script::resolve_font_id(doc_lang, Some(script), cjk_priority);
-        let Some((fam, wt)) = fonts.get(id) else {
+        let requested_weight = al.get_span(run.start).weight;
+        let resolved = if id == theme::FontId::Ja && requested_weight.0 >= 600 {
+            fonts.ja_bold.or(fonts.ja)
+        } else {
+            fonts.get(id)
+        };
+        let Some((fam, wt)) = resolved else {
             continue;
         };
         let a = base

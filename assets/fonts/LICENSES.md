@@ -13,7 +13,7 @@ file is the index; the full OFL 1.1 text travels with the fonts as
 Each row's copyright holder is taken from the face's **own embedded `name`
 table** (nameID 0 = copyright; nameID 7 = trademark for the one documented
 Monaspace Xenon exception in the table below) — the authoritative ground
-truth, not an assumption, and confirmed present for **all 45** bundled `.ttf`
+truth, not an assumption, and confirmed present for **all 50** bundled `.ttf`
 files by a direct `name`-table read (item 255, 2026-08-04;
 `render::tests::font_licence_item255` holds this permanently — see below).
 The `license` column is taken from the same embedded fields (nameID 13/14)
@@ -56,13 +56,18 @@ full for iA Writer Quattro S.
 | `ZillaSlab-Regular.ttf` | Zilla Slab | The Mozilla Foundation | Zilla (trademark) | SIL OFL 1.1 | github.com/typotheque/zilla-slab |
 | `LXGWWenKai-Regular.ttf` | LXGW WenKai | LXGW; The Klee Project Authors | 霞鹜 / 霞鶩 / 落霞孤鹜 / 落霞孤鶩 / LXGW | SIL OFL 1.1 (+ additional permission — see `OFL-LXGWWenKai.txt`) | github.com/lxgw/LxgwWenKai |
 | `NotoSansJP-Regular.ttf` | Noto Sans JP | Adobe | Source | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
+| `NotoSansJP-Bold.ttf` | Noto Sans JP | Adobe | Source | SIL OFL 1.1 | github.com/google/fonts (variable, instanced `wght=700`, exact Regular cmap) |
 | `NotoSansKR-Regular.ttf` | Noto Sans KR | Adobe | Source | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
 | `NotoSansSC-Regular.ttf` | Noto Sans SC | Adobe | Source | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
 | `NotoSerifJP-Regular.ttf` | Noto Serif JP | Adobe | — | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
+| `NotoSerifJP-Bold.ttf` | Noto Serif JP | Adobe | — | SIL OFL 1.1 | github.com/google/fonts (variable, instanced `wght=700`, exact Regular cmap) |
 | `NotoSerifSC-Regular.ttf` | Noto Serif SC | Adobe | — | SIL OFL 1.1 | github.com/notofonts / Google Fonts |
 | `ShipporiMincho-Regular.ttf` | Shippori Mincho | The Shippori Mincho Project Authors | — | SIL OFL 1.1 | github.com/fontdasu/ShipporiMincho / Google Fonts (static Regular, subset to JIS X 0208) |
+| `ShipporiMincho-Bold.ttf` | Shippori Mincho | The Shippori Mincho Project Authors | — | SIL OFL 1.1 | github.com/google/fonts (static Bold, exact Regular cmap) |
 | `ZenMaruGothic-Regular.ttf` | Zen Maru Gothic | The Zen Maru Gothic Authors | Zen | SIL OFL 1.1 | github.com/googlefonts/zen-marugothic / Google Fonts (static Regular, subset to JIS X 0208) |
+| `ZenMaruGothic-Bold.ttf` | Zen Maru Gothic | The Zen Maru Gothic Authors | Zen | SIL OFL 1.1 | github.com/google/fonts (static Bold, exact Regular cmap) |
 | `KleeOne-Regular.ttf` | Klee One | The Klee Project Authors (Fontworks) | Klee | SIL OFL 1.1 | github.com/fontworks-fonts/Klee / Google Fonts (static Regular, subset to JIS X 0208) |
+| `KleeOne-SemiBold.ttf` | Klee One SemiBold | The Klee Project Authors (Fontworks) | Klee | SIL OFL 1.1 | github.com/fontworks-fonts/Klee (official static SemiBold/600, exact Regular cmap) |
 | `GowunBatang-Regular.ttf` | Gowun Batang | The Gowun Batang Project Authors (Yanghee Ryu) | — | SIL OFL 1.1 | github.com/yangheeryu/Gowun-Batang / Google Fonts (static Regular, subset to KS X 1001) |
 | `Bitter-Bold.ttf` | Bitter | The Bitter Project Authors | — | SIL OFL 1.1 | github.com/solmatas/BitterPro (variable, instanced `wght=700`) |
 | `EBGaramond-Bold.ttf` | EB Garamond | The EB Garamond Project Authors | — | SIL OFL 1.1 | github.com/octaviopardo/EBGaramond12 (variable, instanced `wght=700`) |
@@ -102,7 +107,38 @@ to their needed code-point ranges, as described in `CLAUDE.md`. Subsetting and s
 permitted modifications under the OFL (the fonts remain OFL, unsold by
 themselves, reserved names untouched).
 
-The **`*-Bold.ttf`** faces (Bitter, EB Garamond, Figtree, Fira Sans, Fraunces 9pt,
+The **Japanese heavy companions** are authentic upstream designs, not synthetic
+emboldening: Noto Sans JP and Noto Serif JP were instanced from Google Fonts'
+official variable sources at `wght=700`; Shippori Mincho Bold and Zen Maru Gothic
+Bold are the official static 700 faces; Klee One SemiBold is Fontworks' official
+static 600 face from `fontworks-fonts/Klee/fonts/ttf`. Each source covered every
+codepoint in its shipped Regular, then was subset to that exact Regular cmap while
+preserving copyright, license, family and weight metadata. Klee therefore keeps
+the upstream legacy family `Klee One SemiBold` and typographic family `Klee One`;
+fontdb resolves the untouched typographic family at 600, with no Reserved Font
+Name rewrite. Sources were the exact raw
+files at `google/fonts/main/ofl/notosansjp/NotoSansJP[wght].ttf`,
+`google/fonts/main/ofl/notoserifjp/NotoSerifJP[wght].ttf`,
+`google/fonts/main/ofl/shipporimincho/ShipporiMincho-Bold.ttf`,
+`google/fonts/main/ofl/zenmarugothic/ZenMaruGothic-Bold.ttf`, and
+`fontworks-fonts/Klee/master/fonts/ttf/KleeOne-SemiBold.ttf`. Upstream SHA-256 values:
+`c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f`
+(Noto Sans JP variable),
+`2fd527ba12b6a44ec30d796d633360da0aeba6c5d4af1304ce12bb4dc15a7dfc`
+(Noto Serif JP variable),
+`63bc4eddc74793f671c3ab827c5175e773ffbe569d0bf50ee65375ea9e3bc286`
+(Shippori Mincho Bold),
+`fe24426b9c8b5523a0146a8235c8674eccf0493af354a53ec895c3596d9eb745`
+(Zen Maru Gothic Bold), and
+`9dbb25466c575f6dc8768a28845798f67fa5d47a5d20a6408c30c58d700a1044`
+(Klee One SemiBold). The resulting bundled-file SHA-256 values are respectively
+`0f31f184d867f2d7279a92ae4e8d5a488f296a8723b89f4ca48e3e4c52980ffb`,
+`7b23e161a7ba5acff3ed493032a0a1faf0ece5027cd62f0a540309baeae8f596`,
+`695ee8884e14e83bb139a0eff38c18dcd8eec10317b89237753f6d09c8ba8a61`,
+`b5cdcedd0ca1aba4540403468bd5ec3c1f200a6a0a23c402a07e69673d634d4b`, and
+`d8c9b0b2f1f08ceb182ddecff090a752274a9f4451afd1c06fb4d4eae80ae079`.
+
+The **other `*-Bold.ttf`** faces (Bitter, EB Garamond, Figtree, Fira Sans, Fraunces 9pt,
 iA Writer Quattro S, IBM Plex Sans, Literata, Newsreader, Zilla Slab — plus the
 four monospace display faces IBM Plex Mono, JetBrains Mono, Monaspace Xenon,
 Iosevka) are the 700-weight companions to every bundled display face, so
@@ -267,15 +303,15 @@ foundation this document had never actually re-checked against the shipped
 files.
 
 **A 2026-08-04 audit (item 255) found that foundation sound anyway, once
-measured correctly.** A first pass reported only 7 of 45 bundled faces
+measured correctly.** A first pass reported only 7 of 50 bundled faces
 carrying a copyright string, using `strings`/`strings -e b` over the raw
 file bytes — but macOS's `strings` has no `-e` flag, so the UTF-16BE pass
 silently produced nothing for every file, and 3 of the 7 ASCII hits it did
 get were `post`-table glyph names like `copyright.sc` (a small-caps variant
 name), not `name`-table records at all. A direct read of every face's
 `name` table via `ttf_parser::Face::names()` — the same table `fontdb` and
-`skrifa` decode at load time — found the opposite: **all 45 bundled `.ttf`
-files carry a real copyright-bearing record**, nameID 0 for 43 of them and
+`skrifa` decode at load time — found the opposite: **all 50 bundled `.ttf`
+files carry a real copyright-bearing record**, nameID 0 for 48 of them and
 nameID 7 for Monaspace Xenon's two instances (already flagged in the
 per-face table above). Nothing needs restoring in the build pipeline.
 [`render::tests::font_licence_item255`](../../src/render/tests/font_licence_item255.rs)

@@ -775,38 +775,26 @@ fn heading_bold_worlds_shape_bold_in_their_own_family() {
     p.sync_theme();
 }
 
-/// THE bold/italic-breaks-Japanese REGRESSION, resolved through the REAL font
-/// system: shaping `**bold**` / `*italic*` / `***bold-italic***` Japanese must
-/// resolve every CJK content glyph to the world's BUNDLED JP face at its
-/// registered Weight 400 / Normal style — NEVER a heavier / slanted / mono /
-/// system fallback. The failure signature the fix guards against: a markdown
-/// emphasis span sets `Weight(700)` / `Style::Italic`, and without the
-/// script-span layer's weight+style PIN (see `spans::add_script_spans`) that
-/// request drops the 400/Normal-only bundled face (`weight_diff != 0` +
-/// style-mismatch) and tofu/system-falls mid-sentence. Checks a serif world
-/// (Bombora → Shippori Mincho, its Phase-2 ja override) and a sans world
-/// (Currawong → Noto Sans JP) — `want_fam` is read dynamically from the
-/// resolver, so it tracks each world's assigned face rather than a literal;
-/// caret parked on the blank line 0, so the styled lines are OFF-cursor (their
-/// `**`/`*` markers conceal — the emphasis weight/style still applies to the
-/// content, which is exactly the run under test).
+/// Every Japanese family keeps its regular face for plain/italic text and uses
+/// its genuine bundled heavy companion for bold/bold-italic text. The mixed
+/// Latin suffix must continue shaping in the world's own display family.
 #[test]
-fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
+fn japanese_markdown_bold_uses_real_heavy_companions_across_all_five_families() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback: no wgpu adapter"
-        );
+        eprintln!("skipping Japanese bold theme law: no wgpu adapter");
         return;
     };
-    for world in ["Bombora", "Currawong"] {
+    for world in ["Saltpan", "Currawong", "Bombora", "Galah", "Mopoke"] {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
-        let (want_fam, _) = p
-            .resolve_font_id(theme::FontId::Ja)
-            .expect("Ja must resolve to a bundled face");
-        // line 0 blank (caret here); line 1 bold, line 2 italic, line 3 bold-italic.
-        let text = "\n**太字**\n*斜体*\n***両方***";
+        let t = theme::active();
+        let fonts = p.resolve_script_fonts();
+        let (regular_family, regular_weight) = fonts.ja.expect("bundled Ja regular");
+        let (bold_family, bold_weight) = fonts.ja_bold.expect("bundled Ja heavy companion");
+        // line 0 blank (caret here); plain and italic stay Regular, while bold
+        // and bold-italic select the authentic companion.
+        let text = "\n普通ABC\n**太字ABC**\n*斜体ABC*\n***両方ABC***";
         p.set_view(&view_md(text, 0, 0));
         let lines: Vec<String> = p
             .buffer
@@ -822,39 +810,43 @@ fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
             let lt = &lines[run.line_i];
             for g in run.glyphs.iter() {
                 let ch = lt.get(g.start..g.end).unwrap_or("");
-                if !ch.chars().next().map(super::spans::is_cjk).unwrap_or(false) {
-                    continue; // skip the `**`/`*` delimiter glyphs, only CJK content
+                let Some(first) = ch.chars().next() else {
+                    continue;
+                };
+                if first == '*' {
+                    continue;
                 }
                 let face = p
                     .font_system
                     .db()
                     .face(g.font_id)
                     .expect("shaped glyph maps to a registered face");
-                assert_eq!(
-                    face.families[0].0, want_fam,
-                    "{world}: emphasized CJK glyph {ch:?} resolved to {:?}, not the bundled JP face {want_fam:?}",
-                    face.families[0].0
-                );
-                assert_eq!(
-                    face.weight.0, 400,
-                    "{world}: emphasized CJK glyph {ch:?} resolved to weight {} — the bold(700) leaked past the pin",
-                    face.weight.0
-                );
-                assert!(
-                    matches!(face.style, glyphon::cosmic_text::fontdb::Style::Normal),
-                    "{world}: emphasized CJK glyph {ch:?} resolved to a slanted style {:?} — the italic leaked past the pin",
-                    face.style
-                );
-                assert!(
-                    !face.monospaced,
-                    "{world}: emphasized CJK glyph {ch:?} fell to a MONOSPACE fallback",
-                );
+                if super::spans::is_cjk(first) {
+                    let (want_family, want_weight) = if matches!(run.line_i, 1 | 3) {
+                        (regular_family, regular_weight)
+                    } else {
+                        (bold_family, bold_weight)
+                    };
+                    assert_eq!(face.families[0].0, want_family, "{world}: Japanese {ch:?}");
+                    assert_eq!(face.weight.0, want_weight.0, "{world}: Japanese {ch:?}");
+                    assert!(matches!(
+                        face.style,
+                        glyphon::cosmic_text::fontdb::Style::Normal
+                    ));
+                } else if first.is_ascii_alphabetic() {
+                    assert_eq!(face.families[0].0, t.font, "{world}: mixed Latin {ch:?}");
+                    if matches!(run.line_i, 2 | 4) {
+                        assert!(face.weight.0 >= 600, "{world}: mixed Latin bold {ch:?}");
+                    }
+                } else {
+                    continue;
+                }
                 checked += 1;
             }
         }
         assert!(
-            checked >= 6,
-            "{world}: expected the 6 emphasized CJK content glyphs, checked {checked}"
+            checked >= 20,
+            "{world}: expected Japanese and Latin content across emphasis forms; checked {checked}"
         );
     }
     theme::set_active(theme::DEFAULT_THEME);

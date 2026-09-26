@@ -306,6 +306,7 @@ fn add_script_spans_ja_tagged_doc_with_hangul_run_uses_ko_not_ja() {
     // step (b): the run's OWN script (hangul -> ko).
     let fonts = super::text::ScriptFonts {
         ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(700))),
         zh_hans: None,
         zh_hant: None,
         ko: Some(("KoFace", glyphon::Weight(400))),
@@ -329,6 +330,7 @@ fn add_script_spans_ja_tagged_doc_with_han_run_uses_ja() {
     // A ja tag DOES map Han (kanji) -> its own step (a) mapping wins.
     let fonts = super::text::ScriptFonts {
         ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(700))),
         zh_hans: Some(("ZhHansFace", glyphon::Weight(400))),
         zh_hant: None,
         ko: None,
@@ -353,6 +355,7 @@ fn add_script_spans_untagged_han_uses_cjk_priority_tiebreak() {
     // cjk_priority ladder — here configured zh-Hans-first.
     let fonts = super::text::ScriptFonts {
         ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(700))),
         zh_hans: Some(("ZhHansFace", glyphon::Weight(400))),
         zh_hant: None,
         ko: None,
@@ -376,6 +379,7 @@ fn add_script_spans_mixed_run_each_script_resolves_independently() {
     // kana "ですは" (-> ja, unambiguous) — every script resolves per-run.
     let fonts = super::text::ScriptFonts {
         ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(700))),
         zh_hans: None,
         zh_hant: None,
         ko: None,
@@ -409,6 +413,7 @@ fn add_script_spans_unresolved_script_leaves_base_face() {
     // documented degenerate case: no override span, base face wins.
     let fonts = super::text::ScriptFonts {
         ja: None,
+        ja_bold: None,
         zh_hans: None,
         zh_hant: None,
         ko: None,
@@ -432,18 +437,13 @@ fn add_script_spans_unresolved_script_leaves_base_face() {
 }
 
 #[test]
-fn add_script_spans_pins_weight_and_style_over_bold_italic_base() {
-    // THE bold/italic-breaks-Japanese fix at its purest seam: a CJK run must
-    // resolve to its face's REGISTERED weight+style (400/Normal for every
-    // bundled CJK face — no bold/italic CJK cut exists in v1), NEVER a
-    // `**bold**`(700) / `*italic*` emphasis leaking onto it. Model the worst
-    // case explicitly — a base ALREADY carrying Weight::BOLD + Style::Italic
-    // (as if an emphasis span sat under the run) — and assert the script span
-    // overwrites BOTH. Pre-fix the weight was pinned but the STYLE was
-    // inherited from the base, so the italic leaked; the `.style(Normal)` pin
-    // closes it.
+fn add_script_spans_selects_real_japanese_bold_and_keeps_it_upright() {
+    let _g = crate::testlock::serial();
+    // Model a bold-italic Markdown span already layered under the Japanese run.
+    // Weight selects the registered heavy companion; style remains upright.
     let fonts = super::text::ScriptFonts {
         ja: Some(("JaFace", glyphon::Weight(400))),
+        ja_bold: Some(("JaBoldFace", glyphon::Weight(600))),
         zh_hans: None,
         zh_hant: None,
         ko: None,
@@ -464,13 +464,13 @@ fn add_script_spans_pins_weight_and_style_over_bold_italic_base() {
     let a = al.get_span(0);
     assert_eq!(
         family_name(&al, 0),
-        Some("JaFace".to_string()),
-        "CJK run keeps its resolved face"
+        Some("JaBoldFace".to_string()),
+        "Japanese bold selects the authentic heavy companion"
     );
     assert_eq!(
         a.weight,
-        glyphon::Weight(400),
-        "weight pinned to the resolved face's 400, not the bold 700"
+        glyphon::Weight(600),
+        "the companion's registered weight is preserved, never relabelled 700"
     );
     assert_eq!(
         a.style,
