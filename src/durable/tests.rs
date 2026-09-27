@@ -314,6 +314,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // contribute). Scratch fixtures under a `ScratchDir`, never a
         // durable store.
         ("index.rs", 8),
+        // The dev-launch law writes a fake cargo executable under ScratchDir
+        // to prove a live socket refuses the launch before any build. It is
+        // a disposable test command, never an app store.
+        ("macos_identity_law.rs", 1),
         // Two of these are the fresh-oracle Goto regression's own fixture
         // seeds (`goto_switch_mid_replay_reshapes_the_oracle_to_the_
         // arriving_buffer`) — temp-dir test files, never a durable store;
