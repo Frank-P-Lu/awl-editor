@@ -338,6 +338,45 @@ fn distant_sections_continue_with_lighter_ink() {
     }
 }
 
+/// A middle section must read behind a foreground section before the lattice
+/// converges into a dense centre. Sample the rendered major contours in an
+/// all-margin frame so page veiling and edge masks cannot manufacture the fade.
+#[test]
+fn middle_sections_recede_before_the_convergence() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    for dpi in [1.0, 2.0] {
+        let mut desc = bg_desc_for(kite());
+        desc.warp_ribs = 20.0;
+        desc.density = 1.0;
+        let axis = (0.5, 0.5);
+        let pixels = field_desc(&device, &queue, 1200, 800, 0.0, 1.0, dpi, axis, desc);
+        let p = projection(1200, 800, axis);
+        let strength = |ring: f32| {
+            let z = NEAR_Z + ring * (BODY_Z - NEAR_Z) / 20.0;
+            let mut values = (0..128)
+                .step_by(2)
+                .map(|i| {
+                    pixels.strongest_near(p.point(std::f32::consts::TAU * i as f32 / 128.0, z), 1)
+                })
+                .collect::<Vec<_>>();
+            percentile(&mut values, 50)
+        };
+        let near = strength(5.0);
+        let middle = strength(15.0);
+        assert!(
+            near >= 8,
+            "dpi={dpi}: foreground scaffold is missing: {near}"
+        );
+        assert!(
+            middle * 2 <= near,
+            "dpi={dpi}: middle section {middle} competes with foreground {near}"
+        );
+    }
+}
+
 /// The bounded projection is not required to fill every arbitrary sliver of a
 /// panoramic page. It is required to remain one visible surface in both margins
 /// of the two supported capture geometries, at rest and in transit.

@@ -1067,7 +1067,13 @@ const WARP_EDGE_FADE_MAX_PX: f32 = 56.0;
 // narrows, leaving the major scaffold alone.
 const WARP_NARROW_LO_PX: f32 = 84.0;
 const WARP_NARROW_HI_PX: f32 = 210.0;
-// The far end thins and fades before the bounded mesh ends.
+// Depth separates the foreground scaffold from the converging lattice. Minor
+// sections and rails recede sooner than the major sections that describe the
+// passage; the far end still dissolves before the bounded mesh ends.
+const WARP_DEPTH_FADE_NEAR_Z: f32 = 1.6;
+const WARP_DEPTH_FADE_MID_Z: f32 = 9.0;
+const WARP_MINOR_FADE_END_Z: f32 = 6.0;
+const WARP_RAIL_FADE_END_Z: f32 = 7.0;
 // Mutation arms for page-derived scale, margin-derived placement, and reversed
 // travel. Each threshold occupies its own unit-wide band.
 const WARP_TUNNEL_PAGE_SCALED: f32 = 0.5;
@@ -1220,8 +1226,20 @@ struct TunnelVsOut {
 };
 
 fn warp_depth_alpha(z: f32) -> f32 {
-    return (1.0 - smoothstep(20.0, WARP_FAR_Z, z))
-        * mix(1.0, 0.4, smoothstep(8.0, 20.0, z)) / (1.0 + 0.008 * z * z);
+    return (1.0 - smoothstep(18.0, WARP_FAR_Z, z))
+        * mix(1.0, 0.25, smoothstep(WARP_DEPTH_FADE_NEAR_Z, WARP_DEPTH_FADE_MID_Z, z));
+}
+
+fn warp_line_depth_alpha(z: f32, family: u32, major: u32) -> f32 {
+    let base = warp_depth_alpha(z);
+    if (family == 1u) {
+        let rail = smoothstep(2.0, WARP_RAIL_FADE_END_Z, z);
+        return base * select(mix(0.65, 0.20, rail), mix(0.85, 0.35, rail), major == 1u);
+    }
+    if (major == 0u) {
+        return base * mix(1.0, 0.28, smoothstep(2.0, WARP_MINOR_FADE_END_Z, z));
+    }
+    return base;
 }
 
 fn warp_segment_point(theta: f32, z: f32, motion: WarpMotion, camera: vec4<f32>) -> vec2<f32> {
@@ -1269,7 +1287,7 @@ fn vs_tunnel(
             major = select(0u, 1u, world_ring - floor(world_ring / WARP_MAJOR_EVERY) * WARP_MAJOR_EVERY == 0.0);
             let projected_step = camera.z * step_z / max(z * z, 0.01)
                 * select(1.0, WARP_MAJOR_EVERY, major == 1u);
-            visibility = warp_depth_alpha(z)
+            visibility = warp_line_depth_alpha(z, family, major)
                 * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
             half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u)
                 * mix(1.0, 0.22, smoothstep(2.0, WARP_FAR_Z, z));
@@ -1289,9 +1307,11 @@ fn vs_tunnel(
                 theta, z0 + motion.travel_z, g.warp_shape.x, g.warp_shape.y,
             ) / z0;
             let projected_step = radius_px * WARP_TAU / WARP_RAIL_COUNT;
-            visibility = min(warp_depth_alpha(z0), warp_depth_alpha(z1))
-                * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
             major = select(0u, 1u, rail_i % u32(WARP_RAIL_MAJOR_EVERY) == 0u);
+            visibility = min(
+                warp_line_depth_alpha(z0, family, major),
+                warp_line_depth_alpha(z1, family, major),
+            ) * smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, projected_step);
             half_px = select(WARP_MINOR_HALF_PX, WARP_MAJOR_HALF_PX, major == 1u)
                 * mix(1.0, 0.22, smoothstep(2.0, WARP_FAR_Z, (z0 + z1) * 0.5));
         }

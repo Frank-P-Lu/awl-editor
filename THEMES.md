@@ -1221,8 +1221,9 @@ changes only masking and never the tube's camera, centreline, or scale.
   rather than catching up.
 - **Legibility.** The page-edge fade and narrow-margin simplification are masks
   on the one room field. Minor sections and all rails retire under the page;
-  projected-pitch fades retire geometry before it packs into moiré at either
-  supported device scale.
+  depth fades them sooner than the major sections, so the foreground scaffold
+  stays distinct as the tunnel converges. Projected-pitch fades retire geometry
+  before it packs into moiré at either supported device scale.
 - **Headless evidence.** `AWL_WARP_PHASE=still|settled|start|wrap|<seconds>`
   selects a deterministic phase for captures. The sidecar reports
   `forward_cells`; appearance claims come from PNG arithmetic.

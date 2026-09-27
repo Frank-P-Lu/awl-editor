@@ -869,7 +869,9 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         "warp_path(world_z)",
         "warp_roll(world_z, spin)",
         "fn warp_depth_alpha(z: f32) -> f32 {",
-        "mix(1.0, 0.4, smoothstep(8.0, 20.0, z)) / (1.0 + 0.008 * z * z)",
+        "fn warp_line_depth_alpha(z: f32, family: u32, major: u32) -> f32 {",
+        "smoothstep(WARP_DEPTH_FADE_NEAR_Z, WARP_DEPTH_FADE_MID_Z, z)",
+        "warp_line_depth_alpha(z, family, major)",
         "if (in.family == 1u || in.major == 0u) {",
         "mask *= margin_only;",
     ] {
