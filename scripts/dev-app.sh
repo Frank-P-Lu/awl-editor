@@ -46,6 +46,9 @@
 #   --            everything after it is passed through to awl (a file to open,
 #                 --theme, --root, ...).
 #
+# Quit a running Awl before launching a new build. The single-instance socket
+# would otherwise hand the launch to the already-running binary.
+#
 # Produces:
 #   target/dev-app/Awl.app     (never signed; signing stays a release concern)
 #
@@ -82,6 +85,21 @@ while [ "$#" -gt 0 ]; do
   shift || true
 done
 
+if [ "$LAUNCH" -eq 1 ]; then
+  if [ -n "${XDG_DATA_HOME-}" ]; then
+    SOCKET_DIR="$XDG_DATA_HOME/awl"
+  elif [ -n "${HOME-}" ]; then
+    SOCKET_DIR="$HOME/.local/share/awl"
+  else
+    SOCKET_DIR="awl-data"
+  fi
+  SOCKET="$SOCKET_DIR/awl.sock"
+  if [ -S "$SOCKET" ] && /usr/sbin/lsof -t "$SOCKET" >/dev/null 2>&1; then
+    echo "Awl is already running. Quit it with Cmd-Q, then rerun scripts/dev-app.sh to load the new build." >&2
+    exit 1
+  fi
+fi
+
 echo "==> building ($PROFILE_DIR)"
 # shellcheck disable=SC2086 -- PROFILE_FLAG is deliberately word-split (empty = dev profile).
 (cd "$ROOT" && cargo build $PROFILE_FLAG)
@@ -112,9 +130,8 @@ if [ "$LAUNCH" -eq 0 ]; then
 fi
 
 echo "==> launching $APP"
-# `-n` forces a NEW instance, so this never hands off to a release copy that
-# happens to be running; awl's own single-instance daemon still applies within
-# a data root.
+# `-n` asks LaunchServices for a new process. The live-socket check above
+# keeps awl's own single-instance handoff from returning to an older process.
 if [ "${#APP_ARGS[@]}" -gt 0 ]; then
   open -n -a "$APP" --args "${APP_ARGS[@]}"
 else

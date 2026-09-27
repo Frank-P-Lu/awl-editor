@@ -104,6 +104,7 @@
 ## Running awl on macOS in development (`scripts/dev-app.sh`) — macOS only
 
 - **The supported dev launch is `scripts/dev-app.sh`, not `cargo run`.** It builds (`--release` by default — feel is judged there), assembles `target/dev-app/Awl.app` through `scripts/package-macos.sh` (the same canonical `Info.plist` writer and the same committed `assets/macos/Awl.icns` a release uses — there is no second source of product identity), registers it with LaunchServices, verifies the identity contract, and opens it. `--debug`, `--no-launch`, and `-- <args to awl>` are the knobs.
+- **Quit Awl before relaunching a development build.** Its single-instance socket would hand a new launch to the already-running binary, even when the bundle on disk has just been rebuilt. `dev-app.sh` refuses a live socket with a quit-and-rerun message; `--no-launch` still assembles the bundle while Awl is open.
 - **What a bare binary cannot do, measured 2026-07-29 (item 167).** macOS reads a live app's product identity out of its BUNDLE, not out of the process:
 
   | surface | bare `target/release/awl` | `scripts/dev-app.sh` bundle | source macOS reads |

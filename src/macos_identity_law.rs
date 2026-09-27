@@ -140,6 +140,65 @@ fn the_dev_launch_reuses_the_release_packaging_metadata() {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn a_live_singleton_refuses_a_dev_launch_before_building() {
+    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::net::UnixListener;
+
+    let _guard = crate::testlock::serial();
+    let dir = crate::testscratch::ScratchDir::new(
+        std::env::temp_dir().join(format!("ads-{}", std::process::id())),
+    );
+    let data = dir.join("awl");
+    std::fs::create_dir(&data).unwrap();
+    let socket = data.join("awl.sock");
+    let listener = UnixListener::bind(&socket).unwrap();
+    let bin = dir.join("bin");
+    std::fs::create_dir(&bin).unwrap();
+    let marker = dir.join("cargo-was-called");
+    let cargo = bin.join("cargo");
+    std::fs::write(&cargo, "#!/bin/sh\n: > \"$AWL_CARGO_MARKER\"\nexit 42\n").unwrap();
+    std::fs::set_permissions(&cargo, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let path = format!(
+        "{}:{}",
+        bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let script = std::env::var_os("AWL_DEV_APP_LAW_SCRIPT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root().join("scripts/dev-app.sh"));
+    let run = |no_launch: bool| {
+        let mut cmd = std::process::Command::new(&script);
+        cmd.arg("--debug")
+            .env("XDG_DATA_HOME", &*dir)
+            .env("AWL_CARGO_MARKER", &marker)
+            .env("PATH", &path);
+        if no_launch {
+            cmd.arg("--no-launch");
+        }
+        cmd.output().unwrap()
+    };
+
+    let live = run(false);
+    assert_eq!(live.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&live.stderr).contains("Quit it with Cmd-Q"));
+    assert!(
+        !marker.exists(),
+        "a live socket must stop before cargo runs"
+    );
+
+    let assemble_only = run(true);
+    assert_eq!(assemble_only.status.code(), Some(42));
+    assert!(marker.exists(), "--no-launch must still reach the build");
+    std::fs::remove_file(&marker).unwrap();
+
+    drop(listener);
+    let stale = run(false);
+    assert_eq!(stale.status.code(), Some(42));
+    assert!(marker.exists(), "a stale socket must not block a new build");
+}
+
 /// The bare-binary limitation is DOCUMENTED, not silently advertised as
 /// equivalent. If macOS requires a bundle
 /// for a surface, the normal dev script uses that bundle and the limitation is
