@@ -182,6 +182,8 @@ impl TextPipeline {
         push("nav_prev", resolved.nav_prev);
         push("nav_next", resolved.nav_next);
         push("case_toggle", resolved.case_box);
+        push("close", resolved.close);
+        push("reveal_replace", resolved.reveal);
         push("replace_button", resolved.replace_button);
         push("replace_all_button", resolved.replace_all_button);
         Some(PanelGeometry {

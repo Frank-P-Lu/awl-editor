@@ -476,14 +476,14 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         return;
     };
     let width = 1200u32;
-    const REPLACE_LABEL: &str = "Replace with "; // must match panel.rs's label
+    const REPLACE_LABEL: &str = "Replace "; // must match panel.rs's label
 
     // The reserved-cell glyph's x on line 1, scanned INDEPENDENTLY of the
     // caret-offset math under test — the ground truth the caret must land on.
     let reserved_x = |p: &TextPipeline, text_left: f32, replacement: &str| -> f32 {
         let cell = REPLACE_LABEL.len() + replacement.len();
         for run in p.panel_buffer.layout_runs() {
-            if run.line_i != 1 {
+            if run.line_i != 2 {
                 continue;
             }
             for g in run.glyphs.iter() {
@@ -507,7 +507,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         p.set_view(&v);
 
         let shape = p.panel_shape_text(width);
-        assert_eq!(shape.caret_row, 1.0, "replace focus targets row 1");
+        assert_eq!(shape.caret_row, 2.0, "replace focus follows navigation");
         // The offset is LINE-relative: the label + replacement WITHIN line 1 only —
         // no find-row bytes, no `\n`.
         assert_eq!(
@@ -558,7 +558,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         shape.caret_row,
     );
     // Ground truth: the reserved gap glyph on line 0 sits at byte "find "+query.
-    let cell = "Find         ".len() + "hello".len();
+    let cell = "Find ".len() + "hello".len();
     let mut find_expected = None;
     for run in p.panel_buffer.layout_runs() {
         if run.line_i != 0 {
@@ -686,12 +686,12 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
         shape.caret_fallback_chars,
         shape.caret_row,
     );
-    let lh = p.metrics.line_height;
+    let lh = p.metrics.panel_ui().line_height;
     let mid = card_x + card_w * 0.5; // safely inside the card horizontally
 
     assert_eq!(p.panel_hit(mid, text_top + 0.5 * lh), Some(PanelHit::Find));
     assert_eq!(
-        p.panel_hit(mid, text_top + 1.5 * lh),
+        p.panel_hit(mid, text_top + 2.5 * lh),
         Some(PanelHit::Replace)
     );
     // The find/replace-field click targets themselves resolve through their
@@ -808,6 +808,8 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
     };
 
     for variant in [
+        PanelHit::Close,
+        PanelHit::RevealReplace,
         PanelHit::CaseToggle,
         PanelHit::Find,
         PanelHit::Replace,
@@ -819,6 +821,8 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
     ] {
         // NO-WILDCARD: a new PanelHit variant forces a pointer arm here.
         let (px, py) = match variant {
+            PanelHit::Close => control_center("close"),
+            PanelHit::RevealReplace => control_center("reveal_replace"),
             PanelHit::CaseToggle => control_center("case_toggle"),
             PanelHit::Find => control_center("find_field"),
             PanelHit::Replace => control_center("replace_field"),
@@ -943,10 +947,11 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
         for width in widths {
             let shape = p.panel_shape_text(width);
             if width == 360 {
-                assert_eq!(
-                    p.panel_field_rows_probe(),
-                    (Some(1.0), Some(3.0)),
-                    "{}: at the narrow floor each field label occupies the line above its control",
+                let (find, replace) = p.panel_field_rows_probe();
+                assert_eq!(find, Some(1.0), "{}: narrow Find label stacks", world.name);
+                assert!(
+                    matches!(replace, Some(4.0 | 5.0)),
+                    "{}: narrow Replace label stacks below navigation",
                     world.name
                 );
             }

@@ -9,6 +9,10 @@ impl App {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self.frame.gpu().and_then(|g| g.pipeline.panel_hit(px, py));
         let control = match hit {
+            Some(crate::render::PanelHit::Close) => Some(crate::search::PanelControl::Close),
+            Some(crate::render::PanelHit::RevealReplace) => {
+                Some(crate::search::PanelControl::RevealReplace)
+            }
             Some(crate::render::PanelHit::CaseToggle) => {
                 Some(crate::search::PanelControl::CaseToggle)
             }

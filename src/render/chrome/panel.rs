@@ -1,68 +1,97 @@
-//! SEARCH PANEL chrome — the summoned top-right find/replace card: its opaque
-//! elevated card, the bordered find/replace fields, the match/navigation
-//! region (counter, prev/next, the `Match case` checkbox), the `Replace` /
-//! `Replace all` buttons, and the amber query caret riding the shaped
-//! advance. Inherent methods on [`super::TextPipeline`] (they shape into its
-//! shared panel buffers). See [`super`].
-//!
-//! Clear bordered fields, a separate match/navigation region, and distinct
-//! Replace/Replace all controls form one compact logical UI unit. Every button
-//! carries its chord from ONE place (`keyspec::Panel*`, never a hardcoded
-//! glyph), preserving the keyboard-first character. The card is ONE text buffer
-//! (`panel_buffer`) shaped as a handful of rows; what is new is that some of
-//! those rows' CONTROLS also get a drawn box, computed from their own shaped
-//! byte range (`chrome::panel_controls`), never a hardcoded pitch.
+//! Find/Replace is a compact field, a navigation row, and a quiet footer.
+//! Text is measured before composition: spaces reserve pixel distances rather
+//! than guessing where proportional labels or minimum-width targets will end.
 
 use super::*;
 
-/// The search card's authored logical inner breathing room and outer canvas
-/// inset. Both resolve through the UI metric owner, independent of document
-/// zoom and proportional to display density.
 pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
 pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
-pub(in crate::render) const PANEL_MIN_W: Logical = Logical(420.0);
+pub(in crate::render) const PANEL_MIN_W: Logical = Logical(480.0);
 
-/// Field labels, padded to ONE shared width (13 ASCII bytes) so the find and
-/// replace boxes start in the same column — ASCII, so byte len == char count,
-/// which the caret-offset math below relies on.
-const FIND_LABEL: &str = "Find         ";
-const REPLACE_LABEL: &str = "Replace with ";
-const _: () = assert!(
-    FIND_LABEL.len() == REPLACE_LABEL.len(),
-    "the two field labels must share one padded width so both boxes start in \
-     the same column"
-);
-/// The ordinary-width VISIBLE cap (character cells) of the query/replacement
-/// VALUE field: typing/pasting past this count SCROLLS the field
-/// (`field_view_window`, the one clipping-rule owner shared by both fields)
-/// instead of widening the card. Nineteen cells are wide enough for a
-/// realistic search term without feeling cramped on an ordinary canvas.
-const PANEL_FIELD_CHARS: usize = 19;
-/// The label plus its one reserved caret cell — the fixed-cell floor every
-/// responsive `field_chars` computation subtracts before granting the rest to
-/// the value field.
-// The label ITSELF renders in the active world's PROPORTIONAL face (never
-// monospace), so its true pixel width is not exactly `label.len() *
-// char_width` — the `+ 2` (one cell past the label + its one reserved caret
-// cell) is slack against that mismatch, keeping the responsive field
-// comfortably inside the narrow-canvas clamp instead of riding its exact edge.
-const PANEL_FIXED_CELLS: usize = FIND_LABEL.len() + 2;
-const PANEL_MIN_FIELD_CHARS: usize = 8;
-/// At the narrow logical floor, place the label above its editable field so the
-/// value retains useful width.
-const PANEL_STACKED_FIELD_CELLS: usize = 30;
-/// Below this shaped-cell width the nav/actions rows drop their trailing
-/// chord ANNOTATIONS — never their labels or buttons, which stay legible at
-/// any width the card is ever clamped to. A narrow canvas still reads every
-/// control; it just stops teaching the extra chord alongside it.
-const PANEL_WIDE_CELLS: usize = 56;
+/// A bounded rich-text composer. Each gap is a measured monospace space with
+/// its own advance; all visible text retains the world's face and size role.
+struct PanelText<'a> {
+    fonts: &'a mut FontSystem,
+    probe: glyphon::Buffer,
+    spans: Vec<(String, Attrs<'static>)>,
+    metrics: GlyphMetrics,
+    space: f32,
+    row: f32,
+    byte: usize,
+    x: f32,
+}
+
+impl<'a> PanelText<'a> {
+    fn new(fonts: &'a mut FontSystem, metrics: GlyphMetrics) -> Self {
+        let probe = glyphon::Buffer::new(fonts, metrics);
+        let mut out = Self {
+            fonts,
+            probe,
+            spans: Vec::new(),
+            metrics,
+            space: 1.0,
+            row: 0.0,
+            byte: 0,
+            x: 0.0,
+        };
+        out.space = out.measure(" ", &Attrs::new().family(Family::Monospace));
+        out
+    }
+
+    fn measure(&mut self, text: &str, attrs: &Attrs<'static>) -> f32 {
+        self.probe
+            .set_text(self.fonts, text, attrs, Shaping::Advanced, None);
+        self.probe.shape_until_scroll(self.fonts, false);
+        self.probe
+            .layout_runs()
+            .map(|r| r.line_w)
+            .fold(0.0, f32::max)
+    }
+
+    fn push(&mut self, text: &str, attrs: Attrs<'static>) -> ControlSpan {
+        let span = ControlSpan {
+            row: self.row,
+            byte_start: self.byte,
+            byte_end: self.byte + text.len(),
+        };
+        self.x += self.measure(text, &attrs);
+        self.byte = span.byte_end;
+        self.spans.push((text.to_owned(), attrs));
+        span
+    }
+
+    fn gap(&mut self, width: f32) {
+        if width <= 0.0 {
+            return;
+        }
+        let attrs = Attrs::new()
+            .family(Family::Monospace)
+            .letter_spacing((width - self.space) / self.metrics.font_size);
+        self.spans.push((" ".into(), attrs));
+        self.byte += 1;
+        self.x += width;
+    }
+
+    fn newline(&mut self) {
+        self.spans.push(("\n".into(), Attrs::new()));
+        self.row += 1.0;
+        self.byte = 0;
+        self.x = 0.0;
+    }
+
+    /// Center a label in an honest minimum-width target. The gaps belong to
+    /// layout, while the published control continues to name its visible ink.
+    fn button(&mut self, text: &str, attrs: Attrs<'static>, min: f32, pad: f32) -> ControlSpan {
+        let ink = self.measure(text, &attrs);
+        let side = ((min - ink) * 0.5).max(pad);
+        self.gap(side);
+        let span = self.push(text, attrs);
+        self.gap(side);
+        span
+    }
+}
 
 impl TextPipeline {
-    /// Shape + upload the top-right search panel for this frame: the opaque
-    /// BASE_300 card, the panel text (calm BASE_CONTENT, or ERROR-red on the
-    /// no-match state), the bordered field/button/checkbox boxes, the region
-    /// separators, and the amber caret block at the focused field's end.
-    /// Called from `prepare()` only when `search_active`.
     pub(in crate::render) fn prepare_panel(
         &mut self,
         device: &wgpu::Device,
@@ -70,422 +99,218 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        // Search is not an `OverlayState`, so it does not pass through that
-        // constructor's non-Theme unpin arm. Clear a dismissed Themes card's
-        // inert pin before this independent surface shapes its own chrome.
         crate::render::unpin_picker_chrome();
-        self.panel_remetric();
         let shape = self.panel_shape_text(width);
-        let (card_rect, text_left, text_top, caret_x) = self.panel_layout(
+        let (card, left, top, caret_x) = self.panel_layout(
             width,
             shape.caret_byte,
             shape.caret_fallback_chars,
             shape.caret_row,
         );
-        self.panel_upload_text(
-            device, queue, width, height, &shape, card_rect, text_left, text_top,
-        )?;
-        self.panel_place_selection(device, queue, (width, height), &shape, text_left, text_top);
-        self.panel_place_caret(queue, width, height, caret_x, text_top, shape.caret_row);
+        self.panel_upload_text(device, queue, width, height, &shape, card, left, top)?;
+        self.panel_place_selection(device, queue, (width, height), &shape, left, top);
+        self.panel_place_caret(queue, width, height, caret_x, top, shape.caret_row);
         Ok(())
     }
 
-    /// Re-metric the shared panel buffer to the current zoom so its glyph
-    /// line-height matches the caret/layout rects (which use m.line_height).
-    fn panel_remetric(&mut self) {
+    /// One fixed card width, bounded by the canvas; typing never changes it.
+    pub(in crate::render) fn panel_card_width(&self, width: u32) -> f32 {
         let m = self.metrics.panel_ui();
-        self.panel_buffer
-            .set_metrics(&mut self.font_system, m.glyph_metrics());
+        m.px(PANEL_MIN_W)
+            .min((width as f32 - 2.0 * m.px(PANEL_MARGIN)).max(0.0))
     }
 
-    /// Compose + shape the labeled find/replace panel text into `panel_buffer`,
-    /// returning the colors the card draws with and the FOCUSED field's
-    /// reserved-caret-cell offsets. Also resolves every drawn CONTROL's
-    /// shaped byte-span into `self.panel_control_spans` (read back by
-    /// `panel_hit` and the sidecar's `panel_geometry`), so a click and a
-    /// capture can never disagree with what this function just shaped.
-    ///
-    /// Row plan (each row a real shaped LINE, addressed by `f32` row index —
-    /// `panel_rows`'s own contract):
-    ///   * row 0 — **find**: label, the fixed-width windowed query, one
-    ///     reserved caret cell. Always present.
-    ///   * row 1 — **replace** (only once revealed): label, the windowed
-    ///     replacement, one reserved caret cell. No trailing hint text — this
-    ///     row's own width is what the responsive `field_chars` budget below
-    ///     is computed against, so a fixed-length hint appended here would
-    ///     ride outside that budget (see the nav row's own `Tab switch` hint
-    ///     for why this matters).
-    ///   * the **nav row** (`find    ` -> row 1, replace revealed -> row 2;
-    ///     wraps to a second line under narrow pressure): the `N of M`
-    ///     counter, the `^`/`v` step buttons, and the `Aa` match-case
-    ///     checkbox with its `Match case` label — plus, at ordinary widths, a
-    ///     `Tab switch` hint and, with no replace row up, the `Esc close`
-    ///     hint (there is no actions row to carry it otherwise).
-    ///   * the **actions row** (nav row + its line count, only once replace is
-    ///     revealed; also wraps under narrow pressure): the `Replace` /
-    ///     `Replace all` buttons and the `Esc close` hint.
     pub(in crate::render) fn panel_shape_text(&mut self, width: u32) -> PanelShape {
         let m = self.metrics.panel_ui();
-        let no_match = self.search_no_matches();
+        let inner = (self.panel_card_width(width) - 2.0 * m.px(PANEL_PAD)).max(m.char_width);
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let red = theme::error().to_glyphon();
-        let total = self.search_matches.len();
-        let n = self.search_current.map(|i| i + 1).unwrap_or(0);
-        let query = self.search_query.clone();
-
-        // The query never shapes as its raw, unbounded self: it is a fixed
-        // visible field, scrolled/padded by `field_view_window`.
-        let panel_text_w =
-            (width as f32 - 2.0 * m.px(PANEL_MARGIN) - 2.0 * m.px(PANEL_PAD)).max(m.char_width);
-        let panel_cells = (panel_text_w / m.char_width).floor() as usize;
-        let field_chars = PANEL_FIELD_CHARS.min(
-            panel_cells
-                .saturating_sub(PANEL_FIXED_CELLS)
-                .max(PANEL_MIN_FIELD_CHARS),
-        );
-        let (query_view, query_view_caret) =
-            field_view_window(&query, self.search_query_caret, field_chars);
-
-        let base = panel_attrs();
-        let mk = |c| base.clone().color(c);
-        // The macOS modifier glyphs (⌘ ⌥) in a chord label shape from the
-        // bundled SYMBOL_FAMILY face (the display/mono faces render them as
-        // tofu), the same treatment the overlay chord column gives them.
-        let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-        // The query/replacement VALUE spans shape in a MONOSPACE family (never
-        // the active world's proportional `base`), so `field_view_window`'s
-        // fixed CHAR-COUNT contract yields a fixed PIXEL width too.
-        let field = |c| Attrs::new().family(Family::Monospace).color(c);
-
-        let replacement = self.search_replacement.clone();
-        let (replacement_view, replacement_view_caret) =
-            field_view_window(&replacement, self.search_replacement_caret, field_chars);
-        let replace_active = self.search_replace_active;
-        let editing_replacement = replace_active && self.search_editing_replacement;
-
-        // Calm visual hierarchy via per-run color: muted labels, full-ink
-        // query/replacement, and an "Aa" indicator that brightens from muted
-        // to full ink when case-sensitivity is ON — state carried by VALUE,
-        // never amber (the caret alone owns that accent).
-        let (c_query, c_counter, c_toggle) = if no_match {
-            (red, red, muted)
-        } else if self.search_case_sensitive {
-            (ink, muted, ink)
-        } else {
-            (ink, muted, muted)
-        };
-        let wide = panel_cells >= PANEL_WIDE_CELLS;
-        let stacked_fields = panel_cells < PANEL_STACKED_FIELD_CELLS;
-        let case_hint_on = self.search_case_sensitive && !no_match;
-
-        let mut spans: Vec<(&str, Attrs)> = Vec::new();
-        let mut controls = PanelControlSpans::default();
-
-        // FIND — inline at ordinary widths, label-above at the narrow floor.
-        spans.push((if stacked_fields { "Find" } else { FIND_LABEL }, mk(muted)));
-        let find_row = if stacked_fields {
-            spans.push(("\n", mk(muted)));
-            1.0
-        } else {
-            0.0
-        };
-        let find_start = if stacked_fields { 0 } else { FIND_LABEL.len() };
-        spans.push((query_view.as_str(), field(c_query)));
-        let find_end = find_start + query_view.len();
-        controls.find_field = Some(ControlSpan {
-            row: find_row,
-            byte_start: find_start,
-            byte_end: find_end,
-        });
-        spans.push((" ", mk(muted))); // the reserved caret cell
-
-        // ROW 1 — REPLACE (only once revealed). No trailing hint text here:
-        // this row's own width is what the responsive `field_chars` budget is
-        // computed against, so any FIXED-length text appended after the
-        // reserved caret cell rides for free on top of that budget and can
-        // push the row past the narrow-canvas clamp `panel_layout` derives
-        // from the very same width. The `Tab switch field` hint lives on the
-        // nav row instead, which already carries its own wide/narrow wrap.
-        let mut replace_row = None;
-        let mut nav_row = find_row + 1.0;
-        if replace_active {
-            spans.push(("\n", mk(muted)));
-            spans.push((
-                if stacked_fields {
-                    "Replace with"
-                } else {
-                    REPLACE_LABEL
-                },
-                mk(muted),
+        let no_match = self.search_no_matches();
+        let label = panel_attrs().metrics(GlyphMetrics::new(
+            m.font_size * crate::markdown::type_scale::LABEL,
+            m.line_height,
+        ));
+        let field = Attrs::new().family(Family::Monospace).color(ink);
+        let symbol = Attrs::new()
+            .family(Family::Name(SYMBOL_FAMILY))
+            .metrics(GlyphMetrics::new(
+                m.font_size * crate::markdown::type_scale::LABEL,
+                m.line_height,
             ));
-            let row = if stacked_fields {
-                spans.push(("\n", mk(muted)));
-                find_row + 2.0
-            } else {
-                find_row + 1.0
-            };
-            let rep_start = if stacked_fields {
-                0
-            } else {
-                REPLACE_LABEL.len()
-            };
-            spans.push((replacement_view.as_str(), field(ink)));
-            let rep_end = rep_start + replacement_view.len();
-            controls.replace_field = Some(ControlSpan {
-                row,
-                byte_start: rep_start,
-                byte_end: rep_end,
-            });
-            spans.push((" ", mk(ink))); // the reserved caret cell
-            replace_row = Some(row);
-            nav_row = row + 1.0;
-        }
-
-        // THE NAV ROW — counter, step buttons, match-case checkbox. At
-        // ordinary widths this is ONE line; under narrow pressure the
-        // checkbox (+ its label) moves to a SECOND line rather than letting
-        // the line's natural width outgrow the card's own narrow-canvas
-        // clamp (`panel_layout` sizes the card from the SHAPED rows, so a
-        // row that does not shrink here would draw past the card it is
-        // supposedly inside) — the same "wrap rather than overflow" policy
-        // `field_view_window` already applies to the value fields.
-        spans.push(("\n", mk(muted)));
-        let counter = format!("{n} of {total}");
-        spans.push((counter.as_str(), mk(c_counter)));
-        let mut off = counter.len();
-        spans.push(("  ", mk(muted)));
-        off += 2;
-        let prev_start = off;
-        spans.push(("^", mk(ink)));
-        off += 1;
-        controls.nav_prev = Some(ControlSpan {
-            row: nav_row,
-            byte_start: prev_start,
-            byte_end: off,
-        });
-        // A real gap between the two step buttons: each box outsets its own
-        // tight glyph span by `CONTROL_BOX_PAD_X` on every side, so a single
-        // reserved column between two one-glyph controls would let their
-        // outset boxes touch or overlap.
-        spans.push(("   ", mk(muted)));
-        off += 3;
-        let next_start = off;
-        spans.push(("v", mk(ink)));
-        off += 1;
-        controls.nav_next = Some(ControlSpan {
-            row: nav_row,
-            byte_start: next_start,
-            byte_end: off,
-        });
-        let case_row = if wide { nav_row } else { nav_row + 1.0 };
-        if wide {
-            spans.push(("   ", mk(muted)));
-            off += 3;
-        } else {
-            spans.push(("\n", mk(muted)));
-            off = 0;
-        }
-        let case_start = off;
-        spans.push(("Aa", mk(c_toggle)));
-        off += 2;
-        controls.case_box = Some(ControlSpan {
-            row: case_row,
-            byte_start: case_start,
-            byte_end: off,
-        });
-        const CASE_LABEL: &str = " Match case";
-        spans.push((CASE_LABEL, mk(muted)));
-        let case_hint_owned;
-        if wide {
-            case_hint_owned = format!(" {}", crate::keyspec::PANEL_MATCH_CASE.label());
-            let case_hint_color = if case_hint_on { ink } else { muted };
-            push_symbol_split(
-                &mut spans,
-                &case_hint_owned,
-                move || mk(case_hint_color),
-                move || sym(case_hint_color),
-            );
-        }
-        let nav_lines = if wide { 1.0 } else { 2.0 };
-
-        // THE ACTIONS ROW (only once replace is revealed): Replace / Replace
-        // all, each a real click target with its own chord annotation, and
-        // the `Esc close` hint. Same wrap policy as the nav row: one line at
-        // ordinary widths, `Replace all` moves to a second line under narrow
-        // pressure.
-        let actions_row = nav_row + nav_lines;
-        let replace_hint_owned;
-        let replace_all_hint_owned;
-        if replace_active {
-            spans.push(("\n", mk(muted)));
-            let mut off2 = 0usize;
-            const REPLACE_BTN: &str = "Replace";
-            let rb_start = off2;
-            spans.push((REPLACE_BTN, mk(ink)));
-            off2 += REPLACE_BTN.len();
-            controls.replace_button = Some(ControlSpan {
-                row: actions_row,
-                byte_start: rb_start,
-                byte_end: off2,
-            });
-            spans.push((" ", mk(muted)));
-            off2 += 1;
-            if wide {
-                replace_hint_owned = crate::keyspec::PANEL_REPLACE_NEXT.label();
-                push_symbol_split(&mut spans, &replace_hint_owned, || mk(muted), || sym(muted));
-                off2 += replace_hint_owned.len();
+        let mut t = PanelText::new(&mut self.font_system, m.glyph_metrics());
+        let gap = m.px(Logical(12.0));
+        let pad = m.px(panel_controls::CONTROL_BOX_PAD_X);
+        let target = m.px(panel_controls::CONTROL_MIN_W);
+        let stacked = inner < m.px(Logical(300.0));
+        let label_w = t.measure("Replace", &label) + gap;
+        let field_left = if stacked { 0.0 } else { label_w };
+        let field_room = (inner - field_left - target - gap).max(m.char_width);
+        let mut cap = (field_room / t.space).floor().max(2.0) as usize - 1;
+        let query = self.search_query.clone();
+        let replacement = self.search_replacement.clone();
+        // Fallback glyphs (including CJK) can be wider than the mono cell.
+        // Fit the actual windows, preserving the same scroll rule for both.
+        let (query_view, query_caret, replacement_view, replacement_caret) = loop {
+            let (q, qc) = field_view_window(&query, self.search_query_caret, cap);
+            let (r, rc) = field_view_window(&replacement, self.search_replacement_caret, cap);
+            if cap <= 1 || t.measure(&q, &field).max(t.measure(&r, &field)) + t.space <= field_room
+            {
+                break (q, qc, r, rc);
             }
-            let replace_all_row = if wide {
-                spans.push(("  ", mk(muted)));
-                off2 += 2;
-                actions_row
-            } else {
-                spans.push(("\n", mk(muted)));
-                off2 = 0;
-                actions_row + 1.0
-            };
-            const REPLACE_ALL_BTN: &str = "Replace all";
-            let rab_start = off2;
-            spans.push((REPLACE_ALL_BTN, mk(ink)));
-            off2 += REPLACE_ALL_BTN.len();
-            controls.replace_all_button = Some(ControlSpan {
-                row: replace_all_row,
-                byte_start: rab_start,
-                byte_end: off2,
-            });
-            spans.push((" ", mk(muted)));
-            if wide {
-                replace_all_hint_owned = crate::keyspec::PANEL_REPLACE_ALL.label();
-                push_symbol_split(
-                    &mut spans,
-                    &replace_all_hint_owned,
-                    || mk(muted),
-                    || sym(muted),
-                );
-            }
+            cap -= 1;
+        };
+        let mut controls = PanelControlSpans {
+            stacked_fields: stacked,
+            ..Default::default()
+        };
+        t.push("Find", label.clone().color(muted));
+        if stacked {
+            t.newline();
+        } else {
+            t.gap(field_left - t.x);
         }
-        let actions_lines = if replace_active {
-            if wide { 1.0 } else { 2.0 }
+        let find = t.push(&query_view, field.clone());
+        controls.find_field = Some(find);
+        t.push(" ", field.clone());
+        t.gap(inner - target - t.x);
+        controls.close = Some(t.button("×", symbol.clone().color(muted), target, pad));
+        t.newline();
+        let total = self.search_matches.len();
+        let counter = if query.is_empty() {
+            String::new()
+        } else if total == 0 {
+            "No matches".into()
         } else {
-            0.0
+            format!("{} of {total}", self.search_current.map_or(0, |i| i + 1))
         };
-
-        // One quiet footer owns the two navigation chords that apply to the
-        // panel as a whole. Keeping them out of the control rows makes those
-        // rows scan as controls instead of a sentence of annotations.
-        let footer_field_owned;
-        let footer_close_owned;
-        let footer_owned;
-        let footer_rows = if stacked_fields {
-            footer_field_owned = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
-            footer_close_owned = format!("{} close", crate::keyspec::PANEL_CLOSE.label());
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_field_owned, || mk(muted), || sym(muted));
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_close_owned, || mk(muted), || sym(muted));
-            2.0
+        t.push(
+            &counter,
+            label.clone().color(if no_match { red } else { muted }),
+        );
+        let counter_w = t.measure("No matches", &label);
+        t.gap((counter_w - t.x).max(0.0) + gap);
+        let nav_ink = if total == 0 {
+            theme::faint().to_glyphon()
         } else {
-            footer_owned = format!(
-                "{} field   {} close",
-                crate::keyspec::PANEL_SWITCH_FIELD.label(),
-                crate::keyspec::PANEL_CLOSE.label()
-            );
-            spans.push(("\n", mk(muted)));
-            push_symbol_split(&mut spans, &footer_owned, || mk(muted), || sym(muted));
-            1.0
+            ink
         };
+        controls.nav_prev = Some(t.button("↑", symbol.clone().color(nav_ink), target, pad));
+        t.gap(m.px(Logical(4.0)));
+        controls.nav_next = Some(t.button("↓", symbol.clone().color(nav_ink), target, pad));
+        let case_label = if self.search_case_sensitive {
+            "☑ Match case"
+        } else {
+            "☐ Match case"
+        };
+        let case_attrs = label.clone().color(if self.search_case_sensitive {
+            ink
+        } else {
+            muted
+        });
+        let case_w = t.measure(case_label, &case_attrs);
+        if t.x + gap + case_w + pad > inner {
+            t.newline();
+        }
+        t.gap((inner - case_w - pad - t.x).max(pad));
+        controls.case_box = Some(t.push(case_label, case_attrs));
 
-        let rows = actions_row + actions_lines + footer_rows;
-        // Give the buffer generous width + one line height per row so it never wraps.
+        if self.search_replace_active {
+            t.newline();
+            t.push("Replace", label.clone().color(muted));
+            if stacked {
+                t.newline();
+            } else {
+                t.gap(field_left - t.x);
+            }
+            controls.replace_field = Some(t.push(&replacement_view, field.clone()));
+            t.push(" ", field.clone());
+            t.newline();
+            let first = t.measure("Replace", &label) + 2.0 * pad;
+            let all = t.measure("Replace all", &label) + 2.0 * pad;
+            t.gap((inner - first - gap - all).max(0.0));
+            controls.replace_button =
+                Some(t.button("Replace", label.clone().color(nav_ink), target, pad));
+            t.gap(gap);
+            controls.replace_all_button =
+                Some(t.button("Replace all", label.clone().color(nav_ink), target, pad));
+        }
+        t.newline();
+        let disclosure = if self.search_replace_active {
+            "Hide replace"
+        } else {
+            "Replace…"
+        };
+        t.gap(pad);
+        controls.reveal = Some(t.push(disclosure, label.clone().color(muted)));
+        t.gap(pad);
+        let hint = format!(
+            "{} field   {} close",
+            crate::keyspec::PANEL_SWITCH_FIELD.label(),
+            crate::keyspec::PANEL_CLOSE.label()
+        );
+        let hint_w = t.measure(&hint, &label);
+        if t.x + gap + hint_w > inner {
+            t.newline();
+        }
+        t.gap((inner - hint_w - t.x).max(gap));
+        t.push(&hint, label.clone().color(muted));
+
+        let editing = self.search_replace_active && self.search_editing_replacement;
+        let (span, view, caret, full_caret, full_len) = if editing {
+            (
+                controls.replace_field.unwrap(),
+                &replacement_view,
+                replacement_caret,
+                self.search_replacement_caret,
+                replacement.chars().count(),
+            )
+        } else {
+            (
+                find,
+                &query_view,
+                query_caret,
+                self.search_query_caret,
+                query.chars().count(),
+            )
+        };
+        let prefix = " ".repeat(span.byte_start);
+        let selection_span = panel_selection_span(
+            self.search_field_selection,
+            &prefix,
+            view,
+            full_caret,
+            full_len,
+            cap,
+        );
+        let rows = t.row + 1.0;
+        let spans = t.spans;
+        self.panel_buffer
+            .set_metrics(&mut self.font_system, m.glyph_metrics());
         self.panel_buffer.set_size(
             &mut self.font_system,
             Some(width as f32 * 2.0),
             Some(m.line_height * rows),
         );
-        let default_attrs = base.clone().color(ink);
         self.panel_buffer.set_rich_text(
             &mut self.font_system,
-            spans,
-            &default_attrs,
+            spans
+                .iter()
+                .map(|(text, attrs)| (text.as_str(), attrs.clone())),
+            &field,
             Shaping::Advanced,
             None,
         );
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
-
-        // Byte offset + char-prefix of the FOCUSED field's caret, at its OWN
-        // CHAR-index position (`TextBox::caret`) — LINE-relative (cosmic-text
-        // resets `LayoutGlyph::start` to 0 after every `\n`), computed
-        // against the WINDOWED `query_view`/`replacement_view`, never the raw
-        // field text, so the caret always lands on a real shaped glyph.
-        let (caret_byte, caret_fallback_chars, caret_row) = if editing_replacement {
-            let label_bytes = if stacked_fields {
-                0
-            } else {
-                REPLACE_LABEL.len()
-            };
-            let label_chars = if stacked_fields {
-                0
-            } else {
-                REPLACE_LABEL.chars().count()
-            };
-            (
-                label_bytes + field_caret_byte(&replacement_view, replacement_view_caret),
-                label_chars + replacement_view_caret,
-                replace_row.expect("replace focus requires the replace row"),
-            )
-        } else {
-            let label_bytes = if stacked_fields { 0 } else { FIND_LABEL.len() };
-            let label_chars = if stacked_fields {
-                0
-            } else {
-                FIND_LABEL.chars().count()
-            };
-            (
-                label_bytes + field_caret_byte(&query_view, query_view_caret),
-                label_chars + query_view_caret,
-                find_row,
-            )
-        };
-        // THE SELECTION BAND's own crossing, through the one owner beside
-        // this file (`panel_selection`), asked of the SAME focused field the
-        // caret row above was derived from.
-        let (label, view, field_caret, field_len) = if editing_replacement {
-            let caret = self.search_replacement_caret;
-            (
-                if stacked_fields { "" } else { REPLACE_LABEL },
-                &replacement_view,
-                caret,
-                replacement.chars().count(),
-            )
-        } else {
-            let caret = self.search_query_caret;
-            (
-                if stacked_fields { "" } else { FIND_LABEL },
-                &query_view,
-                caret,
-                query.chars().count(),
-            )
-        };
-        let selection_span = panel_selection_span(
-            self.search_field_selection,
-            label,
-            view,
-            field_caret,
-            field_len,
-            field_chars,
-        );
-
         self.panel_control_spans = controls;
-
         PanelShape {
             no_match,
             ink,
             red,
-            caret_byte,
-            caret_fallback_chars,
-            caret_row,
+            caret_byte: span.byte_start + field_caret_byte(view, caret),
+            caret_fallback_chars: span.byte_start + caret,
+            caret_row: span.row,
             selection_span,
         }
     }
@@ -493,8 +318,8 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn panel_field_rows_probe(&self) -> (Option<f32>, Option<f32>) {
         (
-            self.panel_control_spans.find_field.map(|span| span.row),
-            self.panel_control_spans.replace_field.map(|span| span.row),
+            self.panel_control_spans.find_field.map(|s| s.row),
+            self.panel_control_spans.replace_field.map(|s| s.row),
         )
     }
 }

@@ -175,6 +175,8 @@ fn find_chrome_is_logical_across_dpi_and_independent_of_document_zoom() {
 /// than silently going ungraded.
 fn expected_controls(replace: bool) -> Vec<(&'static str, PanelHit)> {
     let mut want = vec![
+        ("close", PanelHit::Close),
+        ("reveal_replace", PanelHit::RevealReplace),
         ("find_field", PanelHit::Find),
         ("nav_prev", PanelHit::NavPrev),
         ("nav_next", PanelHit::NavNext),
@@ -206,7 +208,7 @@ fn shaped_row_tops(p: &TextPipeline) -> Vec<(usize, f32)> {
 fn want_at(row: i64, replace: bool) -> PanelHit {
     match row {
         0 => PanelHit::Find,
-        1 if replace => PanelHit::Replace,
+        2 if replace => PanelHit::Replace,
         _ => PanelHit::Elsewhere,
     }
 }
@@ -297,8 +299,8 @@ fn grade_card_and_rows(
         // card's horizontal CENTRE on those rows may legitimately land on one —
         // `grade_controls` graded below is the row-2+ transition proof instead,
         // seated on each control's own published rect rather than a bare mid_x.
-        if band.row <= 1 {
-            let mid_x = cx + cw * 0.5;
+        if band.row == 0 || (replace && band.row == 2) {
+            let mid_x = cx + 2.0;
             for (dy, want) in [
                 (0.5, want_at(band.row as i64, replace)),
                 (band.h * 0.5, want_at(band.row as i64, replace)),
@@ -589,7 +591,7 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
 
     assert_eq!(
         focused_rows,
-        std::collections::BTreeSet::from([0, 1, 3]),
+        std::collections::BTreeSet::from([0, 1, 2, 5]),
         "both field arms must be swept — a placer that ignores caret_row passes on \
          row 0 alone, got {focused_rows:?}"
     );

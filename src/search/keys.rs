@@ -84,6 +84,12 @@ pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, a
             }
         }
         Action::SearchPanel(ctrl) => match ctrl {
+            super::PanelControl::Close => abort(search, buffer),
+            super::PanelControl::RevealReplace => {
+                if let Some(st) = search.as_mut() {
+                    st.toggle_replace_visibility();
+                }
+            }
             super::PanelControl::CaseToggle => toggle_case_and_jump(search, buffer),
             super::PanelControl::NavPrev => {
                 step(search, buffer, Direction::Backward);

@@ -31,11 +31,14 @@ pub(in crate::render) struct ControlSpan {
 /// panel has no replace field or action buttons at all).
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub(in crate::render) struct PanelControlSpans {
+    pub stacked_fields: bool,
     pub find_field: Option<ControlSpan>,
     pub replace_field: Option<ControlSpan>,
     pub nav_prev: Option<ControlSpan>,
     pub nav_next: Option<ControlSpan>,
     pub case_box: Option<ControlSpan>,
+    pub close: Option<ControlSpan>,
+    pub reveal: Option<ControlSpan>,
     pub replace_button: Option<ControlSpan>,
     pub replace_all_button: Option<ControlSpan>,
 }
@@ -50,27 +53,10 @@ pub(crate) struct ResolvedPanelControls {
     pub nav_prev: Option<[f32; 4]>,
     pub nav_next: Option<[f32; 4]>,
     pub case_box: Option<[f32; 4]>,
+    pub close: Option<[f32; 4]>,
+    pub reveal: Option<[f32; 4]>,
     pub replace_button: Option<[f32; 4]>,
     pub replace_all_button: Option<[f32; 4]>,
-}
-
-impl ResolvedPanelControls {
-    /// Every drawn box, as plain rects — what the fill/border pipelines
-    /// upload (one `prepare()` call, one shared corner/stroke/color).
-    pub(in crate::render) fn boxes(&self) -> Vec<[f32; 4]> {
-        [
-            self.find_field,
-            self.replace_field,
-            self.nav_prev,
-            self.nav_next,
-            self.case_box,
-            self.replace_button,
-            self.replace_all_button,
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
-    }
 }
 
 /// Authored logical horizontal outset beyond the tight glyph span every control
@@ -162,6 +148,8 @@ impl TextPipeline {
             nav_prev: one(spans.nav_prev),
             nav_next: one(spans.nav_next),
             case_box: one(spans.case_box),
+            close: one(spans.close),
+            reveal: one(spans.reveal),
             replace_button: one(spans.replace_button),
             replace_all_button: one(spans.replace_all_button),
         }

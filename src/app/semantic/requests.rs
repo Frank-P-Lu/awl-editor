@@ -273,6 +273,8 @@ impl App {
             return true;
         }
         let search_control = match id {
+            super::SEARCH_CLOSE_ID => Some(crate::search::PanelControl::Close),
+            super::SEARCH_REVEAL_ID => Some(crate::search::PanelControl::RevealReplace),
             super::SEARCH_CASE_ID => Some(crate::search::PanelControl::CaseToggle),
             super::SEARCH_PREVIOUS_ID => Some(crate::search::PanelControl::NavPrev),
             super::SEARCH_NEXT_ID => Some(crate::search::PanelControl::NavNext),

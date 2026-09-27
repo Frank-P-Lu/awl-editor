@@ -1292,7 +1292,12 @@ fn search_semantics_publish_and_drive_the_exact_shared_control_roster() {
     let mut plain = hermetic();
     install(&mut plain, false);
     let plain_snapshot = plain.semantic_snapshot();
-    for id in [SEARCH_PREVIOUS_ID, SEARCH_NEXT_ID] {
+    for id in [
+        SEARCH_CLOSE_ID,
+        SEARCH_REVEAL_ID,
+        SEARCH_PREVIOUS_ID,
+        SEARCH_NEXT_ID,
+    ] {
         let node = plain_snapshot
             .nodes
             .iter()
@@ -1315,6 +1320,20 @@ fn search_semantics_publish_and_drive_the_exact_shared_control_roster() {
             "plain Find must not publish replace-only control {id}"
         );
     }
+
+    for expected in [true, false] {
+        assert!(plain.apply_semantic_request(SemanticRequest::Click {
+            id: SEARCH_REVEAL_ID.into()
+        }));
+        assert_eq!(
+            plain.workspace_state.search().unwrap().is_replace_active(),
+            expected
+        );
+    }
+    assert!(plain.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_CLOSE_ID.into()
+    }));
+    assert!(plain.workspace_state.search().is_none());
 
     let mut replace = hermetic();
     install(&mut replace, true);

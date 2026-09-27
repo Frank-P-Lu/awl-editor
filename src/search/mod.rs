@@ -23,6 +23,8 @@ pub enum Direction {
 /// anything) and the `None` case (off the card entirely).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PanelControl {
+    Close,
+    RevealReplace,
     /// The `Match case` checkbox.
     CaseToggle,
     /// The prev/next match-step buttons.
@@ -274,6 +276,14 @@ impl SearchState {
     /// Idempotent: a re-reveal never steals focus back to the query.
     pub fn reveal_replace(&mut self) {
         self.replace_active = true;
+    }
+
+    /// Collapse preserves both fields, and returns typing to the visible query.
+    pub fn toggle_replace_visibility(&mut self) {
+        self.replace_active = !self.replace_active;
+        if !self.replace_active {
+            self.editing_replacement = false;
+        }
     }
 
     pub fn focus_replacement(&mut self) {

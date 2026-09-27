@@ -17,8 +17,8 @@ use super::super::*;
 use super::pixeldiff::Region;
 use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 
-const FIND_LABEL_LEN: usize = "Find         ".len();
-const REPLACE_LABEL_LEN: usize = "Replace with ".len();
+const FIND_LABEL_LEN: usize = "Find ".len();
+const REPLACE_LABEL_LEN: usize = "Replace ".len();
 const QUERY: &str = "hello";
 /// Deliberately MULTIBYTE, and a different CHAR length from [`QUERY`]. The two
 /// row labels are the same width and both fields are padded to the same cell
@@ -94,7 +94,7 @@ fn the_panel_selection_band_paints_only_the_focused_row() {
         find_row.max_channel_delta
     );
 
-    let replace_row = pixeldiff::diff_region(&without, &with, w as i64, h as i64, row(1.0));
+    let replace_row = pixeldiff::diff_region(&without, &with, w as i64, h as i64, row(2.0));
     assert_eq!(
         replace_row.differing, 0,
         "the find field's band leaked onto the REPLACE row"
@@ -135,7 +135,7 @@ fn the_band_spans_the_shaped_field_on_whichever_row_has_focus() {
 
     for (replacement_focused, label_len, row) in [
         (false, FIND_LABEL_LEN, 0.0_f32),
-        (true, REPLACE_LABEL_LEN, 1.0_f32),
+        (true, REPLACE_LABEL_LEN, 2.0_f32),
     ] {
         let field = if replacement_focused {
             REPLACEMENT

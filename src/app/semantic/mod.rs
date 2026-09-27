@@ -37,6 +37,8 @@ pub(in crate::app) use view::SemanticView;
 const SEARCH_ID: &str = "search";
 const SEARCH_QUERY_ID: &str = "search.query";
 const SEARCH_REPLACE_ID: &str = "search.replacement";
+const SEARCH_CLOSE_ID: &str = "search.close";
+const SEARCH_REVEAL_ID: &str = "search.reveal-replace";
 const SEARCH_CASE_ID: &str = "search.case-sensitive";
 const SEARCH_PREVIOUS_ID: &str = "search.previous";
 const SEARCH_NEXT_ID: &str = "search.next";

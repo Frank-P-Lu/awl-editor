@@ -67,7 +67,14 @@ impl TextPipeline {
         // the sidecar also read, then the thin region separators between
         // fields / nav / actions.
         let resolved = self.panel_controls_layout(&self.panel_control_spans, text_left, text_top);
-        let boxes = resolved.boxes();
+        let boxes: Vec<_> = [
+            resolved.replace_field,
+            resolved.replace_button,
+            resolved.replace_all_button,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         self.panel_control_fill
             .prepare(device, queue, width, height, &boxes);
         let pad = self.metrics.px_physical(FLOAT_BORDER_RING_PX);
@@ -94,8 +101,7 @@ impl TextPipeline {
         let x0 = card_x + inset;
         let w = (card_w - 2.0 * inset).max(0.0);
         let stroke = self.metrics.px_physical(RULE_STROKE);
-        let replace_active = self.search_replace_active;
-        let nav_row = if replace_active { 2.0 } else { 1.0 };
+        let nav_row = self.panel_control_spans.nav_prev.map_or(1.0, |s| s.row);
         let bands = self.panel_rows(text_top);
         let mut out = vec![[x0, bands.band(nav_row).0 - stroke * 0.5, w, stroke]];
         // The actions row's own start, read back from where its first control
@@ -129,6 +135,12 @@ impl TextPipeline {
         let inside = |r: Option<[f32; 4]>| {
             r.is_some_and(|[x, y, w, h]| px >= x && px <= x + w && py >= y && py <= y + h)
         };
+        if inside(resolved.close) {
+            return Some(PanelHit::Close);
+        }
+        if inside(resolved.reveal) {
+            return Some(PanelHit::RevealReplace);
+        }
         if inside(resolved.case_box) {
             return Some(PanelHit::CaseToggle);
         }
@@ -155,7 +167,8 @@ impl TextPipeline {
             .map(|span| span.row as i64);
         let belongs_to = |field_row: Option<i64>| {
             field_row.is_some_and(|field_row| {
-                row == field_row || (field_row > 0 && row == field_row - 1)
+                row == field_row
+                    || (self.panel_control_spans.stacked_fields && row == field_row - 1)
             })
         };
         Some(if belongs_to(find_row) {

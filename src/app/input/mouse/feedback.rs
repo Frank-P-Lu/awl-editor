@@ -43,7 +43,9 @@ impl App {
         let over_case_toggle = matches!(panel_hit, Some(crate::render::PanelHit::CaseToggle));
         let over_panel_button = matches!(
             panel_hit,
-            Some(crate::render::PanelHit::NavPrev)
+            Some(crate::render::PanelHit::Close)
+                | Some(crate::render::PanelHit::RevealReplace)
+                | Some(crate::render::PanelHit::NavPrev)
                 | Some(crate::render::PanelHit::NavNext)
                 | Some(crate::render::PanelHit::ReplaceButton)
                 | Some(crate::render::PanelHit::ReplaceAllButton)

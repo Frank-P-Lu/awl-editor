@@ -31,6 +31,7 @@ impl SemanticView<'_> {
         nodes.push(query);
 
         let mut case = SemanticNode::new(SEARCH_CASE_ID, SemanticRole::CheckBox, "Match case");
+        case.description = Some(crate::keyspec::PANEL_MATCH_CASE.label());
         case.checked = Some(search.is_case_sensitive());
         case.focusable = true;
         case.actions = vec![SemanticAction::Click];
@@ -38,6 +39,15 @@ impl SemanticView<'_> {
         nodes.push(case);
 
         for (id, name) in [
+            (SEARCH_CLOSE_ID, "Close find"),
+            (
+                SEARCH_REVEAL_ID,
+                if search.is_replace_active() {
+                    "Hide replace"
+                } else {
+                    "Show replace"
+                },
+            ),
             (SEARCH_PREVIOUS_ID, "Previous match"),
             (SEARCH_NEXT_ID, "Next match"),
         ] {
@@ -69,6 +79,11 @@ impl SemanticView<'_> {
                 (SEARCH_REPLACE_ALL_ID, "Replace all"),
             ] {
                 let mut button = SemanticNode::new(id, SemanticRole::Button, name);
+                button.description = Some(if id == SEARCH_REPLACE_BUTTON_ID {
+                    crate::keyspec::PANEL_REPLACE_NEXT.label()
+                } else {
+                    crate::keyspec::PANEL_REPLACE_ALL.label()
+                });
                 button.actions = vec![SemanticAction::Click];
                 dialog.children.push(id.to_string());
                 nodes.push(button);

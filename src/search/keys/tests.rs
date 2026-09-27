@@ -571,3 +571,45 @@ fn select_all_then_typing_replaces_a_multibyte_field_whole() {
         assert_eq!(b.text(), "nothing matches here");
     }
 }
+
+#[test]
+fn panel_disclosure_preserves_fields_and_close_uses_escape_behavior() {
+    let _guard = crate::testlock::serial();
+    let (mut search, mut buffer) = open("alpha beta alpha");
+    type_str(&mut search, &mut buffer, "beta");
+    let click = |search: &mut Option<SearchState>, buffer: &mut Buffer, control| {
+        intercept_action(search, buffer, &Action::SearchPanel(control));
+    };
+    click(
+        &mut search,
+        &mut buffer,
+        super::super::PanelControl::RevealReplace,
+    );
+    assert!(search.as_ref().unwrap().is_replace_active());
+    click(
+        &mut search,
+        &mut buffer,
+        super::super::PanelControl::FocusReplace,
+    );
+    type_str(&mut search, &mut buffer, "日本語");
+    click(
+        &mut search,
+        &mut buffer,
+        super::super::PanelControl::RevealReplace,
+    );
+    let state = search.as_ref().unwrap();
+    assert!(!state.is_replace_active());
+    assert!(!state.is_editing_replacement());
+    assert_eq!(state.query(), "beta");
+    assert_eq!(state.replacement(), "日本語");
+    click(
+        &mut search,
+        &mut buffer,
+        super::super::PanelControl::RevealReplace,
+    );
+    assert_eq!(search.as_ref().unwrap().replacement(), "日本語");
+    click(&mut search, &mut buffer, super::super::PanelControl::Close);
+    assert!(search.is_none());
+    assert_eq!(buffer.cursor_char(), 0);
+    assert_eq!(buffer.text(), "alpha beta alpha");
+}

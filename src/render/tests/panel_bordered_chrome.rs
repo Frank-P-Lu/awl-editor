@@ -96,12 +96,12 @@ fn bordered_controls_are_drawn_and_visible_across_the_world_roster() {
         let g = p
             .panel_geometry()
             .expect("an active search publishes geometry");
-        let find_field = g
+        let replace_field = g
             .controls
             .iter()
-            .find(|c| c.name == "find_field")
-            .expect("find_field must be published");
-        let [fx, fy, fw, fh] = find_field.rect;
+            .find(|c| c.name == "replace_field")
+            .expect("replace_field must be published");
+        let [fx, fy, fw, fh] = replace_field.rect;
         let [cx, cy, ..] = g.card;
 
         let pixels = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
@@ -168,4 +168,90 @@ fn bordered_controls_are_drawn_and_visible_across_the_world_roster() {
         "the tightest real fill-vs-card delta measured was {worst_fill_delta} \
          against a floor of {VISIBLE_DELTA}"
     );
+}
+
+/// Minimum-size buttons must never consume the neighboring control's target.
+/// The whole roster matters: proportional spaces and mono spaces differ.
+#[test]
+fn panel_targets_are_disjoint_and_contained_across_worlds_widths_and_dpi() {
+    let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping panel target sweep: no wgpu adapter");
+        return;
+    };
+    assert!(!theme::THEMES.is_empty());
+    for (i, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(i);
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for logical_width in [360, 464, 1200] {
+                let width = (logical_width as f32 * dpi) as u32;
+                p.window_w = width as f32;
+                for query in ["", "hello", "日本語の長い検索語句を入力して表示する"]
+                {
+                    for replace in [false, true] {
+                        let mut v = panel_view();
+                        v.search_query = query.into();
+                        v.search_query_caret = query.chars().count();
+                        v.search_replace_active = replace;
+                        if query != "hello" {
+                            v.search_matches.clear();
+                            v.search_current = None;
+                        }
+                        p.set_view(&v);
+                        p.panel_shape_text(width);
+                        let g = p.panel_geometry().unwrap();
+                        let [x, y, w, h] = g.card;
+                        let label = format!(
+                            "{} {logical_width}px dpi={dpi} query={query:?} replace={replace}",
+                            world.name
+                        );
+                        for (a_index, a) in g.controls.iter().enumerate() {
+                            let [ax, ay, aw, ah] = a.rect;
+                            assert!(
+                                ax >= x
+                                    && ay >= y
+                                    && ax + aw <= x + w + 0.1
+                                    && ay + ah <= y + h + 0.1,
+                                "{label}: {} escapes its card: {:?} / {:?}",
+                                a.name,
+                                a.rect,
+                                g.card
+                            );
+                            for b in &g.controls[a_index + 1..] {
+                                let [bx, by, bw, bh] = b.rect;
+                                let overlap_x = (ax + aw).min(bx + bw) - ax.max(bx);
+                                let overlap_y = (ay + ah).min(by + bh) - ay.max(by);
+                                assert!(
+                                    overlap_x <= 0.1 || overlap_y <= 0.1,
+                                    "{label}: {} overlaps {}: {:?} / {:?}",
+                                    a.name,
+                                    b.name,
+                                    a.rect,
+                                    b.rect
+                                );
+                            }
+                        }
+                        let text: String = p
+                            .panel_buffer
+                            .lines
+                            .iter()
+                            .map(|line| line.text())
+                            .collect();
+                        assert!(
+                            !text.contains("0 of 0"),
+                            "{label}: empty counters must be meaningful"
+                        );
+                        if query.is_empty() {
+                            assert!(!text.contains("No matches"));
+                        } else if query != "hello" {
+                            assert!(text.contains("No matches"));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
