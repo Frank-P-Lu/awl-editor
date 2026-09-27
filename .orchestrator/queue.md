@@ -6,515 +6,325 @@
 
 ## Open build and design tasks
 
-**12 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, and 669. Taste decision owed: 668.
+**14 open numbered tasks:** 582 is active; 668 awaits a design decision;
+651, 657–659, 661–666, 669 and 672 are queued. The user confirmed on
+2026-09-27 that only Kite background work is running. Previous worker claims
+are released; their committed work and worktrees remain preserved.
 
-Queued work: release 663.
+**Integration pending:** `codex/merge-train-657-659-661` at `f0f68dfc`
+contains the earlier Files, panels, search budgets, paste, release, IME, input,
+caret and punctuation work. It is not on main. Its `05916301` candidate has a
+recorded native/wasm pass; reconcile subsequent main changes and documentation,
+inspect the combined result and gate the new frozen candidate before landing.
+Resume from the train's integrated changes and preserve its conflict resolutions.
+The source branches below are recovery/reference points.
 
-Release constraint decided by the user on 2026-09-24: each public, installable
-app download must be strictly smaller than 50,000,000 bytes. Measure the final
-compressed artifact, not an uncompressed binary or a workflow artifact wrapper.
-This applies to macOS DMG/app zip and Linux AppImage/tarball; the hosted browser
-demo and source archives are separate distribution paths. Do not publish an
-oversized artifact or trade away Japanese bold silently to meet the cap.
+**Release constraint:** every public installable app download must be strictly
+under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
+and Linux AppImage/tarball. Browser deployment and source archives are separate.
+Keep real Japanese bold; return any size tradeoff to the user.
 
-Outstanding review of landed work and hardware checks are listed separately below.
+### 582 — refine Kite background depth and finish live review
 
-### 657 — restore the approved Files composition (user report, 2026-09-12)
+🟡 IN PROGRESS — existing Kite session (codex), branch `main`; chat
+“Find the right way to run awl”. This is the only active product task.
 
-🟡 IN PROGRESS — /root/files_affordances (codex), branch
-`codex/657-files-affordances`. The prior implementation landed at `ef344429`;
-the 2026-09-13 live review finds hierarchy still short of the approved composition.
-Corrective follow-up to 637/628/640; prior completion did not establish fidelity.
+Latest depth fade is committed at `4f9fd3fb`, following `0d5388d6` and
+`5d3d4249`. Targeted Metal checks, mutation evidence and five captures were
+reported in that session. Full native/wasm verification of the latest change
+remains with that owner; the first isolated gate stopped on a worktree-cleanup
+self-test, with its build-cache configuration under investigation.
 
-Live review (2026-09-13, running dev-app in Bowerbird with a temporary fixture):
-the unified Files panel and separate accessible actions are present, but folder
-name, Change folder and Search read as one faint inline sentence. The search has
-no recognizable field boundary, and New document reads like a footnote. Correct
-these through a distinct folder heading, a visibly interactive Change folder,
-a clearly bounded labelled search field and a legible footer action. Preserve
-quiet chrome without making essential controls look disabled; distinguish keyboard
-focus from selected view/row. Judge native screenshots by finding these affordances,
-not by their mere presence in the accessibility tree. Background blur is absent
-in the reviewed Files frame; preserve that improvement. Do not reimplement the
-already-separated action ownership or reintroduce mixed action rows.
-
-Original evidence (2026-09-12, before the latest correction): the user's screenshot shows a detached search strip, Change
-folder and New document as list rows, ambiguous `root/` scope, repeated folder
-markers and background blur. The live accessibility tree confirms the mixed rows.
-
-Build: compose Files as one coherent surface: named folder and Change folder in
-the header, labelled search, Files/Recent views, breadcrumbs/Up, file/folder choices,
-and a separate New document footer action naming its destination. Use one clear
-folder affordance rather than `/`, disclosure and “folder” together. Preserve the
-bottom-left working set and the approved quieter opaque chrome; remove background
-blur for the reviewed picker surfaces. Preserve native theme identities, bindings,
-root ownership and buffer/save semantics. The accepted site is reference only:
-https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/ (study 05).
-
-Verify: use a disposable seeded native release build with explicit root/config.
-Cover browsing, search, empty folders and narrow layout; compare hierarchy and
-control placement against the approved composition. Preserve content-free listings
-and the I/O boundaries established by the completed 650/652 work. No user-file
-captures belong in the public repo.
+Finish the current verification and present real awl captures. User review still
+covers density near page edges and the far core, several-minute motion comfort,
+dwell/transit/settle, pause/focus freeze and Reduce Motion in the bundled app.
+Preserve the projected tunnel geometry and shared renderer ownership. The earlier
+582 projection evidence remains in Git; there is no separate 564 task.
 
 ---
 
-### 658 — reproduce and repair Files query/action/accessibility gaps (live observations, 2026-09-12)
+### 657 — finish the approved Files composition
 
-🟡 IN PROGRESS — /root/files_select_all (codex), branch
-`codex/658-files-select-all-physical`. On 2026-09-24 the user physically confirmed that
-Cmd-A in the Files search field does not select its query, and Backspace deletes
-only the last character. Earlier implementation and audit landed with 657 at
-`ef344429`. Prior automation delivered no trustworthy keyboard or `App::apply`
-trace events, so the physical report is the defect evidence; distinguish the key
-route from the already-passing direct-action and menu-click laws.
+⚪ QUEUED — review and integration. Source `codex/657-files-affordances`
+ends at `fd1ec8df`; its corrections are in the pending integration train.
+The prior main landing `ef344429` did not satisfy the live composition review.
 
-In a disposable Bowerbird release session, typing `shared` in Files and pressing
-Cmd-A then Backspace left `hare`: the command did not select the query and the
-delete removed only its last grapheme. Edit ▸ Select all followed by Backspace
-cleared the whole query. This is an action-level discrepancy, not a general
-selection failure. The same session established that an unmatched query kept
-focus in Search and Enter did nothing; `notes/draft.md` was exposed, selected and
-opened by Enter, and `shared.md` opened through its accessible pointer action.
-The screenshot feed remained stale while the accessibility tree and interactions
-advanced, so it is not appearance evidence.
+Review the corrected folder heading, Change folder control, bounded labelled
+search field and visible New document footer against
+[approved study 05](https://awl-files-reconsidered.s84fzrm6tq.chatgpt.site/). Keep Files/Recent,
+breadcrumbs/Up and choices coherent; preserve opaque chrome, distinct focus and
+selection, content-free listings and existing file I/O boundaries.
 
-Cancel retry (2026-09-13): starting in Recent, clicking Change folder opened the
-macOS Open panel; clicking Cancel returned to the same root and Recent empty
-state, with the same open document and focus on Change folder. Confirmed in both
-the accessibility tree and an updated screenshot. The earlier tool timeouts did
-not establish a cancellation bug. This bounded check does not discharge the
-remaining query selection, no-match or result-publication checks below.
-
-Build: route the Cmd-A menu-equivalent action to the focused Files query through
-the same surface-level selection owner used by Edit ▸ Select all. Preserve the
-confirmed no-match and result-publication behavior. Add an action-level law that
-fails when Select all falls through to the background document, then recheck query
-clear, matches/no matches, Tab and Enter, menu Select All, pointer and accessible
-results in a disposable seeded workspace. Never type probes into the user's working
-document or rely on a stale screenshot to establish focus.
+Verify browsing, search, empty folders and narrow layouts in a seeded native
+release session with explicit root/config. Find the actual controls in fresh
+captures; accessibility presence alone does not establish visual fidelity.
 
 ---
 
-### 659 — reconcile Settings focus flow and finish native panel review (user review, 2026-09-12)
+### 658 — finish Files query selection and input review
 
-🟡 IN PROGRESS — /root/panel_composition (codex), branch
-`codex/659-panel-composition`. The earlier implementation landed at `2dcdb1779`
-with follow-ups `210c60e36`, `be399d5f3` and `0e5e5d132`. Live review on 2026-09-13
-confirms working transitions but remaining composition gaps; do not mark this as
-only waiting for acceptance of the existing appearance.
+⚪ QUEUED — review and integration. Source
+`codex/658-files-select-all-physical` ends at `8f0adee7`; key-route laws and
+pointer-focus repair are in the pending train. The user's physical Cmd-A failure
+on 2026-09-24 remains the defect evidence; do not infer a complete repair from
+a passing direct-action or menu test.
 
-Queued corrections from actual Bowerbird frames:
-
-- Settings: make search a recognizable field rather than a faint breadcrumb.
-  Preserve the bounded label/value column; give category selection, selected control
-  and active keyboard focus distinct treatments. Compose the surrounding workspace
-  deliberately instead of an oversized plate around a dense narrow column.
-- Themes: unite the detached query strip and list into the approved coherent panel,
-  with a clear Themes heading and visible clickable Switch/Cancel actions with
-  effective shortcut hints. Distinguish the current theme from the previewed choice.
-  Bowerbird → Mulga preview held panel geometry/colors steady and Esc restored
-  Bowerbird and the invoking Settings control: preserve those verified behaviors.
-- Find: separate field, count/previous/next and Match case into readable groups.
-  Remove redundant Aa beside Match case and crowded inline shortcut clutter; extend
-  the same composition to Replace mode, keeping replacement actions separate.
-
-Use the approved study 05 as a composition reference, not a hardcoded color skin.
-Prioritize recognizable fields/actions and focus before spacing-only retuning.
-Settings search focus now works (Tab from Categories reaches the search field);
-retain that improvement. Review matched native frames and actual input routes
-under docs/verification.md; do not claim the full theme roster, narrow geometry,
-Replace mode or release-build parity was established by this bounded live sitting.
-
-Earlier observation (2026-09-12): Settings opened on Categories; Tab entered the setting list, typing
-filtered while the setting row retained accessible focus, and Enter opened Themes.
-Theme preview followed by Esc restored the original theme and the filtered Settings
-page. Those transitions worked. The approved prototype instead teaches an explicit
-search field followed by controls. Verify a discoverable complete forward/reverse
-focus route, keeping search, categories, controls and value-editing states distinct.
-
-Cover search → matching controls → categories/close and reverse traversal, no
-matches, nested Theme/other pickers, cancellation and immediate-setting semantics.
-Use disposable documents and inspect state after every transition before typing.
-Recheck Settings, Find/Replace and Themes on one visible, identified release build,
-including Themes placement across opening/preview worlds, Switch/Cancel, quieter
-chrome and removed blur.
+Recheck physical Cmd-A then Backspace in the Files query, alongside Edit ▸ Select
+all, pointer editing, Tab/Enter, matches/no matches and accessible result opening.
+Selection must belong to the focused query and never edit the document behind it.
+Preserve the already-confirmed Change folder cancellation behavior. Use fresh
+state/captures in a disposable release session; coordinate automated-input evidence
+with 664 and Japanese composition with 665 without conflating the defects.
 
 ---
 
-### 651 — Search in folder budgets must bound reading work (audit finding, 2026-09-12)
+### 659 — finish Settings, Themes and Find/Replace composition review
 
-🟡 IN PROGRESS — /root/search_folder_fail_closed (codex), branch
-`codex/651-browser-fail-closed`. The user chose the fail-closed browser path on
-2026-09-24. Native/loading/UI work is committed at `7764e7ea`, but is not
-mergeable as complete: synchronous `localStorage.getItem` cannot bound a cross-tab
-replacement before materializing it. Browser folder search must refuse with a
-clear notice; do not add transactional storage in this round.
+⚪ QUEUED — review and integration. Source `codex/659-panel-composition`
+ends at `d1b1988e`; composition and focus repairs are in the pending train.
+Prior main commits `2dcdb1779`, `210c60e36`, `be399d5f3` and `0e5e5d132`
+establish the earlier implementation, not acceptance of the final appearance.
 
-Finding: `App::gather_overlay_inputs(OpenSearchFolder)` calls
-`search_folder::load_corpus` synchronously with whole-file `read_to_string` before
-showing the picker. `load_corpus` checks `max_file_bytes` only after reading and
-counts only retained files/bytes. Oversized or failed reads consume neither budget;
-the total retained-byte limit can also be exceeded by the last accepted file.
+Review Settings' recognizable search field, bounded label/value columns and
+separate category selection, control selection and keyboard focus. Review Themes
+as one coherent panel with heading, effective Switch/Cancel actions and a clear
+current-versus-previewed choice. Review Find/Replace field, navigation/count,
+Match case and replacement actions as readable groups without redundant labels.
+Use approved study 05 (657), preserving theme identities and quieter opaque chrome.
 
-Decision: make browser Search in folder fail closed with an explicit notice.
-There is no safe budgeted-read path under the current synchronous localStorage
-backend. Preserve the native search path and avoid partially loading a browser
-corpus before refusing.
+Verify forward/reverse focus, matching/no-match search, nested pickers, cancellation
+and immediate settings in an identified native release build. Include narrow
+geometry, Replace mode and opening/preview worlds. Keep theme preview geometry
+stable and restore the invoking Settings control on Escape.
 
-Done/Verify after direction: count attempts and bytes at the actual FS seam; probe
-exact limits, cap+1, all-rejected corpora, unknown/growing sizes, binary data and read
-errors. Preserve search correctness for admitted files and make incomplete coverage
-honest. Use the completed 652 investigation when designing background/cancellation
-work. Mutation-prove that the old post-read-only limits fail, then run one integrated
-native/wasm gate on the final frozen candidate.
+---
 
-### 661 — external plain-text paste in the browser
+### 651 — land bounded Search in folder work
 
-🟡 IN REPAIR — /root/browser_paste (codex), branch `codex/661-browser-paste`.
-Independent review of source/tests commit `0ab25650` found browser-menu paste can
-mutate keybinding capture, and per-scalar insertion makes large summoned-field
-paste quadratic with repeated refilters. Repair with capture/composition gates,
-one field-owned bulk insertion/recompute and work-count/release evidence. The
-narrow WEB.md commit is `623eb83f`; the full final Chrome/Safari/Firefox interaction
-matrix remains owed. This remains independent of browser-storage item 651.
+⚪ QUEUED — review and integration. Source `codex/651-browser-fail-closed`
+ends at `266bfa90`; bounded native reads, browser refusal and incomplete-coverage
+reporting are in the pending train. Original bounded-read work was `7764e7ea`.
 
-Problem: the wasm clipboard reader in `src/app.rs` always returns unavailable;
-`refresh_kill_from_clipboard` silently retains the internal kill ring. External
-paste can therefore do nothing or insert stale internal text. The installed winit
-web keydown handler cancels default behavior, which may suppress browser paste
-events. These are source findings; a live browser reproduction remains required.
+The user chose browser refusal on 2026-09-24: synchronous localStorage cannot bound
+a cross-tab replacement before materializing it. Preserve an explicit notice and
+avoid loading a partial browser corpus or adding transactional storage this round.
 
-Build: investigate and implement trusted browser `paste` events carrying
-`clipboardData` plain text, allowing the native browser paste gesture without
-also executing an internal yank. Route the received text through the shared
-Actions/transition and focused-surface owners, preserving selection replacement,
-Unicode and undo. Preserve browser shortcut suppression elsewhere and existing
-keymap/remapping semantics. Explicitly handle custom yank bindings and palette
-paste, which do not inherently generate a browser paste event. For an observed
-failed or unsupported external-paste attempt, show an actionable notice instead
-of silently inserting stale internal text. Keep intentional internal yank behavior
-explicit. Image paste and styled clipboard are outside this task. Update WEB.md
-with verified behavior rather than treating async clipboard-read limitations as
-proof that all external paste is impossible.
+Verify attempts and bytes at the FS seam, including exact caps/cap+1, rejected
+files, growing/unknown sizes, binary data and errors. Preserve admitted-file search
+correctness and honest incomplete coverage. Retain the mutation proof against the
+old post-read-only checks and run the integrated native/wasm gates.
 
-Verify: reproduce before fixing, then exercise genuine external copy/paste in
-Chrome, Safari and Firefox on a static release build. Cover document and summoned
-text fields, focus changes, selection replacement, multiline/Unicode, single undo,
-repeated paste, empty/non-text data, custom bindings and palette invocation. Prove
-no duplicate insertion or background-document edit. Synthetic clipboard payloads
-can test routing but cannot prove OS clipboard access. Add targeted regression laws
-that fail with the old behavior; record browser versions and unavailable coverage.
-Follow the verification policy for integration gates. Reference:
+---
+
+### 661 — finish external plain-text browser paste
+
+⚪ QUEUED — review and integration. Source `codex/661-browser-paste`
+ends at `0aaae8a9`; the pending train includes trusted paste, bulk insertion,
+composition/keybinding-capture protection and focus repairs. The board's old
+“in repair” claim predates those commits; review the repaired result.
+
+Verify genuine external paste in Chrome, Safari and Firefox on a static release
+build: document, summoned fields and Table Dimensions; focus changes, replacement,
+multiline/Unicode, single undo, repeated/empty/non-text paste, custom yank bindings
+and palette actions. Prevent duplicate insertion and background-document edits;
+unsupported external attempts must not silently paste stale internal text.
+
+Retain work-count and release evidence for one field-owned bulk insertion and
+recompute. The seven-TextField bulk measurement does not cover Table Dimensions
+or prove OS clipboard delivery. Record actual browser versions and missing live
+coverage; update WEB.md only to the behavior established. Styled/image paste is
+outside scope. Reference:
 [Clipboard events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
 
 ---
 
-### 662 — make the macOS download a signed, notarized release artifact
+### 662 — finish signed, notarized macOS release artifacts
 
-🟡 IN PROGRESS — /root/release_662 (codex), branch
-`codex/662-signed-macos`. Requested by the user 2026-09-24. Apple signing and
-notarization setup are already complete, as the user confirmed. The current `release.yml`
-builds an unsigned universal `Awl.app` and DMG only on dry runs; tag runs skip
-the mac job and publish Linux alone. A workflow artifact is a short-lived build
-receipt, not the public macOS download. The stale setup-state claims in
-`RELEASING.md` were corrected when this work was queued. Never print secret values.
+⚪ QUEUED — review, integration and hosted proof. Source
+`codex/662-signed-macos` ends at `b45e312d`; signing/notarization and dry-run
+payload preparation are in the pending train. The user confirmed Apple setup is
+complete; verify its operation without printing secrets or reopening setup by assumption.
 
-Build: make tag runs produce a universal macOS app using the existing Developer
-ID signing and notarization setup, staple it, and attach a versioned DMG (and
-app zip if useful) with checksum coverage to the same GitHub Release as Linux.
-A missing or partial signing setup must fail the macOS release job before
-publication; never attach an unsigned app as if it were ready for normal download.
-Keep dry runs nonpublishing and exercise the packaging and publish-file layout
-without making a tag. Enforce the under-50,000,000-byte download limit on the
-final compressed DMG and any published app zip. If a universal DMG cannot meet
-it, measure a smaller packaging/architecture plan and return a genuine product
-tradeoff for review; do not waive the size limit. Update the release instructions
-and public download copy to describe the verified path.
+Run a nonpublishing credentialed rehearsal. Inspect both architectures, bundle
+identity, Developer ID signature, notarization/staple, Gatekeeper result, mounted
+DMG contents, versioned names, checksums and actual compressed size. Missing or
+partial credentials must fail before publication. The branch makes the DMG public
+and the app zip diagnostic-only; check that final payload layout and document it.
 
-Verify: inspect both architectures in the universal binary; verify bundle
-identity, signature, notarization/staple, DMG contents, checksums and artifact
-names on the actual candidate. Record what the hosted macOS runner proves and
-what still needs a launch on a real user's Mac. Do not tag or publish in this
-item; item 663 owns the release cut.
+Hosted rehearsal, final DMG size and a real Mac launch remain owed. Preserve the
+under-50,000,000-byte public-download limit and return a measured packaging tradeoff
+if needed. Do not tag or publish here; 663 owns the release cut.
 
 ---
 
 ### 663 — release one version with Linux and macOS downloads
 
-⚪ QUEUED — requested by the user 2026-09-24; depends on 662 and a frozen,
-integrated release candidate. `Cargo.toml` currently names 0.13.0, but choose
-the tag from the candidate's actual version rather than assuming that number
-will remain current. Publish the Linux x86_64 AppImage and tarball alongside the
-signed, notarized macOS DMG from the same tag. Keep the browser demo on its
-separate site deployment path; a zipped workflow artifact is not its main
-distribution. Real Japanese bold landed at `2dfb6a9e`; the local arm64 release
-binary gzips to 42,970,158 bytes, which is not a packaged download. Measure
-each final, public app download in bytes and refuse publication if any is
-50,000,000 bytes or more.
+⚪ QUEUED — depends on 662 and a frozen integrated candidate. Choose the version
+from that candidate. Publish Linux x86_64 AppImage/tarball and signed, notarized
+macOS DMG together; keep the browser demo on its separate deployment path.
 
-Work the exact-commit pre-tag checklist in `RELEASING.md`, including native and
-wasm gates, audit, profile parity, dry run, checksums, release notes and current
-CI status. Confirm the existing Linux hardware checks on a real desktop or
-record the untested combinations honestly. Inspect the final file list and
-download instructions before the tag push. The user's request here queues the
-release; obtain the explicit go to cut the tag and publish at execution time.
-After publication, verify both platform downloads and checksums from the public
-Release. Treat any site redeploy as a separate explicit action.
+Complete RELEASING.md's exact-commit checklist: native/wasm gates, outcome audit,
+profile parity, nonpublishing dry run, final artifact size/checksums, release notes,
+current CI and hardware checks below. Real Japanese bold is on main (`2dfb6a9e`);
+a compressed local binary is not evidence of packaged-download size.
+
+Inspect the final public file list and instructions, then obtain the user's
+explicit go to tag and publish. Verify both platform downloads and checksums after
+publication. This queued request does not authorize a tag or site redeployment.
 
 ---
 
-### 664 — diagnose unreliable automated keyboard input in the live macOS app
+### 664 — finish live macOS keyboard-ingress diagnosis
 
-🟡 IN PROGRESS — /root/input_664 (codex), branch `codex/664-live-key-ingress`.
-Requested by the user 2026-09-24. During the Files query review,
-some injected keys appeared to produce no keyboard or `App::apply` trace, app selection hung,
-and injected deletions gave inconsistent text (`star` → `sta`, `shared` →
-`hare`). Those observations do not identify where input was lost. The user's
-physical Cmd-A test remains evidence for item 658's Files defect; investigate
-the automation path separately so neither result is used to explain the other.
-A later trace audit found successful keymap and `App::apply` receipts in the
-disposable log, but no per-attempt injection provenance or focused-control
-state; the earlier blanket no-trace claim was too broad.
+⚪ QUEUED — review and investigation. Source `codex/664-live-key-ingress`
+ends at `d9cf10c6`; delivery/focused-field diagnostics are in the pending train.
+Prior injected-key failures and stale captures did not establish where input was
+lost; some earlier logs did contain successful keymap and App action receipts.
 
-Reproduce with a disposable document and config in a named release-build app
-session. Record the focused app/window/control, the injected key and timing,
-native event delivery, keymap action and `App::apply` receipt at each attempt.
-Compare with physical input and a direct App-level action on the same state;
-check focus handoff, modifier state, event injection and screenshot freshness.
-Identify the first boundary that diverges before changing code. Repair the
-owned app/harness boundary if one is found; if the loss is in an external
-automation service or macOS permission layer, report a minimal reproducer and
-use a trustworthy supported driver for the missing evidence instead.
-
-Verify repeatability across fresh sessions and several key sequences, including
-Cmd-A, deletion and plain typing. Confirm a successful injected sequence reaches
-the intended field exactly once, and a failed sequence is observable rather
-than silently counted as a pass. Keep probe logs and captures free of private
-paths and document text. Do not use this investigation to delay item 658's
-direct fix or to claim live behavior from headless replay alone.
+In a disposable named release session, record each injected key, timing, focused
+app/window/control, native delivery, keymap action, App action and resulting field.
+Compare Cmd-A, deletion and typing with physical input and direct App actions.
+Identify the first divergent boundary and prove repeatability before claiming a
+repair. If the fault belongs to automation or macOS permissions, provide a minimal
+reproducer and use a supported driver for missing evidence. Keep private text out
+of logs; do not use this task to delay or explain away 658's physical defect.
 
 ---
 
-### 665 — restore Japanese input focus in Files after Cmd-O (user report, 2026-09-24)
+### 665 — finish Japanese IME ownership in Files and summoned fields
 
-🟡 IN PROGRESS — /root/ime_665 (codex), branch `codex/665-ime-fields`.
-The user reports that with Japanese input active, Cmd-O opens Files
-but typing cannot reach its search field; the caret appears stuck in the
-background document. The exact macOS input-source state, whether preedit or
-commit is lost, and whether the document actually changes are unverified.
-This is distinct from 658's confirmed Cmd-A selection failure and 664's
-unreliable automated key injection; coordinate evidence without conflating them.
-Read-only source audit confirms that a delivered IME commit currently takes the
-document-text door and preedit/candidate geometry remain document-owned; the
-user's exact physical event sequence is still unverified.
+⚪ QUEUED — review, integration and physical input check. Source
+`codex/665-ime-fields` ends at `45c38256`; focused preedit/commit, candidate
+ownership and restart after cancelled preedit are in the pending train.
 
-Reproduce in a disposable native release session with a seeded root/config and
-both Japanese and direct Latin input. Record input-source and composition state,
-focused surface, caret/IME candidate position, preedit and commit delivery, query
-text and background-document bytes before and after Cmd-O, typing, conversion,
-Enter and Escape. Compare a pointer-focused Files search and other summoned text
-fields. Inspect the focus handoff, `WindowEvent::Ime` route and text ownership:
-`src/app/input/ime.rs` currently sends committed text through the document-text
-door, which is a lead to verify, not a diagnosed cause. Also check whether the
-search field can accept a Japanese composition when opened while IME is already
-active.
+The user reported Japanese input failing to reach Files search after Cmd-O.
+Verify Japanese and direct Latin input, opening with IME already active, pointer
+focus, conversion, Enter and Escape in a seeded native release session. Record
+focused surface, preedit/commit delivery, candidate geometry, query and unchanged
+background-document bytes. Cover neighboring text fields and non-text surfaces.
 
-Build one focused-text-surface owner for IME preedit and commit: the document
-receives text when it is focused, and a summoned text field receives text when
-it is focused. Files search must receive Japanese composition and committed text
-exactly once, show its active caret/preedit in the right place, and never edit
-the document behind it. Non-text surfaces must not insert into the background
-document. Preserve ordinary Cmd-O, Latin query input, cancellation, selection,
-undo and native menu routing. Add regression laws at the real App/IME boundary
-that fail under the old behavior across the focused text-field roster; audit
-neighboring surfaces and both input-source states, then verify physical Japanese
-typing in the bundled release app. Report any live-driver limits separately from
-product behavior.
+Retain one focused-surface owner and regression laws at the App/IME seam. Preserve
+selection, undo, cancellation, native menus and ordinary Cmd-O. Report physical
+Japanese typing evidence separately from replay and unreliable injected keys (664).
 
 ---
 
-### 666 — shorten the oversized Paperbark caret (user screenshot, 2026-09-24)
+### 666 — review the shorter Paperbark caret
 
-🟡 IN PROGRESS — /root/paperbark_caret (codex), branch `codex/666-paperbark-caret`.
-The user reports that Paperbark's coral block caret is too tall. In
-the supplied screenshot, its rounded body rises noticeably above and falls
-below the adjacent lowercase text. The screenshot establishes the appearance,
-but its zoom, DPI, caret mode and settled/moving state are not known; reproduce
-those conditions before choosing a sizing change. Do not publish the private
-attachment path or copy the screenshot into the public repository.
+⚪ QUEUED — review and integration. Source `codex/666-paperbark-caret`
+ends at `f548f9b8`; shared full-ink block-padding reduction (`c907f9e2`,
+train equivalent `6b7efadb`) is in the pending train, not main.
 
-Inspect the shared vertical caret owner (`src/render/caret.rs` and its
-`caret::vertical` helpers), Paperbark's resolved face and metrics, and the
-existing one-height pixel laws. Measure the caret's rendered top, bottom and
-height against the row's actual ink and line box in a seeded, content-safe
-Paperbark capture. Compare nearby serif worlds and a smaller/larger zoom at 1x
-and 2x DPI; check lowercase, ascenders, descenders, spaces, empty lines and
-headings. Identify whether the excess comes from the face metrics, the shared
-minimum/padding, a tall row, or the active caret treatment before changing it.
-
-Make the resting caret read as proportionate to the text without losing its
-presence or clipping glyphs, and keep its height stable while typing across a
-row. Use the shared renderer and data-driven metrics rather than a Paperbark
-identity branch. Add a rendered-pixel bound that fails on the oversized
-appearance while preserving the existing stability law. Verify matching
-before/after PNG measurements and visual smoke in Paperbark plus adjacent worlds;
-ask the user to judge the final live feel if the measured fix still leaves a
-taste choice.
+Review matched before/after native release captures against the user's oversized
+caret report. Check actual ink and line bounds across Paperbark and nearby serif
+worlds, zoom, 1x/2x DPI, lowercase/ascenders/descenders, spaces, empty lines and
+headings. Preserve stable row height, glyph visibility and shared metrics ownership.
+Retain the rendered-pixel bound and mutation evidence; finish visual smoke and
+ask the user to judge live proportions where the remaining choice is taste.
 
 ---
 
-### 668 — investigate visible Japanese Markdown emphasis (user request, 2026-09-24)
+### 668 — choose visible Japanese Markdown emphasis
 
-🔵 OWED — prototype study `9f28df85` on branch
-`codex/668-japanese-emphasis-study`; no default selected. Japanese `*emphasis*`
-currently keeps the regular upright face, so the styling can disappear even
-though the Markdown remains intact. The user wants to compare treatments
-before deciding whether emphasis dots belong in awl. This is a design
-investigation, not approval to ship dots. Compare against the landed real
-Japanese `**bold**` so the two Markdown roles remain visually distinct and
-respect the under-50,000,000-byte download limit.
+🔵 OWED — prototype `9f28df85` on `codex/668-japanese-emphasis-study`;
+no default chosen. This branch includes pending integration work and an experiment;
+it is not a releasable default. Regular upright Japanese currently hides *emphasis*.
 
-Prototype in awl with disposable text and real native captures, not an HTML
-mockup. Compare at least: small emphasis dots above Japanese glyphs; a related
-alternate face or modest weight treatment where a real face exists; and a quiet
-line treatment such as underline/bousen. A restrained ink-color treatment may
-serve as a fourth comparison. Keep synthetic slant and invisible Regular as
-explicit rejected baselines unless evidence changes that judgment. The W3C
-Japanese layout guidance describes these as editorial choices and notes that
-dots are traditional but less common; skip punctuation if testing dots.
+Present matched native captures of dots above kana/kanji, a real alternate face or
+weight, quiet underline/bousen and optional ink treatment. Keep synthetic slant and
+invisible Regular as rejected baselines. Existing six-world/stress captures favor
+restrained dots: visible in one-bit Wagtail and less link-like than underline.
 
-Use short and long phrases, punctuation, mixed Japanese/Latin runs, wrapped
-lines, headings, and both `*` and `**` spans across representative worlds,
-zoom and DPI. Measure line height, collisions, caret reveal, readability and
-whether underlining could be mistaken for a link. Preserve source bytes and
-the world's authored typography; avoid a theme-name rendering branch or a
-runtime asset fetch. Present matched captures, bundle-size and implementation
-cost, a recommendation, and the exact remaining taste decision to the user.
-Only then queue or implement the chosen default.
-
-Matched native captures across six worlds and stress cases favor restrained dots:
-they stay visible in one-bit Wagtail, unlike ink, and avoid the line treatment's
-link ambiguity. The user still needs to choose whether dots above kana/kanji
-should become the default; the experimental branch is not a releasable change.
+Decision: should restrained dots become the default for Japanese emphasis?
+Include punctuation exclusions, mixed Japanese/Latin, wrapping, headings, `*` versus
+`**` roles, zoom/DPI, collision and caret-reveal evidence, and bundle-size/implementation
+cost. Preserve real Japanese bold and the download cap. The user must choose before
+shipping; private content and HTML mockups are not prototype evidence.
 
 ---
 
-### 669 — investigate the opening-bracket gap under the caret (user screenshot, 2026-09-24)
+### 669 — land CJK punctuation fixes and resolve the remaining caret taste choice
 
-🟡 VERIFIED IN TRAIN — `46be9e14` and `70eb217c` integrated at `05916301`;
-full native gate and browser smoke passed on that train commit. Main landing
-awaits reconciliation of the user's in-progress documentation. In the supplied
-Japanese Paperbark screenshot,
-the visible gap between `の` and the focused `「` reads much too large to the
-user. The settled block caret appears to cover the narrow bracket ink while
-leaving its leading space bare. The screenshot alone does not establish whether
-that space is the font's full-width punctuation sidebearing, a separate shaping
-adjustment, or a caret-position error. Do not copy the private screenshot into
-the public repo.
+⚪ QUEUED — integration, with a separate taste decision still owed. Source
+`codex/669-cjk-punctuation` at `70eb217c` contains font routing (`46be9e14`)
+and document-evidence invalidation fixes. They are in train `05916301`, whose
+native/wasm pass is recorded, but are absent from main.
 
-Reproduce with a disposable seeded document. Measure glyph advance and ink
-bounds for `の「`, the caret's full geometry, and the visible gap both with and
-without focus on `「`. `src/render/caret.rs` currently ink-aligns the settled
-block on proportional one-glyph anchors; test the user's idea of including
-some leading punctuation cell space in that block against keeping the current
-ink-only block and tightening the underlying punctuation layout. The W3C
-Japanese layout guidance permits a half-em before opening brackets and also
-describes reducing it for line adjustment; typography alone does not settle
-awl's focused appearance.
+Reconcile and land through the combined candidate. Preserve source, insertion
+position, hit testing, selection, IME geometry and stable caret motion. Retain
+coverage for opening/closing punctuation at line starts, within lines and wraps
+across Japanese faces, zoom/DPI and caret modes.
 
-Compare opening/closing brackets and punctuation at line start, mid-line and
-wrap boundaries across Japanese face families, zoom/DPI and caret modes.
-Preserve source bytes, insertion position, hit testing, selection, IME geometry
-and stable caret motion. Use matched native PNGs and pixel measurements to
-recommend one treatment; implement the smallest shared-owner correction if
-the evidence identifies a mechanical defect, and bring a genuine visual taste
-choice back to the user. Do not add a Paperbark-specific renderer branch.
+The remaining 15 px Paperbark kana-to-caret gap was measured as a font-sidebearing
+and caret-width taste choice. Keep the current ink-hugging fill until the user
+judges matched captures of including leading punctuation-cell space versus the
+current treatment. Do not conflate that choice with the repaired font/cache defects.
 
-The font mismatch and document-evidence cache defect are fixed across the shared
-renderer. The remaining 15 px Paperbark kana-to-caret gap is a measured font
-sidebearing/caret-width taste decision; current ink-hugging fill is unchanged.
+---
+
+### 672 — keep the selected document’s × accented on hover
+
+⚪ QUEUED — user decision, 2026-09-27. The selected document's close mark should
+receive the theme accent on hover too. Keep the selected plate present; this is
+a change to its × feedback, not a request to show the plate only on hover.
+
+`render/chrome/gutter_stack.rs::close_mark_hover_ink` already asks for
+`theme::accent_ink`, but the selected plate's contrast substitution can replace
+the accent with ordinary ink. Reproduce the selected-row case before choosing a
+fix; the reported screenshot alone does not prove that fallback was taken.
+Use one shared treatment for the lone document and working-set stack. Keep the
+mark readable and visibly responsive without shifting the filename or plate.
+
+Verify rest/hover on selected and unselected rows across the theme roster,
+including monochrome Wagtail and low-contrast plates, with native pixel evidence
+and the required visual smoke. Preserve click-to-close and file contents. Return
+any conflict between the authored accent and legibility as a concrete taste choice.
 
 ---
 
 ## Outstanding review of landed work
 
-These are follow-ups, not additional unimplemented build tasks. Completed work and
-past verification reports remain in `git log -p -- .orchestrator/queue.md`.
+These are user judgments, not active implementation claims. Historical evidence
+remains in Git; Kite review is part of active item 582 above.
 
-- **582 — projected Wagtail tunnel landed; blocked on live motion and user taste.**
-  The replacement renders one bounded projected mesh with depth-dependent bend,
-  full 42–45%-class folded sections, independent roll and curved fixed-theta rails.
-  An independent judge accepted the reference match mechanically after checking
-  16 native views across pose, viewport and DPI. The focused 31-law render suite,
-  compiling concentric/page-mask mutations, WebGL2 validation and release frame
-  benchmark are clean; the measured median change was +0.007 ms at 2400×1600 @2x.
-  Remaining judgment is live dwell/transit/settle comfort, pause/focus freeze,
-  Reduce Motion in the bundled app, and whether the intentionally quieter far core
-  has the right density. Keeping the repaired projection is recommended.
-- **588 — mechanically complete; blocked on user taste.** The current plain
-  `•◦▪` fallback passed a fresh 20-theme release gallery and focused Metal laws:
-  all three Brolga depths are present, distinct, aligned, contained, unclipped and
-  legible (sampled contrast 13.46:1, 5.23:1, 13.46:1). Evidence is in the ignored
-  `gallery/landed-visual-review/588-bullets/`. Keeping it is recommended; a different
-  glyph or wider box is a separate mechanism decision only the user can authorize.
-- **561 / 618 — mechanically complete; blocked on user taste.** The requested
-  reduction is merged (`760f4f43`, merge `b3e8d2aa`) and remeasured at 15.02%.
-  Fresh release and live-headless-App captures show every Gumtree ornament present
-  and legible; measured ink heights are snake 3.41em, fish 5.84em and snail 3.87em.
-  Accepting the fish-forward character is recommended; a per-glyph scale is a new
-  mechanism requiring the user's taste decision. True-window live proportion
-  judgment remains part of that decision.
+- **588 — list-marker taste:** `•◦▪` passed the 20-world gallery and focused Metal
+  laws; the Brolga depths are distinct, aligned, unclipped and legible. Keep the
+  current glyphs unless the user chooses a different treatment. Evidence:
+  `gallery/landed-visual-review/588-bullets/` (ignored).
+- **561 / 618 — Gumtree proportions:** reduction `760f4f43`, merged at `b3e8d2aa`,
+  measured 15.02%; snake/fish/snail ink heights are 3.41/5.84/3.87em. Native and
+  headless-App captures establish presence and legibility. Live proportion judgment
+  remains owed; per-glyph scaling requires a new user decision.
 
-Kite's unresolved appearance and live motion review belong to **582** above;
-there is no separate 564 build item. Its review must include convergence near
-page edges at common window sizes as well as several-minute motion comfort.
-For current accessibility acceptance and deferred work, use `ACCESSIBILITY.md`;
-the resolved 584/626 investigation does not require another confirmation sitting.
+Use ACCESSIBILITY.md for current acceptance and deferred work; resolved 584/626
+needs no further confirmation sitting.
 
 ## Latest recorded verification
 
-The latest recorded native/wasm baseline is
-**`6e76d6b59ddfa8c2816a4ea61d88eb194ba7a601`**:
+- **Main baseline `63d96042040397cddb51993cc9d3c34400c22bb0`:** the dev-launch
+  session recorded successful `scripts/native-gate.sh` and `scripts/web-smoke.sh`
+  runs in its isolated checkout. The subsequent `e5d30662` edit was queue-only.
+- **Pending integration candidate `05916301`:** native gate and browser smoke
+  passes recorded by `831a8e3e`. That candidate is not main; its receipt does not
+  validate a future merge with current main.
+- **Kite `4f9fd3fb`:** full verification remains with active item 582.
 
-```text
-native-gate-receipt commit=6e76d6b59ddfa8c2816a4ea61d88eb194ba7a601 health=pass:283s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=5218
-  unit_shards=6 integration_targets=18
-web-smoke: OK
-```
-
-Fresh `/editor/` assembly from a release Trunk build passed: the staged page uses
-rooted 16-hex hashed JavaScript and Wasm assets, retains analytics, contains no
-builder-home path, and no generated editor bundle is tracked.
-
-The dark-world no-brightening-slab and light-world rim-elevation panel laws each
-ran individually with `--exact --nocapture`: 1/1 passed apiece with no adapter-skip
-output on the built-in Apple M1 Max Metal adapter. Local Metal does not establish
-hosted virtualised-Metal behavior.
-
-Subsequent queue/policy-only commits use diff/link checks under `docs/verification.md`.
-Older receipts and completed train summaries are in Git history. Local hardware
-receipts do not establish hosted-GPU or live-journey results.
+This queue cleanup uses diff, heading, reference and status checks under
+`docs/verification.md`; it does not relabel a prior receipt. Earlier detailed
+receipts remain in Git. Local Metal/headless checks do not prove hosted GPU,
+physical-input journeys or Linux desktop behavior.
 
 ## Needs specific hardware
 
-🔴 BLOCKED on the orchestration host (audited 2026-09-11). It is Apple-silicon
-macOS with Metal: there is no Linux graphical/AT-SPI/D-Bus session, Orca, X11 or
-Wayland compositor, Linux awl executable, AppImage/tarball, or FUSE runtime.
-Headless capture cannot substitute for any missing live door. Honor the current
-scope and release policy in `ACCESSIBILITY.md` and `RELEASING.md`.
+🔴 BLOCKED on this Apple-silicon macOS host. Headless captures cannot discharge:
 
-1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
-   reading, caret/selection, overlays, and an editing burst. This needs Orca, an
-   active AT-SPI2/D-Bus bus, audio, current native Linux awl, and a person.
-2. **Linux drawn-menu Export click** — with a real window/compositor, confirm the
-   rendered menu's Export action reaches its destination through a genuine click.
-3. **Current Linux release artifacts** — launch both the tarball and AppImage on a
-   real x86_64 Linux desktop; check launcher name/icon, FUSE, and
-   `--appimage-extract-and-run`. No current artifacts are present and a new tag is
-   not authorized.
+1. **Linux AT-SPI/Orca:** document reading, caret/selection, overlays and editing
+   with a real AT-SPI2/D-Bus session, audio and a person.
+2. **Linux drawn-menu Export:** a genuine click in a real window/compositor.
+3. **Linux release launch:** current x86_64 tarball and AppImage, launcher metadata,
+   FUSE and `--appimage-extract-and-run` on a real Linux desktop.
+
+Use ACCESSIBILITY.md and RELEASING.md for scope. No new tag is authorized.
 
 ## Release authority
 
