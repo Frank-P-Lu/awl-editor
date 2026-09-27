@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**12 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
-661, 662, 664, 665, 666, and 669. Taste decision owed: 668.
+**13 open numbered tasks.** In implementation or review: 651, 657, 658, 659,
+661, 662, 664, 665, 666, 669, and 671. Taste decision owed: 668.
 
 Queued work: release 663.
 
@@ -435,6 +435,25 @@ choice back to the user. Do not add a Paperbark-specific renderer branch.
 The font mismatch and document-evidence cache defect are fixed across the shared
 renderer. The remaining 15 px Paperbark kana-to-caret gap is a measured font
 sidebearing/caret-width taste decision; current ink-hugging fill is unchanged.
+
+---
+
+### 671 — make the dev app launch report a running older instance
+
+🟡 IN PROGRESS — /root (codex), branch `main`. A fresh
+`scripts/dev-app.sh` build can still leave the old UI on screen: awl's live
+single-instance socket hands a new invocation to an existing process, even
+when `open -n` starts the newly bundled executable. The observed old process
+kept its original binary loaded after the bundle was replaced on disk.
+
+Make the supported macOS development launcher detect a live awl singleton
+before rebuilding and launching, and refuse with a direct quit-and-rerun
+instruction. Preserve `--no-launch`, `--debug`, file arguments, and custom
+data-root environments. Do not terminate an editor or touch its documents.
+Verify the live-socket refusal against a running app, the stale-socket and
+no-launch cases, and that a clean launch opens the newly built binary.
+Update the development launch guidance to name the restart requirement.
+Remove this item after its checks and integrated gate pass.
 
 ---
 
