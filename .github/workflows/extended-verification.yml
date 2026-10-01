@@ -37,7 +37,7 @@ jobs:
       - name: Linux window and rendering dependencies
         if: runner.os == 'Linux'
         run: scripts/linux-build-deps.sh --timeout 5m run xvfb xauth
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
       - uses: Swatinem/rust-cache@v2
         with:
           key: extended-${{ runner.os }}

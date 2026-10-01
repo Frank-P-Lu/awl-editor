@@ -13,7 +13,7 @@ COPY scripts/linux-deps.sh scripts/linux-build-deps.sh /src/scripts/
 RUN /src/scripts/linux-build-deps.sh compile \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY src ./src
 # assets/ (embedded fonts + dictionaries) and shaders/ (wgsl) are pulled in at
 # COMPILE time via include_bytes!/include_str! — the build fails without them.

@@ -43,7 +43,7 @@ jobs:
             exit 1
           fi
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
         with:
           targets: wasm32-unknown-unknown
 

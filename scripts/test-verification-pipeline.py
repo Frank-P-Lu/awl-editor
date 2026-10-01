@@ -33,6 +33,13 @@ def wiring_errors(ci: str, release: str, extended: str) -> list[str]:
     for job in ["linux", "mac", "web", "mac-live-probe"]:
         if job not in c or "continue-on-error:" in c[job]:
             errors.append(f"required CI job lost or tolerated: {job}")
+    for roster in [c, e]:
+        for name, body in roster.items():
+            if "uses: dtolnay/rust-toolchain" in body:
+                errors.append(f"floating or independent Rust toolchain: {name}")
+    for name in ["linux", "mac", "web", "mac-live-probe"]:
+        if "uses: ./.github/actions/project-rust" not in c.get(name, ""):
+            errors.append(f"project Rust activation lost: {name}")
     linux = c.get("linux", "")
     if linux.count("run: scripts/native-gate.sh") != 1 or "run: bash scripts/code-health.sh" in linux:
         errors.append("Linux must run one native gate and no duplicate complete health")
@@ -82,6 +89,7 @@ class Dispatch(unittest.TestCase):
         (self.root / "scripts").mkdir()
         (self.root / "bin").mkdir()
         shutil.copy(ROOT / "scripts/verify.sh", self.root / "scripts/verify.sh")
+        shutil.copy(ROOT / "scripts/project-rust.sh", self.root / "scripts/project-rust.sh")
         self.env = dict(os.environ, PATH=f"{self.root}/bin:/usr/bin:/bin",
                         LAW_LOG=str(self.root / "calls.jsonl"), LAW_HEAD=str(self.root / "head"))
         (self.root / "head").write_text("frozen")
@@ -89,6 +97,9 @@ class Dispatch(unittest.TestCase):
 import json, os, pathlib, sys
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
+if name == 'rustup':
+    print(pathlib.Path(sys.argv[0]).parent / 'cargo' if args == ['which', 'cargo'] else '1.99.0-test')
+    sys.exit(0)
 if name == 'git':
     print(pathlib.Path(os.environ['LAW_HEAD']).read_text() if args == ['rev-parse', 'HEAD'] else os.environ.get('LAW_DIRTY', ''))
     sys.exit(0)
@@ -99,7 +110,7 @@ if name == 'cargo' and args[0] == 'test':
     count = 0 if 'MISSING' in args else 1
     print(f'test result: ok. {{count}} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s')
 """
-        for name in ["cargo", "git", "wasm-bindgen-test-runner"]:
+        for name in ["cargo", "git", "rustup", "wasm-bindgen-test-runner"]:
             p = self.root / "bin" / name
             p.write_text(fake)
             p.chmod(0o755)
@@ -180,6 +191,34 @@ class WorkflowWiring(unittest.TestCase):
         self.assertTrue(wiring_errors(ci, release.replace("needs: [plan, extended]", "needs: plan"), extended))
         self.assertTrue(wiring_errors(ci, release, extended.replace("--jobs 1", "--jobs 1 --worlds Saltpan")))
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
+        self.assertTrue(wiring_errors(ci.replace("uses: ./.github/actions/project-rust", "uses: dtolnay/rust-toolchain@stable"), release, extended))
+
+
+class ProjectToolchain(unittest.TestCase):
+    def test_one_project_pin_keeps_components_targets_and_all_workflows(self):
+        import tomllib
+        pin = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"]
+        self.assertRegex(pin["channel"], r"^\d+\.\d+\.\d+$")
+        self.assertTrue({"clippy", "rustfmt"} <= set(pin["components"]))
+        self.assertIn("wasm32-unknown-unknown", pin["targets"])
+        action = (ROOT / ".github/actions/project-rust/action.yml").read_text()
+        self.assertIn("rustup show active-toolchain", action)
+        self.assertIn("unset RUSTUP_TOOLCHAIN", action)
+        self.assertIn("source scripts/project-rust.sh", action)
+        helper = (ROOT / "scripts/project-rust.sh").read_text()
+        self.assertIn("rustup which cargo", helper)
+        self.assertNotIn("rustup default", helper)
+        self.assertNotIn("rustup default", action)
+        self.assertIn('rustup target add "${targets[@]}"', action)
+        for workflow in ["ci", "extended-verification", "release", "deploy-web"]:
+            text = (ROOT / f".github/workflows/{workflow}.yml").read_text()
+            self.assertIn("uses: ./.github/actions/project-rust", text)
+            self.assertNotIn("uses: dtolnay/rust-toolchain", text)
+        release = (ROOT / ".github/workflows/release.yml").read_text()
+        self.assertIn("targets: aarch64-apple-darwin,x86_64-apple-darwin", release)
+        self.assertIn("COPY Cargo.toml Cargo.lock rust-toolchain.toml ./", (ROOT / "Dockerfile.linux").read_text())
+        for script in (ROOT / "scripts").glob("*.sh"):
+            self.assertNotIn("toolchains/stable-aarch64-apple-darwin/bin", script.read_text())
 
 
 class JourneyOracles(unittest.TestCase):

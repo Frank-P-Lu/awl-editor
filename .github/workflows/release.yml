@@ -113,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
@@ -334,7 +334,7 @@ jobs:
       - name: Install system dependencies
         run: scripts/linux-build-deps.sh --timeout 5m run xvfb xauth
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       # THE KEY CARRIES THE IMAGE, NOT JUST THE OS. `Swatinem/rust-cache`
       # mixes `runner.os` into its key, which is the string "Linux" for BOTH
@@ -422,7 +422,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
         with:
           targets: wasm32-unknown-unknown
 

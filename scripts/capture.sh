@@ -19,10 +19,7 @@ set -euo pipefail
 # and most setups); only if none is found, fall back to common rustup locations,
 # including this Mac's pinned toolchain. Keeps the script portable across hosts.
 if ! command -v cargo >/dev/null 2>&1; then
-  for p in "$HOME/.cargo/bin" \
-           "$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin"; do
-    if [[ -x "$p/cargo" ]]; then export PATH="$p:$PATH"; break; fi
-  done
+  if [[ -x "$HOME/.cargo/bin/cargo" ]]; then export PATH="$HOME/.cargo/bin:$PATH"; fi
 fi
 if ! command -v cargo >/dev/null 2>&1; then
   echo "error: cargo not found on PATH. Install Rust (https://rustup.rs) or add cargo to PATH." >&2

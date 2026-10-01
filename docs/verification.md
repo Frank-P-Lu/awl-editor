@@ -80,6 +80,28 @@ nonempty targeted runs, frozen-candidate checks, workflow coverage wiring and
 built-binary launch isolation. It runs from code health so wiring regressions
 block the final gate. Gate-tool changes still require a real final-gate rehearsal.
 
+## Matching Rust locally and in CI
+
+`rust-toolchain.toml` owns the exact project version (currently Rust 1.99.0),
+Clippy/rustfmt components and wasm target. Standard rustup proxies honor the
+file. Direct links to `toolchains/stable.../bin` bypass it; use the scoped
+`scripts/project-rust.sh cargo ...` wrapper to select the actual pinned binaries
+even with those links. `verify.sh` activates this helper automatically, and
+other build helpers preserve its PATH. Activation affects only the command
+process, leaving global links and the default unchanged. CI, extended verification, release and web build
+workflows activate the same file through `.github/actions/project-rust` and
+print the selected compiler. Release's extra Mac architecture targets remain.
+The separate nightly coverage instrument retains its existing nightly pin.
+
+After changing the project pin, run `rustup show active-toolchain` inside the
+repo to install/sync its official toolchain, then verify
+`scripts/project-rust.sh rustc --version` and
+`rustup target list --installed`. On a Mac, also install the pinned version's
+`x86_64-unknown-linux-gnu` target to retain the cross-platform Clippy check.
+Run targeted checks and `scripts/verify.sh full` on the frozen upgrade candidate,
+then require the exact hosted checks before accepting the upgrade. Do not change
+`rustup default`; other repositories keep their existing defaults.
+
 ## Order the work by cost
 
 1. Inspect the diff and identify the behavior, platforms, and source audits it touches.

@@ -1,0 +1,26 @@
+name: Project Rust
+description: Activate the committed Rust toolchain and optional release targets
+inputs:
+  targets:
+    description: Additional comma-separated targets
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        unset RUSTUP_TOOLCHAIN
+        source scripts/project-rust.sh
+        active="$(rustup show active-toolchain)"
+        printf '%s\n' "$active"
+        echo "RUSTUP_TOOLCHAIN=${active%% *}" >> "$GITHUB_ENV"
+        echo "$(dirname "$(rustup which cargo)")" >> "$GITHUB_PATH"
+        rustc --version
+        cargo --version
+    - if: inputs.targets != ''
+      shell: bash
+      env:
+        EXTRA_TARGETS: ${{ inputs.targets }}
+      run: |
+        IFS=',' read -r -a targets <<< "$EXTRA_TARGETS"
+        rustup target add "${targets[@]}"

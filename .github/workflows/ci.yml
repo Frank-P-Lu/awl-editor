@@ -23,8 +23,9 @@ jobs:
     # never once seen a cold run.
     #
     # rust-cache mixes the exact rustc version and commit into its key and
-    # `dtolnay/rust-toolchain@stable` follows stable, so EVERY toolchain release
-    # invalidates this job's cache. The run that first exceeded the old ceiling
+    # Upgrading rust-toolchain.toml invalidates this job's cache. Previously
+    # following stable invalidated it on every toolchain release. The run that
+    # first exceeded the old ceiling
     # was the first on a new stable after a baseline of four on the previous
     # one, and its restore step says `No cache found.` Measured on that run,
     # step by step: sccache from source 4m25s (warm 0s), code health 6m07s
@@ -98,7 +99,7 @@ jobs:
       - name: Install system dependencies
         run: scripts/linux-build-deps.sh test
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       # `cache-on-failure`, for the same reason the mac wedge job carries it:
       # rust-cache saves only on success by default, so a red run discards the
@@ -270,7 +271,7 @@ jobs:
             xvfb fluxbox dbus at-spi2-core xdotool \
             gir1.2-atspi-2.0 python3-gi
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -308,7 +309,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
         with:
           targets: wasm32-unknown-unknown
 
@@ -398,7 +399,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       - uses: Swatinem/rust-cache@v2
 
@@ -464,7 +465,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       # `cache-on-failure` stops a red (or hung) run here from making the
       # NEXT one harder: rust-cache saves only on success by default, and
@@ -531,7 +532,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/project-rust
 
       - uses: Swatinem/rust-cache@v2
 

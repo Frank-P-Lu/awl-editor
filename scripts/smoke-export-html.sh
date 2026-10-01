@@ -46,7 +46,7 @@ done
 # 1. Regenerate the golden from the live emitter (deterministic), if we can.
 if [ "$REGEN" -eq 1 ]; then
   if ! command -v cargo >/dev/null 2>&1; then
-    export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
+    export PATH="$HOME/.cargo/bin:$PATH"
   fi
   if command -v cargo >/dev/null 2>&1; then
     echo "==> regenerating HTML golden (AWL_BLESS=1 cargo test html_golden)"

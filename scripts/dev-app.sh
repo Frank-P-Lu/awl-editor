@@ -67,7 +67,7 @@ if [ "$(uname -s)" != "Darwin" ]; then
 fi
 
 if ! command -v cargo >/dev/null 2>&1; then
-  export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
+  export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
 PROFILE_FLAG="--release"

@@ -48,10 +48,8 @@ On macOS, run the bundled app with `scripts/dev-app.sh`. Measure performance and
 judge feel in release builds, with before/after measurements witnessing real work.
 
 ```sh
-export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
-cargo build
-scripts/native-gate.sh
-scripts/web-smoke.sh
+scripts/project-rust.sh cargo build
+scripts/verify.sh full
 ```
 
 Choose scope through `docs/verification.md`: cheap checks, targeted tests and

@@ -81,7 +81,7 @@ fi
 
 DAYS="${1:-7}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
+export PATH="$HOME/.cargo/bin:$PATH"
 
 if [[ "$RETIRED" -eq 0 ]] && ! command -v cargo-sweep >/dev/null 2>&1; then
     echo "sweep: cargo-sweep not installed — cargo install cargo-sweep" >&2
