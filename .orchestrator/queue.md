@@ -37,13 +37,6 @@ arms, with independent regression mutations rejected. Freeze the repaired combin
 candidate for full native, wasm and debug/release parity before main publication;
 then verify exact-SHA hosted CI and safely retire only stopped, preserved worktrees.
 
-**Test pipeline layers (2026-10-01):** 🟡 IN PROGRESS — test-pipeline (codex),
-branch `codex/20261001-test-pipeline-layers`. Implement the user-approved fast
-local checks, one complete frozen-candidate gate, and scheduled overnight plus
-pre-release journeys and built-artifact launch validation. Remove duplicate Linux
-code health while retaining all currently required coverage. Do not weaken caret
-pixel laws, expand signing access, tag, deploy or publish a release.
-
 **Release constraint:** every public installable app download must be strictly
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
 and Linux AppImage/tarball. Browser deployment and source archives are separate.
