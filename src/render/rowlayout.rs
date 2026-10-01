@@ -159,6 +159,12 @@ pub fn rail_accessory_width(lh: f32) -> f32 {
     (RAIL_W_LH + RAIL_GAP_LH) * lh.max(0.0)
 }
 
+/// Free room a rail needs between the name and its value: the track plus air
+/// on both ends. Name fitting and final rail enrollment use the same answer.
+pub fn rail_min_room(lh: f32) -> f32 {
+    rail_accessory_width(lh) + RAIL_GAP_LH * lh.max(0.0)
+}
+
 /// WHICH WAY A COLUMN'S INK GROWS from the edge it hangs on.
 ///
 /// A row's name and its accessory hang on OPPOSITE ends of one cluster and grow
@@ -248,7 +254,7 @@ pub fn rail_geom(
     }
     let w = RAIL_W_LH * lh;
     let gap = RAIL_GAP_LH * lh;
-    if avail < w + gap * 2.0 {
+    if avail < rail_min_room(lh) {
         return None;
     }
     let (value_left, value_right) = flow.span(anchor, value_w);

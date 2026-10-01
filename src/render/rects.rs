@@ -1917,11 +1917,11 @@ impl TextPipeline {
         let margin = m.px(crate::render::chrome::PANEL_MARGIN);
         let text_h = self.panel_text_height();
         let card_w = self.panel_card_width(width);
-        let card_h = text_h + 2.0 * pad;
+        let (card_y, pad_y) = self.panel_vertical_layout(text_h);
+        let card_h = text_h + 2.0 * pad_y;
         let card_x = (width as f32 - card_w - margin).max(0.0);
-        let card_y = margin + self.menubar_reserve();
         let text_left = card_x + pad;
-        let text_top = card_y + pad;
+        let text_top = card_y + pad_y;
         let caret_x = self.panel_glyph_x(caret_row, caret_byte, fallback_chars, text_left);
         (
             [card_x, card_y, card_w, card_h],

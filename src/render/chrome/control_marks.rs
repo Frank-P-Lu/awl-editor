@@ -66,11 +66,12 @@ fn shape_mark(fonts: &mut FontSystem, face: &'static str, ch: char, size: f32) -
 impl TextPipeline {
     /// Measure a caption in its real baseline frame, using the shared cached
     /// nonzero-coverage owner. Called during preparation, never pointer dispatch.
-    fn control_caption_ink(&mut self, span: ControlSpan) -> Option<[f32; 4]> {
-        let keys = crate::rotated_label::ink::span_key(
+    fn control_caption_ink(&mut self, span: ControlSpan, origin: [f32; 2]) -> Option<[f32; 4]> {
+        let keys = crate::rotated_label::ink::span_key_at(
             &self.panel_buffer,
             span.row as usize,
             span.byte_start..span.byte_end,
+            origin,
         );
         self.glyph_ink_cache
             .bounds(&mut self.font_system, &mut self.swash_cache, &keys)
@@ -99,7 +100,7 @@ impl TextPipeline {
             else {
                 continue;
             };
-            let Some(caption) = self.control_caption_ink(span.caption) else {
+            let Some(caption) = self.control_caption_ink(span.caption, origin) else {
                 continue;
             };
             let (face, ch, angle) = span.kind.drawing();
@@ -134,10 +135,7 @@ impl TextPipeline {
                 continue;
             };
             let axis = geometry::label_axis_deg(angle);
-            let center = [
-                origin[0] + (x0 + x1) * 0.5,
-                origin[1] + caption[1] + caption[3] * 0.5,
-            ];
+            let center = [origin[0] + (x0 + x1) * 0.5, caption[1] + caption[3] * 0.5];
             let pen = geometry::pixel_aligned_centered_origin(mask.tight_ink(), center, axis);
             let color = srgb_u8_to_linear3(span.color);
             painter.label.prepare(

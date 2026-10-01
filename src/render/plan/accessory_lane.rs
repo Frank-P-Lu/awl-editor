@@ -90,6 +90,25 @@ impl TextPipeline {
             .span(self.overlay_accessory_anchor(geom, display), w)
     }
 
+    /// Actual free space between this row's shaped name and value. A cluster's
+    /// reserved accessory width is a budget, not proof that its name yielded it.
+    pub(in crate::render) fn overlay_rail_room(
+        &self,
+        geom: &OverlayGeom,
+        row: &PlannedRow,
+        name_w: f32,
+        value_w: f32,
+    ) -> f32 {
+        let name_left = self.overlay_label_origin(geom, row, Some(name_w));
+        let (value_left, value_right) = self.overlay_accessory_span(geom, row.display, value_w);
+        let room = match self.overlay_accessory_flow() {
+            ColumnFlow::Leftward => value_left - (name_left + name_w),
+            ColumnFlow::Rightward => name_left - value_right,
+        };
+        self.diagonal_cluster
+            .map_or(room, |cluster| room.min(cluster.accessory_w()))
+    }
+
     pub(in crate::render) fn overlay_accessory_flow(&self) -> ColumnFlow {
         crate::render::chrome::diagonal::accessory_flow(self)
     }

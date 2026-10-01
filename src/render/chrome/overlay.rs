@@ -782,7 +782,6 @@ impl TextPipeline {
         }
         let secondary = self.overlay_row_secondary_px(plan);
         let primary = self.overlay_row_primary_px(geom);
-        let cluster = self.diagonal_cluster;
         let mut out = Vec::new();
         for row in plan.rows() {
             let Some(item) = row.item else {
@@ -795,16 +794,8 @@ impl TextPipeline {
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
             let flow = self.overlay_accessory_flow();
-            // WHERE the accessory hangs is the lane owner's one answer
-            // (`overlay_accessory_anchor`, which the accessory upload, the frost's
-            // surface list and the sidecar's own projection all ask); only how much
-            // room is LEFT beside it still differs by composition — a spined card
-            // reserves it off the cluster, an upright one off what the row leaves.
             let anchor = self.overlay_accessory_anchor(geom, k);
-            let avail = match cluster {
-                Some(cluster) => cluster.accessory_w(),
-                None => (anchor - value_w) - (geom.text_left + label_w),
-            };
+            let avail = self.overlay_rail_room(geom, row, label_w, value_w);
             if let Some(rail) = crate::render::rowlayout::rail_geom(
                 anchor, flow, value_w, avail, row.top, row.height, frac,
             ) {

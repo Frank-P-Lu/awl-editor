@@ -33,6 +33,21 @@ impl TextPipeline {
         Ok(())
     }
 
+    /// Keep shaped controls at their authored size; outer vertical spacing
+    /// yields proportionally when a small canvas also carries a menu bar.
+    pub(in crate::render) fn panel_vertical_layout(&self, text_h: f32) -> (f32, f32) {
+        let m = self.metrics.panel_ui();
+        let pad = m.px(PANEL_PAD);
+        let margin = m.px(PANEL_MARGIN);
+        let bar = self.menubar_reserve();
+        if bar + margin + text_h + 2.0 * pad <= self.window_h {
+            return (bar + margin, pad);
+        }
+        let room = (self.window_h - bar - text_h).max(0.0);
+        let fit = (room / (2.0 * (pad + margin))).min(1.0);
+        (bar + margin * fit, pad * fit)
+    }
+
     /// One fixed card width, bounded by the canvas; typing never changes it.
     pub(in crate::render) fn panel_card_width(&self, width: u32) -> f32 {
         let m = self.metrics.panel_ui();

@@ -321,9 +321,14 @@ pub(in crate::render) fn fit_workspace_item_rows(
     let mut planned_gap = header_gap;
     let mut hint_gap_rows = usize::from(footer_present);
     let mut footer_reserve = footer_with_gap;
+    // A mandatory row must survive chrome fitting itself; applying its floor
+    // only to the final capacity can claim a row beyond the available card.
     let fixed = |pad: f32, header_rows: usize, header_gap: f32, footer_reserve: f32| {
         pad * if footer_present { 1.0 } else { 2.0 }
-            + (header_rows.saturating_add(empty_rows)) as f32 * lh
+            + (header_rows
+                .saturating_add(empty_rows)
+                .saturating_add(min_items)) as f32
+                * lh
             + header_gap
             + footer_reserve
     };

@@ -264,9 +264,8 @@ impl TextPipeline {
             };
             if self.overlay_ranges.get(item).copied().flatten().is_some() {
                 let value_w = secondary.get(&row.display).copied().unwrap_or(0.0);
-                accessory_w = accessory_w.max(
-                    value_w + crate::render::rowlayout::rail_accessory_width(self.overlay_lh()),
-                );
+                accessory_w = accessory_w
+                    .max(value_w + crate::render::rowlayout::rail_min_room(self.overlay_lh()));
             }
         }
         Some(DiagonalClusterRail::new(

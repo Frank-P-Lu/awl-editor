@@ -41,6 +41,7 @@ pub(in crate::render) fn files_location_fit_budgets(
 }
 
 mod names;
+mod ranges;
 
 // `right_bind_lines` preserves the secondary buffer's vertical contract:
 // its first label leads with exactly `header_rows` blank lines, so
@@ -545,7 +546,7 @@ impl TextPipeline {
                 rowlayout::Plan::Measure => None,
             }
         };
-        let rows: Vec<String> = row_labels
+        let mut rows: Vec<String> = row_labels
             .iter()
             .map(|label| match budget {
                 Some(b) => rowlayout::fit_primary(label, b),
@@ -557,6 +558,9 @@ impl TextPipeline {
             return false;
         }
         self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
+        if elide {
+            self.fit_overlay_range_names(geom, plan, inks, vis, &mut rows, slant_text_w);
+        }
 
         let name_px = self.widest_candidate_px(geom, plan);
         let right_px = self.widest_right_px();
@@ -721,10 +725,9 @@ impl TextPipeline {
             .to_string()
     }
 
-    /// Files always spends distinct query, folder-identity, and folder-action
-    /// rows. This is hierarchy rather than an overflow fallback: fitting all
-    /// three into one sentence made the essential controls read as metadata on
-    /// ordinary wide windows. The bounded probes remain as fit witnesses.
+    /// Files separates query, folder identity and actions on ordinary canvases.
+    /// When that composition would hide every candidate, identity and actions
+    /// may share their measured line; the query keeps its independent field.
     pub(in crate::render) fn resolve_files_header_split(&mut self, width: u32) {
         self.overlay_files_split_header = false;
         self.overlay_files_split_actions = false;
@@ -757,9 +760,15 @@ impl TextPipeline {
         self.overlay_files_split_header = true;
         let action_line = format!("{shown}  {}", self.files_action_suffix());
         self.overlay_files_split_measure_attempts += 1;
-        let _actions_fit =
+        let actions_fit =
             self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) <= text_w;
         self.overlay_files_split_actions = true;
+        if actions_fit
+            && !self.overlay_items.is_empty()
+            && self.theme_overlay_geometry(width).visible == 0
+        {
+            self.overlay_files_split_actions = false;
+        }
     }
 
     /// Fit only Files' location cell. The three header actions and the query

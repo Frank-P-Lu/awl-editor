@@ -184,38 +184,47 @@ fn find_replace_optical_alignment_uses_visible_ink_in_every_world() {
     v.search_replace_active = true;
     v.search_replacement = "goodbye".into();
     let mut enrolled = 0;
-    for (i, world) in theme::THEMES.iter().enumerate() {
-        theme::set_active(i);
-        p.sync_theme();
-        for dpi in [1.0, 2.0] {
-            let (w, h) = ((464.0 * dpi) as u32, (288.0 * dpi) as u32);
-            p.set_dpi(dpi);
-            p.set_size(w as f32, h as f32);
-            for checked in [false, true] {
-                for expanded in [false, true] {
-                    v.search_case_sensitive = checked;
-                    v.search_replace_active = expanded;
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, w, h).unwrap();
-                    let g = p.panel_geometry().unwrap();
-                    let ctx = format!(
-                        "{}@{dpi}x checked={checked} expanded={expanded}",
-                        world.name
-                    );
-                    assert!(
-                        g.card[1] + g.card[3] <= h as f32,
-                        "{ctx}: card exceeds minimum canvas"
-                    );
-                    let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-                    assert_header_ink(&ctx, &pixels, w, &g, dpi);
-                    assert_caption_marks(&p, &ctx, &pixels, w, &g, dpi);
-                    if expanded {
-                        assert_action_ink(&ctx, &pixels, w, &g, dpi);
+    let ambient_bar = crate::menubar::menu_bar_on();
+    for bar in [false, true] {
+        crate::menubar::set_menu_bar_on(bar);
+        for (i, world) in theme::THEMES.iter().enumerate() {
+            theme::set_active(i);
+            p.sync_theme();
+            for dpi in [1.0, 2.0] {
+                let (w, h) = ((464.0 * dpi) as u32, (288.0 * dpi) as u32);
+                p.set_dpi(dpi);
+                p.set_size(w as f32, h as f32);
+                for checked in [false, true] {
+                    for expanded in [false, true] {
+                        v.search_case_sensitive = checked;
+                        v.search_replace_active = expanded;
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, w, h).unwrap();
+                        let g = p.panel_geometry().unwrap();
+                        let ctx = format!(
+                            "{}@{dpi}x checked={checked} expanded={expanded}",
+                            world.name
+                        );
+                        assert!(
+                            g.card[1] >= p.menubar_reserve()
+                                && g.card[1] + g.card[3] <= h as f32 + 0.01,
+                            "{ctx}: card exceeds minimum canvas: {:?}, menubar={} rows={:?}",
+                            g.card,
+                            p.menubar_reserve(),
+                            g.rows
+                        );
+                        let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+                        assert_header_ink(&ctx, &pixels, w, &g, dpi);
+                        assert_caption_marks(&p, &ctx, &pixels, w, &g, dpi);
+                        if expanded {
+                            assert_action_ink(&ctx, &pixels, w, &g, dpi);
+                        }
+                        enrolled += 1;
                     }
-                    enrolled += 1;
                 }
             }
         }
     }
-    assert_eq!(enrolled, theme::THEMES.len() * 8);
+    crate::menubar::set_menu_bar_on(ambient_bar);
+    assert_eq!(enrolled, theme::THEMES.len() * 16);
 }

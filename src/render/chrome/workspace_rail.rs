@@ -24,7 +24,6 @@
 //! (`UNFOCUSED_MARK_ALPHA`), never in decoration: the same mark in the same
 //! place, insisting less (DESIGN.md §5).
 
-use super::workspace::WORKSPACE_PAD;
 use super::*;
 
 impl TextPipeline {
@@ -231,7 +230,8 @@ impl TextPipeline {
     ) -> Option<[f32; 4]> {
         let [x, w] = geom.rail?;
         let top = plan.first_top();
-        let bottom = geom.card_y + geom.card_h - self.metrics.ui().px(WORKSPACE_PAD);
+        let resolved_pad = geom.text_top - geom.card_y;
+        let bottom = geom.card_y + geom.card_h - resolved_pad;
         (bottom > top).then_some([x, top, w, bottom - top])
     }
 

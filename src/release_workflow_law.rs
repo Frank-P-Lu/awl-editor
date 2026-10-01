@@ -382,24 +382,24 @@ fn dry_run_preparation_builds_the_exact_public_payload() {
 #[test]
 fn public_payload_size_limit_covers_each_download_at_the_boundary() {
     let _guard = crate::testlock::serial();
-    let dir = scratch("public-size");
-    let linux = dir.join("linux");
-    let mac = dir.join("mac");
-    let output = dir.join("release");
-    std::fs::create_dir_all(&linux).expect("create linux input");
-    std::fs::create_dir_all(&mac).expect("create mac input");
     let version = "9.8.7-size-test";
     let names = [
         format!("awl-{version}-linux-x86_64.tar.gz"),
         format!("awl-{version}-linux-x86_64.AppImage"),
         format!("awl-{version}-macos-universal.dmg"),
     ];
-    let parents = [&linux, &linux, &mac];
 
     // Sparse source files exercise actual filesystem byte lengths without
     // allocating the public-download cap in process memory.
     for large_index in 0..names.len() {
         for bytes in [49_999_999, 50_000_000, 50_000_001] {
+            let dir = scratch(&format!("public-size-{large_index}-{bytes}"));
+            let linux = dir.join("linux");
+            let mac = dir.join("mac");
+            let output = dir.join("release");
+            std::fs::create_dir_all(&linux).expect("create linux input");
+            std::fs::create_dir_all(&mac).expect("create mac input");
+            let parents = [&linux, &linux, &mac];
             for (index, name) in names.iter().enumerate() {
                 std::fs::File::create(parents[index].join(name))
                     .and_then(|file| file.set_len(if index == large_index { bytes } else { 1 }))
@@ -425,7 +425,6 @@ fn public_payload_size_limit_covers_each_download_at_the_boundary() {
                         .len(),
                     bytes
                 );
-                std::fs::remove_dir_all(&output).expect("remove admitted payload");
             } else {
                 let error = String::from_utf8_lossy(&prepared.stderr);
                 assert!(

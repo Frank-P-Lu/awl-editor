@@ -192,7 +192,11 @@ impl TextPipeline {
         let mut track_rects: Vec<[f32; 4]> = Vec::new();
         let mut thumb_quads: Vec<([f32; 4], [u8; 4])> = Vec::new();
         for (item, rail) in &rails {
-            track_rects.push(rail.track);
+            // Borders can become emphasized without promoting the rail track.
+            thumb_quads.push((
+                rail.track,
+                crate::render::overlay_chrome_theme().faint.rgba_bytes(),
+            ));
             let ink = match selected_flip {
                 Some(flip) if on_band.contains(item) => flip,
                 _ => crate::render::overlay_chrome_theme().muted,

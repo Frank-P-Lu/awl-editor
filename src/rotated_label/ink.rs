@@ -12,23 +12,37 @@ use std::ops::Range;
 pub type PositionedGlyphKey = Vec<(CacheKey, i32, i32)>;
 
 pub fn buffer_key(buffer: &GlyphBuffer) -> PositionedGlyphKey {
-    positioned_key(buffer, |_, _| true)
+    positioned_key(buffer, [0.0, 0.0], |_, _| true)
 }
 
 /// Line-local byte range, matching ControlSpan and cosmic-text glyph starts.
 pub fn span_key(buffer: &GlyphBuffer, row: usize, bytes: Range<usize>) -> PositionedGlyphKey {
-    positioned_key(buffer, |line, start| line == row && bytes.contains(&start))
+    span_key_at(buffer, row, bytes, [0.0, 0.0])
+}
+
+/// Match the physical glyph keys at a real TextArea origin, including its
+/// subpixel position; bounds are returned in that screen coordinate frame.
+pub fn span_key_at(
+    buffer: &GlyphBuffer,
+    row: usize,
+    bytes: Range<usize>,
+    origin: [f32; 2],
+) -> PositionedGlyphKey {
+    positioned_key(buffer, origin, |line, start| {
+        line == row && bytes.contains(&start)
+    })
 }
 
 fn positioned_key(
     buffer: &GlyphBuffer,
+    origin: [f32; 2],
     contains: impl Fn(usize, usize) -> bool,
 ) -> PositionedGlyphKey {
     let mut keys = Vec::new();
     for run in buffer.layout_runs() {
         let baseline = run.line_y.round() as i32;
         for glyph in run.glyphs.iter().filter(|g| contains(run.line_i, g.start)) {
-            let physical = glyph.physical((0.0, 0.0), 1.0);
+            let physical = glyph.physical((origin[0], origin[1]), 1.0);
             keys.push((physical.cache_key, physical.x, physical.y + baseline));
         }
     }

@@ -28,6 +28,7 @@
 use super::*;
 mod anchor;
 #[cfg(test)]
+#[path = "popover/tests/placement.rs"]
 mod placement_tests;
 use crate::popover::PopoverButton;
 use crate::render::plan::{

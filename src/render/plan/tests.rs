@@ -19,6 +19,7 @@ mod accessory_law;
 /// its sibling is: it is test-only code that needs a device the pure laws above
 /// deliberately do without.
 mod panel_law;
+mod workspace_minimum;
 
 use super::fit_rows::{fit_item_rows, fit_item_rows_after_px};
 use super::overlay_header::{WorkspaceRowFit, fit_workspace_item_rows};
