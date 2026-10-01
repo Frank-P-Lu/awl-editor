@@ -220,7 +220,10 @@ pathlib.Path({str(evidence)!r}).write_text(json.dumps({{'args': sys.argv[1:], 'c
             self.assertEqual(module.launch(binary, 25, 5, True), 0)
             record = json.loads(evidence.read_text())
             self.assertEqual(record["args"][0], "--appimage-extract-and-run")
-            self.assertIn("--soak-gpu", record["args"])
+            # The isolated app mode accepts only these probe-owned arguments.
+            self.assertEqual(record["args"][1:], ["--soak-gpu", "--soak-gpu-seconds", "25"])
+            probe = (ROOT / "scripts/ci-live-probe.sh").read_text()
+            self.assertIn('-- --soak-gpu --soak-gpu-seconds "${SECONDS_ARG}"', probe)
             # AppImage owns its first argument; Awl owns the remaining flags.
             roster = (ROOT / "src/main/args/flags/roster.rs").read_text()
             aliases = re.findall(r"^\s*\w+:\s*&\[([^]]*)\]", roster, re.M)

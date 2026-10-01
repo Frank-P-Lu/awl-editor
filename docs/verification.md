@@ -57,8 +57,12 @@ The release workflow then validates its actual artifacts: the executable inside
 the mounted Mac DMG, the extracted Linux tarball binary, and the AppImage's real
 extract-and-run entry point each launch with synthetic isolated fixtures and
 the built app's live presentation/recovery/memory verdict. The launcher is
-CI-only because it opens a window. Package metadata, signing policy, checksums,
-compression-size checks and the existing release authorization remain in place.
+CI-only because it opens a window. The app's isolated `--soak-gpu` mode owns
+its synthetic state and rejects document, config and folder arguments; the helper
+supplies only probe arguments and fresh process-data directories. This proves
+live artifact presentation/recovery, not opening a supplied document. Package
+metadata, signing policy, checksums, compression-size checks and the existing
+release authorization remain in place.
 
 The automation is not a human journey. Before a release, finish the real desktop
 launch, native menus, physical IME/keyboard, browser clipboard and accessibility

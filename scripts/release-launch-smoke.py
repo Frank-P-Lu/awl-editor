@@ -16,13 +16,6 @@ def launch(binary: Path, seconds: int, timeout: float, appimage: bool) -> int:
         raise ValueError("the built artifact must be an executable file")
     with tempfile.TemporaryDirectory(prefix="awl-release-launch-") as folder:
         root = Path(folder)
-        project = root / "project"
-        project.mkdir()
-        (root / "workspace").mkdir()
-        document = project / "fixture.md"
-        document.write_text("# Packaged launch fixture\n\nPlain text, 日本語, and an editable line.\n")
-        config = root / "config.toml"
-        config.write_text("history = false\nautosave = false\nsession_restore = false\n")
         env = dict(os.environ)
         for key, child in [
             ("XDG_CONFIG_HOME", "config"), ("XDG_DATA_HOME", "data"),
@@ -34,11 +27,8 @@ def launch(binary: Path, seconds: int, timeout: float, appimage: bool) -> int:
         command = [str(binary)]
         if appimage:
             command.append("--appimage-extract-and-run")
-        command.extend([
-            "--config", str(config), "--root", str(project),
-            "--workspace", str(root / "workspace"),
-            "--soak-gpu", "--soak-gpu-seconds", str(seconds), str(document),
-        ])
+        # SoakGpu owns its synthetic state and rejects file/config/folder flags.
+        command.extend(["--soak-gpu", "--soak-gpu-seconds", str(seconds)])
         process = subprocess.Popen(
             command, cwd=root, env=env, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
