@@ -19,6 +19,13 @@ inspect the combined result and gate the new frozen candidate before landing.
 Resume from the train's integrated changes and preserve its conflict resolutions.
 The source branches below are recovery/reference points.
 
+**Integration review (2026-10-01):** 🟡 IN PROGRESS — local-integration (codex),
+branch `codex/20261001-cloud-ui-integration`. The user authorized review,
+reconciliation, main publication and subsequent safe worktree cleanup. Review the
+preserved train and dirty edits, retain the newer main Find/Replace design, and
+combine the cloud UI fixes. Unchosen prototypes, private data, tags and deployments
+remain outside this publication candidate. Freeze and gate before landing.
+
 **Release constraint:** every public installable app download must be strictly
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
 and Linux AppImage/tarball. Browser deployment and source archives are separate.
