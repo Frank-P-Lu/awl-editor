@@ -71,7 +71,9 @@ AWL_DEB_DIAG=(libvulkan1 vulkan-tools)
 # BUILD because a headless build never reaches the dlopen — which is precisely
 # why CI's `linux` job omits it and the AT-SPI job, the only arm that puts a
 # built awl in front of a real X server, asks for it explicitly.
-AWL_DEB_RUNTIME=(libfontconfig1 libxkbcommon0 libxkbcommon-x11-0 libvulkan1 mesa-vulkan-drivers)
+# winit also dlopens Xcursor and XInput2 when a real X11 window starts.
+# Verified against the isolated Debian live-launch image, not headless captures.
+AWL_DEB_RUNTIME=(libfontconfig1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxi6 libvulkan1 mesa-vulkan-drivers)
 
 # ---------------------------------------------------------------------- Fedora
 AWL_FEDORA_LABEL="Fedora"

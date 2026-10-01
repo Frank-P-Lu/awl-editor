@@ -183,6 +183,25 @@ class WorkflowWiring(unittest.TestCase):
 
 
 class JourneyOracles(unittest.TestCase):
+    def test_native_inputs_preserve_text_shift_and_use_linux_document_end(self):
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location("pretag_native_inputs", ROOT / "scripts/pretag-journeys.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        for convention, expected in [("mac", "s-Down s-p s-t s-, S-Down s e t"),
+                                     ("linux", "C-End C-p C-t C-, S-Down s e t")]:
+            with patch.dict(os.environ, AWL_CONVENTION_FORCE=convention):
+                self.assertEqual(module.native_keys("s-Down s-p s-t s-, S-Down s e t"), expected)
+                for journey in module.JOURNEYS:
+                    module.native_keys(journey.keys)
+        with patch.dict(os.environ, AWL_CONVENTION_FORCE="linux"):
+            with self.assertRaises(KeyError):
+                module.native_keys("s-unknown")
+        with patch.dict(os.environ, AWL_CONVENTION_FORCE="unknown"):
+            with self.assertRaises(ValueError):
+                module.native_keys("s-p")
+
     def test_both_canvas_pairs_reject_unreachable_controls(self):
         spec = importlib.util.spec_from_file_location("pretag_journey_law", ROOT / "scripts/pretag-journeys.py")
         module = importlib.util.module_from_spec(spec)

@@ -50,6 +50,9 @@ called by the nonpublishing and tagged release workflow before package jobs.
 Both hosted Linux and macOS build release once, sweep the binary's complete world
 roster at both DPI values using `scripts/verify.sh extended --bin
 target/release/awl --jobs 1`, then run a longer 120-second live GPU launch.
+Journey inputs use the host convention, including Linux Ctrl-End for document
+end; the existing `AWL_CONVENTION_FORCE` fixture door reproduces either convention
+locally. Typed text, Shift chords and every pixel/state assertion are preserved.
 A finding or failed app contract fails that job; there is no new tolerated-failure
 arm. The existing full unit/integration suites are not duplicated overnight.
 

@@ -328,6 +328,23 @@ JOURNEYS: tuple[Journey, ...] = (
     Journey("settings-narrow-detail", LIVE_APP, NARROW, "s-, Tab", "empty", "the narrow regime, staged on its content region"),
 )
 
+def native_keys(recipe: str) -> str:
+    """Use the host's actual default shortcuts, preserving literal text/Shift.
+
+    These are test inputs, not a second application chord resolver. In
+    particular Linux document-end is Ctrl-End, not a naive Cmd-to-Ctrl swap.
+    The existing convention fixture door permits reproducing either host's
+    inputs locally through the real keymap. Unknown shortcuts fail closed.
+    """
+    convention = os.environ.get("AWL_CONVENTION_FORCE", "mac" if sys.platform == "darwin" else "linux")
+    if convention not in ("mac", "linux"):
+        raise ValueError(f"unsupported keyboard convention: {convention}")
+    if convention == "mac":
+        return recipe
+    linux = {"s-Down": "C-End", "s-p": "C-p", "s-t": "C-t", "s-,": "C-,"}
+    return " ".join(linux[token] if token.startswith("s-") else token for token in recipe.split())
+
+
 # Settings pairs share a presence floor at each width: the measured content
 # demand and authored pane ceiling decide staging, not the canvas name.
 STAGE_PAIRS = (
@@ -937,7 +954,7 @@ def run_world(task: WorldTask) -> WorldResult:
 
     for journey in task.journeys:
         keys = (
-            journey.keys.replace("{a}", " ".join(["Down"] * task.a_line))
+            native_keys(journey.keys).replace("{a}", " ".join(["Down"] * task.a_line))
             .replace("{b}", " ".join(["Down"] * task.b_line))
             .strip()
         )
