@@ -73,10 +73,10 @@ impl PanelRowBands {
         {
             return *i as i64;
         }
-        if let Some((i, top, h)) = self.rows.last() {
-            if y >= top + h {
-                return *i as i64 + 1 + ((y - top - h) / self.lh).floor() as i64;
-            }
+        if let Some((i, top, h)) = self.rows.last()
+            && y >= top + h
+        {
+            return *i as i64 + 1 + ((y - top - h) / self.lh).floor() as i64;
         }
         (y / self.lh).floor() as i64
     }
