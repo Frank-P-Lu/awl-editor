@@ -141,6 +141,11 @@ impl<'a> PanelText<'a> {
         pad: f32,
         shift: f32,
     ) -> ControlSpan {
+        // The symbol subset omits ×; request its bundled face and real weight
+        // so host fallback cannot consume the air needed by the optical shift.
+        let attrs = attrs
+            .family(Family::Name("IBM Plex Mono"))
+            .weight(crate::render::mono_safe_weight("IBM Plex Mono"));
         let ink = self.measure("×", &attrs);
         let width = min.max(ink + 2.0 * pad);
         let spare = (width - 2.0 * pad - ink).max(0.0);
@@ -162,3 +167,6 @@ impl<'a> PanelText<'a> {
         span
     }
 }
+
+#[cfg(test)]
+mod tests;

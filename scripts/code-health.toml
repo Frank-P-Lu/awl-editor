@@ -326,7 +326,7 @@ lines = 559
 [[file_size_mark]]
 file = "src/render.rs"
 # +4: enroll shared focused-field rendering and its pixel laws.
-lines = 3138
+lines = 2806
 # +31: Japanese heavy-face bytes, companion family map, and one registration loop
 # stay beside the existing bundled font roster and font-system construction owner.
 # 3094 -> 3098: Files control fill/rim pipelines join exhaustive render state.
@@ -936,13 +936,6 @@ function = "TextPipeline::new"
 message = "this function has too many lines (541/100)"
 # +2: the exhaustive constructor seeds the focused-field projection inertly.
 reason = "Typing profiling state and work counters are initialized with the GPU owner. Test-only search counters are initialized beside row geometry in the one exhaustive literal. The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state. +1: the rail-appetite field's inert `false` default, beside the pipeline's other per-frame outline state. +1: the `search_field_selection` field's inert default. +1: `overlay_query_placeholder`'s inert `None` default, beside the pipeline's other per-frame overlay state. -3 (515->512): 617 retired the close-zone hover plate; `gutter_close_hover_plate`'s construction and its field in the exhaustive literal are gone. the folder-naming dim line's own inert default at the pipeline's one construction site. +3: seeds `panel_control_fill`/`panel_control_border`/`panel_rules`, the find/replace panel's own bordered-chrome pipelines, beside its other per-frame `SelectionPipeline` construction sites. +1: `han_evidence: None`'s inert default beside `doc_lang`'s own construction-site default. +1: `squiggle_projection`'s construction beside its sibling `squiggle_cache` initializer (item 633). +2: empty defaults for the shared per-pipeline ink-bound cache and control-mark owner in the sole exhaustive constructor."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render.rs"
-function = "build_font_system"
-message = "this function has too many lines (112/100)"
-reason = "The font-system constructor registers the bundled face roster in one ordered place. The Japanese heavy companions belong beside their regular faces so family matching and offline coverage remain visible together; extracting this one loop would scatter the registry without simplifying it."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

@@ -138,7 +138,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is
     // skipped — the same advisory class as `AWL_FONT`'s fallback note).
-    ("render.rs", 2),
+    ("render/font_system.rs", 2),
     // `read_forced_knob`'s unrecognized-value warning (moved here with the
     // `AWL_*_FORCE` knobs it serves).
     ("render/overrides/parsers.rs", 1),
