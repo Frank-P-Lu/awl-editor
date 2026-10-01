@@ -182,6 +182,28 @@ class WorkflowWiring(unittest.TestCase):
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
 
 
+class JourneyOracles(unittest.TestCase):
+    def test_both_canvas_pairs_reject_unreachable_controls(self):
+        spec = importlib.util.spec_from_file_location("pretag_journey_law", ROOT / "scripts/pretag-journeys.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        roster = {journey.jid: journey for journey in module.JOURNEYS}
+        self.assertEqual(len(module.STAGE_PAIRS), 2)
+        for pair in module.STAGE_PAIRS:
+            self.assertTrue(set(pair) <= roster.keys())
+            self.assertEqual(roster[pair[0]].shape, roster[pair[1]].shape)
+            for dpi in module.DPIS:
+                sides = {(jid, dpi): {"overlay": {"workspace": True, "window": {"rows": []}}} for jid in pair}
+                missing = module.Ledger()
+                module.stage_presence(missing, "fixture", dpi, sides, pair)
+                self.assertTrue(missing.failures)
+                sides[(pair[1], dpi)]["overlay"]["window"]["rows"] = ["visible control"]
+                reachable = module.Ledger()
+                module.stage_presence(reachable, "fixture", dpi, sides, pair)
+                self.assertEqual(reachable.failures, [])
+
+
 class BuiltLaunch(unittest.TestCase):
     def test_actual_command_is_isolated_and_nonzero_or_timeout_fails(self):
         spec = importlib.util.spec_from_file_location("release_launch", ROOT / "scripts/release-launch-smoke.py")

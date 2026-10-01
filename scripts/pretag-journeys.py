@@ -74,9 +74,9 @@ TWO THINGS THE HAND-RUN SWEEP PAID TO LEARN, CARRIED HERE
    `render::tests::theme_picker_selection_law`. This probe's abstention is a
    statement about captures, and the report says which.
 
-2. **A zero-row Settings band at a narrow width is CORRECT.** Below its
-   staging threshold the workspace shows one region at a time, and the stage
-   showing the OTHER region publishes an empty row window faithfully.
+2. **A zero-row Settings navigation band can be CORRECT.** The measured
+   readout demand and authored pane ceiling may stage even a large canvas.
+   The stage showing navigation publishes an empty control-row window faithfully.
    `src/render/tests/workspace_stage_reach.rs` owns that state and records that
    this exact reading was filed as a defect once and refuted. So an empty row
    window is accepted here when the surface is a workspace, and it is paired
@@ -322,14 +322,18 @@ JOURNEYS: tuple[Journey, ...] = (
     Journey("menubar-doc", ORDINARY, WIDE, "s-Down", "menubar", "the drawn menu bar over the document"),
     Journey("menubar-palette", ORDINARY, WIDE, "s-Down s-p", "menubar", "a summoned card yielding to the drawn menu bar"),
     # -- the Settings workspace, on the door whose zoom the product ships ---
-    Journey("settings-wide", LIVE_APP, WIDE, "s-,", "empty", "the Settings workspace with room for both regions"),
+    Journey("settings-wide", LIVE_APP, WIDE, "s-,", "empty", "Settings navigation on a large canvas; measured demand may still stage it"),
+    Journey("settings-wide-detail", LIVE_APP, WIDE, "s-, Tab", "empty", "the same large canvas with controls focused"),
     Journey("settings-narrow-rail", LIVE_APP, NARROW, "s-,", "empty", "the narrow regime, staged on its navigation rail"),
     Journey("settings-narrow-detail", LIVE_APP, NARROW, "s-, Tab", "empty", "the narrow regime, staged on its content region"),
 )
 
-# The narrow Settings pair that shares a presence floor: neither stage is
-# required to have rows, but between them some stage must.
-STAGE_PAIR = ("settings-narrow-rail", "settings-narrow-detail")
+# Settings pairs share a presence floor at each width: the measured content
+# demand and authored pane ceiling decide staging, not the canvas name.
+STAGE_PAIRS = (
+    ("settings-wide", "settings-wide-detail"),
+    ("settings-narrow-rail", "settings-narrow-detail"),
+)
 
 
 # --------------------------------------------------------------------------
@@ -544,11 +548,12 @@ def ink_region(side: dict, frame: Frame) -> tuple[tuple[int, int, int, int], str
     return frame.rect(left, top, right, bottom), "writing column"
 
 
-def stage_presence(led: Ledger, world: str, dpi: int, sides: dict[tuple[str, int], dict]) -> None:
-    """The narrow Settings pair's PRESENCE FLOOR, and the only place an empty
-    row window is allowed to be an answer rather than a defect."""
+def stage_presence(
+    led: Ledger, world: str, dpi: int, sides: dict[tuple[str, int], dict], pair: tuple[str, str]
+) -> None:
+    """A focused-region pair must expose control rows at the same canvas size."""
     counts = {}
-    for jid in STAGE_PAIR:
+    for jid in pair:
         side = sides.get((jid, dpi))
         if side is None:
             return
@@ -562,10 +567,10 @@ def stage_presence(led: Ledger, world: str, dpi: int, sides: dict[tuple[str, int
             )
     led.check(
         any(counts.values()),
-        f"{world}/{'+'.join(STAGE_PAIR)}@{dpi}",
-        f"neither stage of the narrow workspace has rows ({counts}) — the rows are unreachable at this width",
+        f"{world}/{'+'.join(pair)}@{dpi}",
+        f"neither stage of the workspace has rows ({counts}) — the rows are unreachable at this width",
     )
-    led.note(f"{world}@{dpi}: narrow Settings staged {counts[STAGE_PAIR[0]]} / {counts[STAGE_PAIR[1]]} rows (a zero on ONE stage is the staging regime, not a defect)")
+    led.note(f"{world}@{dpi}: Settings staged {counts[pair[0]]} / {counts[pair[1]]} rows (a zero on ONE stage is the staging regime, not a defect)")
 
 
 def dpi_parity(led: Ledger, world: str, journey: Journey, one: dict, two: dict) -> None:
@@ -885,10 +890,8 @@ def expectations(led: Ledger, where: str, jid: str, side: dict) -> None:
     if jid.startswith("settings"):
         led.check(overlay["mode"] == "settings", where, f"Settings is not summoned (mode {overlay['mode']!r})")
         led.check(overlay["workspace"], where, "Settings is not drawn as a workspace")
-    if jid == "settings-narrow-detail":
+    if jid in {"settings-narrow-detail", "settings-wide-detail"}:
         led.check(overlay["detail_focus"], where, "the content region did not take focus")
-    if jid == "settings-wide":
-        led.check(bool((overlay.get("window") or {}).get("rows")), where, "the wide Settings workspace published no rows, which the narrow regime alone may do")
 
 
 @dataclass(frozen=True)
@@ -981,8 +984,9 @@ def run_world(task: WorldTask) -> WorldResult:
             )
         if "theme-picker" in have:
             theme_picker_weak(led, world, dpi, sides[("theme-picker", dpi)], frames[("theme-picker", dpi)])
-        if set(STAGE_PAIR) <= have:
-            stage_presence(led, world, dpi, sides)
+        for pair in STAGE_PAIRS:
+            if set(pair) <= have:
+                stage_presence(led, world, dpi, sides, pair)
     return WorldResult(led, captures, door_zoom, ambient_menubar)
 
 
@@ -1206,11 +1210,11 @@ def compose_report(
     add("    and it grades all 20 worlds at both device scales, whatever this probe abstains")
     add("    on. What stays this door's own is the state claim above, on the real capture.")
     add("")
-    add("    A ZERO-ROW SETTINGS STAGE AT A NARROW WIDTH IS NOT FLAGGED, because it is correct:")
-    add("    the narrow regime shows one region at a time and the stage showing the other one")
+    add("    A ZERO-ROW SETTINGS NAVIGATION STAGE IS NOT FLAGGED when controls remain reachable:")
+    add("    measured content demand can stage either canvas, and its navigation region")
     add("    publishes an empty row window faithfully. This reading has been filed as a defect")
     add("    once already and refuted (src/render/tests/workspace_stage_reach.rs). What IS")
-    add("    asserted is the presence floor the pair needs: some stage must have rows.")
+    add("    asserted at BOTH canvas sizes is the presence floor: some focus stage must have rows.")
     add("")
     if led.measures:
         add("MEASURED MARGINS (the numbers behind the passes, so a reader can see how close they were)")
