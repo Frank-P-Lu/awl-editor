@@ -143,33 +143,34 @@ gate_started_epoch="$(date +%s)"
 gate_run_dir="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate.XXXXXX")"
 gate_arbiter_publish
 
-# The vitals heartbeat launched below (`gate_vitals_loop`) is put in its own
-# process group by `gate_launch`, same as every phase, so a signal aimed only
-# at THIS script's pid never reaches it on its own. The three explicit
-# `kill -TERM "$vitals_pid"` sites further down only cover the exits they sit
-# on (a failed canary, an exhausted budget, a clean finish) — measured live:
-# a direct SIGTERM to this script's own pid (a killed background job, a
-# forwarded SIGINT, anything that ends the process outside those three
-# branches) skips all of them, and the loop is left running at ppid=1 with
-# its `sleep` child once its parent is gone — still holding this script's
-# inherited stdout open, the exact failure `gate_sleep_then` below warns
-# against. Killing it here, in the EXIT trap, makes retirement unconditional:
-# this trap already fires on every one of those paths (proven by the marker
-# it already removes on a killed run), so `vitals_pid` dying here too closes
-# the gap without touching the three existing sites. `vitals_pid=""` is
-# declared before the trap so a death before `gate_launch` assigns it still
-# finds a bound empty variable under `set -u`, and the kill is a bare PID —
-# not a group signal — because `gate_vitals_loop`'s own TERM trap already
-# relays to its one sleeper child by exact pid, the same mechanism the three
-# existing call sites already rely on.
+# Vitals owns a separate process group, including its sampler and sleeper.
+# Teardown retires that whole group and reaps its leader before releasing the
+# gate's admission lease. A PID-only TERM can leave a deferred trap or an
+# inherited output pipe alive after the top-level gate exits.
 vitals_pid=""
-gate_kill_vitals() {
-  [[ -n "$vitals_pid" ]] || return 0
-  kill -TERM "$vitals_pid" 2>/dev/null || true
+gate_signal_helpers() {
+  local signal="$1" helper
+  for helper in "${vitals_pid:-}" "${budget_pid:-}"; do
+    [[ -n "$helper" ]] || continue
+    kill "-$signal" "-$helper" 2>/dev/null || true
+  done
+}
+
+gate_reap_helpers() {
+  local helper
+  for helper in "${vitals_pid:-}" "${budget_pid:-}"; do
+    [[ -n "$helper" ]] || continue
+    # The group leaders come only from gate_launch. Reap them while they are
+    # still this gate's children, before PID reuse or orphan adoption is possible.
+    kill -KILL "-$helper" 2>/dev/null || true
+    wait "$helper" 2>/dev/null || true
+  done
+  vitals_pid=""
+  budget_pid=""
 }
 
 gate_teardown() {
-  gate_kill_vitals
+  gate_signal_helpers TERM
   # A signal to the top-level gate otherwise leaves phase leaders reparented to
   # init. End their groups before releasing the arbiter or removing diagnostics.
   if [[ -n "${gate_pgid_file:-}" && -f "$gate_pgid_file" ]]; then
@@ -177,6 +178,7 @@ gate_teardown() {
     sleep 1
     gate_kill_groups KILL
   fi
+  gate_reap_helpers
   rm -rf "$gate_run_dir"
   gate_arbiter_release
 }
@@ -523,6 +525,10 @@ gate_sleep_then() {
 gate_vitals_loop() {
   local elapsed sleeper=""
   trap '[[ -n "$sleeper" ]] && kill "$sleeper" 2>/dev/null; exit 0' TERM
+  # Deterministic hostile teardown fixture; production leaves both unset.
+  if [[ "${AWL_NATIVE_GATE_PROBE_VITALS_IGNORE_TERM:-0}" == 1 ]]; then
+    trap '' TERM
+  fi
   # The baseline is taken before the first sleep, so heartbeat one already
   # carries a delta instead of a hole. A CPU probe whose first reading is
   # meaningless is a probe that says nothing for the first minute, and the
@@ -531,6 +537,9 @@ gate_vitals_loop() {
   while :; do
     sleep "$gate_vitals_interval" &
     sleeper=$!
+    if [[ -n "${AWL_NATIVE_GATE_PROBE_VITALS_READY_FILE:-}" ]]; then
+      printf '%s\n' "$sleeper" >"$AWL_NATIVE_GATE_PROBE_VITALS_READY_FILE"
+    fi
     wait "$sleeper" 2>/dev/null || exit 0
     elapsed="$(gate_elapsed)"
     printf 'native-gate-vitals elapsed_seconds=%s free_bytes=%s swap_used_bytes=%s load1=%s cpu_count=%s %s mac_last=[%s] linux_last=[%s]\n' \
@@ -840,6 +849,9 @@ gate_budget_expired() {
 budget_pid=""
 if [[ -n "$gate_budget_seconds" ]]; then
   gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired
+  if [[ -n "${AWL_NATIVE_GATE_PROBE_BUDGET_PID_FILE:-}" ]]; then
+    printf '%s\n' "$budget_pid" >"$AWL_NATIVE_GATE_PROBE_BUDGET_PID_FILE"
+  fi
 fi
 
 gate_launch vitals_pid untracked gate_vitals_loop

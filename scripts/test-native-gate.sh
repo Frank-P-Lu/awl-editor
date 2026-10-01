@@ -19,6 +19,10 @@ export AWL_NATIVE_GATE_ARBITER_LOCK="$WORK/default-arbiter.lock"
 # ARE about the axis override this explicitly, including one that unsets it to
 # prove the derivation.
 export AWL_NATIVE_GATE_MENUBAR_FULL=0
+# Fixtures set their own duration/deadline; caller bounds must not silently
+# arm helpers in laws whose premise is an unbudgeted gate. Budget laws below
+# explicitly override these controls, including the hostile teardown fixture.
+unset AWL_NATIVE_GATE_BUDGET_SECONDS AWL_NATIVE_GATE_DEADLINE_EPOCH
 
 # THE HEALTH ARM IS PINNED FOR EVERY LAW THAT IS NOT ABOUT IT, same reason as
 # the menu-bar pin above: the real scripts/code-health.sh runs full clippy and
@@ -1561,6 +1565,88 @@ kill -0 "$vitals_pid" 2>/dev/null && {
 echo "test-native-gate: a SIGTERM to the gate's own pid retires the vitals heartbeat too, not only the marker"
 
 echo "test-native-gate: killing the gate removes the marker — a killed run cannot wedge a later session"
+
+# The helper may be blocked inside a sampler whose child inherited TERM
+# resistance. Its readiness file proves that disposition is installed before
+# this test signals the gate; merely seeing a freshly launched PID is weaker.
+resistant_marker="$WORK/marker-resistant-vitals"
+resistant_ready="$WORK/vitals-resistant-ready"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$resistant_marker" \
+  AWL_NATIVE_GATE_PROBE_VITALS_PID_FILE="$WORK/vitals-resistant-pid" \
+  AWL_NATIVE_GATE_PROBE_VITALS_IGNORE_TERM=1 \
+  AWL_NATIVE_GATE_BUDGET_SECONDS=1800 \
+  AWL_NATIVE_GATE_PROBE_BUDGET_PID_FILE="$WORK/resistant-budget-pid" \
+  AWL_NATIVE_GATE_PROBE_VITALS_READY_FILE="$resistant_ready" \
+  AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-resistant-vitals" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-resistant-vitals" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-resistant-vitals" 2>&1 &
+resistant_gate_pid=$!
+for _ in $(seq 1 50); do
+  [[ -s "$resistant_ready" && -s "$WORK/vitals-resistant-pid" ]] && break
+  sleep 0.1
+done
+[[ -s "$resistant_ready" && -s "$WORK/vitals-resistant-pid" ]] || {
+  echo "test-native-gate: resistant vitals fixture never installed its TERM disposition" >&2
+  kill -TERM "$resistant_gate_pid" 2>/dev/null || true
+  exit 1
+}
+resistant_vitals_pid="$(cat "$WORK/vitals-resistant-pid")"
+resistant_budget_pid="$(cat "$WORK/resistant-budget-pid")"
+resistant_sleeper_pid="$(cat "$resistant_ready")"
+kill -0 "$resistant_sleeper_pid" 2>/dev/null || {
+  echo "test-native-gate: resistant vitals never entered its live sleeper wait" >&2
+  kill -TERM "$resistant_gate_pid" 2>/dev/null || true
+  exit 1
+}
+kill -0 "$resistant_budget_pid" 2>/dev/null || {
+  echo "test-native-gate: the teardown fixture never armed a live budget helper" >&2
+  kill -TERM "$resistant_gate_pid" 2>/dev/null || true
+  exit 1
+}
+kill -0 "$resistant_vitals_pid" 2>/dev/null || {
+  echo "test-native-gate: resistant vitals fixture was not alive before teardown" >&2
+  kill -TERM "$resistant_gate_pid" 2>/dev/null || true
+  exit 1
+}
+kill -TERM "$resistant_gate_pid"
+set +e
+wait "$resistant_gate_pid" 2>/dev/null
+resistant_status=$?
+set -e
+(( resistant_status != 0 )) || {
+  echo "test-native-gate: a terminated gate with resistant vitals reported success" >&2
+  exit 1
+}
+[[ ! -e "$resistant_marker" ]] || {
+  echo "test-native-gate: resistant vitals teardown retained the marker" >&2
+  exit 1
+}
+kill -0 "$resistant_vitals_pid" 2>/dev/null && {
+  echo "test-native-gate: TERM-resistant vitals survived teardown escalation and reaping" >&2
+  kill -KILL "-$resistant_vitals_pid" 2>/dev/null || true
+  exit 1
+}
+kill -0 "$resistant_budget_pid" 2>/dev/null && {
+  echo "test-native-gate: the budget helper survived unconditional teardown" >&2
+  kill -KILL "-$resistant_budget_pid" 2>/dev/null || true
+  exit 1
+}
+for _ in $(seq 1 50); do
+  kill -0 "$resistant_sleeper_pid" 2>/dev/null || break
+  sleep 0.1
+done
+kill -0 "$resistant_sleeper_pid" 2>/dev/null && {
+  echo "test-native-gate: the resistant heartbeat sleeper survived its owned group teardown" >&2
+  kill -KILL "$resistant_sleeper_pid" 2>/dev/null || true
+  exit 1
+}
+echo "test-native-gate: teardown escalates and reaps resistant vitals and the armed budget helper before returning"
 
 # ── SIGINT reaches the same unconditional trap ────────────────────────────
 # Ctrl-C forwarded to a foregrounded gate is the other realistic teardown
