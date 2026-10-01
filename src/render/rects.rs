@@ -1915,9 +1915,9 @@ impl TextPipeline {
         let m = self.metrics.panel_ui();
         let pad = m.px(crate::render::chrome::PANEL_PAD);
         let margin = m.px(crate::render::chrome::PANEL_MARGIN);
-        let rows = self.panel_buffer.layout_runs().count().max(1) as f32;
+        let text_h = self.panel_text_height();
         let card_w = self.panel_card_width(width);
-        let card_h = rows * m.line_height + 2.0 * pad;
+        let card_h = text_h + 2.0 * pad;
         let card_x = (width as f32 - card_w - margin).max(0.0);
         let card_y = margin + self.menubar_reserve();
         let text_left = card_x + pad;

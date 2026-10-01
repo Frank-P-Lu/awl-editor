@@ -35,45 +35,50 @@
 //!
 //! **WHICH PATH THIS RUNS ON.** [`TextPipeline::panel_geometry`] is reachable only
 //! from the sidecar writer (once per capture) and the laws; the frame path calls
-//! the band owner, never the projection. One entry per SHAPED ROW of the card —
-//! one, or three once the replace row and its hint line are up — so it is bounded
-//! by the card, not by the document or the match list.
+//! the band owner, never the projection. One entry per shaped row of the card
+//! includes disclosure, fields,
+//! navigation and actions, so it is bounded by the card rather than the document
+//! or match list.
 
 use crate::render::TextPipeline;
 
-/// **THE PANEL'S ROW BAND** — the one owner of `row <-> y` inside the summoned
-/// find/replace card. Uniform rows (the panel does no markdown scaling), so a
-/// band is the text origin stepped by whole line heights.
-///
-/// The three arms are the three spellings a caller needs: a band for the
-/// projection, its centre for the caret block, and the inverse for the pointer.
-/// Scattering them is what lets the three disagree.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// The panel's sole forward/inverse row owner reads the shaped row metrics.
+/// Replacement's extra leading is therefore shared by text, fields, caret,
+/// pointer and capture instead of being a second placement offset.
+#[derive(Clone, Debug, PartialEq)]
 pub(in crate::render) struct PanelRowBands {
     text_top: f32,
     lh: f32,
+    rows: Vec<(usize, f32, f32)>,
 }
-
 impl PanelRowBands {
-    pub(in crate::render) fn new(text_top: f32, lh: f32) -> Self {
-        Self { text_top, lh }
-    }
-
-    /// Row `row`'s band as `(top, height)`.
     pub(in crate::render) fn band(&self, row: f32) -> (f32, f32) {
-        (self.text_top + row * self.lh, self.lh)
+        self.rows
+            .iter()
+            .find(|(i, _, _)| *i as f32 == row)
+            .map_or((self.text_top + row * self.lh, self.lh), |(_, top, h)| {
+                (self.text_top + top, *h)
+            })
     }
-
-    /// That band's vertical centre — where the row's caret block is centred.
     pub(in crate::render) fn center(&self, row: f32) -> f32 {
-        self.text_top + (row + 0.5) * self.lh
+        let (top, h) = self.band(row);
+        top + h * 0.5
     }
-
-    /// The inverse: which row a physical pointer `py` falls in. Signed, and
-    /// unbounded above, because the caller decides what an out-of-range row
-    /// means — the hit-test answers `Elsewhere` for a press in the card's pad.
     pub(in crate::render) fn row_at(&self, py: f32) -> i64 {
-        ((py - self.text_top) / self.lh).floor() as i64
+        let y = py - self.text_top;
+        if let Some((i, _, _)) = self
+            .rows
+            .iter()
+            .find(|(_, top, h)| y >= *top && y < top + h)
+        {
+            return *i as i64;
+        }
+        if let Some((i, top, h)) = self.rows.last() {
+            if y >= top + h {
+                return *i as i64 + 1 + ((y - top - h) / self.lh).floor() as i64;
+            }
+        }
+        (y / self.lh).floor() as i64
     }
 }
 
@@ -113,10 +118,26 @@ pub(crate) struct PanelGeometry {
 }
 
 impl TextPipeline {
+    /// Physical extent of the same shaped row bands used by caret and hits.
+    pub(in crate::render) fn panel_text_height(&self) -> f32 {
+        self.panel_buffer
+            .layout_runs()
+            .map(|r| r.line_top + r.line_height)
+            .fold(self.metrics.panel_ui().line_height, f32::max)
+    }
+
     /// The panel's row band for an inner text origin — the seam the caret placer,
     /// the hit-test and the projection share.
     pub(in crate::render) fn panel_rows(&self, text_top: f32) -> PanelRowBands {
-        PanelRowBands::new(text_top, self.metrics.panel_ui().line_height)
+        PanelRowBands {
+            text_top,
+            lh: self.metrics.panel_ui().line_height,
+            rows: self
+                .panel_buffer
+                .layout_runs()
+                .map(|r| (r.line_i, r.line_top, r.line_height))
+                .collect(),
+        }
     }
 
     /// **THE PANEL CARET'S CENTRE-Y**, the single figure `panel_place_caret` hands

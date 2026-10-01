@@ -758,8 +758,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/panel.rs"
 function = "TextPipeline::panel_shape_text"
-message = "this function has too many lines (191/100)"
-reason = "One ordered measured composition owns field windows, responsive row placement, and all control spans. Measurement and gap mechanics are separate; retaining the composition together keeps caret, selection, drawing, and hit geometry on the same row plan. +23: user-requested refinement aligns actual counter/navigation and replacement actions to the shared shaped field edge, with measured narrow-group wrapping; the field-span stretching mechanics live in PanelText::field. -15: the next user refinement uses stacked full-width fields with disclosure/header hints, removing duplicate inline/footer placement while retaining one measured composition owner."
+message = "this function has too many lines (211/100)"
+reason = "One ordered measured composition owns field windows, responsive row placement, and all control spans. Measurement and gap mechanics are separate; retaining the composition together keeps caret, selection, drawing, and hit geometry on the same row plan. +23: user-requested refinement aligns actual counter/navigation and replacement actions to the shared shaped field edge, with measured narrow-group wrapping; the field-span stretching mechanics live in PanelText::field. -15: the next user refinement uses stacked full-width fields with disclosure/header hints, removing duplicate inline/footer placement while retaining one measured composition owner. +20: the final optical refinement shapes a 24px bundled disclosure glyph separately from its world-face label, gives replacement its shaped 8px leading and sufficient buffer extent, and publishes the cached action ink centers after shaping. The measured text helper and raster measurement are separate owners; preserving the ordered rich-text composition avoids shared-state ordering indirection."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

@@ -217,6 +217,7 @@ mod palette_shortcuts;
 mod panel_bordered_chrome;
 mod panel_composition;
 mod panel_field_selection;
+mod panel_optical_spacing;
 mod panel_spacing_law;
 mod paperbark_retina;
 mod pipeline_tint_law;

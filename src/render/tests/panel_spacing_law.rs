@@ -109,6 +109,11 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
         );
     }
     let find = control(g, "find_field");
+    let find_header_row = p.panel_control_spans.find_field.unwrap().row as usize - 1;
+    assert!(
+        (ink_span(p, g, find_header_row, "Find")[0] - find[0]).abs() <= 0.51,
+        "{ctx}: Find header starts at field box edge"
+    );
     let replace = control(g, "replace_field");
     let field_right = find[0] + find[2];
     assert!(
@@ -122,6 +127,11 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
             "{ctx}: {name} must end at the field edge: {rect:?} / {field_right}"
         );
     }
+    let actions = control(g, "replace_button");
+    assert!(
+        actions[1] - (replace[1] + replace[3]) >= 8.0 * dpi - 0.51,
+        "{ctx}: replacement needs visible air before actions: {replace:?} / {actions:?}"
+    );
     let nav_row = p.panel_control_spans.nav_prev.unwrap().row as usize;
     assert_gap(
         ctx,

@@ -14,6 +14,7 @@
 //! byte-count assumption would be wrong the instant a label isn't ASCII-mono.
 
 use super::TextPipeline;
+use glyphon::SwashContent;
 
 /// A control's text, as the BYTE RANGE it occupies within its own row's
 /// shaped line (cosmic-text resets `LayoutGlyph::start`/`end` to 0 at every
@@ -32,6 +33,7 @@ pub(in crate::render) struct ControlSpan {
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub(in crate::render) struct PanelControlSpans {
     pub stacked_fields: bool,
+    pub action_ink_centers: [Option<f32>; 2],
     pub find_field: Option<ControlSpan>,
     pub replace_field: Option<ControlSpan>,
     pub nav_prev: Option<ControlSpan>,
@@ -122,11 +124,74 @@ impl TextPipeline {
         let ui = self.metrics.panel_ui();
         let pad_x = ui.px(CONTROL_BOX_PAD_X);
         let pad_y = ui.px(CONTROL_BOX_PAD_Y);
-        let (top, h) = self.panel_rows(text_top).band(span.row);
+        let (mut top, mut h) = self.panel_rows(text_top).band(span.row);
+        // Extra shaped leading creates air, without enlarging a field target.
+        let target_h = h.min(ui.line_height);
+        top += (h - target_h) * 0.5;
+        h = target_h;
         let natural_w = (x1 - x0) + 2.0 * pad_x;
         let w = natural_w.max(ui.px(CONTROL_MIN_W));
         let center = text_left + (x0 + x1) * 0.5;
         Some([center - w * 0.5, top + pad_y, w, (h - 2.0 * pad_y).max(0.0)])
+    }
+
+    /// Cache the two action labels' actual raster ink centres after shaping.
+    /// Draw, pointer and capture then resolve the same preserved-size targets.
+    pub(super) fn panel_measure_action_ink(&mut self) {
+        for (i, span) in [
+            self.panel_control_spans.replace_button,
+            self.panel_control_spans.replace_all_button,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let Some(span) = span else {
+                continue;
+            };
+            let glyphs: Vec<_> = self
+                .panel_buffer
+                .layout_runs()
+                .filter(|run| run.line_i == span.row as usize)
+                .flat_map(|run| {
+                    run.glyphs
+                        .iter()
+                        .filter(move |g| g.start >= span.byte_start && g.start < span.byte_end)
+                        .map(move |g| (g.physical((0.0, 0.0), 1.0), run.line_y.round()))
+                })
+                .collect();
+            let (mut top, mut bottom) = (f32::INFINITY, f32::NEG_INFINITY);
+            for (glyph, baseline) in glyphs {
+                let Some(img) = self
+                    .swash_cache
+                    .get_image(&mut self.font_system, glyph.cache_key)
+                    .as_ref()
+                else {
+                    continue;
+                };
+                if img.content != SwashContent::Mask
+                    || img.placement.width == 0
+                    || img.placement.height == 0
+                {
+                    continue;
+                }
+                let y = baseline + glyph.y as f32 - img.placement.top as f32;
+                // Raster placement can contain zero mask padding. Only rows
+                // with actual ink participate in the optical centre.
+                let mut ink_rows = img
+                    .data
+                    .chunks_exact(img.placement.width as usize)
+                    .enumerate()
+                    .filter(|(_, row)| row.iter().any(|&alpha| alpha != 0))
+                    .map(|(row, _)| row);
+                if let Some(first) = ink_rows.next() {
+                    let last = ink_rows.next_back().unwrap_or(first);
+                    top = top.min(y + first as f32);
+                    bottom = bottom.max(y + last as f32 + 1.0);
+                }
+            }
+            self.panel_control_spans.action_ink_centers[i] =
+                (bottom > top).then_some((top + bottom) * 0.5);
+        }
     }
 
     /// **THE ONE OWNER** every control's physical rect comes through: the
@@ -142,6 +207,13 @@ impl TextPipeline {
         text_top: f32,
     ) -> ResolvedPanelControls {
         let one = |s: Option<ControlSpan>| s.and_then(|s| self.resolve_one(s, text_left, text_top));
+        let action = |span: Option<ControlSpan>, center: Option<f32>| {
+            let mut rect = one(span)?;
+            if let Some(center) = center {
+                rect[1] = text_top + center - rect[3] * 0.5;
+            }
+            Some(rect)
+        };
         ResolvedPanelControls {
             find_field: one(spans.find_field),
             replace_field: one(spans.replace_field),
@@ -150,8 +222,16 @@ impl TextPipeline {
             case_box: one(spans.case_box),
             close: one(spans.close),
             reveal: one(spans.reveal),
-            replace_button: one(spans.replace_button),
-            replace_all_button: one(spans.replace_all_button),
+            replace_button: action(spans.replace_button, spans.action_ink_centers[0]),
+            replace_all_button: action(spans.replace_all_button, spans.action_ink_centers[1]),
         }
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn panel_field_rows_probe(&self) -> (Option<f32>, Option<f32>) {
+        (
+            self.panel_control_spans.find_field.map(|s| s.row),
+            self.panel_control_spans.replace_field.map(|s| s.row),
+        )
     }
 }

@@ -219,8 +219,8 @@ fn assert_card_matches_the_ink(name: &str, png: &std::path::Path, p: &Panel) {
     );
 }
 
-/// One scale's block on its own terms — bands stepping contiguously at one
-/// pitch from the text origin, the toggle inside the card, the ink origin inside
+/// One scale's block on its own terms — bands stepping contiguously by their shaped
+/// heights from the text origin, the toggle inside the card, the ink origin inside
 /// the card. Checked at BOTH scales, because a relation between two scales says
 /// nothing about whether either describes a real card.
 fn assert_internally_consistent(name: &str, p: &Panel) {
@@ -236,17 +236,18 @@ fn assert_internally_consistent(name: &str, p: &Panel) {
         pitch > 4.0,
         "{name}: a {pitch}px row pitch is not a drawn row"
     );
+    let mut next_top = p.text_top;
     for (i, (row, top, h)) in p.rows.iter().enumerate() {
         assert_eq!(*row as usize, i, "{name}: bands must be in draw order");
         assert!(
-            (top - (p.text_top + i as f64 * pitch)).abs() < 0.01,
-            "{name}: row {i} is at {top}, not text_top {} + {i} * pitch {pitch}",
-            p.text_top
+            (top - next_top).abs() < 0.01,
+            "{name}: row {i} is at {top}, not the preceding shaped band's end {next_top}"
         );
         assert!(
-            (h - pitch).abs() < 0.01,
-            "{name}: row {i} is {h} tall against a pitch of {pitch}"
+            *h >= pitch,
+            "{name}: row {i}'s shaped height {h} must carry at least the base pitch {pitch}"
         );
+        next_top = top + h;
         // Overlap, not containment: the card is a rect around ink, and the two
         // have separate owners.
         assert!(

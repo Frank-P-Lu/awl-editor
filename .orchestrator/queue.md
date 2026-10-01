@@ -26,17 +26,17 @@ preserved train and dirty edits, retain the newer main Find/Replace design, and
 combine the cloud UI fixes. Unchosen prototypes, private data, tags and deployments
 remain outside this publication candidate. Freeze and gate before landing.
 
-**Publication paused for review:** the user reviewed the Find/Replace capture and
-requested better spacing, arrow placement, close alignment and a quieter Replace
-disclosure. The second refined release preview uses a narrower card, full-width
-fields, one shared right edge for close/navigation/actions, and a chevron Replace
-heading with inline shortcut hints. Expanded and Find-only captures await user
-review. Targeted panel and seven-field IME capture laws pass. The first combined native gate stopped in
-its heartbeat-shutdown self-test; the owned-helper teardown repair now passes its
-full self-test and mutation proof. The superseded layout's later gate passed real
-health and its canary before being stopped through supported teardown for this
-refinement; it issued no full receipt. Full native and wasm gates on the final
-reviewed layout, main publication, hosted CI and retirement remain owed.
+**Publication paused for review:** the narrower six-row Find/Replace composition
+was approved in direction. The user requested final optical refinements: align
+Find's ink to the field edge, shift close ink within its retained target, enlarge
+the disclosure chevron, add air below replacement, and center action words on
+actual glyph ink. The candidate includes these refinements with one shared shaped
+row owner and cached raster measurements. A final native release preview awaits
+user approval. The focused panel roster, including the all-world/DPI pixel law,
+passes. Interrupted earlier gates passed real health and canaries but issued no
+full receipt; supported teardown preserved the tree and stopped owned helpers.
+Full native and wasm gates on the final frozen layout, main publication, hosted
+CI and safe retirement remain owed.
 
 **Release constraint:** every public installable app download must be strictly
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip

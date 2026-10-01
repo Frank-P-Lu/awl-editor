@@ -8,101 +8,8 @@ pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
 pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
 pub(in crate::render) const PANEL_MIN_W: Logical = Logical(440.0);
 
-/// A bounded rich-text composer. Each gap is a measured monospace space with
-/// its own advance; all visible text retains the world's face and size role.
-struct PanelText<'a> {
-    fonts: &'a mut FontSystem,
-    probe: glyphon::Buffer,
-    spans: Vec<(String, Attrs<'static>)>,
-    metrics: GlyphMetrics,
-    space: f32,
-    row: f32,
-    byte: usize,
-    x: f32,
-}
-
-impl<'a> PanelText<'a> {
-    fn new(fonts: &'a mut FontSystem, metrics: GlyphMetrics) -> Self {
-        let probe = glyphon::Buffer::new(fonts, metrics);
-        let mut out = Self {
-            fonts,
-            probe,
-            spans: Vec::new(),
-            metrics,
-            space: 1.0,
-            row: 0.0,
-            byte: 0,
-            x: 0.0,
-        };
-        out.space = out.measure(" ", &Attrs::new().family(Family::Monospace));
-        out
-    }
-
-    fn measure(&mut self, text: &str, attrs: &Attrs<'static>) -> f32 {
-        self.probe
-            .set_text(self.fonts, text, attrs, Shaping::Advanced, None);
-        self.probe.shape_until_scroll(self.fonts, false);
-        self.probe
-            .layout_runs()
-            .map(|r| r.line_w)
-            .fold(0.0, f32::max)
-    }
-
-    fn push(&mut self, text: &str, attrs: Attrs<'static>) -> ControlSpan {
-        let span = ControlSpan {
-            row: self.row,
-            byte_start: self.byte,
-            byte_end: self.byte + text.len(),
-        };
-        self.x += self.measure(text, &attrs);
-        self.byte = span.byte_end;
-        self.spans.push((text.to_owned(), attrs));
-        span
-    }
-
-    fn gap(&mut self, width: f32) {
-        if width <= 0.0 {
-            return;
-        }
-        let attrs = Attrs::new()
-            .family(Family::Monospace)
-            .letter_spacing((width - self.space) / self.metrics.font_size);
-        self.spans.push((" ".into(), attrs));
-        self.byte += 1;
-        self.x += width;
-    }
-
-    fn newline(&mut self) {
-        self.spans.push(("\n".into(), Attrs::new()));
-        self.row += 1.0;
-        self.byte = 0;
-        self.x = 0.0;
-    }
-
-    /// Stretch the shaped field's trailing whitespace to one shared edge.
-    /// The published span, border, and hit target all read this same advance.
-    fn field(&mut self, text: &str, attrs: Attrs<'static>, right: f32, pad: f32) -> ControlSpan {
-        let span = self.push(text, attrs.clone());
-        // Reserve the caret cell inside the field, including its hit span.
-        self.push(" ", attrs);
-        self.gap((right - pad - self.x).max(0.0));
-        ControlSpan {
-            byte_end: self.byte,
-            ..span
-        }
-    }
-
-    /// Center a label in an honest minimum-width target. The gaps belong to
-    /// layout, while the published control continues to name its visible ink.
-    fn button(&mut self, text: &str, attrs: Attrs<'static>, min: f32, pad: f32) -> ControlSpan {
-        let ink = self.measure(text, &attrs);
-        let side = ((min - ink) * 0.5).max(pad);
-        self.gap(side);
-        let span = self.push(text, attrs);
-        self.gap(side);
-        span
-    }
-}
+mod text;
+use text::PanelText;
 
 impl TextPipeline {
     pub(in crate::render) fn prepare_panel(
@@ -177,14 +84,14 @@ impl TextPipeline {
             stacked_fields: true,
             ..Default::default()
         };
-        t.gap(pad);
         t.push("Find", label.clone().color(muted));
         let close_hint = crate::keyspec::PANEL_CLOSE.label();
         let close_hint_w = t.measure(&close_hint, &label);
         t.gap((inner - target - gap - close_hint_w - t.x).max(gap));
         t.push(&close_hint, label.clone().color(muted));
         t.gap(gap);
-        controls.close = Some(t.button("×", symbol.clone().color(muted), target, pad));
+        controls.close =
+            Some(t.close_button(symbol.clone().color(muted), target, pad, m.px(Logical(4.0))));
         t.newline();
         t.gap(field_left);
         let find = t.field(&query_view, field.clone(), field_right, pad);
@@ -237,12 +144,24 @@ impl TextPipeline {
 
         t.newline();
         let disclosure = if self.search_replace_active {
-            "▾ Replace"
+            "▾"
         } else {
-            "› Replace"
+            "›"
         };
         t.gap(pad);
-        controls.reveal = Some(t.push(disclosure, label.clone().color(muted)));
+        let reveal = t.push(
+            disclosure,
+            symbol
+                .clone()
+                .family(Family::Name("JetBrains Mono"))
+                .color(muted)
+                .metrics(m.glyph_metrics()),
+        );
+        t.push(" Replace", label.clone().color(muted));
+        controls.reveal = Some(ControlSpan {
+            byte_end: t.byte,
+            ..reveal
+        });
         t.gap(pad);
         let field_hint = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
         let field_hint_w = t.measure(&field_hint, &label);
@@ -255,8 +174,15 @@ impl TextPipeline {
         if self.search_replace_active {
             t.newline();
             t.gap(field_left);
-            controls.replace_field =
-                Some(t.field(&replacement_view, field.clone(), field_right, pad));
+            controls.replace_field = Some(t.field(
+                &replacement_view,
+                field.clone().metrics(GlyphMetrics::new(
+                    m.font_size,
+                    m.line_height + m.px(Logical(8.0)),
+                )),
+                field_right,
+                pad,
+            ));
             t.newline();
             let first = (t.measure("Replace", &label) + 2.0 * pad).max(target);
             let all = (t.measure("Replace all", &label) + 2.0 * pad).max(target);
@@ -309,7 +235,7 @@ impl TextPipeline {
         self.panel_buffer.set_size(
             &mut self.font_system,
             Some(width as f32 * 2.0),
-            Some(m.line_height * rows),
+            Some(m.line_height * rows + m.px(Logical(8.0))),
         );
         self.panel_buffer.set_rich_text(
             &mut self.font_system,
@@ -323,6 +249,7 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
         self.panel_control_spans = controls;
+        self.panel_measure_action_ink();
         PanelShape {
             no_match,
             ink,
@@ -332,13 +259,5 @@ impl TextPipeline {
             caret_row: span.row,
             selection_span,
         }
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn panel_field_rows_probe(&self) -> (Option<f32>, Option<f32>) {
-        (
-            self.panel_control_spans.find_field.map(|s| s.row),
-            self.panel_control_spans.replace_field.map(|s| s.row),
-        )
     }
 }
