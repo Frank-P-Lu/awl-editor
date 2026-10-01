@@ -215,7 +215,6 @@ impl TextPipeline {
                     .prepare(device, queue, width, height, &strikes);
                 self.popover_upload_text(device, queue, width, height, &geom)?;
                 self.popover_geom = Some(geom);
-                Ok(())
             }
             None => {
                 // THE GUARD'S REAL JOB: an overlay or the search panel may
@@ -238,9 +237,9 @@ impl TextPipeline {
                 // to `None` — reading `popover_hit` against a `None` geom —
                 // but that door is event-driven, not guaranteed every frame).
                 self.popover_hover = None;
-                Ok(())
             }
         }
+        Ok(())
     }
 
     /// Shape the button labels, measure each button's real glyph span, and lay out
