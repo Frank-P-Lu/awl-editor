@@ -4,6 +4,75 @@ Read before planning checks, dispatching implementation, changing a source audit
 or deciding whether an existing result covers a later commit. This policy owns
 verification scope and ordering; the orchestration guide owns dispatch mechanics.
 
+
+## Three verification layers
+
+Layer 1 is the editing loop. Run `scripts/verify.sh fast UNIT_FILTER...` with
+explicit selectors for the owners changed by the diff. For example,
+`scripts/verify.sh fast buffer:: actions::` checks formatting, compiles all native
+targets, runs the existing diagnostic/substitution/view-policy ownership audits,
+and runs the selected unit tests. `--lint` before the selectors adds strict
+all-target/all-feature Clippy. This avoids the full health wrapper's process-budget
+stress tests during every edit. An unmatched selector fails rather than reporting
+an empty pass. Selectors are not automatic dependency analysis: inspect the diff
+and include neighboring behavior and relevant convention/menu branches.
+
+Integration targets need their real seam too: use, for example,
+`cargo test --test fault_kill9` and `cargo test --test persistence_real_process`
+when changing atomic writes or persistence. Keep Unicode, selection, undo, save
+fidelity and data-loss regression checks in the editing loop for affected owners.
+Reintroduce a repaired headline defect to prove its regression assertion fails.
+Render changes retain the changed-axis outcome audit and about five real visual
+smoke captures; neither a compiler check nor a state sidecar proves appearance.
+Worker launches use the existing worker-build wrapper.
+
+Layer 2 is the frozen combined candidate. Commit, freeze and run
+`scripts/verify.sh full` once. It invokes the existing full native gate (including
+complete code health and its tooling laws), wasm build/test compilation/Node smoke,
+and eight-family debug/release parity, failing on any command error. The wasm
+runner is required here so core runtime execution cannot be skipped. The final
+HEAD and working tree must still be unchanged. This is one composed gate, not
+permission to replace required coverage with filtered tests.
+
+CI preserves the current required Linux, Mac non-render, wasm and Mac live-probe
+jobs. Linux invokes native-gate.sh once; its redundant standalone complete health
+invocation is removed. Web remains its own platform job, and push profile parity
+remains blocking. The Mac rendering and AT-SPI jobs retain their existing declared
+tolerances and visible gap reports. Local Metal/software Vulkan does not certify
+hosted virtualized Metal. Do not run complete health immediately before the
+native gate just to repeat it. Workers deliver targeted evidence; combine their
+changes and gate the final candidate, not every worker branch by default.
+
+Layer 3 is broader overnight and pre-release validation.
+Extended verification runs daily at **03:17 UTC** on the default branch, or manually
+through `extended-verification.yml` with mode overnight/pre-release. It is also
+called by the nonpublishing and tagged release workflow before package jobs.
+Both hosted Linux and macOS build release once, sweep the binary's complete world
+roster at both DPI values using `scripts/verify.sh extended --bin
+target/release/awl --jobs 1`, then run a longer 120-second live GPU launch.
+A finding or failed app contract fails that job; there is no new tolerated-failure
+arm. The existing full unit/integration suites are not duplicated overnight.
+
+The release workflow then validates its actual artifacts: the executable inside
+the mounted Mac DMG, the extracted Linux tarball binary, and the AppImage's real
+extract-and-run entry point each launch with synthetic isolated fixtures and
+the built app's live presentation/recovery/memory verdict. The launcher is
+CI-only because it opens a window. Package metadata, signing policy, checksums,
+compression-size checks and the existing release authorization remain in place.
+
+The automation is not a human journey. Before a release, finish the real desktop
+launch, native menus, physical IME/keyboard, browser clipboard and accessibility
+journeys listed in RELEASING.md, WEB.md and ACCESSIBILITY.md. Do not grant automation
+permissions, sign with new credentials, publish a release or deploy as part of
+overnight checks. Existing artifact retention is seven days for synthetic journey
+evidence; failed runs keep their available evidence too.
+
+Commands and failures in this layer are defined by the existing check owners;
+`scripts/test-verification-pipeline.py` proves dispatch, failure propagation,
+nonempty targeted runs, frozen-candidate checks, workflow coverage wiring and
+built-binary launch isolation. It runs from code health so wiring regressions
+block the final gate. Gate-tool changes still require a real final-gate rehearsal.
+
 ## Order the work by cost
 
 1. Inspect the diff and identify the behavior, platforms, and source audits it touches.

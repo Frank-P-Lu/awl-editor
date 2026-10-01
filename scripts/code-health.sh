@@ -85,6 +85,7 @@ scripts/test-native-gate.sh
 # stubbing its two steps so this does not recompile clippy from scratch on
 # every code-health.sh pass. Wired at birth, same reason as the gate law above.
 scripts/test-preflight.sh
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-verification-pipeline.py
 # scripts/verify_cache.py's reuse-invalidation, failure, cancellation,
 # concurrency, and unrecognised-input laws, entirely against a throwaway
 # fixture repo and fake commands (never the real cargo tests it is meant to

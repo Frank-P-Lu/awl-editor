@@ -44,6 +44,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONSUMERS=(
   .github/workflows/ci.yml
   .github/workflows/release.yml
+  .github/workflows/extended-verification.yml
   Dockerfile.linux
   run-linux.sh
   scripts/linux-build-deps.sh

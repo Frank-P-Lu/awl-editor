@@ -98,9 +98,16 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
+  extended:
+    name: Pre-release journeys
+    needs: plan
+    uses: ./.github/workflows/extended-verification.yml
+    with:
+      mode: pre-release
+
   mac:
     name: mac (universal .app + .dmg)
-    needs: plan
+    needs: [plan, extended]
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -279,6 +286,7 @@ jobs:
             xcrun stapler validate "$MOUNT/Awl.app"
             spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
           fi
+          python3 scripts/release-launch-smoke.py --binary "$MOUNT/Awl.app/Contents/MacOS/awl"
           (cd dist-mac && shasum -a 256 "$DMG" > "$DMG.sha256")
           (cd dist-mac && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
 
@@ -300,7 +308,7 @@ jobs:
 
   linux:
     name: linux (release tar.gz)
-    needs: plan
+    needs: [plan, extended]
     # THE GLIBC FLOOR IS SET HERE AND NOWHERE ELSE — whichever image builds
     # this job decides which systems can run the download. `ubuntu-latest`
     # (24.04, glibc 2.39) excluded Debian 12, Ubuntu 22.04 LTS and RHEL 9 over
@@ -324,7 +332,7 @@ jobs:
       # worse, silently ship differently — only on a tag. scripts/linux-deps.sh
       # is the one owner; linux-deps-law.sh keeps it the only one.
       - name: Install system dependencies
-        run: scripts/linux-build-deps.sh test
+        run: scripts/linux-build-deps.sh --timeout 5m run xvfb xauth
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -382,6 +390,17 @@ jobs:
         env:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: scripts/package-appimage.sh target/release/awl dist-linux
+
+      - name: Launch actual Linux download artifacts
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          UNPACK="$RUNNER_TEMP/awl-release-launch"
+          mkdir -p "$UNPACK"
+          tar xzf "dist-linux/awl-$VERSION-linux-x86_64.tar.gz" -C "$UNPACK"
+          xvfb-run -a python3 scripts/release-launch-smoke.py --binary "$UNPACK/awl-$VERSION-linux-x86_64/awl"
+          xvfb-run -a python3 scripts/release-launch-smoke.py --binary "$PWD/dist-linux/awl-$VERSION-linux-x86_64.AppImage" --appimage
 
       - uses: actions/upload-artifact@v7
         with:

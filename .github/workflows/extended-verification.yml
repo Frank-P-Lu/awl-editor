@@ -1,0 +1,64 @@
+name: Extended verification
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verification purpose
+        type: choice
+        options: [overnight, pre-release]
+        default: overnight
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        default: pre-release
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extended-${{ github.workflow }}-${{ github.ref }}-${{ inputs.mode || 'overnight' }}
+  cancel-in-progress: false
+
+jobs:
+  journeys:
+    name: "${{ matrix.os }} journeys and live release launch"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - name: Linux window and rendering dependencies
+        if: runner.os == 'Linux'
+        run: scripts/linux-build-deps.sh --timeout 5m run xvfb xauth
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: extended-${{ runner.os }}
+          cache-on-failure: true
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+      - name: Build release once
+        run: scripts/with-remap.sh cargo build --release --bin awl
+      - name: All worlds and both DPI journey sweep
+        run: scripts/verify.sh extended --bin target/release/awl --jobs 1
+      - name: Extended live launch on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python3 scripts/release-launch-smoke.py --binary target/release/awl --seconds 120
+      - name: Extended live launch on macOS
+        if: runner.os == 'macOS'
+        run: python3 scripts/release-launch-smoke.py --binary target/release/awl --seconds 120
+      - name: Preserve journey evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: extended-${{ matrix.os }}-${{ inputs.mode || 'overnight' }}
+          path: gallery/pretag/
+          if-no-files-found: error
+          retention-days: 7

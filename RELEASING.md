@@ -292,6 +292,13 @@ warns, because it must stay runnable against an older checkout.
 
 ## 5. Pre-tag checklist
 
+The three verification layers are defined in [docs/verification.md](docs/verification.md#three-verification-layers).
+The release workflow requires the full hosted world/DPI journey sweep first, then
+launches the actual mounted Mac bundle and both Linux download forms with isolated
+fixtures. These automated presentation/recovery checks do not replace the real
+desktop, input, accessibility and package-launch reviews below. Nightly verification
+never tags, signs with new credentials, publishes or deploys.
+
 Nothing here is automatic. Work it top to bottom on the exact commit the tag
 will name. `scripts/pretag-journeys.py` is the journey-sweep instrument this
 checklist's audit policy requires (CLAUDE.md, "pre-tag: a journey sweep

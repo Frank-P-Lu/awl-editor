@@ -9,8 +9,9 @@ staged Settings workspace, or the caret and selection at document extremes.
 Each tag therefore paid for a bespoke driver that then evaporated. This is that
 driver, kept.
 
-It is NOT a gate. It is run deliberately before a tag, so it may be slow and
-thorough where a per-push check could not be. Nothing here belongs in CI.
+It is the broader overnight and pre-release journey check, separate from the
+per-push full gate. The extended workflow runs the complete roster; filtered
+local sweeps are targeted evidence and do not replace pre-release coverage.
 
     scripts/pretag-journeys.py                 # release build, whole roster
     scripts/pretag-journeys.py --debug         # debug build (faster to get to)

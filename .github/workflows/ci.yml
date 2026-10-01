@@ -130,9 +130,6 @@ jobs:
       - name: Install code-health tools
         run: cargo install cargo-machete --version "$(bash scripts/code-health.sh --cargo-machete-version)" --locked
 
-      - name: Rust code health
-        run: bash scripts/code-health.sh
-
       # The shared wrapper owns the pinned cargo-deny version and every
       # dependency-policy decision; CI must not restate policy in YAML.
       - name: Install dependency-policy tool

@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""Launch the actual packaged binary with isolated fixtures and its live GPU contract."""
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+
+
+def launch(binary: Path, seconds: int, timeout: float, appimage: bool) -> int:
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise ValueError("the built artifact must be an executable file")
+    with tempfile.TemporaryDirectory(prefix="awl-release-launch-") as folder:
+        root = Path(folder)
+        project = root / "project"
+        project.mkdir()
+        (root / "workspace").mkdir()
+        (root / "notes").mkdir()
+        document = project / "fixture.md"
+        document.write_text("# Packaged launch fixture\n\nPlain text, 日本語, and an editable line.\n")
+        config = root / "config.toml"
+        config.write_text("history = false\nautosave = false\nsession_restore = false\n")
+        env = dict(os.environ)
+        for key, child in [
+            ("XDG_CONFIG_HOME", "config"), ("XDG_DATA_HOME", "data"),
+            ("XDG_CACHE_HOME", "cache"),
+        ]:
+            directory = root / child
+            directory.mkdir()
+            env[key] = str(directory)
+        command = [str(binary)]
+        if appimage:
+            command.append("--appimage-extract-and-run")
+        command.extend([
+            "--config", str(config), "--root", str(project),
+            "--workspace", str(root / "workspace"), "--notes-root", str(root / "notes"),
+            "--soak-gpu", "--soak-gpu-seconds", str(seconds), str(document),
+        ])
+        process = subprocess.Popen(
+            command, cwd=root, env=env, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        try:
+            output, _ = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                output, _ = process.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                output, _ = process.communicate()
+            print(output, end="")
+            print("release-launch: timed out; owned process group retired", file=sys.stderr)
+            return 1
+        print(output, end="")
+        if process.returncode:
+            print(f"release-launch: built artifact failed with status {process.returncode}", file=sys.stderr)
+            return 1
+        # The app's Report::passed owns presentation, recovery and memory verdicts.
+        print("release-launch: actual built artifact passed its live GPU contract")
+        return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--seconds", type=int, default=25)
+    parser.add_argument("--timeout", type=float)
+    parser.add_argument("--appimage", action="store_true")
+    args = parser.parse_args()
+    if args.seconds < 25 or (args.timeout is not None and args.timeout <= 0):
+        parser.error("seconds must be at least 25 and timeout must be positive")
+    if not os.environ.get("CI"):
+        parser.error("this live launch is CI-only; use the real desktop pre-release checklist locally")
+    try:
+        return launch(args.binary.absolute(), args.seconds, args.timeout or (2 * args.seconds + 60), args.appimage)
+    except (OSError, ValueError) as error:
+        print(f"release-launch: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
