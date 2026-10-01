@@ -65,6 +65,31 @@ pub fn label_point(origin: [f32; 2], axis: [f32; 2], local: [f32; 2]) -> [f32; 2
     ]
 }
 
+/// Pen origin placing tight raster ink at a slot's centre at any rotation.
+/// The caller retains its own padded mask quad and generous hit target.
+pub fn centered_origin(ink: InkBox, screen_center: [f32; 2], axis: [f32; 2]) -> [f32; 2] {
+    let local = [ink[0] + ink[2] * 0.5, ink[1] + ink[3] * 0.5];
+    let offset = label_point([0.0, 0.0], axis, local);
+    [screen_center[0] - offset[0], screen_center[1] - offset[1]]
+}
+
+/// Exact quadrant rotations preserve texels when the pen origin is integral.
+/// Snap only those settled axes; arbitrary angles retain their smooth origin.
+/// Optical centring may shift by at most half a physical pixel per axis.
+pub fn pixel_aligned_centered_origin(
+    ink: InkBox,
+    screen_center: [f32; 2],
+    axis: [f32; 2],
+) -> [f32; 2] {
+    let axis = unit_axis(axis);
+    let origin = centered_origin(ink, screen_center, axis);
+    if axis[0] == 0.0 || axis[1] == 0.0 {
+        [origin[0].round(), origin[1].round()]
+    } else {
+        origin
+    }
+}
+
 /// A screen point mapped back INTO the run's own frame — the exact inverse of
 /// [`label_point`]. The basis is orthonormal, so the inverse is a pair of dot
 /// products and never a matrix solve.

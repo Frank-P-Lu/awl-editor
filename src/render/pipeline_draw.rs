@@ -303,6 +303,8 @@ impl TextPipeline {
             blur_recompute: false,
             blur_sig: None,
             panel_renderer,
+            glyph_ink_cache: Default::default(),
+            panel_control_marks: Default::default(),
             placard_renderer,
             panel_buffer: overlay_buffers.panel,
             docked_facet_buffer: overlay_buffers.docked_facet,

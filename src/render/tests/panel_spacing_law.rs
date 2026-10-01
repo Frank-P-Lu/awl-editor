@@ -141,8 +141,8 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
     );
     let case = control(g, "case_toggle");
     assert!(
-        (case[0] - find[0]).abs() <= 0.51,
-        "{ctx}: Match case must align with the field edge: {case:?} / {find:?}"
+        (case[0] + 6.0 * dpi - find[0]).abs() <= 0.51,
+        "{ctx}: Match case ink slot must align with the field edge: {case:?} / {find:?}"
     );
     let close_row = p.panel_control_spans.close.unwrap().row as usize;
     let close_hint = crate::keyspec::PANEL_CLOSE.label();

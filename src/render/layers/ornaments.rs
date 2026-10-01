@@ -95,9 +95,19 @@ impl RuleOrnaments {
     }
 }
 
+/// One distinct list drawing and its shared tight-ink placement correction.
+struct ListMarkerGlyph {
+    glyph: char,
+    scale_bits: u32,
+    slot_width_bits: u32,
+    ink: [u8; 4],
+    buffer: GlyphBuffer,
+    offset: [f32; 2],
+}
+
 struct ListMarkers {
     marks: Vec<crate::render::rects::ListMark>,
-    glyphs: Vec<(char, u32, u32, [u8; 4], GlyphBuffer)>,
+    glyphs: Vec<ListMarkerGlyph>,
 }
 
 impl ListMarkers {
@@ -142,7 +152,29 @@ impl ListMarkers {
                     Some(glyphon::cosmic_text::Align::Center),
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                (ch, scale_bits, width_bits, ink, buffer)
+                let glyphs = crate::rotated_label::ink::buffer_key(&buffer);
+                let offset = pipeline
+                    .glyph_ink_cache
+                    .bounds(
+                        &mut pipeline.font_system,
+                        &mut pipeline.swash_cache,
+                        &glyphs,
+                    )
+                    .map_or([0.0, 0.0], |ink| {
+                        crate::rotated_label::geometry::centered_origin(
+                            ink,
+                            [width * 0.5, metrics.line_height * 0.5],
+                            [1.0, 0.0],
+                        )
+                    });
+                ListMarkerGlyph {
+                    glyph: ch,
+                    scale_bits,
+                    slot_width_bits: width_bits,
+                    ink,
+                    buffer,
+                    offset,
+                }
             })
             .collect();
         Self { marks, glyphs }
@@ -155,21 +187,20 @@ impl ListMarkers {
         ch: char,
         bounds: TextBounds,
     ) {
-        let buffer = &self
+        let glyph = self
             .glyphs
             .iter()
-            .find(|(candidate, scale, width, ink, _)| {
-                *candidate == ch
-                    && *scale == marker.scale.to_bits()
-                    && *width == marker.slot_width.to_bits()
-                    && *ink == marker.ink
+            .find(|glyph| {
+                glyph.glyph == ch
+                    && glyph.scale_bits == marker.scale.to_bits()
+                    && glyph.slot_width_bits == marker.slot_width.to_bits()
+                    && glyph.ink == marker.ink
             })
-            .expect("list-marker glyph was deduped in")
-            .4;
+            .expect("list-marker glyph was deduped in");
         areas.push(TextArea {
-            buffer,
-            left: marker.left,
-            top: marker.paint_top,
+            buffer: &glyph.buffer,
+            left: marker.left + glyph.offset[0],
+            top: marker.paint_top + glyph.offset[1],
             scale: 1.0,
             bounds,
             default_color: glyphon::Color::rgba(

@@ -50,6 +50,8 @@ impl TextPipeline {
             )
             .map_err(|e| anyhow::anyhow!("glyphon panel prepare failed: {e:?}"))?;
 
+        self.prepare_control_marks(device, queue, (width, height), [text_left, text_top]);
+
         // ELEVATE the card on the reusable floating-panel primitive (raised
         // border + base_300 card), so the
         // summoned find/replace panel reads as risen a step above the crisp

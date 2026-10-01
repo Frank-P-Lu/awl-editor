@@ -42,14 +42,7 @@ fn ink_bounds(
     [left as f32, top as f32, right as f32, bottom as f32]
 }
 
-fn assert_header_ink(
-    p: &TextPipeline,
-    ctx: &str,
-    pixels: &[[u8; 4]],
-    width: u32,
-    g: &plan::PanelGeometry,
-    dpi: f32,
-) {
+fn assert_header_ink(ctx: &str, pixels: &[[u8; 4]], width: u32, g: &plan::PanelGeometry, dpi: f32) {
     let muted = rgba(theme::muted());
     let ground = rgba(theme::THEMES[theme::active_index()].base_300);
     let field = control(g, "find_field");
@@ -72,27 +65,82 @@ fn assert_header_ink(
         "{ctx}: close ink should move right inside its target: {mark:?} / {close:?}"
     );
     assert!(close[2] >= 32.0 * dpi - 0.01 && close[3] >= 32.0 * dpi - 0.01);
-    let reveal = control(g, "reveal_replace");
-    let span = p.panel_control_spans.reveal.unwrap();
-    let (x0, x1) = p
-        .panel_span_x(span.row, span.byte_start, span.byte_start + "▾".len())
-        .unwrap();
-    let arrow = ink_bounds(
-        pixels,
-        width,
-        [
-            g.text_left + x0 - dpi,
-            reveal[1],
-            x1 - x0 + 2.0 * dpi,
-            reveal[3],
-        ],
-        muted,
-        ground,
-    );
-    assert!(
-        arrow[3] - arrow[1] >= 6.5 * dpi - 0.01,
-        "{ctx}: disclosure must have a larger visible chevron: {arrow:?}"
-    );
+}
+
+fn assert_caption_marks(
+    p: &TextPipeline,
+    ctx: &str,
+    pixels: &[[u8; 4]],
+    width: u32,
+    g: &plan::PanelGeometry,
+    dpi: f32,
+) {
+    let ground = rgba(theme::THEMES[theme::active_index()].base_300);
+    let field = control(g, "find_field");
+    for spec in &p.panel_control_marks.spans {
+        let control_name = match spec.kind {
+            chrome::ControlMarkKind::Checkbox(_) => "case_toggle",
+            chrome::ControlMarkKind::Disclosure(_) => "reveal_replace",
+        };
+        let target = control(g, control_name);
+        let (left, right) = p
+            .panel_span_x(spec.slot.row, spec.slot.byte_start, spec.slot.byte_end)
+            .unwrap();
+        let mark = ink_bounds(
+            pixels,
+            width,
+            [
+                g.text_left + left - dpi,
+                target[1],
+                right - left + 2.0 * dpi,
+                target[3],
+            ],
+            spec.color,
+            ground,
+        );
+        let (left, right) = p
+            .panel_span_x(
+                spec.caption.row,
+                spec.caption.byte_start,
+                spec.caption.byte_end,
+            )
+            .unwrap();
+        let caption = ink_bounds(
+            pixels,
+            width,
+            [g.text_left + left, target[1], right - left, target[3]],
+            spec.color,
+            ground,
+        );
+        assert!(
+            (mark[0] - field[0]).abs() <= 3.0 * dpi,
+            "{ctx}: {control_name} mark must join the shared left edge: {mark:?} / {field:?}"
+        );
+        let error = ((mark[1] + mark[3]) - (caption[1] + caption[3])) * 0.5;
+        assert!(
+            error.abs() <= 1.5 * dpi,
+            "{ctx}: {control_name} mark and caption must share visible center: \
+             {mark:?} / {caption:?}"
+        );
+        let (w, h) = (mark[2] - mark[0], mark[3] - mark[1]);
+        match spec.kind {
+            chrome::ControlMarkKind::Checkbox(_) => assert!(
+                w.max(h) >= 11.0 * dpi - 1.0,
+                "{ctx}: checkbox ink is too small: {mark:?}"
+            ),
+            chrome::ControlMarkKind::Disclosure(expanded) => {
+                assert!(
+                    w.max(h) >= 11.0 * dpi - 1.0,
+                    "{ctx}: disclosure ink is too small: {mark:?}"
+                );
+                assert!(
+                    if expanded { w > h } else { h > w },
+                    "{ctx}: disclosure must point down when expanded and right when collapsed: \
+                     {mark:?}"
+                );
+            }
+        }
+    }
 }
 
 fn assert_action_ink(ctx: &str, pixels: &[[u8; 4]], width: u32, g: &plan::PanelGeometry, dpi: f32) {
@@ -143,19 +191,31 @@ fn find_replace_optical_alignment_uses_visible_ink_in_every_world() {
             let (w, h) = ((464.0 * dpi) as u32, (288.0 * dpi) as u32);
             p.set_dpi(dpi);
             p.set_size(w as f32, h as f32);
-            p.set_view(&v);
-            p.prepare(&device, &queue, w, h).unwrap();
-            let g = p.panel_geometry().unwrap();
-            let ctx = format!("{}@{dpi}x", world.name);
-            assert!(
-                g.card[1] + g.card[3] <= h as f32,
-                "{ctx}: card exceeds minimum canvas"
-            );
-            let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-            assert_header_ink(&p, &ctx, &pixels, w, &g, dpi);
-            assert_action_ink(&ctx, &pixels, w, &g, dpi);
-            enrolled += 1;
+            for checked in [false, true] {
+                for expanded in [false, true] {
+                    v.search_case_sensitive = checked;
+                    v.search_replace_active = expanded;
+                    p.set_view(&v);
+                    p.prepare(&device, &queue, w, h).unwrap();
+                    let g = p.panel_geometry().unwrap();
+                    let ctx = format!(
+                        "{}@{dpi}x checked={checked} expanded={expanded}",
+                        world.name
+                    );
+                    assert!(
+                        g.card[1] + g.card[3] <= h as f32,
+                        "{ctx}: card exceeds minimum canvas"
+                    );
+                    let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+                    assert_header_ink(&ctx, &pixels, w, &g, dpi);
+                    assert_caption_marks(&p, &ctx, &pixels, w, &g, dpi);
+                    if expanded {
+                        assert_action_ink(&ctx, &pixels, w, &g, dpi);
+                    }
+                    enrolled += 1;
+                }
+            }
         }
     }
-    assert_eq!(enrolled, theme::THEMES.len() * 2);
+    assert_eq!(enrolled, theme::THEMES.len() * 8);
 }

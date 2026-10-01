@@ -206,7 +206,7 @@ fn replacement_field_row(p: &TextPipeline) -> usize {
         .panel_buffer
         .lines
         .iter()
-        .position(|line| line.text().contains("▾ Replace"))
+        .position(|line| line.text().contains("Replace"))
         .expect("an open replacement has its disclosure header");
     let row = header + 1;
     assert!(

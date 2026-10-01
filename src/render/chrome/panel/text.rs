@@ -108,6 +108,32 @@ impl<'a> PanelText<'a> {
         self.gap(side);
         span
     }
+    /// Caption controls reserve an actual icon slot and gap; visible marks are
+    /// prepared separately against the caption's tight ink, not its baseline.
+    pub(super) fn marked_caption(
+        &mut self,
+        text: &str,
+        attrs: Attrs<'static>,
+        slot_width: f32,
+        gap: f32,
+    ) -> (ControlSpan, ControlSpan, ControlSpan) {
+        let start = self.byte;
+        self.gap(slot_width);
+        let slot = ControlSpan {
+            row: self.row,
+            byte_start: start,
+            byte_end: self.byte,
+        };
+        self.gap(gap);
+        let caption = self.push(text, attrs);
+        let group = ControlSpan {
+            row: self.row,
+            byte_start: start,
+            byte_end: self.byte,
+        };
+        (group, slot, caption)
+    }
+
     pub(super) fn close_button(
         &mut self,
         attrs: Attrs<'static>,

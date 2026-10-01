@@ -14,7 +14,6 @@
 //! byte-count assumption would be wrong the instant a label isn't ASCII-mono.
 
 use super::TextPipeline;
-use glyphon::SwashContent;
 
 /// A control's text, as the BYTE RANGE it occupies within its own row's
 /// shaped line (cosmic-text resets `LayoutGlyph::start`/`end` to 0 at every
@@ -148,49 +147,15 @@ impl TextPipeline {
             let Some(span) = span else {
                 continue;
             };
-            let glyphs: Vec<_> = self
-                .panel_buffer
-                .layout_runs()
-                .filter(|run| run.line_i == span.row as usize)
-                .flat_map(|run| {
-                    run.glyphs
-                        .iter()
-                        .filter(move |g| g.start >= span.byte_start && g.start < span.byte_end)
-                        .map(move |g| (g.physical((0.0, 0.0), 1.0), run.line_y.round()))
-                })
-                .collect();
-            let (mut top, mut bottom) = (f32::INFINITY, f32::NEG_INFINITY);
-            for (glyph, baseline) in glyphs {
-                let Some(img) = self
-                    .swash_cache
-                    .get_image(&mut self.font_system, glyph.cache_key)
-                    .as_ref()
-                else {
-                    continue;
-                };
-                if img.content != SwashContent::Mask
-                    || img.placement.width == 0
-                    || img.placement.height == 0
-                {
-                    continue;
-                }
-                let y = baseline + glyph.y as f32 - img.placement.top as f32;
-                // Raster placement can contain zero mask padding. Only rows
-                // with actual ink participate in the optical centre.
-                let mut ink_rows = img
-                    .data
-                    .chunks_exact(img.placement.width as usize)
-                    .enumerate()
-                    .filter(|(_, row)| row.iter().any(|&alpha| alpha != 0))
-                    .map(|(row, _)| row);
-                if let Some(first) = ink_rows.next() {
-                    let last = ink_rows.next_back().unwrap_or(first);
-                    top = top.min(y + first as f32);
-                    bottom = bottom.max(y + last as f32 + 1.0);
-                }
-            }
-            self.panel_control_spans.action_ink_centers[i] =
-                (bottom > top).then_some((top + bottom) * 0.5);
+            let glyphs = crate::rotated_label::ink::span_key(
+                &self.panel_buffer,
+                span.row as usize,
+                span.byte_start..span.byte_end,
+            );
+            self.panel_control_spans.action_ink_centers[i] = self
+                .glyph_ink_cache
+                .bounds(&mut self.font_system, &mut self.swash_cache, &glyphs)
+                .map(|ink| ink[1] + ink[3] * 0.5);
         }
     }
 

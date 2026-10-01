@@ -2078,6 +2078,9 @@ pub struct TextPipeline {
     /// Second text renderer for the search panel text (composited OVER the
     /// document text). Shares this struct's atlas + viewport.
     pub panel_renderer: TextRenderer,
+    /// Cached ink bounds and category-sized chrome marks share the label geometry.
+    glyph_ink_cache: crate::rotated_label::ink::InkBoundsCache,
+    panel_control_marks: chrome::ControlMarks,
     /// DESIGNER PIXEL-PASS FIX (2026-07-16) — a DEDICATED renderer for the
     /// placard wordmark under [`theme::ListStyle::Bars`], so the watermark can be
     /// drawn UNDER the bar quads (`draw_overlay_card` runs it between the room

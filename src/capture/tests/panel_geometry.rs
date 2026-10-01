@@ -266,7 +266,7 @@ fn assert_internally_consistent(name: &str, p: &Panel) {
     );
     let (x0, x1) = p.toggle;
     assert!(
-        x1 - x0 > 4.0 && x0 >= p.text_left && x1 < cx + cw,
+        x1 - x0 > 4.0 && x0 >= cx && x1 < cx + cw,
         "{name}: the Match-case target [{x0}, {x1}] must be a real width inside the card's \
          [{cx}, {}]",
         cx + cw

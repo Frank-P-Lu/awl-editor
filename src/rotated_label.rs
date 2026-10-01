@@ -21,6 +21,7 @@
 #![allow(dead_code)]
 
 pub mod geometry;
+pub mod ink;
 pub mod mask;
 
 #[cfg(test)]

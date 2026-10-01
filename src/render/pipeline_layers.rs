@@ -157,6 +157,7 @@ impl TextPipeline {
             self.panel_renderer
                 .render(&self.atlas, &self.viewport, &mut pass)
                 .map_err(|e| anyhow::anyhow!("glyphon panel render failed: {e:?}"))?;
+            self.panel_control_marks.draw(&mut pass);
         }
         self.draw_chrome_tail(&mut pass)?;
         Ok(())

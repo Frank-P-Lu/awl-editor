@@ -18,3 +18,18 @@ Read before changing rotated-label shaping, placement, fit, or hit testing.
   **The size IS the composition, so the cue draws at its authored scale or is absent** — never shrunk (`Overflow::Park`; `Raked` keeps `Overflow::Shrink`, whose budget is a neighbouring row's breathing room). It parks when there is no wordmark on the frame (a card in its fill regime, a title-less kind), when the wordmark hugs the room's ceiling rather than its floor (no shipping world does; a law fails by name if one asks), or when the margin cannot hold the run.
 
   **The responsive bound is measured from real rects, and the card's DRAWN span is wider than its box.** Along the reading axis the run may rise from the placard to the room's own top margin (that margin read off the placard's own inset, never re-stated); across it, it may not reach the card — and the bound there is `overlay_card_drawn_span`, not `card_x`, because under `Bars` the SELECTED row's plate grows OUTWARD past the card box (`grow_span`, mirrored on a right-anchored card) and its scrim pads that again. Laws: `render/tests/rotated_rail.rs` — authored hierarchy from both sides at both DPI tiers, the exact theme-data treatment, truthful indexing over every faceted lens, presence floors by ink EXTENT and by ink STRENGTH (a non-overlap law gets happier as its subject fades), non-overlap and no-clipping over every lens label in the roster, and a zoom sweep crossing into the park arm.
+
+## Shared optical placement
+
+`rotated_label::ink::InkBoundsCache` measures nonzero coverage by physical glyph
+identity. `LabelMask::tight_ink` describes that visible drawing; `ink` and `size`
+continue to describe the padded texture and its UVs. The shared geometry centers
+visible ink inside a caller-owned slot. Exact quadrant rotations snap the pen to
+the pixel grid; intermediate fold angles retain their continuous placement.
+
+Chrome checkbox and disclosure controls use `control_marks` slots beside captions,
+centered on the captions' visible ink. The UI tier reserves a 14-logical-pixel mark
+slot and a 6-pixel caption gap. Checkboxes share the approved Awl Marks task pair;
+disclosures use one Iosevka triangle turned right/down. Document list markers and
+fold marks use the same cached ink measurement and centering while retaining their
+own prefix geometry, type scales, theme drawings, hit targets and motion.

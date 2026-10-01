@@ -572,11 +572,7 @@ fn assert_search_composition(p: &TextPipeline, replace: bool) {
         text.contains(&crate::keyspec::PANEL_CLOSE.label()),
         "close shortcut hint missing: {text:?}"
     );
-    assert!(text.contains(if replace {
-        "▾ Replace"
-    } else {
-        "› Replace"
-    }));
+    assert!(text.contains("Replace"), "disclosure caption is present");
 }
 
 #[test]

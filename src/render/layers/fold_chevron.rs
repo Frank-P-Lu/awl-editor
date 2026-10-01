@@ -387,12 +387,11 @@ impl TextPipeline {
             // basis vectors the shader draws through), so re-deriving it each
             // frame is what keeps the mark visually pivoting in place through
             // the glide rather than orbiting around a fixed corner.
-            let ink_box = mask.ink();
-            let local_center = [ink_box[0] + ink_box[2] * 0.5, ink_box[1] + ink_box[3] * 0.5];
-            let screen_center = [g.left + g.width * 0.5, g.row_center()];
-            let offset =
-                crate::rotated_label::geometry::label_point([0.0, 0.0], axis, local_center);
-            let origin = [screen_center[0] - offset[0], screen_center[1] - offset[1]];
+            let origin = crate::rotated_label::geometry::pixel_aligned_centered_origin(
+                mask.tight_ink(),
+                [g.left + g.width * 0.5, g.row_center()],
+                axis,
+            );
 
             self.fold_chevron_labels[i].prepare(
                 device, queue, width, height, mask, origin, axis, ink, ink, 1.0,

@@ -404,12 +404,16 @@ pub(in crate::render) mod diagonal;
 mod overlay;
 mod overlay_policy;
 pub(in crate::render) use overlay_policy::*;
+mod control_marks;
 mod overlay_clamp;
 mod panel;
 /// The panel's bordered field/button/checkbox CONTROLS: their byte-span
 /// bookkeeping and the one owner that resolves a span into a physical rect —
 /// split out for the same reason as `panel_selection`.
 mod panel_controls;
+pub(in crate::render) use control_marks::{
+    CONTROL_MARK_GAP, CONTROL_MARK_SLOT, ControlMarkKind, ControlMarkSpan, ControlMarks,
+};
 /// The panel's upload/hit-test half — split out to keep `panel.rs` under its
 /// production ceiling.
 mod panel_draw;

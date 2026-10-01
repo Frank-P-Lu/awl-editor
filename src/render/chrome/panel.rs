@@ -84,6 +84,9 @@ impl TextPipeline {
             stacked_fields: true,
             ..Default::default()
         };
+        let mut marks = Vec::new();
+        let mark_slot = m.px(CONTROL_MARK_SLOT);
+        let mark_gap = m.px(CONTROL_MARK_GAP);
         t.push("Find", label.clone().color(muted));
         let close_hint = crate::keyspec::PANEL_CLOSE.label();
         let close_hint_w = t.measure(&close_hint, &label);
@@ -110,19 +113,22 @@ impl TextPipeline {
         } else {
             ink
         };
-        let case_label = if self.search_case_sensitive {
-            "☑ Match case"
+        let case_color = if self.search_case_sensitive {
+            theme::base_content()
         } else {
-            "☐ Match case"
+            theme::muted()
         };
-        let case_attrs = label.clone().color(if self.search_case_sensitive {
-            ink
-        } else {
-            muted
+        let case_attrs = label.clone().color(case_color.to_glyphon());
+        let case_w = mark_slot + mark_gap + t.measure("Match case", &case_attrs);
+        let (group, slot, caption) =
+            t.marked_caption("Match case", case_attrs, mark_slot, mark_gap);
+        controls.case_box = Some(group);
+        marks.push(ControlMarkSpan {
+            kind: ControlMarkKind::Checkbox(self.search_case_sensitive),
+            slot,
+            caption,
+            color: case_color.rgba_bytes(),
         });
-        let case_w = t.measure(case_label, &case_attrs);
-        t.gap(pad);
-        controls.case_box = Some(t.push(case_label, case_attrs));
         let arrow_gap = m.px(Logical(4.0));
         let prev_w = (t.measure("↑", &symbol) + 2.0 * pad).max(target);
         let next_w = (t.measure("↓", &symbol) + 2.0 * pad).max(target);
@@ -143,24 +149,14 @@ impl TextPipeline {
         controls.nav_next = Some(t.button("↓", symbol.clone().color(nav_ink), target, pad));
 
         t.newline();
-        let disclosure = if self.search_replace_active {
-            "▾"
-        } else {
-            "›"
-        };
-        t.gap(pad);
-        let reveal = t.push(
-            disclosure,
-            symbol
-                .clone()
-                .family(Family::Name("JetBrains Mono"))
-                .color(muted)
-                .metrics(m.glyph_metrics()),
-        );
-        t.push(" Replace", label.clone().color(muted));
-        controls.reveal = Some(ControlSpan {
-            byte_end: t.byte,
-            ..reveal
+        let (group, slot, caption) =
+            t.marked_caption("Replace", label.clone().color(muted), mark_slot, mark_gap);
+        controls.reveal = Some(group);
+        marks.push(ControlMarkSpan {
+            kind: ControlMarkKind::Disclosure(self.search_replace_active),
+            slot,
+            caption,
+            color: theme::muted().rgba_bytes(),
         });
         t.gap(pad);
         let field_hint = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
@@ -249,6 +245,7 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
         self.panel_control_spans = controls;
+        self.panel_control_marks.spans = marks;
         self.panel_measure_action_ink();
         PanelShape {
             no_match,

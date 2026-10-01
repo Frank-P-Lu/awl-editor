@@ -40,6 +40,7 @@ pub struct LabelMask {
     texture: wgpu::Texture,
     view: wgpu::TextureView,
     ink: InkBox,
+    tight_ink: InkBox,
     size: (u32, u32),
 }
 
@@ -49,6 +50,12 @@ impl LabelMask {
     /// run with an ascender. Includes [`MASK_PAD`] on every side.
     pub fn ink(&self) -> InkBox {
         self.ink
+    }
+
+    /// Actual nonzero coverage in the run's frame, without allocation padding.
+    /// Used for optical placement; ink()/size() still describe texture UVs.
+    pub fn tight_ink(&self) -> InkBox {
+        self.tight_ink
     }
 
     /// The composed image's pixel size, padding included.
@@ -83,6 +90,7 @@ impl LabelMask {
     ) -> Option<Self> {
         let key = run_key(buffer);
         let (data, ink, w, h) = compose_run(font_system, swash_cache, buffer)?;
+        let tight_ink = super::ink::bounds(font_system, swash_cache, &key)?;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("rotated label mask"),
             size: wgpu::Extent3d {
@@ -123,6 +131,7 @@ impl LabelMask {
             texture,
             view,
             ink,
+            tight_ink,
             size: (w, h),
         })
     }
@@ -166,7 +175,7 @@ fn compose_coverage(
     // all placed, and a run short enough to be a label is short enough to hold.
     let mut cells: Vec<(i32, i32, u32, u32, Vec<u8>)> = Vec::new();
     for &(cache_key, gx, gy) in key {
-        let Some(image) = swash_cache.get_image_uncached(font_system, cache_key) else {
+        let Some(image) = swash_cache.get_image(font_system, cache_key).as_ref() else {
             continue;
         };
         if image.content != SwashContent::Mask {
@@ -184,7 +193,7 @@ fn compose_coverage(
             gy - image.placement.top,
             w,
             h,
-            image.data,
+            image.data.clone(),
         ));
     }
     if cells.is_empty() {
