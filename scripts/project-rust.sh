@@ -12,5 +12,10 @@ if ! command -v rustup >/dev/null 2>&1; then
   exit 1
 fi
 awl_project_rust_active="$(cd "$awl_project_rust_root" && rustup show active-toolchain)"
+# rustup run supplies the loader environment; explicit PATH also selects
+# pinned tools in child scripts when local cargo/rustc links bypass proxies.
+awl_project_rust_cargo="$(cd "$awl_project_rust_root" && rustup which cargo)"
+PATH="${awl_project_rust_cargo%/*}:$PATH"
+export PATH
 export AWL_PROJECT_RUST_ACTIVE="$awl_project_rust_root"
 exec rustup run "${awl_project_rust_active%% *}" "$@"

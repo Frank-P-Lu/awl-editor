@@ -83,11 +83,13 @@ block the final gate. Gate-tool changes still require a real final-gate rehearsa
 ## Matching Rust locally and in CI
 
 `rust-toolchain.toml` owns the exact project version (currently Rust 1.99.0),
-Clippy/rustfmt components and wasm target. Standard rustup proxies honor the
+Clippy/rustfmt/LLVM tools components and wasm target. Standard rustup proxies honor the
 file. Direct links to `toolchains/stable.../bin` bypass it; use the scoped
 `scripts/project-rust.sh cargo ...` wrapper to select the actual pinned binaries
 even with those links. The wrapper uses `rustup run`, retaining the official
-linker-library environment as well as the compiler selection. `verify.sh`
+linker-library environment as well as the compiler selection. The LLVM tools
+component supplies the Mac linker's colocated runtime when protected child
+shells strip loader environment variables. `verify.sh`
 activates this helper automatically; other build helpers preserve its PATH. Activation affects only the command
 process, leaving global links and the default unchanged. CI, extended verification, release and web build
 workflows activate the same file through `.github/actions/project-rust` and

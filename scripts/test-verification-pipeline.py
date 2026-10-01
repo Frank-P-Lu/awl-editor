@@ -168,6 +168,20 @@ if name == 'cargo' and args[0] == 'test':
         self.assertIn("commit=frozen", result.stdout)
         self.assertNotEqual(self.run_verify("full", LAW_MUTATE="web-smoke.sh").returncode, 0)
 
+    def test_child_tools_use_pin_even_when_path_contains_direct_old_cargo(self):
+        old_bin = self.root / "old-bin"
+        old_bin.mkdir()
+        old_cargo = old_bin / "cargo"
+        old_cargo.write_text("#!/bin/sh\nexit 17\n")
+        old_cargo.chmod(0o755)
+        self.env["PATH"] = f"{old_bin}:" + self.env["PATH"]
+        self.assertEqual(self.run_verify("fast", "buffer::", LAW_REQUIRE_RUSTUP_RUNTIME="1").returncode, 0)
+        helper = self.root / "scripts/project-rust.sh"
+        text = helper.read_text().replace('PATH="${awl_project_rust_cargo%/*}:$PATH"', ':')
+        helper.write_text(text)
+        # rustup run alone leaves a child script's old cargo link on PATH.
+        self.assertEqual(self.run_verify("fast", "buffer::", LAW_REQUIRE_RUSTUP_RUNTIME="1").returncode, 17)
+
     def test_project_activation_preserves_rustup_runtime_environment(self):
         self.assertEqual(self.run_verify("full", LAW_REQUIRE_RUSTUP_RUNTIME="1").returncode, 0)
         helper = self.root / "scripts/project-rust.sh"
@@ -212,7 +226,7 @@ class ProjectToolchain(unittest.TestCase):
         import tomllib
         pin = tomllib.loads((ROOT / "rust-toolchain.toml").read_text())["toolchain"]
         self.assertRegex(pin["channel"], r"^\d+\.\d+\.\d+$")
-        self.assertTrue({"clippy", "rustfmt"} <= set(pin["components"]))
+        self.assertTrue({"clippy", "rustfmt", "llvm-tools"} <= set(pin["components"]))
         self.assertIn("wasm32-unknown-unknown", pin["targets"])
         action = (ROOT / ".github/actions/project-rust/action.yml").read_text()
         self.assertIn("rustup show active-toolchain", action)
@@ -221,7 +235,7 @@ class ProjectToolchain(unittest.TestCase):
         self.assertNotIn("GITHUB_PATH", action)
         helper = (ROOT / "scripts/project-rust.sh").read_text()
         self.assertIn('exec rustup run "${awl_project_rust_active%% *}" "$@"', helper)
-        self.assertNotIn("export PATH", helper)
+        self.assertIn("rustup which cargo", helper)
         self.assertNotIn("rustup default", helper)
         self.assertNotIn("rustup default", action)
         self.assertIn('rustup target add "${targets[@]}"', action)
