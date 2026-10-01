@@ -221,6 +221,13 @@ pathlib.Path({str(evidence)!r}).write_text(json.dumps({{'args': sys.argv[1:], 'c
             record = json.loads(evidence.read_text())
             self.assertEqual(record["args"][0], "--appimage-extract-and-run")
             self.assertIn("--soak-gpu", record["args"])
+            # AppImage owns its first argument; Awl owns the remaining flags.
+            roster = (ROOT / "src/main/args/flags/roster.rs").read_text()
+            aliases = re.findall(r"^\s*\w+:\s*&\[([^]]*)\]", roster, re.M)
+            registered = set(re.findall(r'"(--[a-z][a-z0-9-]*)"', " ".join(aliases)))
+            used = {arg for arg in record["args"][1:] if arg.startswith("--")}
+            self.assertEqual(used - registered, set())
+            self.assertEqual((used | {"--notes-root"}) - registered, {"--notes-root"})
             self.assertNotEqual(record["data"], os.environ.get("XDG_DATA_HOME"))
             self.assertFalse(Path(record["cwd"]).exists())
             binary.write_text(f"#!{sys.executable}\nraise SystemExit(7)\n")

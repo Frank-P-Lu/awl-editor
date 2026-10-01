@@ -19,7 +19,6 @@ def launch(binary: Path, seconds: int, timeout: float, appimage: bool) -> int:
         project = root / "project"
         project.mkdir()
         (root / "workspace").mkdir()
-        (root / "notes").mkdir()
         document = project / "fixture.md"
         document.write_text("# Packaged launch fixture\n\nPlain text, 日本語, and an editable line.\n")
         config = root / "config.toml"
@@ -37,7 +36,7 @@ def launch(binary: Path, seconds: int, timeout: float, appimage: bool) -> int:
             command.append("--appimage-extract-and-run")
         command.extend([
             "--config", str(config), "--root", str(project),
-            "--workspace", str(root / "workspace"), "--notes-root", str(root / "notes"),
+            "--workspace", str(root / "workspace"),
             "--soak-gpu", "--soak-gpu-seconds", str(seconds), str(document),
         ])
         process = subprocess.Popen(
