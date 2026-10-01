@@ -758,8 +758,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/panel.rs"
 function = "TextPipeline::panel_shape_text"
-message = "this function has too many lines (206/100)"
-reason = "One ordered measured composition owns field windows, responsive row placement, and all control spans. Measurement and gap mechanics are separate; retaining the composition together keeps caret, selection, drawing, and hit geometry on the same row plan. +23: user-requested refinement aligns actual counter/navigation and replacement actions to the shared shaped field edge, with measured narrow-group wrapping; the field-span stretching mechanics live in PanelText::field."
+message = "this function has too many lines (191/100)"
+reason = "One ordered measured composition owns field windows, responsive row placement, and all control spans. Measurement and gap mechanics are separate; retaining the composition together keeps caret, selection, drawing, and hit geometry on the same row plan. +23: user-requested refinement aligns actual counter/navigation and replacement actions to the shared shaped field edge, with measured narrow-group wrapping; the field-span stretching mechanics live in PanelText::field. -15: the next user refinement uses stacked full-width fields with disclosure/header hints, removing duplicate inline/footer placement while retaining one measured composition owner."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

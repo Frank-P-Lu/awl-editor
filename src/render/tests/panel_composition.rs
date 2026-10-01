@@ -569,13 +569,13 @@ fn assert_search_composition(p: &TextPipeline, replace: bool) {
         "checkbox label missing: {text:?}"
     );
     assert!(
-        text.contains("close"),
-        "close teaching hint missing: {text:?}"
+        text.contains(&crate::keyspec::PANEL_CLOSE.label()),
+        "close shortcut hint missing: {text:?}"
     );
     assert!(text.contains(if replace {
-        "Hide replace"
+        "▾ Replace"
     } else {
-        "Replace…"
+        "› Replace"
     }));
 }
 

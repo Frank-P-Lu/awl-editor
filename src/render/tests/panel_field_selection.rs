@@ -17,11 +17,9 @@ use super::super::*;
 use super::pixeldiff::Region;
 use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 
-const FIND_LABEL_LEN: usize = "Find ".len();
-const REPLACE_LABEL_LEN: usize = "Replace ".len();
 const QUERY: &str = "hello";
 /// Deliberately MULTIBYTE, and a different CHAR length from [`QUERY`]. The two
-/// row labels are the same width and both fields are padded to the same cell
+/// fields share the same inset and are padded to the same cell
 /// count, so on two ASCII fixtures a band computed off the WRONG field is
 /// arithmetically identical to the right one — the focus axis this file sweeps
 /// stops being an axis at all. A CJK field makes byte offsets and char indices
@@ -85,7 +83,14 @@ fn the_panel_selection_band_paints_only_the_focused_row() {
         Region::new(card[0], top, card[2], h)
     };
 
-    let find_row = pixeldiff::diff_region(&without, &with, w as i64, h as i64, row(0.0));
+    let (find_index, replace_index) = p.panel_field_rows_probe();
+    let find_row = pixeldiff::diff_region(
+        &without,
+        &with,
+        w as i64,
+        h as i64,
+        row(find_index.unwrap()),
+    );
     assert!(
         find_row.differing > 0,
         "the selection band painted NOTHING on the focused find row — the verb \
@@ -94,7 +99,13 @@ fn the_panel_selection_band_paints_only_the_focused_row() {
         find_row.max_channel_delta
     );
 
-    let replace_row = pixeldiff::diff_region(&without, &with, w as i64, h as i64, row(2.0));
+    let replace_row = pixeldiff::diff_region(
+        &without,
+        &with,
+        w as i64,
+        h as i64,
+        row(replace_index.unwrap()),
+    );
     assert_eq!(
         replace_row.differing, 0,
         "the find field's band leaked onto the REPLACE row"
@@ -133,10 +144,7 @@ fn the_band_spans_the_shaped_field_on_whichever_row_has_focus() {
     };
     let width = 1200u32;
 
-    for (replacement_focused, label_len, row) in [
-        (false, FIND_LABEL_LEN, 0.0_f32),
-        (true, REPLACE_LABEL_LEN, 2.0_f32),
-    ] {
+    for replacement_focused in [false, true] {
         let field = if replacement_focused {
             REPLACEMENT
         } else {
@@ -147,6 +155,17 @@ fn the_band_spans_the_shaped_field_on_whichever_row_has_focus() {
         p.set_view(&v);
 
         let shape = p.panel_shape_text(width);
+        let (find_row, replace_row) = p.panel_field_rows_probe();
+        let row = if replacement_focused {
+            replace_row
+        } else {
+            find_row
+        }
+        .unwrap();
+        let label_len = p.panel_buffer.lines[row as usize]
+            .text()
+            .find(field)
+            .expect("focused field text appears on its own shaped row");
         assert_eq!(
             shape.caret_row, row,
             "focus on replacement={replacement_focused} must target row {row}"
@@ -157,7 +176,7 @@ fn the_band_spans_the_shaped_field_on_whichever_row_has_focus() {
         assert_eq!(
             (s_byte, e_byte),
             (label_len, label_len + field.len()),
-            "the band's byte offsets are LINE-relative, past this row's own label"
+            "the band's byte offsets are LINE-relative, past this row's measured inset"
         );
 
         let (_card, text_left, _top, _caret_x) = p.panel_layout(
@@ -257,11 +276,12 @@ fn a_scrolled_field_clips_its_band_to_the_visible_window() {
     let ((s_byte, _), (e_byte, _)) = shape
         .selection_span
         .expect("a partial selection inside the window still has a band");
+    let field_start = p.panel_control_spans.find_field.unwrap().byte_start;
     assert!(
-        s_byte > FIND_LABEL_LEN,
+        s_byte > field_start,
         "a partial selection in a SCROLLED field must be crossed by the same \
          window offset the caret is — it started at the field's first cell \
-         (s_byte={s_byte}, label={FIND_LABEL_LEN}), which is where an \
+         (s_byte={s_byte}, field start={field_start}), which is where an \
          un-crossed raw offset lands"
     );
     assert_eq!(
@@ -278,7 +298,11 @@ fn a_scrolled_field_clips_its_band_to_the_visible_window() {
     let ((s_byte, _), (e_byte, _)) = shape.selection_span.expect("the short field has a band");
     assert_eq!(
         (s_byte, e_byte),
-        (FIND_LABEL_LEN, FIND_LABEL_LEN + QUERY.len()),
+        {
+            let row = p.panel_control_spans.find_field.unwrap().row as usize;
+            let start = p.panel_buffer.lines[row].text().find(QUERY).unwrap();
+            (start, start + QUERY.len())
+        },
         "an unscrolled field's band spans the whole field"
     );
 

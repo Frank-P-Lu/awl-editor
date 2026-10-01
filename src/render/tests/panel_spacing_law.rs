@@ -94,20 +94,19 @@ fn assert_all_text_inside(ctx: &str, p: &TextPipeline, g: &plan::PanelGeometry) 
 }
 
 fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeometry, dpi: f32) {
-    for (name, label, span) in [
-        ("find_field", "Find", p.panel_control_spans.find_field),
-        (
-            "replace_field",
-            "Replace",
-            p.panel_control_spans.replace_field,
-        ),
+    assert!(
+        p.panel_control_spans.stacked_fields,
+        "{ctx}: field headers must stack"
+    );
+    for (label, span) in [
+        ("Find", p.panel_control_spans.find_field),
+        ("Replace", p.panel_control_spans.replace_field),
     ] {
         let row = span.expect("both field spans").row as usize;
-        // Stacked labels occupy the preceding row; horizontal air applies only
-        // while the label and field share a row, independent of their indices.
-        if p.panel_buffer.lines[row].text().starts_with(label) {
-            assert_gap(ctx, ink_span(p, g, row, label)[1], control(g, name)[0], dpi);
-        }
+        assert!(
+            row > 0 && p.panel_buffer.lines[row - 1].text().contains(label),
+            "{ctx}: {label} header must precede its field"
+        );
     }
     let find = control(g, "find_field");
     let replace = control(g, "replace_field");
@@ -116,7 +115,7 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
         (find[0] - replace[0]).abs() <= 0.51 && (find[2] - replace[2]).abs() <= 0.51,
         "{ctx}: field edges must match: {find:?} / {replace:?}"
     );
-    for name in ["nav_next", "replace_all_button"] {
+    for name in ["close", "nav_next", "replace_all_button"] {
         let rect = control(g, name);
         assert!(
             (rect[0] + rect[2] - field_right).abs() <= 0.51,
@@ -130,12 +129,21 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
         control(g, "nav_prev")[0],
         dpi,
     );
-    let reveal_row = p.panel_control_spans.reveal.unwrap().row as usize;
-    let hint = format!(
-        "{} field   {} close",
-        crate::keyspec::PANEL_SWITCH_FIELD.label(),
-        crate::keyspec::PANEL_CLOSE.label(),
+    let case = control(g, "case_toggle");
+    assert!(
+        (case[0] - find[0]).abs() <= 0.51,
+        "{ctx}: Match case must align with the field edge: {case:?} / {find:?}"
     );
+    let close_row = p.panel_control_spans.close.unwrap().row as usize;
+    let close_hint = crate::keyspec::PANEL_CLOSE.label();
+    assert_gap(
+        ctx,
+        ink_span(p, g, close_row, &close_hint)[1],
+        control(g, "close")[0],
+        dpi,
+    );
+    let reveal_row = p.panel_control_spans.reveal.unwrap().row as usize;
+    let hint = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
     if p.panel_buffer.lines[reveal_row].text().contains(&hint) {
         let reveal = control(g, "reveal_replace");
         assert_gap(

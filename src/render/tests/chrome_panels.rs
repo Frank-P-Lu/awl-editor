@@ -476,14 +476,15 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         return;
     };
     let width = 1200u32;
-    const REPLACE_LABEL: &str = "Replace "; // must match panel.rs's label
+    // One shaped leading gap precedes the field; labels live on separate rows.
+    const FIELD_PREFIX: usize = 1;
 
     // The reserved-cell glyph's x on line 1, scanned INDEPENDENTLY of the
     // caret-offset math under test — the ground truth the caret must land on.
-    let reserved_x = |p: &TextPipeline, text_left: f32, replacement: &str| -> f32 {
-        let cell = REPLACE_LABEL.len() + replacement.len();
+    let reserved_x = |p: &TextPipeline, text_left: f32, row: usize, replacement: &str| -> f32 {
+        let cell = FIELD_PREFIX + replacement.len();
         for run in p.panel_buffer.layout_runs() {
-            if run.line_i != 2 {
+            if run.line_i != row {
                 continue;
             }
             for g in run.glyphs.iter() {
@@ -507,12 +508,16 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
         p.set_view(&v);
 
         let shape = p.panel_shape_text(width);
-        assert_eq!(shape.caret_row, 2.0, "replace focus follows navigation");
+        assert_eq!(
+            shape.caret_row,
+            p.panel_field_rows_probe().1.unwrap(),
+            "replace focus follows its shaped field"
+        );
         // The offset is LINE-relative: the label + replacement WITHIN line 1 only —
         // no find-row bytes, no `\n`.
         assert_eq!(
             shape.caret_byte,
-            REPLACE_LABEL.len() + replacement.len(),
+            FIELD_PREFIX + replacement.len(),
             "reserved-cell byte is line-relative for {replacement:?}"
         );
         let (_card, text_left, _top, caret_x) = p.panel_layout(
@@ -522,7 +527,8 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
             shape.caret_row,
         );
 
-        let expected = reserved_x(&p, text_left, replacement);
+        let replacement_row = p.panel_field_rows_probe().1.unwrap() as usize;
+        let expected = reserved_x(&p, text_left, replacement_row, replacement);
         assert!(
             (caret_x - expected).abs() < 0.5,
             "replace caret rides the shaped reserved cell (x={caret_x}, expected {expected}) for {replacement:?}"
@@ -550,30 +556,23 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
     v.search_editing_replacement = false; // focus on the FIND field
     p.set_view(&v);
     let shape = p.panel_shape_text(width);
-    assert_eq!(shape.caret_row, 0.0, "find focus targets row 0");
+    let find_row = p.panel_field_rows_probe().0.unwrap();
+    assert_eq!(
+        shape.caret_row, find_row,
+        "find focus targets its shaped field"
+    );
     let (_card, text_left, _top, caret_x) = p.panel_layout(
         width,
         shape.caret_byte,
         shape.caret_fallback_chars,
         shape.caret_row,
     );
-    // Ground truth: the reserved gap glyph on line 0 sits at byte "find "+query.
-    let cell = "Find ".len() + "hello".len();
-    let mut find_expected = None;
-    for run in p.panel_buffer.layout_runs() {
-        if run.line_i != 0 {
-            continue;
-        }
-        for g in run.glyphs.iter() {
-            if g.start == cell {
-                find_expected = Some(text_left + g.x);
-            }
-        }
-    }
-    let find_expected = find_expected.expect("reserved gap glyph on the find row");
+    // Reuse the independent glyph scan for the Find field's reserved cell.
+    let find_expected = reserved_x(&p, text_left, find_row as usize, "hello");
     assert!(
         (caret_x - find_expected).abs() < 0.5,
-        "find caret still rides the query end on row 0 (x={caret_x}, expected {find_expected})"
+        "find caret still rides the query end on its field row \
+         (x={caret_x}, expected {find_expected})"
     );
 }
 
@@ -651,8 +650,8 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
 
 /// CLICK-TO-SWITCH-FIELD: the pure `panel_hit` maps a physical pointer to the
 /// find/replace field it lands on, from the SAME `panel_layout` the fields draw
-/// from (no parallel geometry). Row 0 = find, row 1 = replace (present only once
-/// revealed); inside the card but off a row = `Elsewhere` (a swallowed no-op);
+/// from (no parallel geometry). Find owns its header and field on rows 0/1;
+/// replacement owns rows 3/4 once revealed. Other rows are `Elsewhere` (a no-op);
 /// off the card / panel down = `None` (falls through to the document). This is
 /// the purest seam of `App::panel_click`'s find↔replace decision.
 #[test]
@@ -668,7 +667,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     };
     let width = p.window_w as u32;
 
-    // Replace REVEALED: find / replace / nav / actions rows.
+    // Replace revealed: header, query, helpers, disclosure, replacement, actions.
     let mut v = view("hello\nhello\n", 0, 0);
     v.search_active = true;
     v.search_query = "hello".into();
@@ -691,7 +690,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
 
     assert_eq!(p.panel_hit(mid, text_top + 0.5 * lh), Some(PanelHit::Find));
     assert_eq!(
-        p.panel_hit(mid, text_top + 2.5 * lh),
+        p.panel_hit(mid, text_top + 4.5 * lh),
         Some(PanelHit::Replace)
     );
     // The find/replace-field click targets themselves resolve through their
@@ -726,7 +725,7 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     assert_eq!(p.panel_hit(mid, card_y - 5.0), None);
     assert_eq!(p.panel_hit(mid, card_y + card_h + 5.0), None);
 
-    // Replace NOT revealed: find + nav + quiet footer (no replace field/actions).
+    // Replacement collapsed: header, query, helpers, disclosure; no replace field/actions.
     let mut v1 = view("hello\nhello\n", 0, 0);
     v1.search_active = true;
     v1.search_query = "hello".into();

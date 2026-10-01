@@ -1,4 +1,4 @@
-//! Find/Replace is a compact field, a navigation row, and a quiet footer.
+//! Find/Replace stacks aligned fields, measured helper rows, and a disclosure.
 //! Text is measured before composition: spaces reserve pixel distances rather
 //! than guessing where proportional labels or minimum-width targets will end.
 
@@ -6,7 +6,7 @@ use super::*;
 
 pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
 pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
-pub(in crate::render) const PANEL_MIN_W: Logical = Logical(480.0);
+pub(in crate::render) const PANEL_MIN_W: Logical = Logical(440.0);
 
 /// A bounded rich-text composer. Each gap is a measured monospace space with
 /// its own advance; all visible text retains the world's face and size role.
@@ -82,7 +82,9 @@ impl<'a> PanelText<'a> {
     /// Stretch the shaped field's trailing whitespace to one shared edge.
     /// The published span, border, and hit target all read this same advance.
     fn field(&mut self, text: &str, attrs: Attrs<'static>, right: f32, pad: f32) -> ControlSpan {
-        let span = self.push(text, attrs);
+        let span = self.push(text, attrs.clone());
+        // Reserve the caret cell inside the field, including its hit span.
+        self.push(" ", attrs);
         self.gap((right - pad - self.x).max(0.0));
         ControlSpan {
             byte_end: self.byte,
@@ -154,10 +156,9 @@ impl TextPipeline {
         let gap = m.px(Logical(12.0));
         let pad = m.px(panel_controls::CONTROL_BOX_PAD_X);
         let target = m.px(panel_controls::CONTROL_MIN_W);
-        let stacked = inner < m.px(Logical(300.0));
-        let label_w = t.measure("Replace", &label) + gap;
-        let field_left = if stacked { 0.0 } else { label_w };
-        let field_room = (inner - field_left - target - gap).max(m.char_width);
+        let field_left = pad;
+        let field_right = inner;
+        let field_room = (inner - 2.0 * pad).max(m.char_width);
         let mut cap = (field_room / t.space).floor().max(2.0) as usize - 1;
         let query = self.search_query.clone();
         let replacement = self.search_replacement.clone();
@@ -172,25 +173,22 @@ impl TextPipeline {
             }
             cap -= 1;
         };
-        let field_right = field_left
-            + t.measure(&query_view, &field)
-                .max(t.measure(&replacement_view, &field))
-            + pad;
         let mut controls = PanelControlSpans {
-            stacked_fields: stacked,
+            stacked_fields: true,
             ..Default::default()
         };
+        t.gap(pad);
         t.push("Find", label.clone().color(muted));
-        if stacked {
-            t.newline();
-        } else {
-            t.gap(field_left - t.x);
-        }
+        let close_hint = crate::keyspec::PANEL_CLOSE.label();
+        let close_hint_w = t.measure(&close_hint, &label);
+        t.gap((inner - target - gap - close_hint_w - t.x).max(gap));
+        t.push(&close_hint, label.clone().color(muted));
+        t.gap(gap);
+        controls.close = Some(t.button("×", symbol.clone().color(muted), target, pad));
+        t.newline();
+        t.gap(field_left);
         let find = t.field(&query_view, field.clone(), field_right, pad);
         controls.find_field = Some(find);
-        t.push(" ", field.clone());
-        t.gap(inner - target - t.x);
-        controls.close = Some(t.button("×", symbol.clone().color(muted), target, pad));
         t.newline();
         let total = self.search_matches.len();
         let counter = if query.is_empty() {
@@ -237,17 +235,28 @@ impl TextPipeline {
         t.gap(arrow_gap);
         controls.nav_next = Some(t.button("↓", symbol.clone().color(nav_ink), target, pad));
 
+        t.newline();
+        let disclosure = if self.search_replace_active {
+            "▾ Replace"
+        } else {
+            "› Replace"
+        };
+        t.gap(pad);
+        controls.reveal = Some(t.push(disclosure, label.clone().color(muted)));
+        t.gap(pad);
+        let field_hint = format!("{} field", crate::keyspec::PANEL_SWITCH_FIELD.label());
+        let field_hint_w = t.measure(&field_hint, &label);
+        // Both hints live in existing header rows, preserving the compact
+        // height. Extremely narrow canvases may omit the redundant hint.
+        if t.x + gap + field_hint_w <= inner {
+            t.gap(inner - field_hint_w - t.x);
+            t.push(&field_hint, label.clone().color(muted));
+        }
         if self.search_replace_active {
             t.newline();
-            t.push("Replace", label.clone().color(muted));
-            if stacked {
-                t.newline();
-            } else {
-                t.gap(field_left - t.x);
-            }
+            t.gap(field_left);
             controls.replace_field =
                 Some(t.field(&replacement_view, field.clone(), field_right, pad));
-            t.push(" ", field.clone());
             t.newline();
             let first = (t.measure("Replace", &label) + 2.0 * pad).max(target);
             let all = (t.measure("Replace all", &label) + 2.0 * pad).max(target);
@@ -272,27 +281,6 @@ impl TextPipeline {
             controls.replace_all_button =
                 Some(t.button("Replace all", label.clone().color(nav_ink), target, pad));
         }
-        t.newline();
-        let disclosure = if self.search_replace_active {
-            "Hide replace"
-        } else {
-            "Replace…"
-        };
-        t.gap(pad);
-        controls.reveal = Some(t.push(disclosure, label.clone().color(muted)));
-        t.gap(pad);
-        let hint = format!(
-            "{} field   {} close",
-            crate::keyspec::PANEL_SWITCH_FIELD.label(),
-            crate::keyspec::PANEL_CLOSE.label()
-        );
-        let hint_w = t.measure(&hint, &label);
-        if t.x + gap + hint_w > inner {
-            t.newline();
-        }
-        t.gap((inner - hint_w - t.x).max(gap));
-        t.push(&hint, label.clone().color(muted));
-
         let editing = self.search_replace_active && self.search_editing_replacement;
         let (span, view, caret, full_caret, full_len) = if editing {
             (

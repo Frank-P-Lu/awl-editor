@@ -199,17 +199,37 @@ fn shaped_row_tops(p: &TextPipeline) -> Vec<(usize, f32)> {
         .collect()
 }
 
-/// Grade one prepared panel: the ink, then the pointer, on every published
-/// The field a press in band `row` must resolve to — the contract `panel_hit`'s
-/// own doc states (row 0 the find field, row 1 the replacement once it is
-/// revealed, anything else inside the card a calm no-op). Out-of-range rows are
-/// `Elsewhere` because a press above or below the bands is still in the card's
-/// pad, and that is what makes a boundary probe meaningful.
-fn want_at(row: i64, replace: bool) -> PanelHit {
-    match row {
-        0 => PanelHit::Find,
-        2 if replace => PanelHit::Replace,
-        _ => PanelHit::Elsewhere,
+/// The replacement header is independently identified in the shaped text,
+/// rather than borrowing the control span or caret row under test.
+fn replacement_field_row(p: &TextPipeline) -> usize {
+    let header = p
+        .panel_buffer
+        .lines
+        .iter()
+        .position(|line| line.text().contains("▾ Replace"))
+        .expect("an open replacement has its disclosure header");
+    let row = header + 1;
+    assert!(
+        matches!(row, 4 | 5),
+        "replacement must follow the ordinary or wrapped helper row: {row}"
+    );
+    assert!(
+        p.panel_buffer.lines[row].text().contains("goodbye"),
+        "replacement text follows its header"
+    );
+    row
+}
+
+/// In the card's left padding, controls cannot intercept a pointer. The
+/// authored stacked header and its field both focus that field; other rows
+/// and the padding above/below the text are calm no-ops.
+fn want_at(row: i64, replace_row: Option<usize>) -> PanelHit {
+    if matches!(row, 0 | 1) {
+        PanelHit::Find
+    } else if replace_row.is_some_and(|r| row == r as i64 - 1 || row == r as i64) {
+        PanelHit::Replace
+    } else {
+        PanelHit::Elsewhere
     }
 }
 
@@ -292,21 +312,18 @@ fn grade_card_and_rows(
         // TRANSITION — just inside a band is that row, and 1.5px past either edge
         // is already the neighbour.
         //
-        // Restricted to rows 0/1 (find/replace): `want_at` assumes a bare
-        // `Elsewhere` for every other row, which held when the nav/actions rows
-        // carried only informational text. They now carry real controls (the
-        // nav buttons, the checkbox, Replace/Replace all), so a probe at the
-        // card's horizontal CENTRE on those rows may legitimately land on one —
-        // `grade_controls` graded below is the row-2+ transition proof instead,
-        // seated on each control's own published rect rather than a bare mid_x.
-        if band.row == 0 || (replace && band.row == 2) {
+        // Probe every row at a control-free x in the left card padding.
+        // This grades header/field focus as well as both sides of each band,
+        // including the wrapped helper row without fixed rectangle arithmetic.
+        {
+            let replace_row = replace.then(|| replacement_field_row(p));
             let mid_x = cx + 2.0;
             for (dy, want) in [
-                (0.5, want_at(band.row as i64, replace)),
-                (band.h * 0.5, want_at(band.row as i64, replace)),
-                (band.h - 0.5, want_at(band.row as i64, replace)),
-                (-1.5, want_at(band.row as i64 - 1, replace)),
-                (band.h + 1.5, want_at(band.row as i64 + 1, replace)),
+                (0.5, want_at(band.row as i64, replace_row)),
+                (band.h * 0.5, want_at(band.row as i64, replace_row)),
+                (band.h - 0.5, want_at(band.row as i64, replace_row)),
+                (-1.5, want_at(band.row as i64 - 1, replace_row)),
+                (band.h + 1.5, want_at(band.row as i64 + 1, replace_row)),
             ] {
                 let py = band.top + dy;
                 assert_eq!(
@@ -417,7 +434,7 @@ fn published_panel_geometry_agrees_with_the_ink_and_the_pointer() {
     for bar in [false, true] {
         crate::menubar::set_menu_bar_on(bar);
         e.bars.insert(bar);
-        for (w, h) in [(1200.0_f32, 800.0_f32), (700.0, 520.0)] {
+        for (w, h) in [(1200.0_f32, 800.0_f32), (700.0, 520.0), (600.0, 520.0)] {
             for (replace, editing) in [(false, false), (true, false), (true, true)] {
                 let Some((p, g)) = prepared(w, h, replace, editing) else {
                     crate::menubar::set_menu_bar_on(ambient_bar);
@@ -438,9 +455,9 @@ fn published_panel_geometry_agrees_with_the_ink_and_the_pointer() {
 
     assert_eq!(e.bars.len(), 2, "both menu-bar arms must be swept");
     assert!(
-        e.row_counts.contains(&3) && e.row_counts.len() > 1,
+        e.row_counts.contains(&4) && e.row_counts.contains(&6),
         "the sweep must cross the row-count boundary (a plain find panel shapes \
-         find + nav + footer, while replace adds its field/actions), got {:?}",
+         header + field + helpers + disclosure, while replace adds its field/actions), got {:?}",
         e.row_counts
     );
     assert!(
@@ -464,15 +481,11 @@ fn grade_caret_cy(
     editing: bool,
 ) -> (usize, f32) {
     let tops = shaped_row_tops(p);
-    // The responsive field plan owns the row: 0/1 inline, 1/3 when labels stack
-    // above their fields. The separate narrow-layout law pins both branches;
-    // this law grades the caret centre against whichever branch was selected.
-    let (find_row, replace_row) = p.panel_field_rows_probe();
-    let want_row = if editing {
-        replace_row.expect("replacement focus requires a replacement field")
-    } else {
-        find_row.expect("Find always has a field")
-    } as usize;
+    // The shaped fixture text provides independent row ground truth. The
+    // ordinary Find field is row 1; replacement follows its disclosure, one
+    // row lower when the helpers wrap on a narrow logical canvas.
+    assert!(p.panel_buffer.lines[1].text().contains("hello"));
+    let want_row = if editing { replacement_field_row(p) } else { 1 };
     let caret_row = p.panel_shape_text(w as u32).caret_row;
     assert!(
         (caret_row - want_row as f32).abs() < 0.001,
@@ -573,7 +586,7 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
     let mut row_counts = std::collections::BTreeSet::new();
     let mut pitches: Vec<(u32, f32)> = Vec::new();
     for dpi in [1.0_f32, 2.0] {
-        for (w, h) in [(1200.0_f32, 800.0_f32), (700.0, 520.0)] {
+        for (w, h) in [(1200.0_f32, 800.0_f32), (700.0, 520.0), (600.0, 520.0)] {
             for (replace, editing) in [(false, false), (true, false), (true, true)] {
                 let Some((mut p, g)) = prepared_at(w, h, replace, editing, dpi) else {
                     eprintln!("skipping the panel caret sweep: no wgpu adapter");
@@ -591,12 +604,12 @@ fn the_panel_caret_centres_on_its_focused_rows_band_and_ink() {
 
     assert_eq!(
         focused_rows,
-        std::collections::BTreeSet::from([0, 1, 2, 5]),
+        std::collections::BTreeSet::from([1, 4, 5]),
         "both field arms must be swept — a placer that ignores caret_row passes on \
-         row 0 alone, got {focused_rows:?}"
+         Find row 1 alone, got {focused_rows:?}"
     );
     assert!(
-        row_counts.contains(&3) && row_counts.len() > 1,
+        row_counts.contains(&4) && row_counts.contains(&6) && row_counts.contains(&7),
         "the sweep must cross the row-count boundary, got {row_counts:?}"
     );
     // THE DPI AXIS IS PROVED, NOT ASSUMED: if the pitch did not move, the second
