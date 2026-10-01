@@ -79,6 +79,17 @@ impl<'a> PanelText<'a> {
         self.x = 0.0;
     }
 
+    /// Stretch the shaped field's trailing whitespace to one shared edge.
+    /// The published span, border, and hit target all read this same advance.
+    fn field(&mut self, text: &str, attrs: Attrs<'static>, right: f32, pad: f32) -> ControlSpan {
+        let span = self.push(text, attrs);
+        self.gap((right - pad - self.x).max(0.0));
+        ControlSpan {
+            byte_end: self.byte,
+            ..span
+        }
+    }
+
     /// Center a label in an honest minimum-width target. The gaps belong to
     /// layout, while the published control continues to name its visible ink.
     fn button(&mut self, text: &str, attrs: Attrs<'static>, min: f32, pad: f32) -> ControlSpan {
@@ -161,6 +172,10 @@ impl TextPipeline {
             }
             cap -= 1;
         };
+        let field_right = field_left
+            + t.measure(&query_view, &field)
+                .max(t.measure(&replacement_view, &field))
+            + pad;
         let mut controls = PanelControlSpans {
             stacked_fields: stacked,
             ..Default::default()
@@ -171,7 +186,7 @@ impl TextPipeline {
         } else {
             t.gap(field_left - t.x);
         }
-        let find = t.push(&query_view, field.clone());
+        let find = t.field(&query_view, field.clone(), field_right, pad);
         controls.find_field = Some(find);
         t.push(" ", field.clone());
         t.gap(inner - target - t.x);
@@ -185,20 +200,11 @@ impl TextPipeline {
         } else {
             format!("{} of {total}", self.search_current.map_or(0, |i| i + 1))
         };
-        t.push(
-            &counter,
-            label.clone().color(if no_match { red } else { muted }),
-        );
-        let counter_w = t.measure("No matches", &label);
-        t.gap((counter_w - t.x).max(0.0) + gap);
         let nav_ink = if total == 0 {
             theme::faint().to_glyphon()
         } else {
             ink
         };
-        controls.nav_prev = Some(t.button("↑", symbol.clone().color(nav_ink), target, pad));
-        t.gap(m.px(Logical(4.0)));
-        controls.nav_next = Some(t.button("↓", symbol.clone().color(nav_ink), target, pad));
         let case_label = if self.search_case_sensitive {
             "☑ Match case"
         } else {
@@ -210,11 +216,26 @@ impl TextPipeline {
             muted
         });
         let case_w = t.measure(case_label, &case_attrs);
-        if t.x + gap + case_w + pad > inner {
+        t.gap(pad);
+        controls.case_box = Some(t.push(case_label, case_attrs));
+        let arrow_gap = m.px(Logical(4.0));
+        let prev_w = (t.measure("↑", &symbol) + 2.0 * pad).max(target);
+        let next_w = (t.measure("↓", &symbol) + 2.0 * pad).max(target);
+        let cluster_w = t.measure(&counter, &label) + gap + prev_w + arrow_gap + next_w;
+        // Match case belongs at the quiet left edge. The count and navigation
+        // belong together below the search field, ending at that field's edge.
+        if field_right - cluster_w < case_w + 2.0 * pad + gap {
             t.newline();
         }
-        t.gap((inner - case_w - pad - t.x).max(pad));
-        controls.case_box = Some(t.push(case_label, case_attrs));
+        t.gap((field_right - cluster_w - t.x).max(0.0));
+        t.push(
+            &counter,
+            label.clone().color(if no_match { red } else { muted }),
+        );
+        t.gap(gap);
+        controls.nav_prev = Some(t.button("↑", symbol.clone().color(nav_ink), target, pad));
+        t.gap(arrow_gap);
+        controls.nav_next = Some(t.button("↓", symbol.clone().color(nav_ink), target, pad));
 
         if self.search_replace_active {
             t.newline();
@@ -224,15 +245,30 @@ impl TextPipeline {
             } else {
                 t.gap(field_left - t.x);
             }
-            controls.replace_field = Some(t.push(&replacement_view, field.clone()));
+            controls.replace_field =
+                Some(t.field(&replacement_view, field.clone(), field_right, pad));
             t.push(" ", field.clone());
             t.newline();
-            let first = t.measure("Replace", &label) + 2.0 * pad;
-            let all = t.measure("Replace all", &label) + 2.0 * pad;
-            t.gap((inner - first - gap - all).max(0.0));
+            let first = (t.measure("Replace", &label) + 2.0 * pad).max(target);
+            let all = (t.measure("Replace all", &label) + 2.0 * pad).max(target);
+            let actions_fit = first + gap + all <= field_right;
+            t.gap(
+                (field_right
+                    - if actions_fit {
+                        first + gap + all
+                    } else {
+                        first
+                    })
+                .max(0.0),
+            );
             controls.replace_button =
                 Some(t.button("Replace", label.clone().color(nav_ink), target, pad));
-            t.gap(gap);
+            if actions_fit {
+                t.gap(gap);
+            } else {
+                t.newline();
+                t.gap((field_right - all).max(0.0));
+            }
             controls.replace_all_button =
                 Some(t.button("Replace all", label.clone().color(nav_ink), target, pad));
         }

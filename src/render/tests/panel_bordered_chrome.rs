@@ -51,7 +51,7 @@ fn max_channel_delta(a: [u8; 4], b: [u8; 4]) -> i32 {
 }
 
 /// **PRESENCE + CONTRAST, DERIVED PER WORLD, NEVER ASSUMED.** Every world must
-/// actually DRAW the field/button boxes and the region separators (GPU instance
+/// actually DRAW both field boxes and the replacement buttons (GPU instance
 /// counts, so a reverted draw call goes red here, not just in geometry); then,
 /// depending on whether THIS world's own `base_200`/`base_300` data collapse,
 /// either the drawn FILL or the drawn/derived BORDER must clear a real,
@@ -87,9 +87,10 @@ fn bordered_controls_are_drawn_and_visible_across_the_world_roster() {
             "{}: no field/button borders drawn",
             world.name
         );
-        assert!(
-            p.panel_rules.instance_count() > 0,
-            "{}: no region separators drawn",
+        assert_eq!(
+            p.panel_control_fill.instance_count(),
+            4,
+            "{}: both fields and both replacement actions must draw",
             world.name
         );
 

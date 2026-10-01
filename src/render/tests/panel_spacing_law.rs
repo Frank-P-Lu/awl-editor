@@ -109,6 +109,20 @@ fn assert_labels_clear_controls(ctx: &str, p: &TextPipeline, g: &plan::PanelGeom
             assert_gap(ctx, ink_span(p, g, row, label)[1], control(g, name)[0], dpi);
         }
     }
+    let find = control(g, "find_field");
+    let replace = control(g, "replace_field");
+    let field_right = find[0] + find[2];
+    assert!(
+        (find[0] - replace[0]).abs() <= 0.51 && (find[2] - replace[2]).abs() <= 0.51,
+        "{ctx}: field edges must match: {find:?} / {replace:?}"
+    );
+    for name in ["nav_next", "replace_all_button"] {
+        let rect = control(g, name);
+        assert!(
+            (rect[0] + rect[2] - field_right).abs() <= 0.51,
+            "{ctx}: {name} must end at the field edge: {rect:?} / {field_right}"
+        );
+    }
     let nav_row = p.panel_control_spans.nav_prev.unwrap().row as usize;
     assert_gap(
         ctx,

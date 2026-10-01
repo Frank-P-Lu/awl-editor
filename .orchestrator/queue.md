@@ -26,6 +26,14 @@ preserved train and dirty edits, retain the newer main Find/Replace design, and
 combine the cloud UI fixes. Unchosen prototypes, private data, tags and deployments
 remain outside this publication candidate. Freeze and gate before landing.
 
+**Publication paused for review:** the user reviewed the Find/Replace capture and
+requested better spacing and arrow placement. The refined release preview keeps
+the compact card, aligns the two fields and their action groups, and is awaiting
+user review. Targeted panel laws pass. The first combined native gate stopped in
+its heartbeat-shutdown self-test; the owned-helper teardown repair now passes its
+full self-test and mutation proof. Full native and wasm gates on the final reviewed
+layout, main publication, hosted CI and retirement remain owed.
+
 **Release constraint:** every public installable app download must be strictly
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
 and Linux AppImage/tarball. Browser deployment and source archives are separate.

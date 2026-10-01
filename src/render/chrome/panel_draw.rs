@@ -2,7 +2,7 @@
 //! keep it under its production ceiling. `panel_shape_text` (in `panel.rs`)
 //! decides WHAT the card says; this file decides where the pixels and the
 //! pointer meet: uploading the shaped text plus the bordered controls' fills/
-//! borders/separators, the region separators' own geometry, the click-test,
+//! borders, the click-test,
 //! and the amber caret's placement. See `panel.rs`'s own module doc.
 
 use super::*;
@@ -10,7 +10,7 @@ use super::*;
 impl TextPipeline {
     /// Upload the shaped panel text (red on the no-match state, else calm ink),
     /// the opaque BASE_300 card behind it, the bordered field/button/checkbox
-    /// boxes, and the thin region separators.
+    /// boxes.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn panel_upload_text(
         &mut self,
@@ -64,10 +64,10 @@ impl TextPipeline {
 
         // THE INNER CONTROLS: every field/button/checkbox box, resolved
         // through the ONE owner (`panel_controls_layout`) the click-test and
-        // the sidecar also read, then the thin region separators between
-        // fields / nav / actions.
+        // the sidecar also read.
         let resolved = self.panel_controls_layout(&self.panel_control_spans, text_left, text_top);
         let boxes: Vec<_> = [
+            resolved.find_field,
             resolved.replace_field,
             resolved.replace_button,
             resolved.replace_all_button,
@@ -84,34 +84,9 @@ impl TextPipeline {
             .collect();
         self.panel_control_border
             .prepare(device, queue, width, height, &outlined);
-        let rules = self.panel_rule_rects(card_rect, text_top);
         self.panel_rules.set_corner(0.0);
-        self.panel_rules
-            .prepare(device, queue, width, height, &rules);
+        self.panel_rules.prepare(device, queue, width, height, &[]);
         Ok(())
-    }
-
-    /// The thin hairline separator(s) between the panel's regions: always one
-    /// under the field(s), and — once replace is revealed — a second under
-    /// the nav row, above the actions row. Inset slightly from the card's own
-    /// edges so it never touches the rim `claim_float_panel` draws.
-    fn panel_rule_rects(&self, card_rect: [f32; 4], text_top: f32) -> Vec<[f32; 4]> {
-        let [card_x, _y, card_w, _h] = card_rect;
-        let inset = self.metrics.panel_ui().px(RULE_INSET_X);
-        let x0 = card_x + inset;
-        let w = (card_w - 2.0 * inset).max(0.0);
-        let stroke = self.metrics.px_physical(RULE_STROKE);
-        let nav_row = self.panel_control_spans.nav_prev.map_or(1.0, |s| s.row);
-        let bands = self.panel_rows(text_top);
-        let mut out = vec![[x0, bands.band(nav_row).0 - stroke * 0.5, w, stroke]];
-        // The actions row's own start, read back from where its first control
-        // actually landed — never re-derived from `nav_row + 1`, which is only
-        // true at ordinary widths (the nav row wraps to a second line under
-        // narrow pressure, moving the actions row down with it).
-        if let Some(actions_row) = self.panel_control_spans.replace_button.map(|s| s.row) {
-            out.push([x0, bands.band(actions_row).0 - stroke * 0.5, w, stroke]);
-        }
-        out
     }
 
     /// Hit-test a physical pointer `(px, py)` against the summoned find/replace
@@ -215,11 +190,3 @@ impl TextPipeline {
         );
     }
 }
-
-/// The separator inset follows the panel's authored logical text padding; its
-/// stroke remains one physical device pixel for a crisp hairline at any density.
-/// The rule starts exactly at the text pad boundary, well
-/// clear of the few px right of the card's own edge a rim-measuring oracle
-/// samples to find the CARD's rim without crossing this hairline instead.
-pub(in crate::render) const RULE_INSET_X: Logical = PANEL_PAD;
-pub(in crate::render) const RULE_STROKE: Physical = Physical(1.0);
