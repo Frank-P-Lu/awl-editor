@@ -423,7 +423,7 @@ reason = "+4: visible range captions receive a final measured rail/readout fit w
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
-lines = 612
+lines = 611
 reason = "+1: the existing test module is explicitly seated under the structural tests directory, keeping test-only diagnostics out of runtime output. Stable interaction placement is resolved beside the measured popover geometry. +5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site. +49: the format popover's hover state (`popover_hover`, `resolve_popover_hover`, `clear_popover_hover`) and its paint — a hairline ring drawn over the hovered button's full hit region (padding plus half the inter-button gap either side), sharing one owner with the actual click-routing hit-test so the drawn acknowledgement and the clickable region can never disagree."
 
 [[file_size_mark]]
