@@ -416,6 +416,7 @@ mod panel_draw;
 /// The panel's FIELD SELECTION BAND, split out to keep `panel.rs` under its
 /// production ceiling.
 mod panel_selection;
+mod text_input;
 pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
 pub(in crate::render) use panel_controls::{ControlSpan, PanelControlSpans};
 use panel_selection::panel_selection_span;
@@ -430,14 +431,14 @@ mod workspace;
 mod workspace_column;
 // The narrow region itself: its grid, shaping, active mark and hit-test —
 // including the one composition question a rail has, because a rail is a list.
-mod workspace_rail;
-// Card draw/upload/composite; `overlay` owns its geometry and hit-test.
+pub(crate) mod overlay_composition;
 mod overlay_draw;
 mod overlay_files;
 mod overlay_ink;
 mod overlay_material;
 mod overlay_query_field;
 mod overlay_rows;
+mod workspace_rail;
 // The complete `Ruled` composition, including shared picker/workspace ink.
 pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
@@ -480,6 +481,7 @@ mod card;
 mod debug_text;
 mod hud;
 mod popover;
+pub(super) use popover::PopoverPlacement;
 mod preview;
 mod readout;
 mod whichkey;

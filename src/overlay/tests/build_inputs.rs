@@ -55,6 +55,7 @@ fn focused_picker_inputs_cover_every_shared_builder_door() {
         PickerInput::SearchFolder(SearchFolderInputs {
             root: std::path::PathBuf::from("/project"),
             corpus: vec![("a.md".to_string(), "needle".to_string())],
+            incomplete: false,
         }),
         PickerInput::Credits,
     ];

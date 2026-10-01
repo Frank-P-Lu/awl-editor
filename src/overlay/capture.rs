@@ -3,8 +3,8 @@
 use super::{LinkEditMode, OverlayKind, OverlayState};
 use crate::textbox::TextBox;
 
-/// Which phase of a Keybindings CAPTURE we are in (carried by [`Capture`]). Drives
-/// what the next key does and what the card prompts.
+enum_with_all! {
+/// Which phase of a Keybindings capture decides what the next key does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureStage {
     /// Just after Enter on a command: a two-row choice of KEY vs CHORD (Up/Down
@@ -16,6 +16,7 @@ pub enum CaptureStage {
     /// The finished binding clashes with another command; Enter COMMITS anyway,
     /// Esc aborts. `conflict` names the command already bound.
     Confirm,
+}
 }
 
 /// The live CAPTURE sub-state of the Keybindings menu: which command is being
@@ -277,6 +278,7 @@ impl OverlayState {
         let Some(row) = self.selected_corpus_index() else {
             return;
         };
+        self.text_input_id = crate::textbox::TextInputId::new();
         let orig = self
             .rows
             .get(row)
@@ -295,6 +297,8 @@ impl OverlayState {
     /// the tail every value-edit mutator below shares (push/pop/pop_word/motion all
     /// end by re-showing the live typed value). A no-op when no value edit is active.
     fn value_edit_mirror(&mut self) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Mirror);
         let Some(ve) = self.value_edit.as_ref() else {
             return;
         };
@@ -310,17 +314,17 @@ impl OverlayState {
     /// FILTER stays here — [`TextBox::insert`] itself accepts any char. A no-op
     /// when no value edit is active.
     pub fn value_edit_push(&mut self, c: char) {
+        self.value_edit_insert(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn value_edit_insert(&mut self, text: &str) {
         let Some(ve) = self.value_edit.as_mut() else {
             return;
         };
-        let text = ve.input.text();
-        let ok = c.is_ascii_digit()
-            || (c == '.' && !text.contains('.'))
-            || (c == '%' && !text.contains('%'));
-        if ok {
-            ve.input.insert(c);
+        let text = super::value_input::filtered(&ve.input, text);
+        if ve.input.insert_text(&text) {
+            self.value_edit_mirror();
         }
-        self.value_edit_mirror();
     }
 
     /// SETTINGS VALUE EDIT: delete the char before the caret, mirroring the change
@@ -431,6 +435,8 @@ impl OverlayState {
     /// plumbing). The single row's own label never changes here — see
     /// [`Self::new_link_edit`]. A no-op when no link edit is active.
     fn link_edit_mirror(&mut self) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Mirror);
         let Some(le) = self.link_edit.as_ref() else {
             return;
         };
@@ -441,11 +447,16 @@ impl OverlayState {
     /// [`Self::rename_edit_push`]'s `/`-rejection: a URL legitimately contains `/`).
     /// Mirrors the change into `query`. A no-op when no link edit is active.
     pub fn link_edit_push(&mut self, c: char) {
+        self.link_edit_insert(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn link_edit_insert(&mut self, text: &str) {
         let Some(le) = self.link_edit.as_mut() else {
             return;
         };
-        le.input.insert(c);
-        self.link_edit_mirror();
+        if le.input.insert_text(text) {
+            self.link_edit_mirror();
+        }
     }
 
     /// LINK MINIBUFFER: delete the char before the caret, mirroring the change
@@ -548,6 +559,8 @@ impl OverlayState {
     /// KEEP-VERSION MINIBUFFER: mirror the typed name into `corpus[0]`. A no-op
     /// when no keep edit is active.
     fn keep_edit_mirror(&mut self) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Mirror);
         let Some(ke) = self.keep_edit.as_ref() else {
             return;
         };
@@ -562,11 +575,16 @@ impl OverlayState {
     /// unlike [`Self::rename_edit_push`]'s rejection). Mirrors the change into
     /// `corpus[0]`. A no-op when no keep edit is active.
     pub fn keep_edit_push(&mut self, c: char) {
+        self.keep_edit_insert(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn keep_edit_insert(&mut self, text: &str) {
         let Some(ke) = self.keep_edit.as_mut() else {
             return;
         };
-        ke.input.insert(c);
-        self.keep_edit_mirror();
+        if ke.input.insert_text(text) {
+            self.keep_edit_mirror();
+        }
     }
 
     /// KEEP-VERSION MINIBUFFER: delete the char before the caret, mirroring the

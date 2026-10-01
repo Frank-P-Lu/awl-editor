@@ -1068,8 +1068,9 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
 /// ORDINARY contextual card the wordmark still draws exactly as before this
 /// item (the precondition, proving the world genuinely is a Placard carrier);
 /// on a WORKSPACE built from the identical title and world, `overlay_shape_placard`
-/// answers `None` and the query line's shaped text falls back to the modest
-/// `"<title> › "` prefix instead of showing neither. The differential (same
+/// answers `None` and the query line's shaped text falls back to the Settings
+/// composition prefix resolved by its own title-prefix owner instead of showing
+/// neither. The differential (same
 /// world, same title, only the workspace flag moved) is what makes this
 /// non-vacuous rather than a law that would pass on a world with no placard
 /// to suppress in the first place.
@@ -1158,11 +1159,16 @@ fn a_summoned_workspace_never_draws_a_placard_on_any_shipped_placard_world() {
             p.overlay_shape_placard(&wgeom).is_none(),
             "{world}: a summoned workspace must never draw the giant corner wordmark"
         );
+        let title_prefix = p.overlay_title_prefix_probe();
+        assert!(
+            !title_prefix.is_empty(),
+            "{world}: the Settings composition must retain its owned inline title"
+        );
         assert_eq!(
             query_line(&mut p, &wv),
-            "settings › ",
-            "{world}: with no placard drawn, the workspace's query line must show \
-             the modest inline title rather than neither"
+            title_prefix,
+            "{world}: with no placard drawn, the workspace query line must show \
+             its owned Settings composition prefix rather than neither"
         );
         checked += 1;
     }

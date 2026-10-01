@@ -54,6 +54,115 @@ fn real_select_all_menu_action_edits_the_files_query_not_the_document() {
     });
 }
 
+/// Cmd-A is a macOS menu key equivalent, not merely the winit keymap chord
+/// the headless driver can replay. Keep the native menu's registration paired
+/// with the routed-menu law above: AppKit must post `awl.select_all`, whose
+/// action gate selects the focused Files query instead of the parked document.
+#[cfg(target_os = "macos")]
+#[test]
+fn select_all_registers_the_cmd_a_menu_key_equivalent() {
+    let _guard = crate::testlock::serial();
+    let command = crate::commands::COMMANDS
+        .iter()
+        .find(|command| command.action == Action::SelectAll)
+        .expect("the Edit menu routes Select all through the action catalog");
+
+    assert_eq!(
+        crate::commands::native_accelerator_chord(command, &[]).as_deref(),
+        Some("Cmd-A"),
+        "Cmd-A must be registered on the native Edit menu so AppKit routes \
+         its key equivalent through the Files query action gate"
+    );
+}
+
+/// The ordinary keyboard path does not travel through a menu click: it goes
+/// through `dispatch_pressed_key` → the configured keymap → `App::apply`.
+/// Sweep the active convention because the Mac key equivalent is Cmd-A while
+/// the Linux convention translates this catalog slot to Ctrl-A.
+#[test]
+fn select_all_key_route_clears_the_focused_files_query_not_the_document() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(root.join("alpha.md"), "parked prose"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(Some(root.join("alpha.md")), root, Config::empty());
+        let mut files = crate::overlay::OverlayState::new_files(
+            vec!["alpha.md".into()],
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        files.set_query_text("alpha");
+        app.workspace_state.install_overlay_for_test(files);
+        let before = app.document.buffer().text().to_string();
+        let select_all = crate::commands::COMMANDS
+            .iter()
+            .find(|command| command.action == Action::SelectAll)
+            .expect("the keyboard route has a Select all command");
+        let chord =
+            crate::commands::resolved_native(select_all, crate::convention::Convention::current());
+
+        assert!(
+            !chord.is_empty(),
+            "the active convention must expose a native Select all chord"
+        );
+        app.press_spec_headless(&format!("{chord} Backspace"))
+            .expect("the Select all and Backspace chords parse");
+
+        assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "");
+        assert_eq!(app.document.buffer().text(), before);
+    });
+}
+
+#[test]
+fn clicking_the_files_query_restores_focus_before_select_all() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(root.join("alpha.md"), "parked prose"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(Some(root.join("alpha.md")), root, Config::empty());
+        let mut files = crate::overlay::OverlayState::new_files(
+            vec!["alpha.md".into()],
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        files.set_query_text("alpha");
+        files.files_focus = crate::overlay::FilesFocus::Recent;
+        app.workspace_state.install_overlay_for_test(files);
+
+        // Query clicks and query drags both place the caret through this owner.
+        app.workspace_state
+            .overlay_mut()
+            .unwrap()
+            .query_set_caret(2);
+        assert_eq!(
+            app.workspace_state.overlay().unwrap().files_focus,
+            crate::overlay::FilesFocus::Query
+        );
+
+        let before = app.document.buffer().text().to_string();
+        let exit = crate::app::schedule::RecordingExit::default();
+        app.apply(Action::SelectAll, false, &exit, crate::stats::Door::Chord);
+        app.apply(
+            Action::DeleteBackward,
+            false,
+            &exit,
+            crate::stats::Door::Chord,
+        );
+        assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "");
+        assert_eq!(app.document.buffer().text(), before);
+    });
+}
+
 #[test]
 fn files_menu_action_creates_in_the_browsed_directory_without_switching_root() {
     let _guard = crate::testlock::serial();

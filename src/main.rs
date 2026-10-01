@@ -139,6 +139,9 @@ mod mac_open_documents_law;
 // asserted here. Test-only by its own inner `cfg`.
 mod macos_identity_law;
 mod markdown;
+// The public release's signed-macOS guarantees live in workflow/shell source,
+// so enroll their fail-closed structure in the host-independent test suite.
+mod release_workflow_law;
 // The MAS (Mac App Store / App Sandbox) flavor exists only in its supported
 // macOS configuration. `--all-features` on another target must not compile a
 // macOS-only feature into unreachable dead code.

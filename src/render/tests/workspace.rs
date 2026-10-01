@@ -71,6 +71,12 @@ pub(super) fn workspace_view(ov: &OverlayState) -> ViewState {
         .workspace_shape()
         .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
     v.overlay_detail_focus = ov.detail_focus;
+    // `workspace_card` enters either Categories or Controls through Journey,
+    // never the query field. Mirror `App::sync_view`'s Settings projection so
+    // the focus-cue laws photograph the region their lifecycle state names,
+    // rather than ViewState's inert query/row defaults.
+    v.overlay_query_focused = false;
+    v.overlay_rows_focused = ov.detail_focus;
     v.overlay_sections = ov.item_sections();
     v.overlay_hint = ov.foot_hint();
     v.overlay_selected = ov.selected;
@@ -286,6 +292,7 @@ fn wide_shows_both_regions_and_narrow_stages_exactly_one() {
         headless_dqp(1400.0, 900.0).expect("workspace laws require a wgpu adapter");
     let mut wides = 0usize;
     let mut narrows = 0usize;
+    crate::render::overrides::set_overlay_density_test_override(None);
     for &(w, h) in CANVASES {
         for &detail in &[false, true] {
             let ov = workspace_card(0, detail);
@@ -320,6 +327,35 @@ fn wide_shows_both_regions_and_narrow_stages_exactly_one() {
             }
         }
     }
+    assert_eq!(
+        wides, 0,
+        "default Settings density must remain staged when its minimum exceeds the cap"
+    );
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
+    for &(w, h) in CANVASES {
+        for &detail in &[false, true] {
+            let ov = workspace_card(0, detail);
+            prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
+            let drawn = p.workspace_rail_probe(w);
+            match p.workspace_is_wide(w) {
+                true => {
+                    wides += 1;
+                    assert!(drawn.rail.is_some() && drawn.visible > 0);
+                }
+                false => {
+                    narrows += 1;
+                    assert_eq!(drawn.rail.is_some(), !detail);
+                    assert_eq!(drawn.visible > 0, detail);
+                }
+            }
+        }
+    }
+    crate::render::overrides::set_overlay_density_test_override(None);
     assert!(
         wides >= 4 && narrows >= 2,
         "the sweep must cross the staging threshold in both directions \
@@ -331,10 +367,10 @@ fn wide_shows_both_regions_and_narrow_stages_exactly_one() {
 /// rather than being erased.
 ///
 /// Two claims a card cannot satisfy and a full-bleed takeover would fail from the
-/// other side: the workspace's own surface covers most of the canvas (it
-/// relocated attention), and a real margin of the canvas is NOT the workspace (it
-/// left the document visible around itself). Measured on the geometry the pixels
-/// come from, at every swept canvas.
+/// other side: the workspace's own surface remains substantial after its content
+/// pane is capped, and a real margin of the canvas is NOT the workspace (it left
+/// the document visible around itself). Measured on the geometry the pixels come
+/// from, at every swept canvas.
 #[test]
 fn the_workspace_takes_the_viewport_and_leaves_the_document_framing_it() {
     let _g = crate::testlock::serial();
@@ -347,10 +383,17 @@ fn the_workspace_takes_the_viewport_and_leaves_the_document_framing_it() {
         let [cx, cy, cw, ch] = drawn.card;
         let area = (cw * ch) / (w as f32 * h as f32);
         assert!(
-            area > 0.60,
-            "{w}x{h}: a workspace relocates attention — it covered only {:.0}% of \
-             the canvas",
+            area > 0.20,
+            "{w}x{h}: a capped Settings workspace must remain a substantial \
+             framed surface — it covered only {:.0}% of the canvas",
             area * 100.0
+        );
+        let max_pane = p.workspace_max_pane_probe();
+        assert!(
+            drawn.pane_w <= max_pane + 0.5,
+            "{w}x{h}: the Settings pane is {:.1}px against its authored \
+             {max_pane:.1}px ceiling; unused width belongs to the workspace ground",
+            drawn.pane_w
         );
         assert!(
             cx > 0.0 && cy > 0.0 && cx + cw < w as f32 && cy + ch < h as f32,
@@ -360,7 +403,118 @@ fn the_workspace_takes_the_viewport_and_leaves_the_document_framing_it() {
     }
 }
 
-/// THE FOCUS CUE IS REAL INK, and it is the SAME rect at a different presence.
+/// THE WIDTH OWNER AGREES WITH THE DRAWN SPLIT. A Settings workspace is wide
+/// exactly when both the rail and the content pane are actually visible as
+/// separate regions; otherwise the lifecycle stages one focused region.
+/// Measuring the production band and rail (rather than restating the threshold)
+/// keeps the cap-aware decision tied to the composition the user sees.
+#[test]
+fn settings_width_owner_matches_the_visible_rail_and_content_split() {
+    let _g = crate::testlock::serial();
+    let (device, queue, mut p) =
+        headless_dqp(1400.0, 900.0).expect("workspace width law requires a wgpu adapter");
+    let mut wide = 0usize;
+    let mut staged = 0usize;
+    crate::render::overrides::set_overlay_density_test_override(None);
+    for &(w, h) in CANVASES {
+        for &detail in &[false, true] {
+            let ov = workspace_card(0, detail);
+            prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
+            assert!(
+                !p.workspace_is_wide(w),
+                "default Settings density at {w}x{h} must stage when its \
+                 {:.1}px floor exceeds the {:.1}px cap",
+                p.workspace_min_pane_probe(),
+                p.workspace_max_pane_probe()
+            );
+            staged += 1;
+        }
+    }
+    let default_floor = p.workspace_min_pane_probe();
+    let default_cap = p.workspace_max_pane_probe();
+    assert!(
+        default_floor > default_cap,
+        "default Settings demand {default_floor:.1}px exceeds its authored \
+         {default_cap:.1}px ceiling"
+    );
+
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
+    for &(w, h) in CANVASES {
+        for &detail in &[false, true] {
+            let ov = workspace_card(0, detail);
+            prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
+            let wide_owner = p.workspace_is_wide(w);
+            let drawn = p.workspace_rail_probe(w);
+            let split_visible = match drawn.rail {
+                Some([rx, _, rw, _]) => drawn.pane_x >= rx + rw && drawn.visible > 0,
+                None => false,
+            };
+            assert_eq!(
+                wide_owner,
+                split_visible,
+                "{w}x{h} compact-scale detail={detail}: is_wide={wide_owner} must match \
+                 an actual non-overlapping rail/content split (rail={:?}, \
+                 pane={}..{}, rows={})",
+                drawn.rail,
+                drawn.pane_x,
+                drawn.pane_x + drawn.pane_w,
+                drawn.visible
+            );
+            if wide_owner {
+                wide += 1;
+            } else {
+                staged += 1;
+            }
+        }
+    }
+    assert!(
+        wide > 0 && staged > 0,
+        "compact-scale sweep must include split and staged geometry"
+    );
+    crate::render::overrides::set_overlay_density_test_override(None);
+
+    // A raw canvas can clear the row-demand floor while the authored Settings
+    // cap cannot. This non-vacuity cell makes the cap itself own the answer:
+    // removing the cap from `workspace_is_wide` would open both regions here.
+    let mut capped = workspace_view(&workspace_card(0, true));
+    capped.overlay_rows_primary = false;
+    capped.overlay_detail_focus = true;
+    capped.overlay_items = vec!["N".repeat(80)];
+    capped.overlay_bindings = vec!["V".repeat(80)];
+    let (w, h) = (3600u32, 1400u32);
+    p.set_size(w as f32, h as f32);
+    p.set_view(&capped);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let min_pane = p.workspace_min_pane_probe();
+    let max_pane = p.workspace_max_pane_probe();
+    assert!(
+        min_pane > max_pane,
+        "the cap-binding fixture must demand {min_pane:.1}px above the \
+         authored {max_pane:.1}px cap"
+    );
+    assert!(
+        !p.workspace_is_wide(w),
+        "the wide raw canvas must still stage Settings when its capped pane \
+         cannot satisfy the row-name-plus-value width demand"
+    );
+    let drawn = p.workspace_rail_probe(w);
+    assert!(
+        drawn.rail.is_none() && drawn.visible > 0 && drawn.selected_band.is_some(),
+        "the capped width decision must show the focused content stage alone, \
+         not a rail beside a pane too narrow for its rows (rail={:?}, rows={}, band={:?})",
+        drawn.rail,
+        drawn.visible,
+        drawn.selected_band
+    );
+}
+
+/// THE TWO-COLUMN FOCUS CUE IS REAL INK, and it is the SAME rect at a different
+/// presence.
 ///
 /// A workspace keeps a selection in both regions, so something has to say which
 /// one is live. This asserts that in the pixels, not in the state: rendering the
@@ -371,12 +525,22 @@ fn the_workspace_takes_the_viewport_and_leaves_the_document_framing_it() {
 #[test]
 fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
     let _g = crate::testlock::serial();
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
     let (w, h) = (1400u32, 900u32);
     let (device, queue, mut p) =
         headless_dqp(w as f32, h as f32).expect("workspace laws require a wgpu adapter");
 
     let on_rail = workspace_card(0, false);
     prepared(&device, &queue, &mut p, &on_rail, Cell::plain(w, h));
+    assert!(
+        p.workspace_is_wide(w),
+        "the two-column focus fixture must resolve both Settings regions"
+    );
     let geom = p.workspace_rail_probe(w);
     let rail_mark = geom.mark.expect("the rail marks its active category");
     let row_band = geom.selected_band.expect("the content pane marks its row");
@@ -385,6 +549,7 @@ fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
     let on_rows = workspace_card(0, true);
     prepared(&device, &queue, &mut p, &on_rows, Cell::plain(w, h));
     let rows_focused = render_frame(&mut p, &device, &queue, w, h);
+    crate::render::overrides::set_overlay_density_test_override(None);
 
     // The measurement is DIFFERENTIAL against the card's own ground, so the
     // world's palette, the dither and the backdrop all cancel: for each region,
@@ -787,6 +952,12 @@ fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
     let mut bound_hit: Vec<&str> = Vec::new();
     let mut staged_seen: Vec<&str> = Vec::new();
     let mut graded = 0usize;
+    crate::render::overrides::set_overlay_density_test_override(Some(
+        crate::render::overrides::TypeDensity {
+            scale: 0.75,
+            leading: 0.0,
+        },
+    ));
     for world in crate::theme::THEMES {
         crate::theme::set_active_by_name(world.name).expect("a roster world");
         p.sync_theme();
@@ -828,6 +999,7 @@ fn the_content_pane_hugs_a_maximum_width_across_the_roster() {
     }
     p.set_size(1200.0, 800.0);
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    crate::render::overrides::set_overlay_density_test_override(None);
     assert!(
         graded > 0,
         "the sweep graded nothing — no wide cell was reached"

@@ -79,11 +79,9 @@ impl TextPipeline {
     /// Four independent reasons, one predicate, so the full arm and the footprint arm of
     /// [`Self::frost_mode`] cannot both fire or both miss:
     ///
-    /// * **A CRISP PICKER** declines because its ROWS PREVIEW the live page — frosting it
-    ///   would blur the very thing the row is showing. WHICH kinds those are is not
-    ///   restated here: `OverlayKind::keeps_backdrop_crisp` owns the set, pinned by law
-    ///   to the audition that earns it (`OverlayKind::previews_live_document`), and this
-    ///   frame reads its answer off `overlay_crisp`.
+    /// * **A CRISP SURFACE** declines because its rows preview the live page or because
+    ///   its opaque workspace already supplies the figure/ground separation. The typed
+    ///   kind owner projects that answer once into `overlay_crisp`.
     /// * **A POINTER-ANCHORED MENU** declines because it is not a takeover at all. The
     ///   full frost is the defocus behind a card that has become the subject of the
     ///   screen (the palette, go-to, the outline, keybindings, the held HUD); a four-row
@@ -187,7 +185,10 @@ impl TextPipeline {
         // The Themes card is an opaque bordered surface over a sharp document.
         // Keep this typed distinction ahead of the shared crisp-picker rules:
         // Caret still owns its local footprint treatment.
-        if self.overlay_theme_picker || self.overlay_files_surface {
+        if self.overlay_theme_picker
+            || self.overlay_files_surface
+            || (self.overlay_workspace && !self.overlay_rows_primary)
+        {
             return None;
         }
         // TRUE 1-BIT: a gaussian of a pure-black-or-white document smears every edge

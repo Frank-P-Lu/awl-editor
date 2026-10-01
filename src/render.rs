@@ -130,6 +130,8 @@ pub mod caretbench;
 /// Render-relevant editor data and its canonical [`ViewState::base`] defaults.
 mod viewstate_def;
 pub use viewstate_def::{DocSource, FoldTail, ViewState};
+mod field_input;
+pub use field_input::FieldInput;
 
 mod pipeline_activity;
 mod pipeline_band_epoch;
@@ -2200,6 +2202,8 @@ pub struct TextPipeline {
     fold_chevron_turn: std::collections::HashMap<usize, f32>,
     hover_line: Option<usize>,
     preedit: String,
+    field_input: Option<FieldInput>,
+    field_caret_rect: Option<[f32; 4]>,
     misspelled: Vec<Misspelling>,
     /// Version counter for [`Self::misspelled`]: bumped by `sync_view_fields`
     /// whenever the incoming spell list actually DIFFERS from the mirrored one.
@@ -2474,6 +2478,10 @@ pub struct TextPipeline {
     /// the shaper (`selected_ink`) so the pair reads as crisp black-on-white.
     pub overlay_rows: SelectionPipeline,
     pub overlay_bars: SelectionPipeline,
+    /// Quiet bounded controls belonging to Files chrome rather than its
+    /// candidate-row selection.
+    pub files_control_fill: SelectionPipeline,
+    pub files_control_rim: SelectionPipeline,
     /// The `Bars` FOOTER PLATE's rim — that plate's own rect grown one pixel on
     /// every side and drawn under it, the same mechanism the calm notice's own
     /// rim uses for the identical failure mode: `overlay_bar_unselected`'s FILL
@@ -2656,6 +2664,8 @@ pub struct TextPipeline {
     pub popover_renderer: TextRenderer,
     pub popover_buffer: GlyphBuffer,
     popover_model: Option<crate::popover::PopoverModel>,
+    /// Screen placement retained for one selection-formatting interaction.
+    popover_placement: chrome::PopoverPlacement,
     /// The popover's laid-out geometry (card rect + per-button pixel spans),
     /// computed in `prepare_popover` and read by the pure `&self` hit-test
     /// [`Self::popover_hit`] + the sidecar — the SAME geometry the buttons draw

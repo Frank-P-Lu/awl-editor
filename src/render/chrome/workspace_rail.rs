@@ -87,9 +87,10 @@ impl TextPipeline {
         // place (`overlay_visual_sel`); this arm takes the fill and
         // `workspace_shape_rail` takes its ink from the same pair.
         let band = super::overlay_selected_band_srgb();
-        let rgba = match geom.rows_focused {
-            true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
-            false => band.rgba_bytes(),
+        let rail_focused = !geom.rows_focused && !self.overlay_query_focused;
+        let rgba = match rail_focused {
+            true => band.rgba_bytes(),
+            false => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
         };
         self.overlay_lens_underline.set_color(rgba);
         self.overlay_lens_underline
@@ -173,7 +174,7 @@ impl TextPipeline {
         // stroke, on both pipelines, which are shared with the chip skins and
         // would otherwise carry a corner across a world switch.
         self.overlay_lens_underline
-            .set_color(self.rule_mark_ink(geom.rows_focused));
+            .set_color(self.rule_mark_ink(geom.rows_focused || self.overlay_query_focused));
         self.overlay_lens_underline.set_corner(0.0);
         self.overlay_lens_underline.set_stroke(0.0);
         self.overlay_facet_ghost

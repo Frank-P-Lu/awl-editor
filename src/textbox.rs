@@ -36,6 +36,17 @@ use crate::buffer::{
     word_forward_boundary,
 };
 
+/// A summoned text surface's lifetime, preserved by view clones, renewed on open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TextInputId(usize);
+
+impl TextInputId {
+    pub(crate) fn new() -> Self {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
+        Self(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    }
+}
+
 /// A single-line text field: its content plus a CHAR-index caret, plus an
 /// OPTIONAL selection anchor. Shared by every end-only minibuffer field (see
 /// the module doc) so motion/edit/word rules exist in exactly ONE place —
@@ -199,10 +210,23 @@ impl TextBox {
     /// filtering (a Settings digit gate / Rename `/`-reject is the CALLER's
     /// job, applied before this is reached; see the module doc).
     pub fn insert(&mut self, c: char) {
-        self.delete_selection_if_any();
-        let b = self.byte_of(self.caret);
-        self.text.insert(b, c);
-        self.caret += 1;
+        self.insert_text(c.encode_utf8(&mut [0; 4]));
+    }
+
+    /// Replace the selection in one splice, independently of payload length.
+    /// Empty input preserves the selection, including an entirely filtered paste.
+    pub fn insert_text(&mut self, text: &str) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+        #[cfg(test)]
+        work::note(work::Op::Splice);
+        let (start, end) = self.selection_range().unwrap_or((self.caret, self.caret));
+        let bytes = self.byte_of(start)..self.byte_of(end);
+        self.text.replace_range(bytes, text);
+        self.caret = start + text.chars().count();
+        self.anchor = None;
+        true
     }
 
     /// Backspace: delete the CHARACTER before the caret — one extended
@@ -382,3 +406,14 @@ enum_with_all! {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) mod work;
+
+/// Clipboard line breaks and controls never become field submit gestures.
+/// Rust's [`char::is_control`] covers CR/LF/NEL but deliberately excludes the
+/// Unicode Line/Paragraph Separator scalars, so name those two separately.
+pub(crate) fn single_line(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_control() && !matches!(c, '\u{2028}' | '\u{2029}'))
+        .collect()
+}

@@ -32,6 +32,12 @@ pub(in crate::render) struct OverlayYProbe {
 }
 
 impl TextPipeline {
+    /// The real query-title prefix a shaped header should carry in this view.
+    pub(in crate::render) fn overlay_title_prefix_probe(&self) -> String {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        self.overlay_title_prefix(&geom)
+    }
+
     pub(in crate::render) fn overlay_row_y_probe(&self) -> OverlayYProbe {
         use std::collections::BTreeMap;
         let geom = self.overlay_geometry(self.window_w as u32);

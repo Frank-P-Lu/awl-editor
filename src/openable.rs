@@ -81,7 +81,7 @@ pub fn type_label(path: &Path) -> String {
 /// contains one) AND is valid UTF-8 (the only encoding `Buffer`/the rope
 /// ever holds — see `fs.rs`'s module doc: awl only ever writes UTF-8 rope
 /// text). Pure.
-fn looks_like_text(bytes: &[u8]) -> bool {
+pub(crate) fn looks_like_text(bytes: &[u8]) -> bool {
     !bytes.contains(&0) && std::str::from_utf8(bytes).is_ok()
 }
 

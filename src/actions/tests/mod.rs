@@ -627,6 +627,7 @@ macro_rules! classify_delete_flinch {
             | Action::KillLine
             | Action::Yank
             | Action::YankText
+            | Action::PasteText(_)
             | Action::InsertImageReference(_)
             | Action::Undo
             | Action::Redo
@@ -871,6 +872,7 @@ macro_rules! assert_action_roster {
             | Action::KillLine
             | Action::Yank
             | Action::YankText
+            | Action::PasteText(_)
             | Action::InsertImageReference(_)
             | Action::Undo
             | Action::Redo
@@ -1011,6 +1013,7 @@ fn editor_action_roster() -> Vec<Action> {
         Action::KillLine,
         Action::Yank,
         Action::YankText,
+        Action::PasteText("plain 日本語".into()),
         Action::InsertImageReference("assets/pasted-1.png".into()),
         Action::Undo,
         Action::Redo,
@@ -1344,6 +1347,7 @@ macro_rules! classify_smoke_command {
         | Action::DeleteForward
         | Action::KillLine
         | Action::YankText
+        | Action::PasteText(_)
         | Action::InsertImageReference(_)
         | Action::SetMark
         | Action::PageScrollDown

@@ -204,6 +204,23 @@ fn push_beat_spacer<'a>(
     }
 }
 
+pub(super) fn push_workspace_footer_spans<'a>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
+    footer_lines: &'a [String],
+    footer_rows: usize,
+    base: glyphon::Attrs<'a>,
+) {
+    if footer_rows == 0 {
+        return;
+    }
+    let faint = crate::render::overlay_chrome_theme().faint.to_glyphon();
+    let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
+    spans.push(("\n", base.clone().color(faint))); // the blank separator line
+    for line in footer_lines {
+        push_symbol_split(spans, line, || base.clone().color(faint), || sym(faint));
+    }
+}
+
 /// Whether the active [`theme::TitleStyle`] draws a placard THIS frame — the
 /// one fact [`TextPipeline::overlay_shape_placard`] (draws it) and
 /// [`TextPipeline::overlay_title_prefix`] (suppresses the inline title so the
@@ -664,6 +681,8 @@ impl TextPipeline {
         );
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
+        } else if let Some(title) = self.overlay_composed_title_prefix(geom) {
+            title
         } else if self.overlay_files_surface {
             format!("{}: ", self.overlay_title)
         } else {
@@ -671,9 +690,9 @@ impl TextPipeline {
         }
     }
 
-    pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
+    pub(in crate::render) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
         if self.files_query_is_split(geom) {
-            return "Search: ".to_string();
+            return "Search files: ".to_string();
         }
         if self.overlay_files_surface && !self.overlay_files_fitted_title_prefix.is_empty() {
             self.overlay_files_fitted_title_prefix.clone()
@@ -702,10 +721,10 @@ impl TextPipeline {
             .to_string()
     }
 
-    /// Decide the compact Files head from measured ink before geometry bills
-    /// its extra rows. The first probe decides whether query needs its own row;
-    /// once split, a second probe decides whether the semantic location plus
-    /// Up/Change-folder actions need separate rows too.
+    /// Files always spends distinct query, folder-identity, and folder-action
+    /// rows. This is hierarchy rather than an overflow fallback: fitting all
+    /// three into one sentence made the essential controls read as metadata on
+    /// ordinary wide windows. The bounded probes remain as fit witnesses.
     pub(in crate::render) fn resolve_files_header_split(&mut self, width: u32) {
         self.overlay_files_split_header = false;
         self.overlay_files_split_actions = false;
@@ -734,13 +753,13 @@ impl TextPipeline {
         };
         self.overlay_files_split_measure_attempts = 1;
         let line_w = self.measure_files_header_px(&prefix, &query, name_fs, self.overlay_lh());
-        self.overlay_files_split_header = line_w + self.metrics.caret_w + 0.5 > text_w;
-        if self.overlay_files_split_header {
-            let action_line = format!("{shown}  {}", self.files_action_suffix());
-            self.overlay_files_split_measure_attempts += 1;
-            self.overlay_files_split_actions =
-                self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) > text_w;
-        }
+        let _query_fits = line_w + self.metrics.caret_w + 0.5 <= text_w;
+        self.overlay_files_split_header = true;
+        let action_line = format!("{shown}  {}", self.files_action_suffix());
+        self.overlay_files_split_measure_attempts += 1;
+        let _actions_fit =
+            self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) <= text_w;
+        self.overlay_files_split_actions = true;
     }
 
     /// Fit only Files' location cell. The three header actions and the query
@@ -790,7 +809,12 @@ impl TextPipeline {
             } else {
                 self.metrics.caret_w + 0.5
             };
-            if self.measure_files_header_px(&candidate, measured_query, name_fs, header_lh)
+            let measured_name_fs = if split && self.files_actions_are_split(geom) {
+                name_fs * 1.15
+            } else {
+                name_fs
+            };
+            if self.measure_files_header_px(&candidate, measured_query, measured_name_fs, header_lh)
                 <= geom.text_w - reserve
             {
                 return candidate;
@@ -849,7 +873,11 @@ impl TextPipeline {
         content_before: bool,
     ) {
         let name_fs = self.overlay_metrics().font_size;
-        let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
+        let hint_fs = if self.overlay_files_surface {
+            name_fs
+        } else {
+            name_fs * crate::markdown::type_scale::LABEL
+        };
         let hint_h = self.overlay_hint_h();
         let base = overlay_panel_attrs();
         let hk_hint = |c| {
@@ -891,10 +919,27 @@ impl TextPipeline {
         if gap_rows > 0 || content_before {
             spans.push(("\n", base.clone().color(muted)));
         }
-        push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
+        if self.overlay_files_surface {
+            let ink = crate::render::overlay_chrome_theme()
+                .base_content
+                .to_glyphon();
+            let (action, destination) = hint
+                .split_once(" — ")
+                .map_or((hint, None), |(action, destination)| {
+                    (action, Some(destination))
+                });
+            push_symbol_split(spans, action, || hk_hint(ink), || sym_hint(ink));
+            if let Some(destination) = destination {
+                spans.push((" — ", hk_hint(muted)));
+                spans.push((destination, hk_hint(muted)));
+            }
+        } else {
+            push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
+        }
     }
 
     fn push_flat_overlay_query_spans<'a>(
+        &self,
         spans: &mut Vec<(&'a str, glyphon::Attrs)>,
         geom: &OverlayGeom,
         query: FlatQuerySpans<'a>,
@@ -933,18 +978,15 @@ impl TextPipeline {
         if title_prefix.is_empty() {
             spans.push(("› ", hk(muted)));
         } else {
-            spans.push((title_prefix, hkc(muted)));
+            let composed = self.overlay_composed_title_prefix(geom).is_some();
+            spans.push((title_prefix, hkc(if composed { ink } else { muted })));
         }
-        // GHOST TEXT: an empty field with something to say about it (today
-        // only Insert-link's URL field) shows it dim in the field's own
-        // place, never a second line — a query text still overrides it the
-        // instant it exists, matching the plain text-field convention.
+        // Ghost text occupies an empty field; typed query text replaces it immediately.
         match (query.is_empty(), placeholder) {
             (true, Some(placeholder)) => spans.push((placeholder, hk(muted))),
             _ => spans.push((query, hk(ink))),
         }
     }
-
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
@@ -977,7 +1019,7 @@ impl TextPipeline {
         } else {
             self.overlay_raw_title_prefix(geom)
         };
-        Self::push_flat_overlay_query_spans(
+        self.push_flat_overlay_query_spans(
             &mut spans,
             geom,
             FlatQuerySpans {
@@ -999,7 +1041,10 @@ impl TextPipeline {
         // per-scroll CONTENT) — so this line's very existence cannot appear
         // or vanish as the reader scrolls through an already-open card; only
         // whether it carries text or sits blank does.
-        let cue_above_text = geom.cue_above.map(|n| edge_cue_text(true, n));
+        let cue_above_text = geom
+            .cue_reserved
+            .then(|| geom.cue_above.map(|n| edge_cue_text(true, n)))
+            .flatten();
         let beat = plan.beat_line();
         push_beat_spacer(
             &mut spans,
@@ -1041,20 +1086,17 @@ impl TextPipeline {
             self.push_overlay_hint_spans(
                 &mut spans,
                 fitted_hint.as_str(),
-                muted,
+                if self.overlay_theme_picker {
+                    ink
+                } else {
+                    muted
+                },
                 geom.hint_gap_rows,
                 has_query || !rows.is_empty() || geom.empty.is_some(),
             );
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
-        if geom.footer_rows > 0 {
-            let faint = crate::render::overlay_chrome_theme().faint.to_glyphon();
-            let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-            spans.push(("\n", mk(faint))); // the blank separator line
-            for line in &footer_lines {
-                push_symbol_split(&mut spans, line, || mk(faint), || sym(faint));
-            }
-        }
+        push_workspace_footer_spans(&mut spans, &footer_lines, geom.footer_rows, base.clone());
 
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));

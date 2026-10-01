@@ -53,6 +53,22 @@ fn theme_picker_is_flat_and_lists_every_world_with_active_selected() {
     );
 }
 
+#[test]
+fn theme_rows_distinguish_the_committed_world_from_the_live_preview() {
+    let _guard = crate::testlock::serial();
+    let names = vec!["Bowerbird".to_string(), "Mulga".to_string()];
+    let mut ov = OverlayState::new_theme(names, 0);
+    assert_eq!(ov.item_bindings(), vec!["current", ""]);
+    ov.selected = 1;
+    assert_eq!(
+        ov.item_bindings(),
+        vec!["current", "preview"],
+        "moving the selection must not relabel the committed world"
+    );
+    ov.selected = 0;
+    assert_eq!(ov.item_bindings(), vec!["current", ""]);
+}
+
 /// The CLICKABLE lens strip's pointing counterpart to a no-op LEFT/RIGHT at an
 /// end: clicking the ALREADY-ACTIVE facet is a calm no-op (documented on
 /// `set_facet_lens` itself) — `facet_lens`, the selected item, and the scroll

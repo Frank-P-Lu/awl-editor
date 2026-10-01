@@ -93,6 +93,7 @@ mod facepitch;
 mod facet_mark_dpi;
 mod facet_strip_air;
 mod facet_strip_seat_law;
+mod files_minimum_height;
 mod files_surface;
 mod firetail_showcase;
 mod float_surface_law;
@@ -156,6 +157,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod ime_fields;
 mod insert_link_field;
 /// Reads font metadata through native-only `ttf_parser` test tooling.
 #[cfg(not(target_arch = "wasm32"))]
@@ -213,7 +215,9 @@ mod palette_shortcuts;
 /// edges through the same shaped-glyph scan the amber caret rides, clipped by
 /// the same fixed-width window rule.
 mod panel_bordered_chrome;
+mod panel_composition;
 mod panel_field_selection;
+mod panel_spacing_law;
 mod paperbark_retina;
 mod pipeline_tint_law;
 mod pixeldiff;
@@ -348,6 +352,7 @@ mod workspace_plate;
 /// The shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
 mod workspace_shape;
+mod workspace_spacing_law;
 /// The narrow regime: a workspace stages its two regions, and neither stage is
 /// ever blank — an empty planned row window is always a staged card whose other
 /// region draws, and some stage always has rows at every reachable window.

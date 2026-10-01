@@ -28,6 +28,7 @@ pub(in crate::render) struct WorkspaceRegionsInput {
     pub hpad: f32,
     pub primary_w: f32,
     pub gap: f32,
+    pub max_width: Option<f32>,
     pub wide: bool,
     pub content_focused: bool,
 }
@@ -48,8 +49,9 @@ pub(in crate::render) fn plan_timeline_row_span(
 }
 
 pub(in crate::render) fn plan_workspace_regions(input: WorkspaceRegionsInput) -> WorkspaceRegions {
-    let card_x = input.margin;
-    let card_w = (input.canvas_w - 2.0 * input.margin).max(0.0);
+    let natural_w = (input.canvas_w - 2.0 * input.margin).max(0.0);
+    let card_w = input.max_width.map_or(natural_w, |cap| natural_w.min(cap));
+    let card_x = (input.canvas_w - card_w) * 0.5;
     let card_y = input.margin + input.top_reserve;
     let card_h = (input.canvas_h - card_y - input.margin).max(input.min_height);
     let interior = (card_w - 2.0 * input.hpad).max(0.0);
@@ -122,6 +124,7 @@ mod tests {
             hpad: 16.0,
             primary_w: 180.0,
             gap: 24.0,
+            max_width: None,
             wide,
             content_focused: focused,
         })
@@ -139,6 +142,26 @@ mod tests {
         assert_eq!(primary.primary, primary.pane);
         assert!(primary.primary_visible() && !primary.content_visible());
         assert!(!content.primary_visible() && content.content_visible());
+    }
+
+    #[test]
+    fn a_wide_workspace_cap_is_centered_without_changing_its_height() {
+        let capped = plan_workspace_regions(WorkspaceRegionsInput {
+            canvas_w: 1200.0,
+            canvas_h: 800.0,
+            margin: 20.0,
+            top_reserve: 12.0,
+            min_height: 30.0,
+            hpad: 16.0,
+            primary_w: 180.0,
+            gap: 24.0,
+            max_width: Some(760.0),
+            wide: true,
+            content_focused: false,
+        });
+        assert_eq!(capped.card, [220.0, 32.0, 760.0, 748.0]);
+        assert_eq!(capped.primary, [236.0, 180.0]);
+        assert_eq!(capped.pane, [440.0, 524.0]);
     }
 
     #[test]

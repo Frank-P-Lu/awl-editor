@@ -34,6 +34,19 @@ impl KeymapState {
         self.in_c_x || self.in_c_c
     }
 
+    /// Observe the configured single chord without consuming prefix state.
+    /// Browser paste must decide whether to allow the DOM default before
+    /// winit's keydown listener can cancel it.
+    pub(crate) fn single_action(&self, logical: &Key, state: ModifiersState) -> Option<&Action> {
+        if self.in_prefix() {
+            return None;
+        }
+        let chord = (canon_key(logical), state);
+        self.override_single
+            .get(&chord)
+            .or_else(|| self.default_single.get(&chord))
+    }
+
     /// True when `key` — interpreted as the UN-COMPOSED logical key while Alt/Meta is
     /// held — would resolve to a real Meta (Option) chord rather than self-insert.
     ///
@@ -60,14 +73,8 @@ impl KeymapState {
 
     pub fn resolve(&mut self, logical: &Key, mods: &Modifiers) -> Action {
         let state = mods.state();
-        if !self.in_c_x && !self.in_c_c {
-            let chord = (canon_key(logical), state);
-            if let Some(a) = self.override_single.get(&chord) {
-                return a.clone();
-            }
-            if let Some(a) = self.default_single.get(&chord) {
-                return a.clone();
-            }
+        if let Some(action) = self.single_action(logical, state) {
+            return action.clone();
         }
         let ctrl = state.contains(ModifiersState::CONTROL);
         let alt = state.contains(ModifiersState::ALT);

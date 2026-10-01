@@ -71,7 +71,17 @@ impl TextPipeline {
         // highlight sits on the text rather than on the row's full leading.
         let h = self.metrics.panel_ui().caret_h;
         let cy = self.panel_caret_cy(text_top, shape.caret_row);
-        let rects = [[x0, cy - h * 0.5, (x1 - x0).max(0.0), h]];
+        let composing = self.search_field_selection.is_none()
+            && self
+                .field_input
+                .as_ref()
+                .is_some_and(|field| field.preedit.is_some());
+        let (y, h) = if composing {
+            (cy + h * 0.4, self.metrics.ui().px(Logical(1.0)))
+        } else {
+            (cy - h * 0.5, h)
+        };
+        let rects = [[x0, y, (x1 - x0).max(0.0), h]];
         self.panel_query_selection
             .prepare(device, queue, width, height, &rects);
     }

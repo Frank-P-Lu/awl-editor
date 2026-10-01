@@ -36,6 +36,9 @@ impl InkBox {
 pub(super) const CARET_VISUAL_BODY_MIN_W: Logical = Logical(6.5);
 pub(super) const CARET_VISUAL_BODY_MIN_H: Logical = Logical(12.0);
 pub(super) const CARET_VISUAL_BODY_MIN_AREA: Area = Area(96.0);
+/// The restrained margin around a full-ink envelope, which already contains
+/// the face's tallest ascender and deepest descender.
+pub(super) const CARET_BLOCK_INK_PAD: Logical = Logical(1.0);
 
 /// A quantity in SQUARE logical pixels — an AREA floor, not a length. The
 /// newtype carries no `.px()`, only [`Self::px2`], so an area constant cannot
@@ -58,8 +61,21 @@ impl Area {
 /// never a per-glyph raster read, so a narrow letter and a wide one both grow
 /// by the identical two pads before either floor below ever runs.
 pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
+    caret_visual_body_dims_with_pad(ink, px, CARET_INK_PAD)
+}
+
+/// The shared body floor with an explicit vertical margin. The ordinary
+/// glyph-responsive and typical-letter paths use [`CARET_INK_PAD`]; the Block
+/// caret's already-full face envelope supplies [`CARET_BLOCK_INK_PAD`]. Width
+/// and area floors remain identical, so this is one body policy with one
+/// data-driven vertical input rather than a second caret renderer.
+pub(super) fn caret_visual_body_dims_with_pad(
+    ink: InkBox,
+    px: f32,
+    vertical_pad: Logical,
+) -> (f32, f32) {
     let mut w = (ink.width + 2.0 * CARET_INK_PAD_W.px(px)).max(CARET_VISUAL_BODY_MIN_W.px(px));
-    let mut h = (ink.height + 2.0 * CARET_INK_PAD.px(px)).max(CARET_VISUAL_BODY_MIN_H.px(px));
+    let mut h = (ink.height + 2.0 * vertical_pad.px(px)).max(CARET_VISUAL_BODY_MIN_H.px(px));
     let min_area = CARET_VISUAL_BODY_MIN_AREA.px2(px);
     if w * h < min_area {
         let grow = (min_area / (w * h)).sqrt();

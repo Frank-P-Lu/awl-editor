@@ -38,6 +38,8 @@ pub(in crate::render) struct PopoverPlanInput {
     pub edge_pad: f32,
     /// Selection start x, row top, and row height.
     pub anchor: [f32; 3],
+    /// The open interaction’s screen origin; new summons use the selection.
+    pub origin: Option<[f32; 2]>,
     pub buttons: Vec<MeasuredPopoverButton>,
 }
 
@@ -50,10 +52,12 @@ pub(in crate::render) fn plan_popover(input: PopoverPlanInput) -> PopoverGeom {
     if card_y < input.anchor_gap {
         card_y = sel_top + sel_row_h + input.anchor_gap;
     }
-    card_y = card_y
+    let card_x = sel_x - card_w * 0.5;
+    let [card_x, card_y] = input.origin.unwrap_or([card_x, card_y]);
+    let card_y = card_y
         .min(input.canvas[1] - card_h - input.anchor_gap)
         .max(input.anchor_gap);
-    let card_x = (sel_x - card_w * 0.5)
+    let card_x = card_x
         .min(input.canvas[0] - card_w - input.edge_pad)
         .max(input.edge_pad);
 
@@ -174,6 +178,7 @@ mod tests {
             anchor_gap: 8.0,
             edge_pad: 6.0,
             anchor,
+            origin: None,
             buttons: vec![
                 MeasuredPopoverButton {
                     button: PopoverButton::Bold,
@@ -199,6 +204,20 @@ mod tests {
         assert_eq!(below.card, [178.0, 50.0, 144.0, 32.0]);
         assert_eq!(above.band_top - above.card[1], 7.0);
         assert_eq!(above.text_top, above.band_top - 4.0);
+    }
+
+    #[test]
+    fn popover_retains_an_open_origin_but_still_obeys_canvas_bounds() {
+        let _guard = crate::testlock::serial();
+        let mut input = inputs([250.0, 160.0, 22.0]);
+        input.origin = Some([40.0, 80.0]);
+        let held = plan_popover(input);
+        assert_eq!(&held.card[..2], &[40.0, 80.0]);
+        let mut input = inputs([250.0, 160.0, 22.0]);
+        input.origin = Some([900.0, 900.0]);
+        let clipped = plan_popover(input);
+        assert_eq!(clipped.card[0] + clipped.card[2], 494.0);
+        assert_eq!(clipped.card[1] + clipped.card[3], 292.0);
     }
 
     #[test]

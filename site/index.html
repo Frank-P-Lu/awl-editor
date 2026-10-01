@@ -69,7 +69,7 @@
 cd awl-0.13.0-linux-x86_64
 ./awl notes.md</code></pre>
         <p>Check it against the release's <code>SHA256SUMS</code> first with
-          <code>sha256sum -c SHA256SUMS</code>. awl needs a working Vulkan
+          <code>grep -F '  awl-0.13.0-linux-x86_64.tar.gz' SHA256SUMS | sha256sum -c -</code>. awl needs a working Vulkan
           driver, fontconfig, libxkbcommon, and Wayland or X11; the archive's
           <code>README.txt</code> names the packages per distro. A signed macOS
           build is not ready yet.</p>

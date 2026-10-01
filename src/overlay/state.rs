@@ -22,6 +22,7 @@ pub use super::add_to_dictionary_label;
 
 #[derive(Debug, Clone)]
 pub struct OverlayState {
+    pub(crate) text_input_id: crate::textbox::TextInputId,
     pub kind: OverlayKind,
     pub align: crate::theme::CardAnchor,
     pub query: TextBox,
@@ -113,6 +114,13 @@ pub struct OverlayState {
     /// gathers, the card just holds" shape. `None`/empty on every other kind.
     pub search_root: Option<std::path::PathBuf>,
     pub search_corpus: Vec<(String, String)>,
+    /// At least one indexed file was omitted from Search in folder's loaded
+    /// corpus. Kept beside that corpus so every live/replay/view consumer
+    /// reports the same partial-coverage state.
+    pub search_incomplete: bool,
+    /// The current query reached a result-row cap. Recomputed on each filter,
+    /// separately from the summon-time corpus coverage fact above.
+    pub search_limited: bool,
     pub(super) hug_roster: Option<Arc<HugRoster>>,
 }
 
@@ -176,6 +184,7 @@ impl OverlayState {
             })
             .collect();
         let mut s = Self {
+            text_input_id: crate::textbox::TextInputId::new(),
             kind,
             // Themes is the one chooser whose rows replace the world behind
             // the card. Its reviewed composition is a stable top-right form
@@ -228,6 +237,8 @@ impl OverlayState {
             subject_name: None,
             search_root: None,
             search_corpus: Vec::new(),
+            search_incomplete: false,
+            search_limited: false,
             hug_roster: None,
         };
         s.refilter();
@@ -241,7 +252,11 @@ impl OverlayState {
     /// empty query and therefore zero rows (the calm "no matches" row) —
     /// `refilter`'s `SearchFolder` branch fills the list in as soon as
     /// something is typed, matching every other query-driven picker's shape.
-    pub fn new_search_folder(root: std::path::PathBuf, corpus: Vec<(String, String)>) -> Self {
+    pub fn new_search_folder(
+        root: std::path::PathBuf,
+        corpus: Vec<(String, String)>,
+        incomplete: bool,
+    ) -> Self {
         let mut s = Self::new_marked(
             OverlayKind::SearchFolder,
             Vec::new(),
@@ -253,6 +268,7 @@ impl OverlayState {
         );
         s.search_root = Some(root);
         s.search_corpus = corpus;
+        s.search_incomplete = incomplete;
         s
     }
 
@@ -759,6 +775,20 @@ impl OverlayState {
                 "type to filter   ↵ {}   → open   ← up",
                 route.commit_label()
             );
+        }
+        if let Some(hint) = self.files_hint() {
+            return hint;
+        }
+        if self.kind == OverlayKind::SearchFolder {
+            let coverage = match (self.search_incomplete, self.search_limited) {
+                (true, true) => "some files not searched; results limited",
+                (true, false) => "some files not searched",
+                (false, true) => "results limited",
+                (false, false) => "",
+            };
+            if !coverage.is_empty() {
+                return format!("{coverage}   ↵ open   esc close");
+            }
         }
         self.kind.hint()
     }

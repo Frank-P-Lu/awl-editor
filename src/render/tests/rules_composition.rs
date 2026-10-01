@@ -335,11 +335,12 @@ fn assert_mark_sits_on_the_selected_row(
 #[test]
 fn every_overlay_kinds_rules_are_rules_and_never_a_surface() {
     let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let _toggles = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1400.0, 900.0) else {
         eprintln!("skipping every_overlay_kinds_rules_are_rules_and_never_a_surface: no adapter");
         return;
     };
-    let saved_reduced = crate::motion::reduced();
     crate::motion::set_reduced(true); // settle the entrance: no travelling band
 
     let mut graded_cards = 0usize;
@@ -370,9 +371,7 @@ fn every_overlay_kinds_rules_are_rules_and_never_a_surface() {
         }
     }
     set_list_style_test_override(None);
-    crate::motion::set_reduced(saved_reduced);
     p.set_dpi(1.0);
-    theme::set_active(theme::DEFAULT_THEME);
 
     // NON-VACUITY, three ways: the sweep really rendered every kind on every
     // cell, the cards really emitted rules, and a selection really was marked.
@@ -1158,11 +1157,12 @@ fn the_active_rail_entry_reads_as_plain_ground_on_a_rules_world_and_as_a_band_el
 #[test]
 fn every_setting_id_and_kind_is_ruled_in_the_settings_workspace() {
     let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let _toggles = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(1400.0, 900.0) else {
         eprintln!("skipping every_setting_id_and_kind_is_ruled...: no adapter");
         return;
     };
-    let saved_reduced = crate::motion::reduced();
     crate::motion::set_reduced(true);
     theme::set_active_by_name("Paperbark").unwrap();
     p.sync_theme();
@@ -1225,9 +1225,7 @@ fn every_setting_id_and_kind_is_ruled_in_the_settings_workspace() {
         }
     }
     set_list_style_test_override(None);
-    crate::motion::set_reduced(saved_reduced);
     p.set_dpi(1.0);
-    theme::set_active(theme::DEFAULT_THEME);
 
     let want_ids: std::collections::BTreeSet<String> =
         registry.iter().map(|r| format!("{:?}", r.id)).collect();

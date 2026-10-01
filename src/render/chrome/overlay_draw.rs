@@ -141,6 +141,10 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         self.overlay_bars.prepare(device, queue, width, height, &[]);
+        self.files_control_fill
+            .prepare(device, queue, width, height, &[]);
+        self.files_control_rim
+            .prepare_multicolor(device, queue, width, height, &[]);
         self.footer_plate_rim
             .prepare(device, queue, width, height, &[]);
         self.overlay_spine
@@ -518,7 +522,8 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) {
-        let Some([x, y, w, h]) = self.overlay_query_caret_box(geom, plan) else {
+        self.field_caret_rect = self.overlay_text_caret_box(geom, plan);
+        let Some([x, y, w, h]) = self.field_caret_rect else {
             self.panel_caret.prepare_empty();
             self.panel_query_selection
                 .prepare(device, queue, width, height, &[]);
@@ -540,11 +545,12 @@ impl TextPipeline {
         // `panel_query_selection`'s own doc for why it is its OWN instance,
         // not `overlay_rows`. `None` for every card but Rename's, and for
         // Rename's own card once the seeded selection collapses.
-        let rects: &[[f32; 4]] = match self.overlay_query_selection_box(geom, plan) {
-            Some(r) => &[r],
-            None => &[],
-        };
+        let rects: Vec<[f32; 4]> = self
+            .overlay_text_selection_box(geom, plan)
+            .into_iter()
+            .chain(self.overlay_composition_rect(geom, plan))
+            .collect();
         self.panel_query_selection
-            .prepare(device, queue, width, height, rects);
+            .prepare(device, queue, width, height, &rects);
     }
 }

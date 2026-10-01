@@ -1,5 +1,6 @@
 pub mod keys;
 mod semantic;
+mod text_input;
 use crate::textbox::TextBox;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -51,6 +52,7 @@ pub enum StepOutcome {
 /// Live isearch state. Owned by `App` as `Option<SearchState>`; the query is its
 /// OWN String, never spliced into the rope.
 pub struct SearchState {
+    pub(crate) text_input_id: crate::textbox::TextInputId,
     /// The search needle + its CHAR-index caret, one shared [`TextBox`].
     query: TextBox,
     case_sensitive: bool,
@@ -76,6 +78,7 @@ pub struct SearchState {
 impl SearchState {
     pub fn start(origin: usize, direction: Direction) -> Self {
         Self {
+            text_input_id: crate::textbox::TextInputId::new(),
             query: TextBox::new(),
             case_sensitive: false,
             matches: Vec::new(),
@@ -114,6 +117,19 @@ impl SearchState {
     pub fn push_char(&mut self, c: char, haystack: &str) {
         self.query.insert(c);
         self.recompute(haystack);
+    }
+
+    pub(crate) fn paste_focused(&mut self, text: &str, haystack: &str) -> bool {
+        let field = if self.editing_replacement {
+            &mut self.replacement
+        } else {
+            &mut self.query
+        };
+        let changed = field.insert_text(&crate::textbox::single_line(text));
+        if changed && !self.editing_replacement {
+            self.recompute(haystack);
+        }
+        changed
     }
 
     pub fn pop_char(&mut self, haystack: &str) {
@@ -194,6 +210,8 @@ impl SearchState {
     ///   * Forward  → first match with `start >= origin`, else wrap to first.
     ///   * Backward → last match with `start <= origin`, else wrap to last.
     fn recompute(&mut self, haystack: &str) {
+        #[cfg(test)]
+        crate::textbox::work::note(crate::textbox::work::Op::Recompute);
         self.wrap_armed = None;
         self.matches = find_all(haystack, self.query.text(), self.case_sensitive);
         self.current = if self.matches.is_empty() {

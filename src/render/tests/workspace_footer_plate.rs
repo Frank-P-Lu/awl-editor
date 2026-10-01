@@ -11,7 +11,7 @@
 
 use super::super::*;
 use super::{headless_dqp, view};
-use crate::overlay::OverlayKind;
+use crate::overlay::{OverlayKind, OverlayState};
 
 /// Render the current frame offscreen and read it back.
 fn shoot(
@@ -101,15 +101,33 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
             // A SETTINGS workspace with a SHORT list, so the card's canvas-sized
             // box leaves a great deal of room the rows do not use — the exact
             // condition under which the retired rule painted its slab.
+            let mut card = OverlayState::new(
+                OverlayKind::Settings,
+                vec!["Alpha".into(), "Beta".into()],
+                Vec::new(),
+                Vec::new(),
+            );
+            let mut journey = crate::overlay::Journey::seeded(Some(card));
+            journey.toggle_detail();
+            card = journey
+                .card()
+                .expect("Settings remains open after entering rows")
+                .clone();
             let mut v = view("hello world\n", 0, 0);
             v.overlay_active = true;
             v.overlay_workspace = true;
             v.overlay_rows_primary = false;
+            // This law grades the rows footer, not the category rail's own
+            // teaching line. Settings defaults to the rail at shipped density,
+            // so explicitly drive the rows stage the way its Journey does.
+            v.overlay_detail_focus = card.detail_focus;
             v.overlay_title = OverlayKind::Settings.title().to_string();
-            v.overlay_items = vec!["Alpha".into(), "Beta".into()];
-            v.overlay_selected = 0;
-            v.overlay_hint = "↑/↓ category   ↵ settings   esc close".into();
-            v.overlay_lens = vec![("All".into(), true), ("Editor".into(), false)];
+            v.overlay_items = card.item_strings();
+            v.overlay_bindings = card.item_bindings();
+            v.overlay_ranges = card.item_range_fracs();
+            v.overlay_selected = card.selected;
+            v.overlay_hint = journey.foot_hint();
+            v.overlay_lens = card.lens_strip();
             p.set_view(&v);
             p.prepare(&device, &queue, cw, ch).unwrap();
 

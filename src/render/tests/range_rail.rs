@@ -50,7 +50,15 @@ fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayStat
         .position(|&i| ov.rows[i].accept == wanted.name)
         .expect("the Settings corpus has the range row");
     ov.selected = range_row;
-    ov
+    // Rails are controls in Settings' content pane. Reach that recipient through
+    // the lifecycle rather than assigning the card's coarse detail bit: the
+    // category stage intentionally hides rows when this workspace is staged.
+    let mut journey = crate::overlay::Journey::seeded(Some(ov));
+    assert!(journey.focus_settings(crate::overlay::workspace::SettingsFocus::Controls));
+    journey
+        .card()
+        .expect("the Settings card remains open")
+        .clone()
 }
 
 /// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does,
@@ -60,12 +68,9 @@ fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayStat
 /// fixture and one parked note instead of two byte-identical copies of each.
 ///
 /// The shared owner derives `overlay_workspace`/`overlay_detail_focus` the
-/// way `sync_view` really does now, so this file needs no local restoration
-/// of either — this file's own fixtures never fake entering a category's
-/// rows (`settings_state_for` leaves `detail_focus` at its `false` default),
-/// which is fine here because every rail test below renders at a WIDE
-/// canvas, where `content_visible() = wide || content_focused` shows the
-/// rows regardless.
+/// way `sync_view` really does now. `settings_state_for` reaches Settings'
+/// Controls recipient through `Journey`, so the rows remain present in both
+/// split and staged workspace geometry.
 fn settings_view(ov: &OverlayState) -> ViewState {
     settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS)
 }

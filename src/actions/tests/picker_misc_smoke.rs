@@ -831,6 +831,7 @@ fn smoke_picker_input(kind: OverlayKind) -> Option<crate::overlay::PickerInput<'
         OverlayKind::SearchFolder => Some(PickerInput::SearchFolder(SearchFolderInputs {
             root: std::path::PathBuf::from("/workspace"),
             corpus: vec![("README.md".to_string(), "hello world".to_string())],
+            incomplete: false,
         })),
         OverlayKind::Credits => Some(PickerInput::Credits),
         OverlayKind::Browse

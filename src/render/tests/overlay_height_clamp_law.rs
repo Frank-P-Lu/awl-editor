@@ -123,6 +123,17 @@ pub(super) fn overlay_view(kind: OverlayKind, n: usize, sectioned: bool) -> View
             // The rail's data is the same lens strip; `overlay_workspace` is what
             // routes it to the workspace geometry, exactly as `sync_view` sets it.
             v.overlay_workspace = true;
+            // The workspace shape owns which region carries candidate rows.
+            // Settings is RailOverRows, while History's timeline is primary;
+            // leaving ViewState's inert `false` here silently rendered every
+            // workspace as the Settings shape.
+            v.overlay_rows_primary = kind
+                .workspace_shape()
+                .expect("workspace family has a workspace shape")
+                .rows_are_primary();
+            // Settings' candidates live in the content region, so enter that
+            // stage; History's timeline remains in the primary region.
+            v.overlay_detail_focus = !v.overlay_rows_primary;
             v.overlay_lens = vec![
                 ("All".into(), true),
                 ("Editor".into(), false),

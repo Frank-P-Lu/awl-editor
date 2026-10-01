@@ -147,11 +147,8 @@ impl OverlayKind {
     /// PREVIEWS THE LIVE DOCUMENT: does moving the highlight in this picker
     /// repaint the page BEHIND the card, before anything is committed?
     ///
-    /// The ONE owner of that question, and the property
-    /// [`Self::keeps_backdrop_crisp`] spends — the two are asserted EQUAL over
-    /// [`Self::ALL`], so a kind cannot earn the frost exemption without declaring
-    /// the audition that pays for it, or declare the audition and inherit frost
-    /// over the very thing its rows are showing.
+    /// The ONE owner of that question. Live auditions always require a crisp
+    /// backdrop; a full workspace may also decline frost as a composition rule.
     /// `actions::overlay_nav::preview_overlay` gates on this before it mutates
     /// anything, and the accept path asks it to decide which Enter is a KEEP of an
     /// already-live value rather than a fresh apply.
@@ -202,18 +199,9 @@ impl OverlayKind {
     /// composition decision and a new kind must make it here instead of
     /// inheriting the frost.
     ///
-    /// A card frosts what it covers (DESIGN §5: a summoned surface recedes the
-    /// room). The exception is earned by exactly one property, and it has its own
-    /// owner: [`Self::previews_live_document`] — the theme picker repaints the
-    /// page under itself, the caret picker poses the real caret — where frosting
-    /// would blur the very thing the row is showing you. The two predicates are
-    /// asserted EQUAL over [`Self::ALL`], not merely nested, so neither can drift
-    /// past the other; being an [`AcceptDisposition::ValuePick`] is necessary but
-    /// nowhere near sufficient (three value-pickers preview inside their own rows
-    /// and want the frost). A comparison is NOT this either: it composites inside
-    /// the workspace's own content region, so what sits behind its card is the
-    /// user's untouched document — a quiet backdrop, which is exactly what frost
-    /// is for.
+    /// Theme and Caret keep their live auditions readable. Settings is crisp for
+    /// a different reason: its opaque, viewport-scale workspace already moves
+    /// attention, and blur outside that surface adds a second competing veil.
     ///
     /// Read by the LIVE door (`App::sync_view`) and by the CAPTURE door
     /// (`capture::modes::settled_viewstate`, which arrives holding a serialized
@@ -221,7 +209,7 @@ impl OverlayKind {
     /// a headless frame cannot disagree with the running editor about frost.
     pub fn keeps_backdrop_crisp(self) -> bool {
         match self {
-            OverlayKind::Theme | OverlayKind::Caret => true,
+            OverlayKind::Theme | OverlayKind::Caret | OverlayKind::Settings => true,
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::ProjectBrowse
@@ -237,7 +225,6 @@ impl OverlayKind {
             | OverlayKind::History
             | OverlayKind::Conflict
             | OverlayKind::Credits
-            | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
@@ -459,14 +446,14 @@ impl OverlayKind {
         )
     }
 
-    /// Ghost text the query FIELD shows while it's empty — a promise no
-    /// picker's fuzzy-filter field makes (an empty query there just means
-    /// "everything"), but this kind's field has nothing behind it until
-    /// something is typed. `None` for every other kind, so the query line's
-    /// paint stays exactly as blank as it always was there.
+    /// Ghost text the query FIELD shows while it's empty — a promise no picker's
+    /// fuzzy-filter field makes (an empty query there just means
+    /// "everything"), but this kind's field has nothing behind it until something
+    /// is typed. `None` elsewhere, so the query line stays exactly as blank as before.
     pub fn field_placeholder(self) -> Option<&'static str> {
         match self {
             OverlayKind::InsertLink => Some("Paste or type a URL"),
+            OverlayKind::Theme => Some("Search themes"),
             OverlayKind::Settings => Some("Search settings"),
             _ => None,
         }

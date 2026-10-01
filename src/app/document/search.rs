@@ -10,6 +10,14 @@
 use super::*;
 
 impl DocumentSession {
+    pub(in crate::app) fn commit_search_text(
+        &mut self,
+        search: &mut crate::search::SearchState,
+        text: &str,
+    ) {
+        crate::search::keys::commit_text(search, &mut self.active_entry_mut().buffer, text);
+    }
+
     /// Route a key to the active search surface (only called while
     /// `workspace_state.search_active()`). A thin delegate to the ONE
     /// renderer-independent interception seam

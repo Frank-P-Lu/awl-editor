@@ -380,6 +380,8 @@ fn rail_draws_a_plate() -> bool {
 
 /// Render the Settings workspace standing on category `lens` and return the
 /// frame together with the rail's FIRST entry rect.
+type RailFrame = (Vec<[u8; 4]>, Option<[f32; 4]>, Option<String>, Option<f32>);
+
 fn frame_with_lens(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -387,7 +389,7 @@ fn frame_with_lens(
     lens: usize,
     detail: bool,
     (w, h, dpi): (u32, u32, f32),
-) -> (Vec<[u8; 4]>, Option<[f32; 4]>, Option<String>) {
+) -> RailFrame {
     let ov = workspace_card(lens, detail);
     p.set_dpi(dpi);
     p.set_size(w as f32, h as f32);
@@ -399,7 +401,17 @@ fn frame_with_lens(
         .lines
         .first()
         .map(|line| line.text().to_string());
-    (render_frame(p, device, queue, w, h), rect, first_label)
+    let first_label_w = p
+        .workspace_rail_buffer
+        .layout_runs()
+        .next()
+        .map(|run| run.line_w);
+    (
+        render_frame(p, device, queue, w, h),
+        rect,
+        first_label,
+        first_label_w,
+    )
 }
 
 /// **THE HEADLINE LAW.** On every world in the roster, at a wide canvas, at the
@@ -461,14 +473,23 @@ fn grade_cell(
     // The SAME rect, twice: standing on category 0 (row 0 is the active entry,
     // marked) and on category 1 (row 0 is an ordinary entry, bare). Everything
     // below is one against the other.
-    let (marked, rect_a, label_a) = frame_with_lens(device, queue, p, 0, detail, cell);
-    let (bare, rect_b, label_b) = frame_with_lens(device, queue, p, 1, detail, cell);
+    let (marked, rect_a, label_a, label_w_a) = frame_with_lens(device, queue, p, 0, detail, cell);
+    let (bare, rect_b, label_b, label_w_b) = frame_with_lens(device, queue, p, 1, detail, cell);
     let (rect, rect_bare) = (rect_a?, rect_b?);
     assert_eq!(
         (label_a.as_deref(), label_b.as_deref()),
         (Some("All"), Some("All")),
         "{at}: the first rail row must keep its `All` label in both selected states; \
-         another workspace measurement overwrote it ({label_a:?} vs {label_b:?})"
+        another workspace measurement overwrote it ({label_a:?} vs {label_b:?})"
+    );
+    let (label_w, label_w_bare) = (
+        label_w_a.expect("the active rail entry must have a shaped label width"),
+        label_w_b.expect("the bare rail entry must have a shaped label width"),
+    );
+    assert!(
+        (label_w - label_w_bare).abs() < 0.5,
+        "{at}: the same `All` label shaped to different widths ({label_w:.1}px vs \
+         {label_w_bare:.1}px) between paired frames"
     );
     assert!(
         rect.iter()
@@ -478,8 +499,14 @@ fn grade_cell(
          {rect_bare:?}) — this law's whole oracle is that they are the same rect"
     );
 
-    let m = rect_ink(&marked, w, h, rect, dpi);
-    let u = rect_ink(&bare, w, h, rect, dpi);
+    // The pair has one short label but a staged rail may be the whole card.
+    // Grade the label's own shaped lane plus one line-height of neighbouring
+    // ground: otherwise Mangrove's unused lava/dither territory becomes a
+    // false "bare label" denominator. The full rect remains the geometry and
+    // band-presence subject below.
+    let ink_rect = [rect[0], rect[1], (label_w + rect[3]).min(rect[2]), rect[3]];
+    let m = rect_ink(&marked, w, h, ink_rect, dpi);
+    let u = rect_ink(&bare, w, h, ink_rect, dpi);
     assert!(
         m.n > 200,
         "{at}: the rail mark rect {rect:?} graded only {} pixels — this cell cannot \
@@ -617,14 +644,14 @@ fn grade_menu_bar_arm(
         }
     }
 
-    // NON-VACUITY, PER ARM. The sweep is the roster x 4 cells x 2 focus
-    // states, less the two NARROW rows-focused stages, which draw no rail at
-    // all (the pane takes the card there). The counts below are FLOORS, not
-    // equalities, so growing the roster or adding a canvas does not turn this
-    // into a bookkeeping test.
+    // NON-VACUITY, PER ARM. The authored Settings cap now stages its rows pane
+    // at every shipped-density cell, so only the Categories-focused half draws
+    // a rail: roster x 4 cells. The plated floor excludes the two Ruled worlds.
+    // These remain FLOORS, so growing the roster or adding a canvas cannot turn
+    // this into bookkeeping.
     let graded = rects.len();
     assert!(
-        graded >= 100 && plated >= 90,
+        graded >= 80 && plated >= 72,
         "with the menu bar {}, the sweep graded {graded} cells ({plated} of them \
          plated) — it is not covering the roster it claims to",
         if menu_bar { "on" } else { "off" }

@@ -298,7 +298,20 @@ impl App {
         door: crate::stats::Door,
     ) -> bool {
         let action = self.prepare_tutorial_action(action);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.trace_input_state("before", &action, door);
         self.pre_apply(&action, door);
+
+        #[cfg(target_arch = "wasm32")]
+        if matches!(action, Action::OpenSearchFolder) {
+            // Synchronous localStorage cannot take a stable bounded snapshot
+            // before materializing a file. Refuse at the action door, before
+            // the picker gather can rescan or read a search corpus.
+            self.set_sticky_notice("search in folder is unavailable in the browser");
+            self.sync_view(false);
+            self.request_frame();
+            return false;
+        }
 
         // ESC COLLAPSES THE EXPANDED WORKING-SET PANEL — the surface's own
         // dismiss key, alongside the shared core's ordinary Cancel (clearing
@@ -321,6 +334,13 @@ impl App {
         }
 
         if self.reject_without_document(&action) {
+            #[cfg(not(target_arch = "wasm32"))]
+            self.trace_input_state("rejected-no-document", &action, door);
+            return false;
+        }
+        #[cfg(target_arch = "wasm32")]
+        if matches!(action, Action::Yank) {
+            self.browser_paste_notice();
             return false;
         }
 
@@ -388,6 +408,9 @@ impl App {
             self.history_overlay_closed(history_accepted);
         }
         self.post_transition_effects(theme_overlay_before, theme_committed, theme_before);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        self.trace_input_state("after", &action, door);
 
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {

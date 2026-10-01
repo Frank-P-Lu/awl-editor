@@ -61,6 +61,8 @@ impl TextPipeline {
         let gap = RAIL_GAP_CHARS.0 * cw;
 
         let wide = self.workspace_is_wide(width);
+        let max_width = (!self.overlay_rows_primary && wide)
+            .then(|| 2.0 * hpad + rail_w + gap + self.workspace_max_pane());
         crate::render::plan::plan_workspace_regions(crate::render::plan::WorkspaceRegionsInput {
             canvas_w: width as f32,
             canvas_h: self.window_h,
@@ -70,6 +72,7 @@ impl TextPipeline {
             hpad,
             primary_w: rail_w,
             gap,
+            max_width,
             wide,
             content_focused: self.overlay_detail_focus,
         })

@@ -28,10 +28,9 @@ impl App {
             gpu.pipeline.begin_overlay_frame(sample.now);
             gpu.pipeline.advance_frame(sample, travelling_ground);
         }
-        Some((
-            gpu.redraw(presentation_available.then_some(travelling_ground)),
-            presentation_available,
-        ))
+        let prepared = gpu.redraw(presentation_available.then_some(travelling_ground));
+        self.update_ime_cursor_area();
+        Some((prepared, presentation_available))
     }
 
     /// Feed the debug panel at the top of a real redraw and say whether this is

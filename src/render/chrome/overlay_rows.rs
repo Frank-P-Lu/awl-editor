@@ -72,12 +72,11 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
-        // A WORKSPACE AND FILES ARE EACH ONE SURFACE. The split composition
-        // carves a card's query beat into a separate upper plate; that is a
-        // small-card gesture, and run across a workspace it would cut the
-        // navigation rail in half at an arbitrary height. Files likewise owns
-        // one opaque surface, so a seam would expose the document it replaced.
-        if geom.workspace || self.overlay_files_surface {
+        // WORKSPACES, FILES, AND THEMES ARE EACH ONE SURFACE. The split card's
+        // separate query plate is a small-card gesture; here it would cut the
+        // navigation rail, detach theme search from its choices, or expose the
+        // document through the opaque Files surface.
+        if geom.workspace || self.overlay_files_surface || self.overlay_theme_picker {
             return vec![full];
         }
         if !matches!(
@@ -133,12 +132,16 @@ impl TextPipeline {
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
+        // Files deliberately replaces the document with one opaque surface.
+        // Every other overlay, including a RailOverRows workspace, takes its
+        // backing from the list composition: Ruled refuses enclosure.
         let backing = if self.overlay_files_surface {
             theme::ListBacking::Card
         } else {
             list_style.list_backing(spell)
         };
         self.overlay_prepare_card_backing(surface, backing, spell, card_rect);
+        self.prepare_files_controls(surface);
         self.overlay_prepare_selection(surface, list_style, backing, vis);
         self.prepare_diagonal_spine(device, queue, width, height, plan, vis);
         self.overlay_prepare_range_rails(surface, vis);
@@ -200,8 +203,9 @@ impl TextPipeline {
             }
             thumb_quads.push((rail.thumb, ink));
         }
+        self.append_overlay_composition_quads(geom, plan, &mut track_rects, &mut thumb_quads);
         self.overlay_range_track
-            .set_color(crate::render::overlay_chrome_theme().faint.rgba_bytes());
+            .set_color(self.overlay_composition_inks().1);
         self.overlay_range_track
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb

@@ -8,17 +8,17 @@ impl TextPipeline {
     /// box enters the result, so adjacent kanji on one script face cannot jitter.
     pub(in crate::render) fn caret_anchor_ideographic_cell(&self) -> Option<(f32, (f32, f32))> {
         let col = self.caret_anchor_col();
-        let ch = self
-            .buffer
-            .lines
-            .get(self.cursor_line)?
-            .text()
-            .chars()
-            .nth(col)?;
-        let script = crate::script::classify_char(ch)?;
+        let line = self.buffer.lines.get(self.cursor_line)?.text();
+        let byte = line.char_indices().nth(col)?.0;
+        let script = crate::script::contextual_script_at(line, byte)?;
+        let resolution_lang = if script == crate::script::Script::Common {
+            Some(self.doc_lang.or(self.han_evidence)?)
+        } else {
+            self.doc_lang
+        };
         let cjk_priority =
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
-        let id = crate::script::resolve_font_id(self.doc_lang, Some(script), &cjk_priority);
+        let id = crate::script::resolve_font_id(resolution_lang, Some(script), &cjk_priority);
         let (family, _) = self.script_fonts.get(id)?;
         let em = facepitch::ideographic_cell_em(family)?;
         let key = self.cursor_glyph_key_at(self.cursor_line, col)?;
@@ -190,14 +190,14 @@ impl TextPipeline {
 
     /// The literal Block caret's `(center_y, height)` on a proportional
     /// Latin row — [`Self::caret_cell_vertical_block`]'s ONLY caller besides
-    /// its own law tests wants exactly this pair, padded and floored the
-    /// same way [`Self::caret_cell_vertical_typical`] is, so a reader
-    /// comparing the two sees the one difference that matters: which box
-    /// backs it.
+    /// its own law tests wants exactly this pair, floored by the same visible
+    /// body rule as [`Self::caret_cell_vertical_typical`]. The full-ink
+    /// envelope uses [`caret_body::CARET_BLOCK_INK_PAD`]'s restrained margin rather than
+    /// adding the typical-letter box's larger [`CARET_INK_PAD`] a second time.
     ///
     /// ⚠️ NEVER TOUCHES THE ADJACENT ROW — measured, not assumed: on the
     /// roster's TIGHTEST bundled face (Bitter — Mopoke/Magpie), the ink
-    /// envelope plus both full [`CARET_INK_PAD`]s already overshoots the
+    /// envelope plus the former two full [`CARET_INK_PAD`]s overshot the
     /// row's own line height by a fraction of a px (the app renders every
     /// face at one FIXED line height, `render::LINE_HEIGHT`, independent of
     /// that face's own metrics — see [`super::super::facepitch`]'s module
@@ -219,8 +219,9 @@ impl TextPipeline {
         px: f32,
     ) -> (f32, f32) {
         let box_ = self.caret_block_ink_box(ascent, font);
-        let (_, floor_h) = caret_visual_body_dims(box_, px);
-        let ideal_h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        let pad = super::super::caret_body::CARET_BLOCK_INK_PAD;
+        let (_, floor_h) = super::super::caret_body::caret_visual_body_dims_with_pad(box_, px, pad);
+        let ideal_h = floor_h.max(box_.height + 2.0 * pad.px(px));
         let row_h = self.cursor_row_height();
         let clearance = Logical(1.0).px(px);
         let max_h = (row_h - clearance).max(box_.height);

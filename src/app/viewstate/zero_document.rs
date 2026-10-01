@@ -77,6 +77,7 @@ impl App {
         view.notice = self.frame.notice().owned().unwrap_or_default();
         view.notice_kind = self.frame.notice().kind();
         view.cjk_priority = self.config.cjk_priority_or_default();
+        self.project_text_input(&mut view);
         self.frame.gpu_mut().unwrap().pipeline.set_view(&view);
         let _ = self.frame.take_caret_motion_flags();
     }

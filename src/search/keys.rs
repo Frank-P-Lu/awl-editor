@@ -78,6 +78,15 @@ pub fn intercept(
 /// because a second copy is how the two would drift.
 pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, action: &Action) {
     match action {
+        Action::PasteText(text) => {
+            if let Some(st) = search.as_mut() {
+                let query_changed = !st.is_editing_replacement();
+                let changed = st.paste_focused(text, &buffer.text());
+                if changed && query_changed {
+                    jump_to_current(search, buffer);
+                }
+            }
+        }
         Action::SelectAll => {
             if let Some(st) = search.as_mut() {
                 st.select_all_focused_field();
@@ -300,6 +309,16 @@ fn edit_char(search: &mut Option<SearchState>, buffer: &mut Buffer, c: char, rep
     }
 }
 
+/// A finalized composition updates the field once, then follows the same
+/// match-placement rule as direct typing. Replacement text never moves it.
+pub(crate) fn commit_text(search: &mut SearchState, buffer: &mut Buffer, text: &str) {
+    let replacement = search.is_editing_replacement();
+    search.commit_text(text, &buffer.text());
+    if !replacement {
+        place_current_match(search, buffer);
+    }
+}
+
 fn move_field(search: &mut Option<SearchState>, replacement: bool, word: bool, right: bool) {
     if let Some(st) = search.as_mut() {
         match (replacement, word, right) {
@@ -381,9 +400,13 @@ pub(crate) fn toggle_case_and_jump(search: &mut Option<SearchState>, buffer: &mu
 /// document caret lands on it. No-op (cursor unchanged) when there is no
 /// current match — we don't jump on a no-match query.
 fn jump_to_current(search: &Option<SearchState>, buffer: &mut Buffer) {
-    if let Some(st) = search.as_ref()
-        && let Some(m) = st.current_match()
-    {
+    if let Some(search) = search.as_ref() {
+        place_current_match(search, buffer);
+    }
+}
+
+fn place_current_match(search: &SearchState, buffer: &mut Buffer) {
+    if let Some(m) = search.current_match() {
         buffer.set_cursor(m.start);
         // REVEALED PLACEMENT (folds): a match on a collapsed line must not leave
         // the caret logically inside a hidden row — route through the ONE

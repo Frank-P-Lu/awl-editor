@@ -168,26 +168,41 @@ hermetic setup for automated input-state testing.
   up as a virtual FS — origin-scoped, synchronous, and bounded by the browser's
   ~5 MB localStorage quota. There are **no real multi-file projects** and no
   filesystem outside the seeded virtual root `/`.
-- **OS clipboard: COPY mirrors out, PASTE stays internal-only (the WEB ESCAPE
-  HATCHES round; `app.rs`'s `web_clipboard` module).** `arboard` still doesn't
-  compile for wasm32, and the browser clipboard is async + permission-gated,
-  so it can't be a drop-in sync replacement — but a best-effort ASYNC bridge
-  onto `navigator.clipboard` now exists. Cmd-C / Cmd-X mirror the kill ring
-  out to the real OS clipboard via `writeText`, fire-and-forget
-  (`wasm_bindgen_futures::spawn_local` — NEVER blocks the editor); a rejection
-  (permission denied, insecure/non-HTTPS context, lost focus) degrades
-  silently back to internal-only, same as a failed native arboard write.
-  PASTE (`readText`) is DELIBERATELY NOT wired — a logged, honest asymmetry,
-  not an oversight: `readText` needs "transient activation" (a currently-live,
-  un-consumed user gesture) in Chromium, and awl's key dispatch reaches that
-  call several async hops downstream of the real DOM `keydown` (winit's own
-  event queue, then `App::apply`) — by the time it would run, the gesture is
-  very likely already stale. The realistic outcomes were a silent
-  `NotAllowedError` on every paste (Chromium) or a NEW permission prompt on
-  every single paste (Firefox) — a "prompt storm" not worth shipping. So Yank
-  still reads the internal kill ring only; an external copy (from outside the
-  browser tab) does not appear in awl until you also copy it FROM awl at least
-  once, or until a future round finds a clean way to wire `readText`.
+- **Search in folder is unavailable in the browser.** Synchronous
+  `localStorage` cannot enforce a read budget before materializing a file, so
+  the action shows a notice without scanning the virtual root. Native folder
+  search remains available.
+- **Clipboard.** Copy and cut retain the best-effort asynchronous
+  `navigator.clipboard.writeText` mirror. Plain-text paste reads `text/plain`
+  from a trusted browser `paste` event while the canvas has focus. The browser
+  event API supplies that payload during the paste gesture; its contract is
+  distinct from the permission-gated asynchronous `readText` API.
+  See the [Clipboard Events specification](https://www.w3.org/TR/clipboard-apis/#clipboard-event-paste).
+  `app/web_clipboard.rs` owns the browser event listeners. Its capture listener lets
+  Cmd-V on Mac or Ctrl-V elsewhere reach the browser only while that chord
+  still resolves to Paste; it stops the duplicate winit keydown first. Other
+  keys retain winit's browser-default suppression, and remapped paste chords
+  and active key prefixes retain their configured meaning. The browser's own
+  Paste command can also deliver a trusted event to the focused canvas.
+  Received text enters the shared `Action::PasteText` transition, replacing a
+  document selection as one undoable edit. Unicode is preserved and CRLF
+  becomes LF. Summoned fields receive text through their existing filtering
+  and selection owners in one bulk splice and one results update; line breaks
+  and control characters are omitted in those single-line fields, and never
+  submit a field or edit the background document. Paste leaves every phase of
+  keybinding capture unchanged, including partially recorded chords.
+  Trusted DOM `compositionstart`/`compositionend` events track browser
+  composition independently of winit preedit. Paste during composition is
+  refused without inserting or queueing text; finish composition before pasting.
+  Composition and focus changes invalidate queued payloads and pending notices.
+  See the [UI Events composition contract](https://www.w3.org/TR/uievents/#events-compositionevents).
+  Empty plain text is a no-op. Missing/non-text data and an observed gesture
+  with no paste event show a notice instead of inserting old kill-ring text.
+  Custom Paste bindings and palette Paste cannot summon a trusted browser
+  event: they show a notice directing the writer to browser Paste or the
+  standard shortcut. The internal `YankText` continuation remains explicit
+  and is not used as a fallback for an external paste attempt. Images and
+  styled clipboard content are not imported.
 - **"Download file" (Cmd-P, web-only — `commands.rs`'s `web_only` flag, the
   inverse of `native_only`).** The escape hatch for the browser's
   no-real-filesystem sandbox (`localStorage`, see above): exports the ACTIVE
@@ -246,7 +261,9 @@ hermetic setup for automated input-state testing.
     (calls `event.preventDefault()` on every canvas `keydown`) and
     `with_focusable` (sets `tabindex="0"` + calls `.focus()` on window creation)
     are BOTH `true`/enabled BY DEFAULT — awl's `resumed()` never overrides either,
-    so no code changed here. Live-Playwright-confirmed on a `trunk build
+    so normal shortcuts already had suppression. The paste bridge now bypasses
+    that listener only for the configured browser paste gesture, as described
+    above. Live-Playwright-confirmed on a `trunk build
     --release` + static-served `dist/` this round: the canvas already carries
     `tabindex="0"` and holds `document.activeElement` on load, and a real
     (CDP-injected, trusted) `Ctrl+S`/`Ctrl+F` keydown arrives at a `window`-level
@@ -335,10 +352,10 @@ hermetic setup for automated input-state testing.
   "quit, then relaunch a new OS process" — the daemon and native session-restore
   (window frame / reopened file set) stay native-only by design (see their own
   sections above), so a reload picks up config + the scratch stash, not those.
-- **No OS clipboard** (verified still current): `arboard` doesn't compile for
-  wasm and the browser clipboard API is async + permission-gated, so cut/copy/
-  paste stay on awl's internal kill-ring only — no system-clipboard interop
-  beyond the COPY-only mirror described above (the WEB ESCAPE HATCHES round).
+- **Clipboard limits.** Browser clipboard delivery still depends on focus and
+  browser support. No asynchronous clipboard read is attempted, and permission
+  failures in the copy mirror remain best-effort. See the clipboard contract
+  above for standard gestures, custom bindings and palette behavior.
 - **Merged to `main`.** The web build is no longer a side branch — all of the
   browser code (the `FileSystem` trait, `WebFs`, the wasm entry) lives on `main`;
   the old `web-demo` branch is gone. The live browser experience — real WebGPU

@@ -138,6 +138,7 @@ impl TextPipeline {
                 m.font_size * crate::markdown::type_scale::LABEL,
                 m.line_height,
             ));
+        let field_mark_range = self.search_field_mark_range();
         let mut t = PanelText::new(&mut self.font_system, m.glyph_metrics());
         let gap = m.px(Logical(12.0));
         let pad = m.px(panel_controls::CONTROL_BOX_PAD_X);
@@ -275,14 +276,8 @@ impl TextPipeline {
             )
         };
         let prefix = " ".repeat(span.byte_start);
-        let selection_span = panel_selection_span(
-            self.search_field_selection,
-            &prefix,
-            view,
-            full_caret,
-            full_len,
-            cap,
-        );
+        let selection_span =
+            panel_selection_span(field_mark_range, &prefix, view, full_caret, full_len, cap);
         let rows = t.row + 1.0;
         let spans = t.spans;
         self.panel_buffer

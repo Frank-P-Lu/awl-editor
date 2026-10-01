@@ -130,6 +130,8 @@ impl TextPipeline {
         // that same owner every `overlay_prepare_selection`.
         let overlay_rows = overlay_quad(PLACEHOLDER_RGBA);
         let overlay_bars = overlay_quad(PLACEHOLDER_RGBA);
+        let files_control_fill = overlay_quad(PLACEHOLDER_RGBA);
+        let files_control_rim = overlay_quad(PLACEHOLDER_RGBA);
         // Seeded with `muted`; `overlay_prepare_selection` re-resolves the ink
         // from the live theme every frame (mirroring `notice_rim`'s seed), so
         // this only has to be a valid colour, never the right one.
@@ -340,6 +342,8 @@ impl TextPipeline {
             fold_chevron_turn: std::collections::HashMap::new(),
             hover_line: None,
             preedit: String::new(),
+            field_input: None,
+            field_caret_rect: None,
             misspelled: Vec::new(),
             spell_gen: 0,
             shaped_key: None,
@@ -406,6 +410,8 @@ impl TextPipeline {
             search_field_selection: None,
             overlay_rows,
             overlay_bars,
+            files_control_fill,
+            files_control_rim,
             footer_plate_rim,
             overlay_spine,
             overlay_spine_selected,
@@ -479,6 +485,7 @@ impl TextPipeline {
             popover_renderer,
             popover_buffer,
             popover_model: None,
+            popover_placement: chrome::PopoverPlacement::default(),
             popover_geom: None,
             popover_hover: None,
             hud: HudDefaults::default(),

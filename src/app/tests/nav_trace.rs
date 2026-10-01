@@ -29,6 +29,8 @@
 //! input" and "state advanced twice" hypotheses the item names, ruled out by
 //! measurement rather than by assumption.
 
+mod empty_document;
+
 use super::*;
 use std::sync::Arc;
 
@@ -81,6 +83,12 @@ fn trace_lines(path: &std::path::Path) -> Vec<String> {
 /// its trace. Panics rather than returning an error: a spec that will not parse
 /// is a broken law, not a finding.
 fn traced(spec: &str) -> Vec<String> {
+    traced_with(|app| {
+        app.press_spec_headless(spec).expect("the spec parses");
+    })
+}
+
+fn traced_with(drive: impl FnOnce(&mut App)) -> Vec<String> {
     // The recorder writes to the REAL disk (it is the user's black box, not an
     // `fs::FileSystem` consumer), so its file lives in a `ScratchDir` that
     // cleans up on every path, panic included.
@@ -94,12 +102,69 @@ fn traced(spec: &str) -> Vec<String> {
     let mut app = nav_app();
     crate::probe::arm_flight_for_test(&path);
     let out = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        app.press_spec_headless(spec).expect("the spec parses");
+        drive(&mut app);
         trace_lines(&path)
     }));
     crate::probe::disarm_flight_for_test();
     drop(scratch);
     out.unwrap_or_else(|e| std::panic::resume_unwind(e))
+}
+
+#[test]
+fn input_receipts_distinguish_menu_selection_from_chord_deletion_and_typing() {
+    let _g = crate::testlock::serial();
+    let lines = traced_with(|app| {
+        let mut overlay = crate::overlay::OverlayState::new(
+            crate::overlay::OverlayKind::Goto,
+            vec![],
+            vec![],
+            vec![],
+        );
+        overlay.files_mode = true;
+        overlay.query = crate::textbox::TextBox::seeded("shared");
+        app.workspace_state.install_overlay_for_test(overlay);
+        let version = app.document.buffer().version();
+        app.apply(
+            Action::SelectAll,
+            false,
+            &schedule::RecordingExit::new(),
+            crate::stats::Door::Menu,
+        );
+        app.press_spec_headless("Backspace a b").unwrap();
+        assert_eq!(app.workspace_state.overlay().unwrap().query.text(), "ab");
+        assert_eq!(app.document.buffer().version(), version);
+    });
+    let receipts: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("input-state "))
+        .collect();
+    assert_eq!(
+        receipts.len(),
+        8,
+        "four actions each have one before/after receipt"
+    );
+    for (index, needle) in [
+        (0, "before door=Menu action=SelectAll"),
+        (1, "after door=Menu action=SelectAll"),
+        (2, "before door=Chord action=DeleteBackward"),
+        (3, "after door=Chord action=DeleteBackward"),
+        (5, "after door=Chord action=InsertChar('a')"),
+        (7, "after door=Chord action=InsertChar('b')"),
+    ] {
+        assert!(receipts[index].contains(needle), "{}", receipts[index]);
+    }
+    for (index, state) in [
+        (0, "Some((Goto, Query, 6, 6, None))"),
+        (1, "Some((Goto, Query, 6, 6, Some((0, 6))))"),
+        (3, "Some((Goto, Query, 0, 0, None))"),
+        (7, "Some((Goto, Query, 2, 2, None))"),
+    ] {
+        assert!(receipts[index].ends_with(state), "{}", receipts[index]);
+    }
+    assert!(
+        receipts.iter().all(|line| !line.contains("shared")),
+        "query contents are private"
+    );
 }
 
 /// Every `apply` line's `sel … -> …` pair, as `(before, after)` selected

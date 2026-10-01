@@ -5,6 +5,55 @@ use super::super::{FilesSurfaceAction, ViewState};
 use super::frost_feather::{DENSE, render_frame};
 use super::{headless_dqp, view_md};
 
+fn max_edge_delta(pixels: &[[u8; 4]], width: usize, height: usize, rect: [f32; 4]) -> f64 {
+    let mut strongest = 0.0_f64;
+    let left = rect[0].round() as isize;
+    let right = (rect[0] + rect[2]).round() as isize;
+    let top = rect[1].round() as isize;
+    let bottom = (rect[1] + rect[3]).round() as isize;
+    let cx = (rect[0] + rect[2] * 0.5).round() as isize;
+    let cy = (rect[1] + rect[3] * 0.5).round() as isize;
+    for edge in [left, right] {
+        for y in (cy - 2)..=(cy + 2) {
+            for boundary_x in (edge - 1)..=(edge + 1) {
+                for neighbour_x in (edge - 4)..=(edge + 4) {
+                    if y >= 0
+                        && y < height as isize
+                        && boundary_x >= 0
+                        && neighbour_x >= 0
+                        && boundary_x < width as isize
+                        && neighbour_x < width as isize
+                    {
+                        let boundary = pixels[y as usize * width + boundary_x as usize];
+                        let neighbour = pixels[y as usize * width + neighbour_x as usize];
+                        strongest = strongest.max(super::pixeldiff::delta_e(boundary, neighbour));
+                    }
+                }
+            }
+        }
+    }
+    for edge in [top, bottom] {
+        for x in (cx - 2)..=(cx + 2) {
+            for boundary_y in (edge - 1)..=(edge + 1) {
+                for neighbour_y in (edge - 4)..=(edge + 4) {
+                    if x >= 0
+                        && x < width as isize
+                        && boundary_y >= 0
+                        && neighbour_y >= 0
+                        && boundary_y < height as isize
+                        && neighbour_y < height as isize
+                    {
+                        let boundary = pixels[boundary_y as usize * width + x as usize];
+                        let neighbour = pixels[neighbour_y as usize * width + x as usize];
+                        strongest = strongest.max(super::pixeldiff::delta_e(boundary, neighbour));
+                    }
+                }
+            }
+        }
+    }
+    strongest
+}
+
 fn files_view_at(document: &str, empty: bool, location: &str) -> ViewState {
     let mut view = view_md(document, 0, 0);
     view.overlay_active = true;
@@ -216,7 +265,7 @@ fn assert_potoroo_first_narrow_files_frame() -> bool {
     );
     let (header, footer) = pipeline.files_surface_text_probe().unwrap();
     assert!(
-        header.contains("Search: zzz")
+        header.contains("Search files: zzz")
             && header.contains("root")
             && header.contains("Change folder"),
         "first narrow frame dropped compact rows: {header:?}"
@@ -537,6 +586,103 @@ fn files_query_caret_is_drawn_only_while_search_owns_focus() {
         !pipeline.panel_caret.is_drawn(),
         "a selected Files choice must not compete with a query caret"
     );
+}
+
+#[test]
+fn files_scope_and_controls_have_visible_hierarchy_on_every_world_and_geometry() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut pipeline)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping Files affordance law: no wgpu adapter");
+        return;
+    };
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi, location) in [
+            (1200u32, 1.0, "Writing/notes"),
+            (
+                720,
+                2.0,
+                "Writing/research/chapters/field-notes/interviews/september",
+            ),
+        ] {
+            pipeline.set_dpi(dpi);
+            pipeline.set_size(width as f32, 800.0);
+            let mut view = files_view_at(DENSE, false, location);
+            view.overlay_query = String::new();
+            view.overlay_query_caret = 0;
+            pipeline.set_view(&view);
+            let pixels = render_frame(&device, &queue, &mut pipeline, width, 800);
+            let [query, change, footer] = pipeline
+                .files_surface_control_rects_probe()
+                .expect("Files control layout");
+            let [fills, rims] = pipeline.files_surface_control_quad_counts_probe();
+            assert_eq!(
+                fills, 3,
+                "{} {width}px @{dpi}x: Files control fills were removed or parked",
+                world.name
+            );
+            assert_eq!(
+                rims, 3,
+                "{} {width}px @{dpi}x: Files control rims were removed or parked",
+                world.name
+            );
+            let (header, footer_text) = pipeline.files_surface_text_probe().unwrap();
+            assert!(
+                header.contains("Search files: ")
+                    && header.contains("Change folder")
+                    && header.contains(location.rsplit('/').next().unwrap()),
+                "{} {width}px @{dpi}x lost Files hierarchy: {header:?}",
+                world.name
+            );
+            assert!(
+                footer_text.starts_with("New document — "),
+                "{} {width}px @{dpi}x footer regressed to metadata: {footer_text:?}",
+                world.name
+            );
+            assert!(
+                change[1] < query[1] && query[1] < footer[1],
+                "{} {width}px @{dpi}x controls collapsed into one line: \
+                 query={query:?} change={change:?} footer={footer:?}",
+                world.name
+            );
+            assert!(
+                query[2] > 80.0 * dpi && footer[2] > 180.0 * dpi,
+                "{} {width}px @{dpi}x field/footer have no recognizable plate: \
+                 query={query:?} footer={footer:?}",
+                world.name
+            );
+            for (label, rect) in [("search", query), ("change", change), ("new", footer)] {
+                let edge_delta = max_edge_delta(&pixels, width as usize, 800, rect);
+                assert!(
+                    edge_delta >= 2.3,
+                    "{} {width}px @{dpi}x {label} boundary is below one JND: \
+                     ΔE={edge_delta:.2} rect={rect:?}",
+                    world.name
+                );
+                let point = (rect[0] + rect[2] * 0.5, rect[1] + rect[3] * 0.5);
+                assert!(
+                    pipeline.overlay_row_at(point.0, point.1).is_none(),
+                    "{label} became a mixed candidate/action row"
+                );
+            }
+
+            let selected_before = pipeline.overlay_window_report();
+            view.overlay_query_field = false;
+            view.overlay_rows_focused = false;
+            view.overlay_title = view
+                .overlay_title
+                .replace("Change folder", "› Change folder");
+            pipeline.set_view(&view);
+            let _focused = render_frame(&device, &queue, &mut pipeline, width, 800);
+            assert_eq!(
+                pipeline.overlay_window_report(),
+                selected_before,
+                "{} {width}px @{dpi}x action focus displaced the selected file row",
+                world.name
+            );
+        }
+    }
 }
 
 #[test]

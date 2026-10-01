@@ -150,6 +150,7 @@ pub(super) fn write_sidecar(
         panel = super::panel_sidecar::panel_json(pipeline),
         project = project_json(opts),
         overlay = overlay_json(opts, pipeline),
+        focused_field = focused_field_json(view, pipeline),
         buffers = super::opts::buffers_sidecar::json(opts, view),
         replay_skips = super::replay_sidecar::replay_skips_json(opts),
         diff = diff_json(opts),
@@ -159,6 +160,21 @@ pub(super) fn write_sidecar(
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(super::redact::redact(&json).as_bytes())?;
     Ok(())
+}
+
+fn focused_field_json(view: &ViewState, pipeline: &TextPipeline) -> String {
+    let Some(input) = &view.field_input else {
+        return "null".into();
+    };
+    serde_json::json!({
+        "field": format!("{:?}", input.field),
+        "text": input.text,
+        "caret": input.caret,
+        "selection": input.selection,
+        "preedit": input.preedit,
+        "candidate_rect": pipeline.focused_field_caret_rect(),
+    })
+    .to_string()
 }
 
 /// THE CALM NOTICE block: `{ text, kind }`, or `null` when nothing is showing.
@@ -234,18 +250,16 @@ pub(super) fn project_json(opts: &CaptureOpts) -> String {
         None => "null".to_string(),
     }
 }
-
-/// THE OVERLAY BLOCK. Two sources, deliberately: every field but `window` is the
-/// STATE the capture door was driven with (`CaptureOpts::overlay`), while `window`
-/// is what the RENDERER planned for the frame — counts, heights, and (schema
-/// `/201`) each candidate row's own rect. That half has its own serializer
+/// THE OVERLAY BLOCK. All but `window` is capture-door state (`CaptureOpts::overlay`);
+/// renderer-planned `window` carries counts, heights, and each candidate row's
+/// rect (schema `/201`). That half has its own serializer
 /// (`super::plan_sidecar`) because it reads the pipeline, not the fold's input.
 fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
     let window = super::plan_sidecar::window_json(pipeline);
-    let asset_preview = match pipeline.asset_preview_report() {
-        Some([x, y, w, h]) => format!("{{ \"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h} }}"),
-        None => "null".to_string(),
-    };
+    let asset_preview = super::opts::asset_preview_json(pipeline);
+    let theme_actions = super::opts::theme_actions_json(pipeline);
+
+    // Action rectangles come from the renderer's hit-test owner.
     match &opts.overlay {
         Some(o) => {
             let items = o
@@ -345,7 +359,8 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                     "\"notice\": {}, \"lens\": {}, ",
                     "\"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], ",
                     "\"preview_id\": {}, \"preview_view\": {}, ",
-                    "\"detail_focus\": {}, \"settings_focus\": {}, \"diff_scroll\": {}, ",
+                    "\"detail_focus\": {}, \"settings_focus\": {}, \"theme_actions\": {}, ",
+                    "\"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
                     "\"asset_preview\": {}, ",
                     "\"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], ",
@@ -371,6 +386,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 preview_view,
                 o.detail_focus,
                 settings_focus,
+                theme_actions,
                 o.diff_scroll,
                 o.show_hidden,
                 capture,
@@ -392,7 +408,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 "\"notice\": \"\", ",
                 "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
                 "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
-                "\"detail_focus\": false, \"settings_focus\": null, ",
+                "\"detail_focus\": false, \"settings_focus\": null, \"theme_actions\": null, ",
                 "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
                 "\"empty\": null, \"window\": null, \"asset_preview\": {}, \"items\": [], ",
                 "\"bindings\": [], \"ranges\": [], \"git\": [] }}",

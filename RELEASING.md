@@ -9,10 +9,11 @@ pull request (linux build + test, wasm build + smoke) — the merge gate, not a
 release step. This doc is the one-time setup for the two release pipelines, plus
 how to actually cut a release.
 
-**A tag currently publishes Linux only.** The mac and web jobs build on a dry
-run and are skipped on a tag. Apple signing and notarization are configured;
-the macOS release job still needs to be enabled and verified before a signed
-app can join a public Release. §5 is the pre-tag checklist.
+**A tag publishes Linux and macOS downloads.** The macOS job is fail-closed:
+it requires all signing and notarization credentials, signs the universal app,
+waits for notarization, staples it, validates Gatekeeper, and verifies the final
+versioned DMG before `publish` can run. The web job remains dry-run only because
+the website is its distribution. §5 is the pre-tag checklist.
 
 ## Graphics support
 
@@ -24,10 +25,13 @@ CI remains useful for correctness checks, not interactive performance acceptance
 
 ## 1. Apple signing and notarization
 
-The Apple signing and notarization setup is complete. The workflow gates its
-signing steps to release tags, but the mac job itself is still disabled for tag
-runs. Dry runs produce an unsigned universal `Awl.app` and `.dmg`. The steps
-below document how to renew the credentials if needed.
+Apple signing and notarization setup is complete. The workflow implements the
+signed path; a credentialed hosted rehearsal and its results remain to be verified
+before a release. Tags require signing and
+notarization; a missing credential fails the macOS job and blocks publication.
+A default manual dry run produces an unsigned universal app and DMG without
+publishing. An explicit credentialed rehearsal exercises the signed path without
+a tag or GitHub Release. The steps below document setup and renewal.
 
 **(a) Export your Developer ID Application certificate as a `.p12`:**
 
@@ -87,7 +91,7 @@ Builds a fresh `trunk build --release --public-url /editor/`, assembles it
 over a copy of `site/`, and `flyctl deploy`s that assembled directory. Never
 writes generated output into `site/editor/` or commits it.
 
-**Downloadable artifacts (Linux):**
+**Downloadable artifacts (Linux + macOS):**
 
 ```sh
 # 1. on the final combined main, prove debug/release state parity
@@ -98,18 +102,13 @@ git tag v0.9.0
 git push origin v0.9.0
 ```
 
-The tag push triggers `release.yml`'s `linux` and `publish` jobs: a
-`cargo build --release`, the headless parity law again, `scripts/package-linux.sh`
-**and** `scripts/package-appimage.sh` (item 227 — the AppImage rides
-alongside the tarball, never instead of it), and a new GitHub Release
-carrying `awl-<version>-linux-x86_64.tar.gz`, `awl-<version>-linux-x86_64.AppImage`
-and `SHA256SUMS` covering both (e.g. `awl-0.9.0-linux-x86_64.tar.gz` /
-`awl-0.9.0-linux-x86_64.AppImage` for the `v0.9.0` tag — both scripts derive
-the exact name from `Cargo.toml`'s version / the tag, never a separate
-hardcoded string; see item 228).
-The mac and web jobs do not run on a tag (see §5's open decisions), so no
-unsigned `.app` and no `dist/` zip can be attached. Rerunning the parity law
-inside the release job means a missed local pre-tag run still blocks publication.
+The tag push builds the Linux tarball and AppImage plus a universal macOS app.
+The app is signed with Developer ID, notarized, stapled, and packaged as
+`awl-<version>-macos-universal.dmg`. A separate preparation job always depends
+on both platform jobs, verifies their producer checksums, selects exactly those
+three public downloads, and builds and verifies one `SHA256SUMS`. It runs on dry
+runs too. Only GitHub Release creation is tag-gated, and it consumes that prepared
+payload. The workflow-only app zip is never selected for publication.
 
 **Dry run (no tag, nothing published) — verify the pipeline is healthy:**
 
@@ -118,8 +117,21 @@ gh workflow run release.yml -f dry_run=true
 gh run watch
 ```
 
-All three build jobs run; artifacts land in the run's **Artifacts** tab instead
-of a GitHub Release, `publish` is skipped, and no tag or release is created.
+All three build jobs run, then `prepare-release` downloads the named Linux and
+macOS artifacts, verifies their producer checksums, and uploads the exact public
+layout as `awl-release-payload`. `publish` is skipped, and no tag or release is
+created. The macOS output is unsigned by default.
+
+**Credentialed macOS rehearsal (still no tag and nothing published):**
+
+```sh
+gh workflow run release.yml -f dry_run=true -f credentialed_macos_rehearsal=true
+gh run watch
+```
+
+This opts the manual run into the same signing, notarization, staple, Gatekeeper,
+DMG-content, checksum, and size gates used by a tag. Manual dispatch can never
+set `is_release`, so even this credentialed path cannot create a GitHub Release.
 
 **Locally, without GitHub** — the packaging steps alone, against any Linux build:
 
@@ -143,7 +155,7 @@ treat a missing licence file as a hard failure, not a warning.
 
 | Path | What it is |
 |---|---|
-| `release.yml`'s `linux` job | **the release build.** A native x86_64 `cargo build --release` on `ubuntu-latest`, so the artifact's glibc floor is that runner image's |
+| `release.yml`'s `linux` job | **the release build.** A native x86_64 `cargo build --release` on `ubuntu-22.04`, so the artifact's glibc floor is that runner image's |
 | `Dockerfile.linux` + `scripts/build-linux.sh` | a developer convenience — cross-builds on a Mac against Debian bookworm (glibc 2.36) for a personal laptop. Never packaged, never released |
 | `run-linux.sh` | a from-source bootstrap on the target machine. Installs system packages and compiles; not a download |
 
@@ -151,9 +163,10 @@ treat a missing licence file as a hard failure, not a warning.
 
 | Artifact | Where |
 |---|---|
-| `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `SHA256SUMS` (covering both) | GitHub Release (tag) |
+| `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `awl-<version>-macos-universal.dmg` + `SHA256SUMS` (covering all three) | GitHub Release (tag) |
 | same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
-| `Awl.app` (universal, unsigned on dry runs) + `Awl.dmg` | workflow artifact `awl-macos` — **dry run only**, never attached to a Release |
+| versioned universal app zip + DMG + their `.sha256`s | workflow artifact `awl-macos` (unsigned on the default dry run; signed/notarized on tags and credentialed rehearsals; only the DMG is public) |
+| exact three-download public layout + verified `SHA256SUMS` | workflow artifact `awl-release-payload` (dry runs and tags; only a tag hands it to GitHub Release creation) |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
@@ -290,12 +303,13 @@ across worlds") — run it before step 1.
 | 2 | `scripts/audit.sh` | cargo-deny clean, or a recorded narrow ignore |
 | 3 | `scripts/release-profile-gate.sh` | all 8 action families match debug↔release |
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
-| 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs, `publish` skipped |
-| 6 | Download `awl-linux` from the run; unpack the tarball, `chmod +x` the AppImage | listing matches §4's table; `sha256sum -c` passes on both |
-| 7 | Launch both the unpacked tarball binary AND the AppImage on a real Linux desktop | each opens a window, opens a file, `--screenshot` writes a PNG; the AppImage's launcher name/icon show correctly where the desktop supports it |
-| 8 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
-| 9 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
-| 10 | After the tag: `gh workflow run deploy-web.yml` | **user's explicit word too.** `version.json` comes from `git describe --tags`, so until the site is redeployed at or after the tag, Check for Updates keeps reporting "no tagged release yet" |
+| 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs plus green `prepare-release`; prepared artifact contains exactly the three public payloads and `SHA256SUMS`; `publish` is skipped |
+| 6 | Rerun with `-f credentialed_macos_rehearsal=true` for the first macOS release and after credential renewal or signing-workflow changes | signed macOS path passes without creating a tag or Release |
+| 7 | Download `awl-linux`, `awl-macos`, and `awl-release-payload`; verify checksums and inspect the DMG | names are versioned; the public DMG is strictly under 50,000,000 bytes; the app zip's recorded size is informational because it is never public; mounted app is universal, signed, stapled, and Gatekeeper-accepted |
+| 8 | Launch the mounted macOS app on a real user's Mac; launch both Linux forms on a real Linux desktop | each opens a window and file; Linux launcher metadata appears correctly |
+| 9 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
+| 10 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |
+| 11 | After the tag: `gh workflow run deploy-web.yml` | **user's explicit word too.** `version.json` comes from `git describe --tags`, so until the site is redeployed at or after the tag, Check for Updates keeps reporting "no tagged release yet" |
 
 #### What step 1's receipt does not certify
 
@@ -335,12 +349,12 @@ meaningful, which is the point of the split — a synthesised combined receipt
 would re-bundle exactly what was deliberately unbundled, and would have to lie
 about scope to call itself a receipt.
 
-### Release decisions and current status
+### Still open — decisions, not tasks
 
 | Decision | State today | Owner |
 |---|---|---|
 | Cut a public tag at all | **settled — tags are cut.** `v0.9.0`, `v0.10.0`, `v0.11.0` and `v0.12.0` are published, each Linux-only and marked prerelease. Every tag still waits on the user's explicit word, every time | the user, explicitly (CLAUDE.md §Branches) |
-| macOS artifacts | Apple signing and notarization are configured. The mac job is still skipped on a tag; queue item 662 tracks enabling and verifying signed publication | queued |
+| macOS artifacts | The workflow requires a universal, Developer ID signed, notarized, stapled, Gatekeeper-assessed, versioned, size-capped and checksummed DMG before publication. The app zip remains a workflow-only diagnostic artifact. A hosted credentialed rehearsal and actual final-DMG size are still owed | verify before tag |
 | Version + prerelease flag | **resolved by item 228 for the GitHub Release; the "and the site" half of the original premise was false.** `Cargo.toml` is pre-1.0. `release.yml`'s `plan` job now computes `prerelease` from the tag's major version (`< 1` ⇒ true) and the `publish` step passes it to `softprops/action-gh-release`, so `v0.9.0` publishes correctly marked prerelease — verified against that action's own source (`INPUT_PRERELEASE == "true"`), not just its docs. `deploy-web.yml`'s `version.json` `prerelease` field is a DIFFERENT thing sharing a name: `site/check.js`'s `checkState()` (locked by `site/check.test.js`) reads it only as "no tag has ever shipped" — the page never renders a stable/beta claim at all, so there was nothing on the site for a beta tag to invert. That field stays `false` for any real tag, unchanged | settled |
 | glibc floor | **RESOLVED 2026-08-06 — the linux job builds on `ubuntu-22.04` and the floor is `GLIBC_2.35`**, reaching Debian 12, Ubuntu 22.04 LTS and RHEL 9. Measured, not reasoned: `objdump -T` finds exactly two dynsyms that could raise the floor — `pidfd_spawnp` and `pidfd_getpid`, both weak, both from Rust std's OPTIONAL pidfd fast path for reaping a child it already spawned. ⚠️ Both are **unversioned** (`w D *UND*`, no `GLIBC_*` tag), so they never appear in the version-needs list: a re-check that greps that list for anything above 2.35 finds NOTHING and reads as "this note has gone stale." It has not — grep `objdump -T` for `pidfd` itself, or `readelf --dyn-syms`, and use GNU binutils rather than the host `objdump` on a Mac. awl references no PidFd API and every `std::process::Command` in the tree blocks on `.output()`/`.wait()`, so std's fork/exec fallback costs nothing observable. Binaries built on `debian:bookworm` and `ubuntu:22.04` both cap at 2.35 and render byte-identical PNGs. ⚠️ The cache key had to move with it: `Swatinem/rust-cache` mixes `runner.os`, which is `"Linux"` for both images, so it is keyed on `ImageOS` now | settled |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |

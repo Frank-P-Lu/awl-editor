@@ -137,9 +137,8 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             ),
             (10.0, 10.0),
         ),
-        // A real, non-vacuous SearchHit row: `push('t')` matches "todo" in the
-        // one-file corpus (no filesystem or fixture needed -- the corpus is
-        // already in-memory `(path, content)` pairs, `refilter`'s own input).
+        // A non-vacuous SearchHit: `push('t')` matches the in-memory corpus,
+        // without any filesystem fixture.
         OverlayKind::SearchFolder => {
             let mut ov = OverlayState::new_search_folder(
                 std::path::PathBuf::from("/proj"),
@@ -147,6 +146,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
                     "notes/todo.md".to_string(),
                     "remember the todo item".to_string(),
                 )],
+                false,
             );
             ov.push('t');
             ov

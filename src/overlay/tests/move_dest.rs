@@ -23,6 +23,7 @@ fn contextual_errands_name_their_subject_and_scope() {
     let search = OverlayState::new_search_folder(
         std::path::PathBuf::from("/notes/Writing"),
         vec![("draft.md".into(), "prose".into())],
+        false,
     );
     assert_eq!(search.title(), "search in Writing");
 }

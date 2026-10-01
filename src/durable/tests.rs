@@ -302,6 +302,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         ("export/tests.rs", 1),
         ("firstrun/tests.rs", 1),
         ("fs.rs", 1),
+        // The native bounded-read law seeds an exact-size file and a larger
+        // file under ScratchDir, then reads them without opening an App. Both
+        // writes are disposable test inputs, never durable user state.
+        ("fs/bounded_tests.rs", 2),
         ("fs/native.rs", 1),
         ("fs/paths.rs", 2),
         ("fs/web.rs", 1),
@@ -368,6 +372,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // pointed. `#[ignore]`d and env-gated, so an ordinary gate run never
         // reaches it; a torn write just means one re-run of the generator.
         ("render/tests/symbol_atlas_gallery.rs", 1),
+        // Disposable release-law fixtures write fake artifacts and checksums
+        // under a ScratchDir; none is an app store or user document.
+        ("release_workflow_law.rs", 4),
         // The seeding boundary itself (`cli_seeds`/`data_root_seeds`/
         // `tree_seeds`) READs the real disk before the sandbox exists;
         // neither is a durable store.

@@ -7,6 +7,7 @@
 use super::*;
 use std::sync::Mutex;
 
+mod acquire;
 mod present;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -548,7 +549,9 @@ impl Gpu {
                 };
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
-                self.surface.configure(&self.device, &self.config);
+                acquire::reconfigure_after_discard(acquired, || {
+                    self.surface.configure(&self.device, &self.config);
+                });
                 return PreparedFrame {
                     outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured),
                     activities,

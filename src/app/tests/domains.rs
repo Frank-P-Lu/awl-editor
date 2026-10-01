@@ -555,7 +555,9 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
 
 #[derive(Clone, Copy)]
 enum InputConsumer {
+    BrowserPaste,
     Apply,
+    CaptureState,
     OverlaySync,
     Close,
     Document,
@@ -576,6 +578,9 @@ enum InputConsumer {
     MouseSurfaces,
     MouseButton,
     PointerSync,
+    TextFocus,
+    TextView,
+    Trace,
     Press,
     Probe,
     Schedule,
@@ -585,7 +590,9 @@ enum InputConsumer {
 
 impl InputConsumer {
     const ROSTER: &'static [Self] = &[
+        Self::BrowserPaste,
         Self::Apply,
+        Self::CaptureState,
         Self::OverlaySync,
         Self::Close,
         Self::Document,
@@ -606,6 +613,9 @@ impl InputConsumer {
         Self::MouseSurfaces,
         Self::MouseButton,
         Self::PointerSync,
+        Self::TextFocus,
+        Self::TextView,
+        Self::Trace,
         Self::Press,
         Self::Probe,
         Self::Schedule,
@@ -617,7 +627,9 @@ impl InputConsumer {
     /// member cannot join without choosing whether it is inside the owner.
     fn path_and_reach(self) -> (&'static str, bool) {
         match self {
+            Self::BrowserPaste => ("src/app/input/browser_paste.rs", true),
             Self::Apply => ("src/app/apply.rs", false),
+            Self::CaptureState => ("src/app/capture_state.rs", false),
             Self::OverlaySync => ("src/app/apply/overlay_sync.rs", false),
             Self::Close => ("src/app/files/close.rs", false),
             Self::Document => ("src/app/files/document.rs", false),
@@ -638,6 +650,9 @@ impl InputConsumer {
             Self::MouseSurfaces => ("src/app/input/mouse/surfaces.rs", true),
             Self::MouseButton => ("src/app/input/mouse_button.rs", true),
             Self::PointerSync => ("src/app/input/pointer_sync.rs", true),
+            Self::TextFocus => ("src/app/input/text_focus.rs", true),
+            Self::TextView => ("src/app/input/text_view.rs", true),
+            Self::Trace => ("src/app/input/trace.rs", true),
             Self::Press => ("src/app/press.rs", false),
             Self::Probe => ("src/app/probe.rs", false),
             Self::Schedule => ("src/app/schedule.rs", false),
@@ -696,6 +711,9 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "peek_arm",
             "peek_armed_at",
             "preedit",
+            "preedit_cursor",
+            "ime_target",
+            "ime_preedit_ended",
             "ime_enabled",
         ],
         "keyboard state roster drifted"

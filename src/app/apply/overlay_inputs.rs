@@ -13,6 +13,7 @@ pub(super) struct OverlayInputs {
     pub(super) row_gates: crate::commands::RowGates,
     pub(super) search_root: std::path::PathBuf,
     pub(super) search_corpus: Vec<(String, String)>,
+    pub(super) search_incomplete: bool,
 }
 
 pub(super) struct GotoInputs {
@@ -214,12 +215,14 @@ impl App {
                 let OverlayInputs {
                     search_root,
                     search_corpus,
+                    search_incomplete,
                     ..
                 } = self.gather_overlay_inputs(action);
                 Some(crate::overlay::PickerInput::SearchFolder(
                     crate::overlay::SearchFolderInputs {
                         root: search_root,
                         corpus: search_corpus,
+                        incomplete: search_incomplete,
                     },
                 ))
             }
@@ -379,22 +382,20 @@ impl App {
         // above, shared with Goto/Assets); `refilter` re-matches this same
         // loaded corpus against the query on every keystroke, never re-reading
         // disk (`crate::search_folder`'s own module doc).
-        let (search_root, search_corpus) = if matches!(action, Action::OpenSearchFolder) {
-            let root = self.project_location.root.clone();
-            let files = self.project_location.file_index.clone();
-            let corpus = crate::search_folder::load_corpus(
-                &files,
-                &crate::search_folder::SearchBudget::default(),
-                |rel| {
-                    crate::fs::active()
-                        .read_to_string(&crate::index::resolve(&root, rel))
-                        .ok()
-                },
-            );
-            (root, corpus)
-        } else {
-            (std::path::PathBuf::new(), Vec::new())
-        };
+        let (search_root, search_corpus, search_incomplete) =
+            if matches!(action, Action::OpenSearchFolder) {
+                let root = self.project_location.root.clone();
+                let files = self.project_location.file_index.clone();
+                let load = crate::search_folder::load_corpus(
+                    &files,
+                    &root,
+                    &crate::search_folder::SearchBudget::default(),
+                    crate::fs::active().as_ref(),
+                );
+                (root, load.corpus, load.incomplete)
+            } else {
+                (std::path::PathBuf::new(), Vec::new(), false)
+            };
         OverlayInputs {
             spell_target,
             history_entries,
@@ -410,6 +411,7 @@ impl App {
             },
             search_root,
             search_corpus,
+            search_incomplete,
         }
     }
 }

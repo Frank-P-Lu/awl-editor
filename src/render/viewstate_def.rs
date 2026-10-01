@@ -35,6 +35,7 @@ pub struct ViewState {
     /// `None` when there is no selection. line0/col0 is the earlier endpoint.
     pub selection: Option<((usize, usize), (usize, usize))>,
     pub preedit: String,
+    pub field_input: Option<FieldInput>,
     pub misspelled: Vec<crate::spell::Misspelling>,
     pub is_edit_move: bool,
     pub held: bool,
@@ -390,6 +391,7 @@ impl ViewState {
             zoom: crate::range::ZOOM.default,
             selection: None,
             preedit: String::new(),
+            field_input: None,
             misspelled: Vec::new(),
             is_edit_move: false,
             held: false,

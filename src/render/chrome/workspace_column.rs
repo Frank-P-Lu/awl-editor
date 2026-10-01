@@ -48,6 +48,27 @@ pub(in crate::render) struct OverlayTextBuffers {
 }
 
 impl TextPipeline {
+    /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? `true` draws the rail beside
+    /// the content; `false` stages them and leaves the lifecycle's focus stage
+    /// to choose which one is shown.
+    pub(in crate::render) fn workspace_is_wide(&self, width: u32) -> bool {
+        let hpad = self.overlay_text_hpad();
+        let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
+        let cw = self.overlay_char_width();
+        let raw_after_rail =
+            interior - self.workspace_primary_w - super::workspace::RAIL_GAP_CHARS.0 * cw;
+        // Settings' rows pane stops growing at its authored ceiling; the
+        // responsive decision must ask whether that resolved pane still meets
+        // the legibility/accessory floor. History's comparison viewport keeps
+        // its existing uncapped width decision.
+        let pane_w = if self.overlay_rows_primary {
+            raw_after_rail
+        } else {
+            raw_after_rail.min(self.workspace_max_pane())
+        };
+        self.workspace_primary_w > 0.0 && pane_w >= self.workspace_min_pane()
+    }
+
     /// THE WIDEST A `RailOverRows` CONTENT PANE MAY GROW, in px — the
     /// MAXIMUM companion to `workspace.rs`'s `workspace_min_pane`. Read only
     /// where the pane's own rows are the content; a `TimelineOverComparison`
@@ -199,10 +220,12 @@ impl TextPipeline {
     pub(in crate::render) fn measure_workspace_hint_text_px(&mut self, hint: &str) -> f32 {
         self.overlay_remetric();
         let name_fs = self.overlay_metrics().font_size;
-        let metrics = GlyphMetrics::new(
-            name_fs * crate::markdown::type_scale::LABEL,
-            self.overlay_hint_h(),
-        );
+        let hint_fs = if self.overlay_files_surface {
+            name_fs
+        } else {
+            name_fs * crate::markdown::type_scale::LABEL
+        };
+        let metrics = GlyphMetrics::new(hint_fs, self.overlay_hint_h());
         self.workspace_hint_measure_buffer
             .set_metrics(&mut self.font_system, metrics);
         self.workspace_hint_measure_buffer

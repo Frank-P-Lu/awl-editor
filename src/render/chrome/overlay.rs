@@ -1,5 +1,8 @@
 use super::*;
 
+/// Air a RailOverRows workspace can spend without crowding its control list.
+const WORKSPACE_ROW_LEADING: Logical = Logical(5.0);
+
 impl TextPipeline {
     pub(in crate::render) fn overlay_metrics(&self) -> GlyphMetrics {
         let m = self.metrics.ui();
@@ -10,12 +13,8 @@ impl TextPipeline {
     /// PER-ITEM LIST SURFACES round — the vertical GAP (device px) opened
     /// between candidate rows under [`theme::ListStyle::Bars`]; `0.0` under
     /// `Pane` (byte-identical). It is folded into the ONE overlay row-pitch
-    /// owner [`Self::overlay_lh`] (and thus into `overlay_metrics`), so the card
-    /// height, the shaped text spread, the selected band, and the pointer
-    /// hit-test all widen the row pitch TOGETHER — bars and text can never
-    /// disagree about a row's y (round A's y-agreement law holds by
-    /// construction). The bar surfaces then draw `lh - gap` tall, leaving the
-    /// gap as the space between them.
+    /// owner [`Self::overlay_lh`], so shaping, card, selection and hit testing
+    /// widen together. Bar surfaces draw `lh - gap`, leaving air between them.
     pub(in crate::render) fn overlay_row_gap(&self) -> f32 {
         let gap = match crate::render::effective_list_style() {
             theme::ListStyle::Bars => Logical(crate::render::effective_bar_config().gap.max(0.0)),
@@ -44,10 +43,9 @@ impl TextPipeline {
     /// `Pane` keeps the historical `12` pad (byte-identical). `Bars` insets
     /// `BAR_SIDE_INSET + BAR_TEXT_PAD` so the glyphs sit a comfortable pad INSIDE
     /// each bar's edge (the user's "bar text needs real left padding" refit),
-    /// symmetric so the secondary chord column mirrors it inside the bar's right
-    /// edge. The ONE owner both `overlay_geometry` and `theme_overlay_geometry`
-    /// read for `text_left`/`text_w`, so shaping, hit-test, caret, and the
-    /// right-aligned chords all inset together.
+    /// symmetric so the secondary chord column mirrors it. The ONE owner both
+    /// `overlay_geometry` and `theme_overlay_geometry` read for `text_left`/`text_w`, so
+    /// shaping, hit-test, caret, and right-aligned chords all inset together.
     pub(in crate::render) fn overlay_text_hpad(&self) -> f32 {
         let l = match crate::render::effective_list_style() {
             theme::ListStyle::Bars => {
@@ -63,13 +61,15 @@ impl TextPipeline {
         self.metrics.ui().px(l)
     }
 
-    /// The overlay row LINE HEIGHT — the single-owner metric the card height, the
-    /// row-Y, the hit-test, and the
-    /// selected-row band all read, so a click always lands on the row it highlights.
+    /// The overlay row LINE HEIGHT — the single-owner metric the card height,
+    /// row-Y, hit-test, selected band, and workspace breathing room all read.
     pub(in crate::render) fn overlay_lh(&self) -> f32 {
+        let workspace_leading = self.metrics.ui().px(WORKSPACE_ROW_LEADING)
+            * usize::from(self.overlay_is_workspace() && !self.overlay_rows_primary) as f32;
         self.metrics.ui().line_height * crate::render::effective_overlay_scale()
             + self.overlay_leading()
             + self.overlay_row_gap()
+            + workspace_leading
     }
 
     pub(in crate::render) fn overlay_char_width(&self) -> f32 {
@@ -208,7 +208,11 @@ impl TextPipeline {
     }
 
     pub(in crate::render) fn overlay_hint_h(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
+        if self.overlay_files_surface {
+            self.overlay_lh()
+        } else {
+            (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
+        }
     }
 
     /// The blank separator's own (shorter still) row height.

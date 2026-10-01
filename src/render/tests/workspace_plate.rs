@@ -34,10 +34,19 @@ fn settings_view(lens: usize) -> ViewState {
     ov.set_secondaries(crate::settings::visible_value_cells(&vals));
     ov.set_range_cells(crate::settings::visible_range_cells(&vals));
     ov.set_facet_lens(lens);
+    // The plate subject lives on Settings' rows. Enter that stage through the
+    // same Journey transition the application uses; default-density Settings
+    // deliberately stages rather than showing its rail beside these rows.
+    let mut journey = crate::overlay::Journey::seeded(Some(ov));
+    journey.toggle_detail();
+    let ov = journey
+        .card()
+        .expect("Settings card remains open after entering rows");
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = false;
+    v.overlay_detail_focus = ov.detail_focus;
     v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
@@ -45,7 +54,7 @@ fn settings_view(lens: usize) -> ViewState {
     v.overlay_lens = ov.lens_strip();
     v.overlay_sections = ov.item_sections();
     v.overlay_location = ov.location().map(std::string::ToString::to_string);
-    v.overlay_hint = "↑/↓ category   ↵ settings   esc close".into();
+    v.overlay_hint = journey.foot_hint();
     v.overlay_selected = ov.selected;
     // The per-kind row cap `sync_view` also sets, off the SAME overlay. Left at
     // `ViewState::base()`'s flat 12 it silently caps a Settings workspace whose own

@@ -45,6 +45,7 @@ pub struct HistoryInputs {
 pub struct SearchFolderInputs {
     pub root: std::path::PathBuf,
     pub corpus: Vec<(String, String)>,
+    pub incomplete: bool,
 }
 
 /// One focused construction request. The variant is the picker identity, so a

@@ -1329,17 +1329,16 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 /// worst case 5.19px at (Tawny → Bilby), the SAME magnitude as the original
 /// transition bug this whole file exists to close.
 ///
-/// `caret_synthetic_ink_box`'s ratio reads `caret_row_metrics`'s
-/// own THIRD element — whichever font actually produced the ascent it is
-/// paired with — never an independently-chosen font. This does NOT (and
-/// cannot, without paying for the very reshape the debounce exists to defer)
-/// make the preview match the COLD destination exactly on real text — the
-/// row's actual on-screen geometry genuinely IS still the source font's until
-/// the reshape catches up, so some residual is inherent to the design, not a
-/// bug. What the fix buys is INTERNAL consistency (one font's ascent times
-/// THAT SAME font's ratio, never a cross-font product) and a real, measured
-/// drop in the worst-case residual, swept over every mono-source ×
-/// proportional-destination pair on a genuinely shaped row.
+/// `caret_synthetic_ink_box`'s ratio reads `caret_row_metrics`'s own THIRD
+/// element — whichever font produced the paired ascent — never an independently
+/// chosen font. This law pins MORPH because Morph still owns that typical-letter
+/// formula; literal Block now uses a full face-ink envelope and does not call the
+/// function named by the law. The preview cannot match the COLD destination
+/// exactly without paying for the deferred reshape: the on-screen row really is
+/// still the source font. The guarantee is INTERNAL consistency (one font's
+/// ascent times THAT SAME font's ratio, never a cross-font product) and the
+/// measured drop from the mixed-font mutation's 5.19px worst to below 3.5px over
+/// every mono-source × proportional-destination pair on a shaped row.
 ///
 /// FIXTURE: a real letter ANYWHERE on the caret's row is no longer safe here —
 /// the nearest-raster repair widened the
@@ -1358,16 +1357,16 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
-    crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_mode(CaretMode::Morph);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent: no wgpu adapter"
         );
         return;
     };
-    // Bound: comfortably above the fixed formula's measured worst, comfortably
-    // below the mixed-font formula's measured worst (5.19px) — proven
-    // non-vacuous by the assert below over the SAME sweep.
+    // This unchanged bound sits above the same-font formula's measured worst
+    // and below the mixed-font mutation's 5.19px worst. Morph is load-bearing:
+    // it keeps this law on the synthetic ratio path the bound distinguishes.
     const WORST_CASE_BOUND_PX: f32 = 3.5;
 
     let text = "   "; // all whitespace: a shaped row with NO real ink anywhere,

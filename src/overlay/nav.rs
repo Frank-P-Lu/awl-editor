@@ -1,4 +1,4 @@
-use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
+use super::{FilesFocus, OverlayKind, OverlayState, RangeCell, RowMeta};
 
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
@@ -27,13 +27,17 @@ impl OverlayState {
     /// beep, no notice, and the card is left byte-for-byte as it was rather than
     /// re-`refilter`ed into an identical state.
     pub fn push(&mut self, c: char) {
-        if !self.kind.offers_query() {
-            return;
+        self.push_text(c.encode_utf8(&mut [0; 4]));
+    }
+
+    pub(crate) fn push_text(&mut self, text: &str) -> bool {
+        if !self.kind.offers_query() || !self.query.insert_text(text) {
+            return false;
         }
-        self.query.insert(c);
         self.selected = 0;
         self.scroll = 0;
         self.refilter();
+        true
     }
 
     pub fn pop(&mut self) {
@@ -111,6 +115,9 @@ impl OverlayState {
         if self.link_edit.is_some() {
             self.link_edit_set_caret(at);
             return;
+        }
+        if self.files_mode {
+            self.files_focus = FilesFocus::Query;
         }
         self.query.set_caret(at);
     }
@@ -394,7 +401,7 @@ impl OverlayState {
     pub fn item_bindings(&self) -> Vec<String> {
         self.items
             .iter()
-            .map(|&i| self.rows[i].secondary.clone())
+            .map(|&i| self.composed_item_binding(i))
             .collect()
     }
 

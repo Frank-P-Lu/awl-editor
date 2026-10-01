@@ -1,6 +1,6 @@
 use super::FileSystem;
 #[cfg(target_arch = "wasm32")]
-use super::{DirEntry, Metadata, set_active};
+use super::{BoundedRead, DirEntry, Metadata, set_active};
 use std::path::Path;
 #[cfg(target_arch = "wasm32")]
 use std::sync::Arc;
@@ -106,7 +106,7 @@ pub(crate) fn seed_write_if_absent(
 // and the only byte reader (the `AWL_FONT` face load) never runs on the web.
 #[cfg(target_arch = "wasm32")]
 mod backend {
-    use super::{DirEntry, FileSystem, Metadata};
+    use super::{BoundedRead, DirEntry, FileSystem, Metadata};
     use crate::clock::SystemTime;
     use std::io;
     use std::path::Path;
@@ -115,7 +115,6 @@ mod backend {
     const FILE_PREFIX: &str = "awlfs:F:";
     const DIR_PREFIX: &str = "awlfs:D:";
     const MTIME_PREFIX: &str = "awlfs:M:";
-
     #[derive(Debug, Default, Clone, Copy)]
     pub struct WebFs;
 
@@ -161,6 +160,11 @@ mod backend {
             }
         }
 
+        fn contains_key(s: &web_sys::Storage, wanted: &str) -> bool {
+            let Ok(len) = s.length() else { return false };
+            (0..len).any(|index| s.key(index).ok().flatten().as_deref() == Some(wanted))
+        }
+
         /// SEED the sample docs on FIRST load (sentinel-gated on
         /// [`super::SEED_SENTINEL_KEY`], so a reload of an already-seeded
         /// generation is a no-op). Called once at startup by
@@ -193,13 +197,31 @@ mod backend {
 
     impl FileSystem for WebFs {
         fn read_to_string(&self, path: &Path) -> io::Result<String> {
-            storage()
-                .and_then(|s| s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))
+            let s =
+                storage().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
+            let text = s
+                .get_item(&Self::key(FILE_PREFIX, path))
+                .ok()
+                .flatten()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))?;
+            Ok(text)
         }
 
         fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
             self.read_to_string(path).map(String::into_bytes)
+        }
+
+        fn read_bounded(&self, _path: &Path, _max_bytes: usize) -> BoundedRead {
+            // `localStorage.getItem` materializes a complete cross-tab-replaceable
+            // value. Search in folder refuses before reaching this seam; no
+            // alternate storage transaction is introduced for the browser build.
+            BoundedRead::Failed {
+                bytes: Vec::new(),
+                _error: io::Error::new(
+                    io::ErrorKind::Unsupported,
+                    "bounded browser reads are unavailable",
+                ),
+            }
         }
 
         fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {
@@ -257,10 +279,7 @@ mod backend {
         fn exists(&self, path: &Path) -> bool {
             storage()
                 .map(|s| {
-                    s.get_item(&Self::key(FILE_PREFIX, path))
-                        .ok()
-                        .flatten()
-                        .is_some()
+                    Self::contains_key(&s, &Self::key(FILE_PREFIX, path))
                         || s.get_item(&Self::key(DIR_PREFIX, path))
                             .ok()
                             .flatten()
@@ -318,19 +337,20 @@ mod backend {
                     .and_then(|v| v.parse::<u64>().ok())
                     .map(millis_to_system_time)
             };
-            // A file the store knows (it has content) reports its recorded times +
-            // byte length (the stored UTF-8 string's length); a bare directory has
-            // none; an unknown path errors like a native stat.
-            let content = s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten();
+            let is_file = s
+                .get_item(&Self::key(FILE_PREFIX, path))
+                .ok()
+                .flatten()
+                .is_some();
             let is_dir = s
                 .get_item(&Self::key(DIR_PREFIX, path))
                 .ok()
                 .flatten()
                 .is_some();
-            if let Some(content) = content {
+            if is_file {
                 Ok(Metadata {
                     modified: read_ms(MTIME_PREFIX),
-                    len: Some(content.len() as u64),
+                    len: None,
                 })
             } else if is_dir {
                 Ok(Metadata {
@@ -345,7 +365,7 @@ mod backend {
         fn remove_file(&self, path: &Path) -> io::Result<()> {
             let s = storage().ok_or_else(|| js_err("unavailable"))?;
             let key = Self::key(FILE_PREFIX, path);
-            if s.get_item(&key).ok().flatten().is_none() {
+            if !Self::contains_key(&s, &key) {
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no such file"));
             }
             let _ = s.remove_item(&key);

@@ -63,8 +63,10 @@ mod search;
 mod semantic;
 mod state;
 mod table_dims;
+mod text_input;
 mod title;
 mod user_words;
+mod value_input;
 pub(crate) mod workspace;
 
 pub(crate) use build::PreparedDirectoryPath;

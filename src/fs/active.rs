@@ -214,6 +214,12 @@ impl FileSystem for UnwritableFs {
             "unwritable fake",
         ))
     }
+    fn read_bounded(&self, _path: &std::path::Path, _max_bytes: usize) -> super::BoundedRead {
+        super::BoundedRead::Failed {
+            bytes: Vec::new(),
+            _error: std::io::Error::new(std::io::ErrorKind::NotFound, "unwritable fake"),
+        }
+    }
     fn write(&self, _path: &std::path::Path, _data: &[u8]) -> std::io::Result<()> {
         Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,

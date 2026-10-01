@@ -251,6 +251,10 @@ impl App {
     /// or Option of Option-Cmd-I), covering the macOS case where the character key-UP is never
     /// delivered.
     pub(in crate::app) fn on_modifiers_changed(&mut self, m: Modifiers) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!("winit ModifiersChanged {:?}", m.state()));
+        }
         self.input.keyboard.mods = m;
         self.hud_release_on_mods(m.state());
         // HOLD-⌘ SHORTCUT PEEK: the ACTIVE CONVENTION's bare arming modifier ALONE
@@ -288,8 +292,14 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
             crate::probe::trace(format_args!(
-                "winit KeyboardInput state={:?} key={:?} repeat={}",
-                event.state, event.logical_key, event.repeat
+                "winit KeyboardInput state={:?} key={:?} repeat={} \
+                 mods={:?} ime={} preedit_bytes={}",
+                event.state,
+                event.logical_key,
+                event.repeat,
+                self.input.keyboard.mods.state(),
+                self.input.keyboard.ime_enabled,
+                self.input.keyboard.preedit.len()
             ));
         }
         if event.state != ElementState::Pressed {
@@ -298,12 +308,21 @@ impl App {
             }
             return;
         }
+        self.reconcile_text_focus();
         if !self.input.keyboard.preedit.is_empty() {
+            #[cfg(not(target_arch = "wasm32"))]
+            if crate::probe::recording() {
+                crate::probe::trace(format_args!("keyboard consumed-by=preedit"));
+            }
             return;
         }
         if let Key::Named(n) = &event.logical_key {
             use winit::keyboard::NamedKey::*;
             if matches!(n, Control | Shift | Alt | Super | Hyper | Meta) {
+                #[cfg(not(target_arch = "wasm32"))]
+                if crate::probe::recording() {
+                    crate::probe::trace(format_args!("keyboard consumed-by=lone-modifier"));
+                }
                 return;
             }
         }
@@ -397,6 +416,21 @@ impl App {
         // lone-modifier filter (so a bare Shift/Ctrl tap during search is
         // dropped) and AFTER the preedit guard, but BEFORE keymap.resolve.
         if self.workspace_state.search_active() {
+            #[cfg(target_arch = "wasm32")]
+            if self
+                .input
+                .keyboard
+                .keymap
+                .single_action(&raw, self.input.keyboard.mods.state())
+                == Some(&Action::Yank)
+            {
+                self.browser_paste_notice();
+                return;
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if crate::probe::recording() {
+                crate::probe::trace(format_args!("keyboard consumed-by=search-field"));
+            }
             let mods = self.input.keyboard.mods;
             self.handle_search_key(&raw, &mods, exit);
             self.sync_view(true);
@@ -418,6 +452,10 @@ impl App {
                     | Key::Named(winit::keyboard::NamedKey::Escape)
             );
             if !is_ctrl_key {
+                #[cfg(not(target_arch = "wasm32"))]
+                if crate::probe::recording() {
+                    crate::probe::trace(format_args!("keyboard consumed-by=binding-recorder"));
+                }
                 let combo = crate::keyspec::format_chord(&bare, self.input.keyboard.mods.state());
                 let finished = self
                     .workspace_state

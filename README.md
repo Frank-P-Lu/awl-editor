@@ -91,7 +91,7 @@ cd awl-0.13.0-linux-x86_64
 Verify the download against the release's `SHA256SUMS` first:
 
 ```sh
-sha256sum -c SHA256SUMS
+grep -F '  awl-0.13.0-linux-x86_64.tar.gz' SHA256SUMS | sha256sum -c -
 ```
 
 Put it on your PATH with `install -Dm755 awl ~/.local/bin/awl`. The binary needs

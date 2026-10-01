@@ -30,34 +30,10 @@ fn clipboard_disabled(e: impl std::fmt::Display) {
     eprintln!("system clipboard disabled: {e}");
 }
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_paste_events;
 #[cfg(target_arch = "wasm32")]
-mod web_clipboard {
-    //! Best-effort async browser clipboard adapter. Copy never blocks; paste
-    //! remains internal because browser reads require unreliable user activation.
-    pub struct Clipboard;
-
-    impl Clipboard {
-        pub fn new() -> Result<Self, &'static str> {
-            Ok(Self)
-        }
-
-        pub fn set_text(&mut self, text: String) -> Result<(), &'static str> {
-            let Some(window) = web_sys::window() else {
-                return Err("no window (headless/detached wasm context)");
-            };
-            let clipboard = window.navigator().clipboard();
-            let promise = clipboard.write_text(&text);
-            wasm_bindgen_futures::spawn_local(async move {
-                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-            });
-            Ok(())
-        }
-
-        pub fn get_text(&mut self) -> Result<String, &'static str> {
-            Err("clipboard read unavailable on web (see WEB.md)")
-        }
-    }
-}
+mod web_clipboard;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod clipboard_backend {
@@ -1334,6 +1310,10 @@ pub fn run(
     };
     #[allow(unused_mut)]
     let mut app = App::new(file, root, cli_workspace, cli_default_folder, config);
+    #[cfg(target_arch = "wasm32")]
+    if let Some(clipboard) = app.clipboard.as_mut() {
+        clipboard.set_proxy(event_loop.create_proxy());
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.soak = soak.map(crate::soak_gpu::Controller::new);

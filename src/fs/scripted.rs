@@ -122,6 +122,10 @@ impl FileSystem for ScriptedFs {
         self.inner.read(path)
     }
 
+    fn read_bounded(&self, path: &Path, max_bytes: usize) -> BoundedRead {
+        self.inner.read_bounded(path, max_bytes)
+    }
+
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {
         self.mutation(ScriptedOperation::Write, path.display().to_string())?;
         self.inner.write(path, data)

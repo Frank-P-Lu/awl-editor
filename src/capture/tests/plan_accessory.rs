@@ -27,7 +27,7 @@ use super::super::*;
 use super::adapter_available;
 use super::plan_geometry::flat_picker_opts;
 use crate::buffer::Buffer;
-use crate::overlay::{OverlayKind, OverlayState};
+use crate::overlay::{Journey, OverlayKind, OverlayState, workspace::SettingsFocus};
 use crate::testscratch::ScratchDir;
 
 /// A real Settings picker, built through the same production wiring
@@ -59,7 +59,9 @@ fn settings_state() -> OverlayState {
     );
     ov.set_secondaries(crate::settings::visible_value_cells(&vals));
     ov.set_range_cells(crate::settings::visible_range_cells(&vals));
-    ov
+    let mut journey = Journey::seeded(Some(ov));
+    assert!(journey.focus_settings(SettingsFocus::Controls));
+    journey.card().expect("Settings remains open").clone()
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -235,9 +237,11 @@ fn published_row_lanes_are_physical_pixels_and_scale_with_capture_dpi() {
     // are the same (W/N)x(H/N) logical window, so every difference below is the
     // scale factor and nothing else.
     let one = dir.join("dpi1.png");
-    capture_with(&one, &buf, &flat_picker_opts(&ov, (1200, 800), 1.0)).expect("dpi 1 capture");
+    let one_opts = flat_picker_opts(&ov, (1200, 800), 1.0);
+    capture_with(&one, &buf, &one_opts).expect("dpi 1 capture");
     let two = dir.join("dpi2.png");
-    capture_with(&two, &buf, &flat_picker_opts(&ov, (2400, 1600), 2.0)).expect("dpi 2 capture");
+    let two_opts = flat_picker_opts(&ov, (2400, 1600), 2.0);
+    capture_with(&two, &buf, &two_opts).expect("dpi 2 capture");
     let (a, ax, aw) = read_rows(&one);
     let (b, bx, bw) = read_rows(&two);
 

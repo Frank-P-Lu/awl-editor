@@ -59,6 +59,7 @@ macro_rules! classify_action_family {
             | Action::DeleteForward
             | Action::KillLine
             | Action::YankText
+            | Action::PasteText(_)
             | Action::InsertImageReference(_)
             | Action::Undo
             | Action::Redo

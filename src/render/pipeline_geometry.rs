@@ -351,6 +351,7 @@ impl TextPipeline {
     /// selection/preedit, spell, search, overlay, and project status — into the
     /// renderer's mirror of the view snapshot.
     fn sync_view_fields(&mut self, view: &ViewState) {
+        self.sync_popover(view);
         self.scroll = view.scroll;
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
@@ -358,6 +359,8 @@ impl TextPipeline {
         self.folded_headings = view.folded_headings.clone();
         self.doc_source = view.doc_source.clone();
         self.preedit = view.preedit.clone();
+        self.field_input = view.field_input.clone();
+        self.field_caret_rect = None;
         // Mirror the spell list ONLY when it actually changed (a rescan landing),
         // bumping its version so the cached squiggle protos rebuild; the common
         // cursor-move / scroll event keeps the mirror, the clone, AND the cache.
@@ -376,7 +379,6 @@ impl TextPipeline {
         self.search_query_caret = view.search_query_caret;
         self.search_replacement_caret = view.search_replacement_caret;
         self.search_field_selection = view.search_field_selection;
-        self.popover_model = view.popover.clone();
         // A summoned overlay appears + disappears INSTANTLY on every CALM world:
         // content syncs verbatim each frame, so a close snaps it off when App clears
         // its logical `self.overlay`. THE ONE exception is the MOTION-JUICE

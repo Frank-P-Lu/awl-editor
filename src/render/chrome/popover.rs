@@ -26,10 +26,14 @@
 //! SAME spans the buttons draw from — a click can never disagree with paint.
 
 use super::*;
+mod anchor;
+#[cfg(test)]
+mod placement_tests;
 use crate::popover::PopoverButton;
 use crate::render::plan::{
     MeasuredPopoverButton, PopoverButtonGeom, PopoverGeom, PopoverPlanInput,
 };
+pub(in crate::render) use anchor::PopoverPlacement;
 
 /// [`TextPipeline::popover_report`]'s payload: the card rect, plus each
 /// button as `(label, active, [x0, x1])`.
@@ -371,7 +375,13 @@ impl TextPipeline {
                 label: b.label.clone(),
             })
             .collect();
-        Some(crate::render::plan::plan_popover(PopoverPlanInput {
+        let scroll_top = self.rendered_scroll_top_px(self.scroll);
+        let origin = self.popover_placement.origin(
+            [width as f32, height as f32, self.metrics.zoom, self.dpi],
+            self.scroll,
+            scroll_top,
+        );
+        let geom = crate::render::plan::plan_popover(PopoverPlanInput {
             canvas: [width as f32, height as f32],
             measured_width: total_w,
             band_top_rel,
@@ -380,8 +390,11 @@ impl TextPipeline {
             anchor_gap: self.metrics.px(ANCHOR_GAP),
             edge_pad: self.metrics.px(EDGE_PAD),
             anchor: [sel_x, sel_top, sel_row_h],
+            origin,
             buttons,
-        }))
+        });
+        self.popover_placement.remember(geom.card);
+        Some(geom)
     }
 
     /// Upload the shaped button labels over the card.

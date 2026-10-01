@@ -31,6 +31,8 @@
 
 use super::*;
 
+mod continuation;
+
 /// The workspace's inset from the window edge, as a fraction of the smaller
 /// window dimension. Generous enough that the document reads as a quiet frame
 /// around the workspace rather than being erased by it, small enough that
@@ -79,6 +81,7 @@ pub(in crate::render) struct WorkspaceFrame {
     pub show_rows: bool,
     pub hint: String,
     pub hint_rows: usize,
+    pub footer_rows: usize,
     pub empty: Option<String>,
     pub fit: plan::WorkspaceRowFit,
 }
@@ -211,20 +214,6 @@ impl TextPipeline {
         self.overlay_lens.len()
     }
 
-    /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? The one width decision the whole
-    /// workspace makes, and the only place width enters this feature at all
-    /// (see the module doc). `true` draws the rail beside the content; `false`
-    /// stages them, and the lifecycle's focus stage becomes which stage you are
-    /// on — with no arm of the transition table able to tell the difference.
-    pub(in crate::render) fn workspace_is_wide(&self, width: u32) -> bool {
-        let hpad = self.overlay_text_hpad();
-        let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
-        let cw = self.overlay_char_width();
-        self.workspace_primary_w > 0.0
-            && interior - self.workspace_primary_w - RAIL_GAP_CHARS.0 * cw
-                >= self.workspace_min_pane()
-    }
-
     /// THE NARROWEST CONTENT PANE THIS WORKSPACE MAY GO TWO-COLUMN AT, in px:
     /// [`MIN_PANE_CHARS`] raised to whatever the rows on show actually ask for —
     /// the widest row NAME, the gap `rowlayout` puts after it, and the widest
@@ -245,7 +234,7 @@ impl TextPipeline {
     /// minimum. And it is asked only of a shape whose rows live in the CONTENT
     /// pane — a `TimelineOverComparison` workspace opens a relocated document
     /// there, which has no accessory column to lose.
-    fn workspace_min_pane(&self) -> f32 {
+    pub(super) fn workspace_min_pane(&self) -> f32 {
         let cw = self.overlay_char_width();
         if self.overlay_rows_primary {
             return MIN_PANE_CHARS.0 * cw;
@@ -255,6 +244,11 @@ impl TextPipeline {
             + rowlayout::GAP_CHARS as f32
             + widest(self.overlay_right_labels());
         MIN_PANE_CHARS.0.max(demand) * cw
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn workspace_min_pane_probe(&self) -> f32 {
+        self.workspace_min_pane()
     }
 
     /// HOW MANY DISPLAY LINES A WORKSPACE DRAWS ABOVE ITS CANDIDATE BAND — one
@@ -295,23 +289,30 @@ impl TextPipeline {
         let empty = (n_items == 0).then(|| self.overlay_empty.clone()).flatten();
         let header_rows = self.workspace_header_rows();
         let card_h = regions.card[3];
-        let fit = plan::fit_workspace_item_rows(
-            card_h,
-            authored_pad,
-            lh,
-            header_rows,
-            self.overlay_header_gap_workspace(),
-            empty.is_some() as usize,
-            self.overlay_footer_reserve(hint_rows, hint_gap_rows),
-            self.overlay_footer_reserve(hint_rows, 0),
-            hint_rows > 0,
-            usize::from(hint_rows == 0),
-        );
+        let fit_with_footer = |footer_px: f32| {
+            plan::fit_workspace_item_rows(
+                card_h,
+                authored_pad,
+                lh,
+                header_rows,
+                self.overlay_header_gap_workspace(),
+                empty.is_some() as usize,
+                self.overlay_footer_reserve(hint_rows, hint_gap_rows) + footer_px,
+                self.overlay_footer_reserve(hint_rows, 0) + footer_px,
+                hint_rows > 0,
+                usize::from(hint_rows == 0),
+            )
+        };
+        let initial_fit = fit_with_footer(0.0);
+        let windowed = show_rows && initial_fit.item_cap < n_items;
+        let (_, footer_rows) = continuation::workspace_continuation_footer(windowed, None, None);
+        let fit = fit_with_footer(footer_rows as f32 * lh);
         WorkspaceFrame {
             regions,
             show_rows,
             hint,
             hint_rows,
+            footer_rows,
             empty,
             fit,
         }
@@ -348,6 +349,7 @@ impl TextPipeline {
         // rather than a second flag, so one sentence lives in one place.
         let hint = frame.hint;
         let hint_rows = frame.hint_rows;
+        let footer_rows = frame.footer_rows;
         // The shared owner (`overlay_hint_gap_rows`, `chrome/mod.rs`) — the same
         // blank-row budget the flat and grouped families reserve, so a hint on
         // this family doesn't sit flush against the last row while its siblings
@@ -414,31 +416,18 @@ impl TextPipeline {
         // enforced minimum — zero rows is the honest staged degradation.
         let fit = frame.fit;
         let pad = fit.pad;
-        // THE COUNT CUE IS DELIBERATELY NOT WIRED FOR THIS FAMILY.
-        // A workspace's ROW ORIGIN (`first_top`, via `plan_overlay_rows`) is
-        // shared with its RAIL — the primary column's own category labels,
-        // for a `RailOverRows` shape — so shifting it for the cue (the same
-        // shift the flat/grouped families use) moves the rail whenever the
-        // CONTENT pane's own item count happens to clip, even though the
-        // rail's rows never changed at all: measured directly, switching a
-        // Settings category from one with few rows to one with many moved
-        // the rail's own row 0 by exactly one row pitch
-        // (`render/tests/rail_ink_law.rs`'s pre-existing "the same rect
-        // photographed twice" oracle, which this broke immediately). Unlike
-        // the flat/grouped families, this family's card is CANVAS-sized, so
-        // fixing this by threading the shift into the rail's own geometry
-        // too — decoupling it back out is not a smaller job than getting it
-        // right the first time — is future work; today the cue is simply
-        // absent from every summoned workspace, `visible` alone answers how
-        // many rows fit (byte-identical to pre-508 behaviour), and
-        // `render/tests/edge_count_cue_law.rs`'s own roster sweep excludes
-        // the workspace family from the "must show a cue when clipped"
-        // claim for the same reason.
         let (top_idx, visible) = match show_rows {
             true => self.overlay_workspace_window(n_items, fit.item_cap),
             false => (0, 0),
         };
-        let (cue_above, cue_below): (Option<usize>, Option<usize>) = (None, None);
+        let (cue_above, cue_below) = if footer_rows > 0 {
+            window_edge_counts(top_idx, visible, n_items)
+        } else {
+            (None, None)
+        };
+        let (footer, shaped_footer_rows) =
+            continuation::workspace_continuation_footer(footer_rows > 0, cue_above, cue_below);
+        debug_assert_eq!(footer_rows, shaped_footer_rows);
 
         // A LENS IN THE HEADER IS THE GROUPED CARD'S OWN COMPOSITION,
         // so it takes the grouped card's own shaper rather than a second one.
@@ -461,6 +450,8 @@ impl TextPipeline {
             n_items,
             hint: if hint_rows > 0 { hint } else { String::new() },
             hint_rows,
+            footer,
+            footer_rows,
             hint_gap_rows: fit.hint_gap_rows,
             header_rows,
             header_gap,

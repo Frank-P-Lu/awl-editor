@@ -180,3 +180,9 @@ performed. Unsupported effects require another driver or an explicit capability.
 | `type_impact` | Applied |
 | `zoom_changed` | Applied |
 <!-- reach-table:end -->
+
+Rust App laws may deliver `Ime` events through `App::on_ime` and capture the
+result using `capture_opts` and `capture_with`. The `focused_field` sidecar reports
+rendered text, selection, transient preedit and candidate geometry. CLI chords
+cannot synthesize physical IME events; Japanese conversion, OS candidate windows
+and live ordering still require a native session and physical input.
