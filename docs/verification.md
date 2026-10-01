@@ -86,8 +86,9 @@ block the final gate. Gate-tool changes still require a real final-gate rehearsa
 Clippy/rustfmt components and wasm target. Standard rustup proxies honor the
 file. Direct links to `toolchains/stable.../bin` bypass it; use the scoped
 `scripts/project-rust.sh cargo ...` wrapper to select the actual pinned binaries
-even with those links. `verify.sh` activates this helper automatically, and
-other build helpers preserve its PATH. Activation affects only the command
+even with those links. The wrapper uses `rustup run`, retaining the official
+linker-library environment as well as the compiler selection. `verify.sh`
+activates this helper automatically; other build helpers preserve its PATH. Activation affects only the command
 process, leaving global links and the default unchanged. CI, extended verification, release and web build
 workflows activate the same file through `.github/actions/project-rust` and
 print the selected compiler. Release's extra Mac architecture targets remain.

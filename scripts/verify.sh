@@ -3,8 +3,9 @@
 set -euo pipefail
 verify_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$verify_root"
-# shellcheck source=scripts/project-rust.sh
-source "$verify_root/scripts/project-rust.sh"
+if [[ "${AWL_PROJECT_RUST_ACTIVE:-}" != "$verify_root" ]]; then
+  exec "$verify_root/scripts/project-rust.sh" "$verify_root/scripts/verify.sh" "$@"
+fi
 
 usage() {
   cat <<'USAGE'

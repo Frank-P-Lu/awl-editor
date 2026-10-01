@@ -98,11 +98,15 @@ import json, os, pathlib, sys
 name = pathlib.Path(sys.argv[0]).name
 args = sys.argv[1:]
 if name == 'rustup':
+    if args[0] == 'run':
+        os.environ['LAW_RUSTUP_RUNTIME'] = 'ready'
+        os.execvpe(args[2], args[2:], os.environ)
     print(pathlib.Path(sys.argv[0]).parent / 'cargo' if args == ['which', 'cargo'] else '1.99.0-test')
     sys.exit(0)
 if name == 'git':
     print(pathlib.Path(os.environ['LAW_HEAD']).read_text() if args == ['rev-parse', 'HEAD'] else os.environ.get('LAW_DIRTY', ''))
     sys.exit(0)
+if os.environ.get('LAW_REQUIRE_RUSTUP_RUNTIME') and not os.environ.get('LAW_RUSTUP_RUNTIME'): sys.exit(9)
 with open(os.environ['LAW_LOG'], 'a') as log: log.write(json.dumps([name, *args]) + '\\n')
 if os.environ.get('LAW_MUTATE') == name: pathlib.Path(os.environ['LAW_HEAD']).write_text('changed')
 if os.environ.get('LAW_FAIL') == name: sys.exit(7)
@@ -164,6 +168,15 @@ if name == 'cargo' and args[0] == 'test':
         self.assertIn("commit=frozen", result.stdout)
         self.assertNotEqual(self.run_verify("full", LAW_MUTATE="web-smoke.sh").returncode, 0)
 
+    def test_project_activation_preserves_rustup_runtime_environment(self):
+        self.assertEqual(self.run_verify("full", LAW_REQUIRE_RUSTUP_RUNTIME="1").returncode, 0)
+        helper = self.root / "scripts/project-rust.sh"
+        text = helper.read_text()
+        text = text.replace('exec rustup run "${awl_project_rust_active%% *}" "$@"', 'exec "$@"')
+        helper.write_text(text)
+        # The old direct-binary launch misses the loader environment and fails.
+        self.assertNotEqual(self.run_verify("full", LAW_REQUIRE_RUSTUP_RUNTIME="1").returncode, 0)
+
     def test_full_never_skips_wasm_or_continues_after_failure(self):
         (self.root / "bin/wasm-bindgen-test-runner").unlink()
         self.assertNotEqual(self.run_verify("full").returncode, 0)
@@ -204,9 +217,11 @@ class ProjectToolchain(unittest.TestCase):
         action = (ROOT / ".github/actions/project-rust/action.yml").read_text()
         self.assertIn("rustup show active-toolchain", action)
         self.assertIn("unset RUSTUP_TOOLCHAIN", action)
-        self.assertIn("source scripts/project-rust.sh", action)
+        self.assertIn("scripts/project-rust.sh rustc --version", action)
+        self.assertNotIn("GITHUB_PATH", action)
         helper = (ROOT / "scripts/project-rust.sh").read_text()
-        self.assertIn("rustup which cargo", helper)
+        self.assertIn('exec rustup run "${awl_project_rust_active%% *}" "$@"', helper)
+        self.assertNotIn("export PATH", helper)
         self.assertNotIn("rustup default", helper)
         self.assertNotIn("rustup default", action)
         self.assertIn('rustup target add "${targets[@]}"', action)
