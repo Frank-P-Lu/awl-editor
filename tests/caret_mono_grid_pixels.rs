@@ -1,63 +1,13 @@
-//! tests/caret_mono_grid_pixels.rs — THE MONO CARET GRID, IN
-//! PIXELS, ON EVERY WORLD.
+//! Actual native PNG proof of glyph-adaptive blocks across the full world roster.
 //!
-//! THE BUG. `caret::font_is_mono` was a literal three-name match — "IBM Plex
-//! Mono" | "JetBrains Mono" | "Monaspace Xenon". **Iosevka**, a genuinely
-//! fixed-pitch face and the display face of BOTH Currawong and Cassowary, was
-//! never in it, so those two worlds took the PROPORTIONAL arm of
-//! `render::caret::caret_anchor_ink_box`, which at the time sized the caret to
-//! each glyph's own raster ink instead of holding the uniform cell every other
-//! mono world keeps. Measured on this exact fixture at zoom 1 BEFORE the fix,
-//! Currawong's block spanned y18..43 on `l` and y23..48 on `g` — a 5px top
-//! wobble letter to letter — while Tawny/Mangrove/Potoroo/Firetail held a fixed
-//! y20 top on all three. The vision smoke saw it as "Currawong's caret hugs the
-//! g". The proportional arm has since stopped reading per-glyph ink VERTICALLY
-//! as well (one height per face and row), so the arms are now distinguished
-//! here by what still is per-glyph on a proportional world — the caret's WIDTH,
-//! which tracks the glyph's own advance — while both arms hold their top and
-//! bottom still.
+//! The approved block policy fits shaped ink in both axes on mono and proportional
+//! faces alike. Diff each letter capture against the same frame with the caret
+//! parked away: an ascender must be taller than the x-height letter, a descender
+//! must extend below it, and every body must remain visible and advance forward.
+//! Both 1x and 2x DPI use the real spawned binary and hermetic capture sandbox.
 //!
-//! WHAT THIS ASSERTS, and why in pixels. The sidecar is a STATE oracle, not an
-//! appearance oracle (CLAUDE.md), and "the caret holds a grid" is an appearance
-//! claim: it is about where accent ink lands on screen. So every number below is
-//! arithmetic over the capture PNG. The caret's drawn footprint is isolated by
-//! DIFFING each capture against a REFERENCE capture of the same world and same
-//! document with the caret parked four lines away — everything else on row 0
-//! renders identically, so the changed pixels in row 0's band ARE the caret
-//! (block quad + the glyph it recolours). That works on every world including
-//! the ones a colour-keyed probe cannot read: Wagtail is 1-bit, where the accent
-//! IS the text ink, and Cassowary's CRT phosphor likewise.
-//!
-//! THE ROSTER IS NOT HARDCODED HERE. Which worlds are mono-faced is measured
-//! directly from the SAME pixels this test already decodes: the step between
-//! consecutive caret left edges follows the face's own advances regardless of
-//! caret mode (a fixed-pitch face steps by one constant; a proportional one
-//! cannot), so this test never needs to ask the product which arm a world is
-//! in — it measures it. (An earlier revision asked via the unset `--caret-mode`
-//! default, back when `default_mode` was itself font-derived; that coupling is
-//! retired — with no override the caret is Block on EVERY world now, so the
-//! sidecar's `caret_mode` field can no longer answer this question. The
-//! product-level correctness of `caret::font_is_mono` against the same
-//! declared+measured pitch, including the Currawong/Cassowary/Iosevka
-//! regression this file exists for, is proven in-process and roster-wide by
-//! `render::tests::facepitch::font_is_mono_answers_the_measurement_for_every_roster_member`;
-//! this file's own job is purely the drawn GEOMETRY — which arm's pixel law
-//! holds — once the class is known.) A world added or re-faced joins the
-//! correct arm automatically, and the in-crate roster laws
-//! (`render::tests::facepitch`) are what make an unregistered face fail rather
-//! than drift.
-//!
-//! FIXTURE. `log` — an ASCENDER (`l`), an X-HEIGHT letter (`o`) and a DESCENDER
-//! (`g`), the three letter classes the item names, and a real English word so no
-//! spell nit underlines the row (a misspelling's squiggle is suppressed on the
-//! caret's own line, which would leak into the diff).
-//!
-//! HERMETICITY. Every child goes through `common::awl`, which PINS
-//! `$AWL_CONFIG` inside the test's own sandbox — never `env_remove`. `--theme`
-//! and `--zoom 1.0` are explicit on every capture; `--caret-mode` is explicit on
-//! every MEASURED capture and deliberately omitted on the reference capture,
-//! whose whole job is to report the un-overridden default. With the config
-//! pinned to an absent file there is no sticky `caret_mode` for it to inherit.
+//! Fixed-pitch font classification remains owned by the in-process facepitch laws;
+//! adaptive ink bearings cannot classify pitch from caret left edges anymore.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -93,15 +43,14 @@ fn tmp_dir(tag: &str) -> ScratchDir {
     ScratchDir::new(dir)
 }
 
-/// One capture job: a world, the keys to replay, and an OPTIONAL explicit caret
-/// mode (`None` = the reference/park capture, drawn under the universal Block
-/// default; unrelated to this test's mono/proportional split, which is
-/// measured from pixel geometry, not from `caret_mode`).
+/// One actual native capture at an explicit DPI. The reference parks its default
+/// Block caret away from the measured row; the three probes anchor on l/o/g.
 struct Job {
     out: PathBuf,
     theme: String,
     keys: String,
     caret_mode: Option<&'static str>,
+    dpi: f32,
 }
 
 fn spawn(job: &Job, sandbox: &Path, doc: &Path) -> Child {
@@ -110,6 +59,8 @@ fn spawn(job: &Job, sandbox: &Path, doc: &Path) -> Child {
         .arg(&job.theme)
         .arg("--zoom")
         .arg("1.0")
+        .arg("--capture-dpi")
+        .arg(job.dpi.to_string())
         .arg("--screenshot")
         .arg(&job.out)
         .arg("--keys")
@@ -212,79 +163,27 @@ fn i(v: u32) -> i64 {
     v as i64
 }
 
-/// THE LAW. On every MONO-faced world the caret holds a uniform cell grid across
-/// an ascender, an x-height letter and a descender — same top, same width, a
-/// constant column pitch — while every PROPORTIONAL world keeps its per-letter
-/// ink box. Both arms sweep the FULL shipped world roster, split by pixel-
-/// measured face pitch (see the module doc — this is no longer read off the
-/// caret's own default mode).
-/// THE MONO ARM, edge by edge: one grid, one width, one forward pitch, and the
-/// declared descender exception on the bottom alone.
-fn assert_mono_grid(tops: &[u32], widths: &[i64], bottoms: &[u32], pitch: &[i64], what: &str) {
-    // THE GRID, edge by edge. The caret's TOP does not move with the
-    // letter — the exact property Currawong and Cassowary lost.
-    let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
+/// These are comparisons of actual changed pixels, not sidecar state or a
+/// restatement of the production geometry calculation. The fixed-face envelope
+/// retired by the adaptive policy fails the ascender/x-height relation.
+fn assert_adaptive_ink(boxes: &[(u32, u32, u32, u32)], what: &str) {
+    let heights: Vec<i64> = boxes.iter().map(|b| i(b.3) - i(b.2) + 1).collect();
     assert!(
-        i(tmax) - i(tmin) <= 1,
-        "mono world caret top must not move with the glyph: {what}"
-    );
-    // Same drawn WIDTH on every letter.
-    let (wmin, wmax) = (widths.iter().min().unwrap(), widths.iter().max().unwrap());
-    assert!(
-        wmax - wmin <= 1,
-        "mono world caret width must not move with the glyph: {what}"
-    );
-    // A CONSTANT, FORWARD COLUMN PITCH — the cells sit on one grid.
-    assert!(
-        *pitch.iter().min().unwrap() > 0,
-        "mono world caret cells must advance forward (pitch={pitch:?}): {what}"
-    );
-    // The BOTTOM is the one declared exception: `caret_cell_vertical`
-    // drops it for a real dipper (CARET_DESCENDER_PAD) so a `g` stays
-    // inside its block, and holds it fixed for everything else.
-    assert!(
-        (i(bottoms[1]) - i(bottoms[0])).abs() <= 1,
-        "the two non-dippers must share a bottom: {what}"
+        heights.iter().all(|h| *h > 1),
+        "every body must be visible: {what}"
     );
     assert!(
-        i(bottoms[2]) >= i(bottoms[1]),
-        "the descender may only DROP the bottom, never raise it: {what}"
-    );
-}
-
-/// THE PROPORTIONAL ARM: the vertical is one cell for the whole row, the
-/// horizontal still hugs each glyph's own advance.
-fn assert_proportional_cell(tops: &[u32], widths: &[i64], bottoms: &[u32], what: &str) {
-    // A PROPORTIONAL WORLD HOLDS ITS OWN GRID VERTICALLY. Its cell is
-    // the row's typical letter, not the anchored glyph's ink, so the top
-    // does not move between an ascender and an x-height letter any more
-    // than the mono arm's does — and the BOTTOM does not drop for the
-    // descender either, which is the declared cost of one height (a
-    // dipping `g` passes below the caret rather than growing it).
-    let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
-    assert!(
-        i(tmax) - i(tmin) <= 1,
-        "proportional world caret top must not move with the glyph: {what}"
-    );
-    let (bmin, bmax) = (
-        *bottoms.iter().min().unwrap(),
-        *bottoms.iter().max().unwrap(),
+        heights[0] > heights[1] + 1,
+        "the x-height letter must have a shorter block than the ascender: {what}"
     );
     assert!(
-        i(bmax) - i(bmin) <= 1,
-        "proportional world caret bottom must not move with the glyph, \
-             descender included: {what}"
+        boxes[2].3 > boxes[1].3,
+        "the descender's complete ink must extend below the x-height letter: {what}"
     );
-    // WHAT STILL FOLLOWS THE LETTER HERE, and the reason this arm is not
-    // simply the mono arm: the caret's WIDTH is the glyph's own advance,
-    // so it genuinely moves between a narrow `l` and a wide `o`. This is
-    // the over-reach guard the vertical spread used to be — a predicate
-    // that called a near-gridded face (the bundled duospace iA Writer
-    // Quattro S) mono would flatten it and fail here.
-    let (wmin, wmax) = (widths.iter().min().unwrap(), widths.iter().max().unwrap());
+    let centres: Vec<u32> = boxes.iter().map(|b| b.0 + b.1).collect();
     assert!(
-        wmax - wmin >= 3,
-        "proportional world caret must still hug each glyph's advance: {what}"
+        centres.windows(2).all(|pair| pair[1] > pair[0]),
+        "successive visible blocks must advance forward: {what}"
     );
 }
 
@@ -315,122 +214,57 @@ fn listed_worlds(sandbox: &std::path::Path) -> Vec<String> {
 }
 
 #[test]
-fn caret_cell_is_glyph_independent_on_every_mono_world() {
+fn blocks_fit_each_letters_ink_on_every_world_and_dpi() {
     let sandbox = tmp_dir("sweep");
     let doc = sandbox.join("log.txt");
     std::fs::write(&doc, DOC).unwrap();
-
     let worlds = listed_worlds(&sandbox);
-
-    // Every capture up front, so the whole sweep runs at once.
-    let mut jobs: Vec<Job> = Vec::new();
+    let mut jobs = Vec::new();
     for world in &worlds {
-        jobs.push(Job {
-            out: sandbox.join(format!("{world}-ref.png")),
-            theme: world.clone(),
-            keys: PARK_KEYS.to_string(),
-            caret_mode: None,
-        });
-        for (n, (keys, _)) in COLUMNS.iter().enumerate() {
+        for dpi in [1.0, 2.0] {
             jobs.push(Job {
-                out: sandbox.join(format!("{world}-{n}.png")),
+                out: sandbox.join(format!("{world}-{dpi}-ref.png")),
                 theme: world.clone(),
-                keys: (*keys).to_string(),
-                caret_mode: Some("block"),
+                keys: PARK_KEYS.to_string(),
+                caret_mode: None,
+                dpi,
             });
+            for (n, (keys, _)) in COLUMNS.iter().enumerate() {
+                jobs.push(Job {
+                    out: sandbox.join(format!("{world}-{dpi}-{n}.png")),
+                    theme: world.clone(),
+                    keys: (*keys).to_string(),
+                    caret_mode: Some("block"),
+                    dpi,
+                });
+            }
         }
     }
     if !run_all(&jobs, &sandbox, &doc) {
-        eprintln!("skipping caret_cell_is_glyph_independent_on_every_mono_world: no wgpu adapter");
+        eprintln!("skipping native adaptive caret pixel law: no wgpu adapter");
         return;
     }
-
-    let mut mono_worlds: Vec<&str> = Vec::new();
-    let mut proportional_worlds: Vec<&str> = Vec::new();
+    let mut checked = 0;
     for world in &worlds {
-        let reference = sandbox.join(format!("{world}-ref.png"));
-        let side = sidecar(&reference);
-
-        // Row 0's band: the caret can hang a little above the row top and a
-        // dipper's block drops below the row bottom, so the band is the row plus
-        // a margin — still nowhere near row 4, where the reference caret sits.
-        let top = side["text_origin"]["top"]
-            .as_f64()
-            .expect("text_origin.top") as u32;
-        let lh = side["font"]["line_height"]
-            .as_f64()
-            .expect("font.line_height") as u32;
-        let band = (top.saturating_sub(8), top + lh + 8);
-
-        let refr = decode(&reference);
-        let boxes: Vec<(u32, u32, u32, u32)> = (0..COLUMNS.len())
-            .map(|n| {
-                let cap = decode(&sandbox.join(format!("{world}-{n}.png")));
-                caret_box(&cap, &refr, band).unwrap_or_else(|| {
-                    panic!("{world}: the caret drew NO ink at column {n} in row 0's band")
+        for dpi in [1.0, 2.0] {
+            let reference = sandbox.join(format!("{world}-{dpi}-ref.png"));
+            let side = sidecar(&reference);
+            let top = side["text_origin"]["top"].as_f64().unwrap() as u32;
+            let lh = side["font"]["line_height"].as_f64().unwrap() as u32;
+            let pad = (8.0 * dpi) as u32;
+            let band = (top.saturating_sub(pad), top + lh + pad);
+            let refr = decode(&reference);
+            let boxes: Vec<_> = (0..COLUMNS.len())
+                .map(|n| {
+                    let cap = decode(&sandbox.join(format!("{world}-{dpi}-{n}.png")));
+                    caret_box(&cap, &refr, band).unwrap_or_else(|| {
+                        panic!("{world} dpi={dpi}: the caret drew no ink at column {n}")
+                    })
                 })
-            })
-            .collect();
-        let tops: Vec<u32> = boxes.iter().map(|b| b.2).collect();
-        let lefts: Vec<u32> = boxes.iter().map(|b| b.0).collect();
-        let widths: Vec<i64> = boxes.iter().map(|b| i(b.1) - i(b.0) + 1).collect();
-        let bottoms: Vec<u32> = boxes.iter().map(|b| b.3).collect();
-        let letters: Vec<char> = COLUMNS.iter().map(|(_, c)| *c).collect();
-        let face = side["theme"]["font_family"]
-            .as_str()
-            .unwrap_or("?")
-            .to_string();
-        let what = format!(
-            "{world} ({face}) {letters:?} tops={tops:?} lefts={lefts:?} widths={widths:?} bottoms={bottoms:?}"
-        );
-
-        // WHETHER THE FACE IS MONOSPACED, measured from the drawn pixels
-        // themselves: the caret is drawn AT the column it is on — either the
-        // fixed cell (mono arm) or that glyph's own ink (proportional arm) — so
-        // the STEP between consecutive caret left edges follows the face's own
-        // advances either way. A fixed-pitch face steps by one constant; a
-        // proportional one cannot (`l` is narrow, `o` is not). This is the sole
-        // classifier below (`caret::font_is_mono`'s own correctness against the
-        // same declared+measured pitch, roster-wide, is proven separately and
-        // in-process by `render::tests::facepitch`).
-        //
-        // The two populations are far apart, not adjacent: every shipped mono
-        // face measures a pitch spread of 0-1px (antialias), every proportional
-        // one 4-9px. The assert pins that gap so a marginal reading is a failure
-        // rather than a coin flip.
-        let pitch: Vec<i64> = lefts.windows(2).map(|w| i(w[1]) - i(w[0])).collect();
-        let pitch_spread = pitch.iter().max().unwrap() - pitch.iter().min().unwrap();
-        assert!(
-            pitch_spread <= 1 || pitch_spread >= 4,
-            "ambiguous advance measurement (spread {pitch_spread}): {what}"
-        );
-        let really_mono = pitch_spread <= 1;
-
-        if really_mono {
-            mono_worlds.push(world);
-            assert_mono_grid(&tops, &widths, &bottoms, &pitch, &what);
-        } else {
-            proportional_worlds.push(world);
-            assert_proportional_cell(&tops, &widths, &bottoms, &what);
+                .collect();
+            assert_adaptive_ink(&boxes, &format!("{world} dpi={dpi} boxes={boxes:?}"));
+            checked += 1;
         }
     }
-
-    // NON-VACUITY + THE NAMED REGRESSION. Both arms must be populated, and the
-    // two worlds the retired name list missed must be in the MONO arm — this
-    // test's whole reason for existing.
-    assert!(
-        mono_worlds.len() >= 7,
-        "expected every mono-faced world in the grid arm, got {mono_worlds:?}"
-    );
-    assert!(
-        proportional_worlds.len() >= 11,
-        "expected the proportional worlds in the ink arm, got {proportional_worlds:?}"
-    );
-    for regained in ["Currawong", "Cassowary"] {
-        assert!(
-            mono_worlds.contains(&regained),
-            "{regained} shapes in Iosevka, a fixed-pitch face — it must hold the mono \
-             caret grid (mono arm was {mono_worlds:?})"
-        );
-    }
+    assert_eq!(checked, worlds.len() * 2, "every world at both DPI sizes");
 }

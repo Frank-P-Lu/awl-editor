@@ -1372,11 +1372,9 @@ fn check_floor_engagement_at_scale(
         raw_tiny |= ink_is_thin;
 
         for mode in ["block", "morph"] {
-            // PIXEL ORACLE: the floor alone is not the product
-            // promise.  Measure the actual caret body on this SAME row's `b`
-            // and compare the short punctuation body to it.  The old
-            // ink-derived vertical rule passes every floor assertion below,
-            // but fails this relative comparison by the reported 12px class.
+            // Compare actual changed PNG pixels with this row's ascender.
+            // The adaptive policy preserves the punctuation floor while making
+            // genuinely thin punctuation shorter than a full ascender block.
             let letter = dir.join(format!("floor-{dpi}-{zoom}-letter-{mode}.png"));
             capture.run(&letter, mode, if mode == "morph" { "Right" } else { "" });
             let letter_img = rgba(&letter);
@@ -1391,19 +1389,23 @@ fn check_floor_engagement_at_scale(
                 footprint(&rendered, &refimg, band_top, band_bottom);
             let h = (outer_bottom - outer_top + 1) as f32;
             if ink_is_thin {
-                // The shared body floor remains a minimum, but it no longer
-                // owns the resting height: short punctuation rises to the same optical seat
-                // into the row's x-height band.
+                // The support floor keeps tiny punctuation visible; its actual
+                // shaped ink owns the adaptive resting height.
                 assert!(
                     h >= pred_h - 3.0,
                     "{world} {mode} {ch:?} scale={scale}: rendered caret body height {h} fell \
                      below its support floor {pred_h:.1} (raw ink height {raw_h})"
                 );
                 assert!(
-                    (h - letter_h).abs() <= 9.0 * scale,
-                    "{world} {mode} {ch:?} scale={scale}: rendered short-punctuation caret \
-                     height {h} differs from its same-row letter caret {letter_h} — \
-                     vertical sizing may not fall back to the punctuation ink"
+                    h + scale < letter_h,
+                    "{world} {mode} {ch:?} scale={scale}: thin punctuation height {h} \
+                     must remain shorter than its measured ascender block {letter_h}"
+                );
+                let padded_ink = (raw_h as f32 + 4.0 * scale).max(pred_h);
+                assert!(
+                    h <= padded_ink + 3.0 * scale,
+                    "{world} {mode} {ch:?}: punctuation height {h} exceeds its independently \
+                     measured ink/support envelope {padded_ink}"
                 );
                 floor_engaged = true;
             } else {
@@ -1423,33 +1425,12 @@ fn check_floor_engagement_at_scale(
     (floor_engaged, raw_tiny)
 }
 
-/// PIXEL EVIDENCE — a thin mark's body remains visible and sits in
-/// its row's letter band, proven from pixels rather than inferred from the
-/// geometry owner.
-/// `caret_visual_body_dims` (`render/caret_body.rs`) floors a punctuation
-/// mark's body to `CARET_VISUAL_BODY_MIN_W` (6.5) / `_MIN_H` (12.0) /
-/// `_MIN_AREA` (96.0), scaled by `px = metrics.caret_h / CARET_H`, which
-/// `Metrics::with_dpi` sets to exactly `zoom * dpi` (`src/render.rs`) — the
-/// same `scale` this file already threads through every capture. A thin
-/// mark's floored body is therefore predictable in closed form: the W/H
-/// floors engage before the area floor does (`6.5 * 12.0 = 78 < 96`), so the
-/// area floor grows BOTH dimensions by one scale-invariant ratio,
-/// `sqrt(96/78) ≈ 1.109` — `predicted_floor_body` below is exactly that
-/// formula, nothing measured or eyeballed.
-///
-/// The claim: on a real capture, a thin mark's ON-CARET body sits WITHIN A
-/// FEW PIXELS of that prediction (the residual is AA + the rounded-corner
-/// overhang, not drift) — while its own OFF-CARET, no-caret-involved raw ink
-/// is measured (not assumed) to be much smaller, so the floor is shown
-/// PULLING the caret UP from a tiny glyph, not merely coexisting with an
-/// already-large one. Swept over Block AND Morph, and four scale products
-/// spanning 2x-via-DPI, 2x-via-zoom, and a combined product — a floor
-/// expressed in scaled units has more ways to silently not engage (a wrong
-/// axis fed the scale, a clamp order bug, a missing multiply) than to engage
-/// by accident, so covering DPI and zoom SEPARATELY as well as together is
-/// the point, not a formality.
+/// Actual PNG evidence: thin punctuation preserves its visible support floor
+/// while remaining shorter than a full ascender. The measured off-caret glyph
+/// and the independently captured ascender distinguish adaptation from a fixed
+/// row envelope. Block and the legacy previous-character alias cover four scales.
 #[test]
-fn punctuation_caret_body_sits_in_its_rows_letter_band() {
+fn punctuation_caret_body_adapts_below_its_rows_ascender() {
     let dir = temp("floor-proof");
     let doc = fixture(&dir);
     let blank_doc = fixture_blank(&dir);
