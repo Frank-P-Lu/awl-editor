@@ -144,7 +144,7 @@ jobs:
             target/aarch64-apple-darwin/release/awl \
             target/x86_64-apple-darwin/release/awl
           lipo -info target/universal/awl
-          lipo -verify_arch arm64 x86_64 target/universal/awl
+          lipo target/universal/awl -verify_arch arm64 x86_64
 
       # Self-diagnostic for the "hdiutil: create failed - No space left on
       # device" class of failure (GitHub mac runners' system temp volume has
@@ -278,7 +278,7 @@ jobs:
           trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true' EXIT
           hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
           scripts/package-macos.sh --verify "$MOUNT/Awl.app"
-          lipo -verify_arch arm64 x86_64 "$MOUNT/Awl.app/Contents/MacOS/awl"
+          lipo "$MOUNT/Awl.app/Contents/MacOS/awl" -verify_arch arm64 x86_64
           BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
           [ "$BUNDLE_VERSION" = "$VERSION" ] || { echo "::error::DMG bundle version is '$BUNDLE_VERSION', expected '$VERSION'."; exit 1; }
           if [ "$SIGN_MACOS" = "true" ]; then
