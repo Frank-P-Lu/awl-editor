@@ -1284,3 +1284,5 @@ fn the_stack_close_mark_flips_colour_on_real_pixels_for_an_inactive_row_too() {
         theme::THEMES.len()
     );
 }
+
+mod accent;

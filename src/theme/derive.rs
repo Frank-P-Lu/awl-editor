@@ -335,18 +335,50 @@ pub(crate) fn selected_row_secondary_ink_for(theme: Theme, band: Srgb) -> Srgb {
     substitute_ink(theme, band, theme.muted, None)
 }
 
-/// **617:** [`primary`] (the caret's own accent) against `band`, substituted
-/// the same way [`selected_row_secondary_ink`] substitutes `muted`. One owner
-/// so a second spender of the caret's colour against an arbitrary surface
-/// (the margin's close-mark hover flip) can never invent its own contrast
-/// math or a second accent-like constant per world.
+/// The world's accent over a surface, retaining its authored hue and saturation.
+/// An already readable, distinct `primary` survives byte-for-byte. Otherwise
+/// search outward in HSL lightness at byte-sized intervals, taking the nearest
+/// readable shade rather than replacing the accent with ordinary page ink.
 ///
-/// `avoid` exists for exactly one shape of caller: a HOVER ink that must
-/// differ from whatever REST ink already occupies the same row (see
-/// [`substitute_ink`]'s own doc for the collision it closes — measured on
-/// Potoroo). Every other caller passes `None`.
+/// `avoid` is the resting ink of a hover control. A real RGB-distance floor,
+/// rather than mere inequality, keeps an ink-caret world's response visible
+/// when its resting ink already equals `primary`. One-bit palettes cannot add
+/// an intermediate shade: they retain the readable pole, even if hover is inert.
 pub fn accent_ink(band: Srgb, avoid: Option<Srgb>) -> Srgb {
     let theme = active();
+    if theme.is_one_bit() {
+        return substitute_ink(theme, band, theme.primary, avoid);
+    }
+    // A small glyph loses some of its ink delta to antialiasing. Forty RGB
+    // units leave visible headroom at the native one- and two-DPI raster sizes.
+    const HOVER_INK_DISTANCE: i32 = 40;
+    let usable = |ink: Srgb| {
+        let distinct = avoid.is_none_or(|rest| {
+            ink.rgb_bytes()
+                .into_iter()
+                .zip(rest.rgb_bytes())
+                .map(|(a, b)| (a as i32 - b as i32).pow(2))
+                .sum::<i32>()
+                >= HOVER_INK_DISTANCE.pow(2)
+        });
+        distinct && contrast_ratio(band, ink) >= SELECTED_ROW_INK_CONTRAST_FLOOR
+    };
+    if usable(theme.primary) {
+        return theme.primary;
+    }
+    let (hue, saturation, lightness) = theme.primary.to_hsl();
+    for step in 1..=255 {
+        let delta = step as f32 / 255.0;
+        for candidate in [lightness - delta, lightness + delta] {
+            if (0.0..=1.0).contains(&candidate) {
+                let ink = Srgb::from_hsl(hue, saturation, candidate);
+                if usable(ink) {
+                    return ink;
+                }
+            }
+        }
+    }
+    // A future palette with no suitable shade still owes a visible control.
     substitute_ink(theme, band, theme.primary, avoid)
 }
 

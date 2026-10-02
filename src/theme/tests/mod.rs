@@ -11,6 +11,7 @@
 
 use super::*;
 
+mod accent_ink;
 mod ambient;
 /// The page's CLEAR colour: the sRGB→linear decode `LoadOp::Clear` needs, and
 /// the one transfer function the whole tree shares.

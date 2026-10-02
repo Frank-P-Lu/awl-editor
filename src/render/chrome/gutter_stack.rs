@@ -221,18 +221,11 @@ pub(super) fn active_row_ink() -> glyphon::Color {
     theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
 }
 
-/// **617: THE ×'s HOVER INK** — the flip that replaces the retired hover
-/// plate. `theme::accent_ink` against whatever this row sits on: the active
-/// row's own plate fill ([`plate_rects`]) when `active`, or the bare margin
-/// ground otherwise. One owner so the mark's hover colour can never drift
-/// from the contrast substitution the caret's accent gets everywhere else.
-///
-/// Passes the mark's own RESTING ink ([`active_row_ink`] when `active`, else
-/// [`theme::faint`]) as `accent_ink`'s `avoid`: without it, a hover ink and a
-/// rest ink seeded from DIFFERENT preferred colours (`primary` vs `muted`)
-/// can still collide on the SAME fallback pole when both fail the floor
-/// against `band` (measured: Potoroo's own selection band swallows both) —
-/// `theme::accent_ink`'s own doc names the collision this closes.
+/// The close mark's shared hover accent for lone and stacked documents.
+/// The active row asks against its persistent plate; an inactive row asks
+/// against the margin. `accent_ink` preserves the world's hue while adjusting
+/// lightness for contrast, and the resting ink supplies its response floor.
+/// One-bit palettes retain their readable, unchanged ink rather than vanish.
 pub(super) fn close_mark_hover_ink(active: bool) -> glyphon::Color {
     let band = if active {
         theme::surface_selected()
