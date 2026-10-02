@@ -8,8 +8,9 @@
 
 **14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-674 is the active local rounded-caret refinement; 675 is the active Files
-parent-listing refresh repair; 676 owns the separate Settings workspace overlap.
+674 is refining top clearance after visual review; 675 owns the active Files
+parent-listing refresh repair; 676 is accepted and ready for integration.
+No new product candidate is pushed or integrated.
 Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
@@ -239,6 +240,13 @@ adaptive implementation are complete, while this visual choice remains open.
 ### 674 — soften the adaptive caret corners
 
 🟡 IN PROGRESS — Codex Mac (codex), branch `codex/674-rounded-caret`.
+Prior local candidate `cf87bfb1` passed focused laws and native comparison review;
+the user now likes the overall appearance and asks for less space above Å's ring.
+Compare the original adaptive and rounded actual captures, then refine the shared
+top padding without character-specific policy, preserving accent coverage and
+rounding; new comparison uploads to the same private Library are approved.
+Settings 676's native before/after is explicitly accepted; hold product integration
+until this newest caret refinement and the separate Files 675 patch are ready.
 The user asked on 2026-10-02 for a bit more rounding, closer to the former look,
 while retaining character-sized fit. Tune shared corner radius and ink padding
 together; keep document and picker geometry on one owner. Preserve x/a/H/g/Å/W,
@@ -276,8 +284,12 @@ for these new refinements until the current approval is handled.
 
 ### 676 — keep Settings workspace controls clear of document ink
 
-🟡 IN PROGRESS — Codex Mac (codex), branch `codex/676-settings-workspace`,
-isolated `.worktrees/676-settings-workspace/`.
+🔵 AWAITING REVIEW — local candidate `2603843c6dff4959c09b8a19ca7acd8f67948734`
+on `codex/676-settings-workspace`; shared controls-workspace opacity passes all
+160 pixel cells, fails the original policy by name, and passes 109 workspace
+checks/1 ignored plus ruled/comparison/audition laws and full source-health.
+Four matched native App frames per phase and two local contacts are ready;
+user judgment and integrated product gates remain owed.
 Live Linux QA on `c864b144` reproduced sharp document text overlapping Settings
 labels and controls in Paperbark at 641×800 and 1180×812. Reproduce with a heading
 and dense prose behind Settings. The workspace currently stays crisp while its
