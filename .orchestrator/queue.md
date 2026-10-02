@@ -6,54 +6,32 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks:** 582 is active; 668 awaits a design decision;
-651, 657–659, 661–666, 669 and 672 are queued. The user confirmed on
-2026-09-27 that only Kite background work is running. Previous worker claims
-are released; their committed work and worktrees remain preserved.
+**13 open numbered tasks:** 582, 666, 668 and 669 await user review or a
+choice; 657–659, 661–665 and 672 are queued for the remaining journeys,
+release proof or implementation. No implementation claim is currently active.
+The prior Kite and test-pipeline sessions completed. Kite live review remains
+below; the test-pipeline claim is closed. Previous worker claims are released.
 
-**Integration pending:** `codex/merge-train-657-659-661` at `f0f68dfc`
-contains the earlier Files, panels, search budgets, paste, release, IME, input,
-caret and punctuation work. It is not on main. Its `05916301` candidate has a
-recorded native/wasm pass; reconcile subsequent main changes and documentation,
-inspect the combined result and gate the new frozen candidate before landing.
-Resume from the train's integrated changes and preserve its conflict resolutions.
-The source branches below are recovery/reference points.
-
-**Integration review (2026-10-01):** 🟡 IN PROGRESS — local-integration (codex),
-branch `codex/20261001-cloud-ui-integration`. The user authorized review,
-reconciliation, main publication and subsequent safe worktree cleanup. Review the
-preserved train and dirty edits, retain the newer main Find/Replace design, and
-combine the cloud UI fixes. Unchosen prototypes, private data, tags and deployments
-remain outside this publication candidate. Freeze and gate before landing.
-
-**Design approved:** the shared-control candidate aligns Match case and Replace
-at the field edge, uses larger category-sized checkbox/disclosure marks, and
-shares cached tight ink placement across UI, document task/list and fold marks.
-The final native release previews were approved. The full native gate exposed
-integration defects in rail room/color, compact workspace/Files height, fractional
-caption origins and two structural test audits. Bounded repairs preserve ordinary
-layouts and all appearance floors; their affected suites pass across both menu-bar
-arms, with independent regression mutations rejected. Freeze the repaired combined
-candidate for full native, wasm and debug/release parity before main publication;
-then verify exact-SHA hosted CI and safely retire only stopped, preserved worktrees.
+The Files, panel, bounded-search, paste, release, IME, input, caret and punctuation
+implementations are on main through verified integration `69d67a39`. Find/Replace
+and the shared-control appearance were approved. Source branches remain recovery
+points; removed source worktrees have verified local archives. Retiring a checkout
+does not close a physical-input, hardware, release or taste obligation.
 
 **Release constraint:** every public installable app download must be strictly
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
 and Linux AppImage/tarball. Browser deployment and source archives are separate.
 Keep real Japanese bold; return any size tradeoff to the user.
 
-### 582 — refine Kite background depth and finish live review
+### 582 — review the landed Kite depth and motion
 
-🟡 IN PROGRESS — existing Kite session (codex), branch `main`; chat
-“Find the right way to run awl”. This is the only active product task.
+🔵 OWED — live motion and appearance review. The session
+“Find the right way to run awl” completed the depth fade at `4f9fd3fb`, following
+`0d5388d6` and `5d3d4249`, with native/wasm verification, regression mutation
+proof and five native captures. Later integrated main and the test-pipeline
+candidate also passed their required gates; no verification worker is still owed.
 
-Latest depth fade is committed at `4f9fd3fb`, following `0d5388d6` and
-`5d3d4249`. Targeted Metal checks, mutation evidence and five captures were
-reported in that session. Full native/wasm verification of the latest change
-remains with that owner; the first isolated gate stopped on a worktree-cleanup
-self-test, with its build-cache configuration under investigation.
-
-Finish the current verification and present real awl captures. User review still
+Present the preserved native captures and current bundled app. User review still
 covers density near page edges and the far core, several-minute motion comfort,
 dwell/transit/settle, pause/focus freeze and Reduce Motion in the bundled app.
 Preserve the projected tunnel geometry and shared renderer ownership. The earlier
@@ -63,9 +41,9 @@ Preserve the projected tunnel geometry and shared renderer ownership. The earlie
 
 ### 657 — finish the approved Files composition
 
-⚪ QUEUED — review and integration. Source `codex/657-files-affordances`
-ends at `fd1ec8df`; its corrections are in the pending integration train.
-The prior main landing `ef344429` did not satisfy the live composition review.
+⚪ QUEUED — finish the native composition journeys. Source
+`codex/657-files-affordances` at `fd1ec8df` is integrated on main. Earlier source
+landing did not establish acceptance of every live browsing journey.
 
 Review the corrected folder heading, Change folder control, bounded labelled
 search field and visible New document footer against
@@ -81,9 +59,9 @@ captures; accessibility presence alone does not establish visual fidelity.
 
 ### 658 — finish Files query selection and input review
 
-⚪ QUEUED — review and integration. Source
-`codex/658-files-select-all-physical` ends at `8f0adee7`; key-route laws and
-pointer-focus repair are in the pending train. The user's physical Cmd-A failure
+⚪ QUEUED — physical input review. Source
+`codex/658-files-select-all-physical` at `8f0adee7` is integrated on main with
+key-route laws and pointer-focus repair. The user's physical Cmd-A failure
 on 2026-09-24 remains the defect evidence; do not infer a complete repair from
 a passing direct-action or menu test.
 
@@ -96,19 +74,19 @@ with 664 and Japanese composition with 665 without conflating the defects.
 
 ---
 
-### 659 — finish Settings, Themes and Find/Replace composition review
+### 659 — finish Settings and Themes composition review
 
-⚪ QUEUED — review and integration. Source `codex/659-panel-composition`
-ends at `d1b1988e`; composition and focus repairs are in the pending train.
-Prior main commits `2dcdb1779`, `210c60e36`, `be399d5f3` and `0e5e5d132`
-establish the earlier implementation, not acceptance of the final appearance.
+⚪ QUEUED — remaining Settings and Themes journeys. Source
+`codex/659-panel-composition` at `d1b1988e` is integrated, with newer main
+composition and bounded repairs retained. The final Find/Replace and shared-mark
+release previews were approved; Settings/Themes live journey review remains owed.
 
 Review Settings' recognizable search field, bounded label/value columns and
 separate category selection, control selection and keyboard focus. Review Themes
 as one coherent panel with heading, effective Switch/Cancel actions and a clear
-current-versus-previewed choice. Review Find/Replace field, navigation/count,
-Match case and replacement actions as readable groups without redundant labels.
-Use approved study 05 (657), preserving theme identities and quieter opaque chrome.
+current-versus-previewed choice. Retain the approved Find/Replace grouping and
+shared control marks. Use approved study 05 (657), preserving theme identities and quieter
+opaque chrome.
 
 Verify forward/reverse focus, matching/no-match search, nested pickers, cancellation
 and immediate settings in an identified native release build. Include narrow
@@ -117,29 +95,12 @@ stable and restore the invoking Settings control on Escape.
 
 ---
 
-### 651 — land bounded Search in folder work
-
-⚪ QUEUED — review and integration. Source `codex/651-browser-fail-closed`
-ends at `266bfa90`; bounded native reads, browser refusal and incomplete-coverage
-reporting are in the pending train. Original bounded-read work was `7764e7ea`.
-
-The user chose browser refusal on 2026-09-24: synchronous localStorage cannot bound
-a cross-tab replacement before materializing it. Preserve an explicit notice and
-avoid loading a partial browser corpus or adding transactional storage this round.
-
-Verify attempts and bytes at the FS seam, including exact caps/cap+1, rejected
-files, growing/unknown sizes, binary data and errors. Preserve admitted-file search
-correctness and honest incomplete coverage. Retain the mutation proof against the
-old post-read-only checks and run the integrated native/wasm gates.
-
----
-
 ### 661 — finish external plain-text browser paste
 
-⚪ QUEUED — review and integration. Source `codex/661-browser-paste`
-ends at `0aaae8a9`; the pending train includes trusted paste, bulk insertion,
-composition/keybinding-capture protection and focus repairs. The board's old
-“in repair” claim predates those commits; review the repaired result.
+⚪ QUEUED — genuine external clipboard journeys. Source
+`codex/661-browser-paste` at `0aaae8a9` is integrated on main: trusted paste,
+bulk insertion, composition/keybinding-capture protection and focus repairs.
+Automated laws do not establish OS clipboard delivery in the three browsers.
 
 Verify genuine external paste in Chrome, Safari and Firefox on a static release
 build: document, summoned fields and Table Dimensions; focus changes, replacement,
@@ -158,16 +119,16 @@ outside scope. Reference:
 
 ### 662 — finish signed, notarized macOS release artifacts
 
-⚪ QUEUED — review, integration and hosted proof. Source
-`codex/662-signed-macos` ends at `b45e312d`; signing/notarization and dry-run
-payload preparation are in the pending train. The user confirmed Apple setup is
-complete; verify its operation without printing secrets or reopening setup by assumption.
+⚪ QUEUED — credentialed nonpublishing rehearsal and real launch. Source
+`codex/662-signed-macos` at `b45e312d` is integrated on main, including
+signing/notarization, dry-run payload preparation and strict compressed-size checks.
+The user confirmed Apple setup is complete; verify its operation without printing secrets or reopening setup by assumption.
 
 Run a nonpublishing credentialed rehearsal. Inspect both architectures, bundle
 identity, Developer ID signature, notarization/staple, Gatekeeper result, mounted
 DMG contents, versioned names, checksums and actual compressed size. Missing or
-partial credentials must fail before publication. The branch makes the DMG public
-and the app zip diagnostic-only; check that final payload layout and document it.
+partial credentials must fail before publication. The integrated workflow makes
+the DMG public and the app zip diagnostic-only; check that final payload layout and document it.
 
 Hosted rehearsal, final DMG size and a real Mac launch remain owed. Preserve the
 under-50,000,000-byte public-download limit and return a measured packaging tradeoff
@@ -177,8 +138,9 @@ if needed. Do not tag or publish here; 663 owns the release cut.
 
 ### 663 — release one version with Linux and macOS downloads
 
-⚪ QUEUED — depends on 662 and a frozen integrated candidate. Choose the version
-from that candidate. Publish Linux x86_64 AppImage/tarball and signed, notarized
+⚪ QUEUED — depends on 662, the remaining release/hardware journeys and the
+user's explicit release instruction. Choose the version from a frozen verified
+candidate. Publish Linux x86_64 AppImage/tarball and signed, notarized
 macOS DMG together; keep the browser demo on its separate deployment path.
 
 Complete RELEASING.md's exact-commit checklist: native/wasm gates, outcome audit,
@@ -195,7 +157,7 @@ publication. This queued request does not authorize a tag or site redeployment.
 ### 664 — finish live macOS keyboard-ingress diagnosis
 
 ⚪ QUEUED — review and investigation. Source `codex/664-live-key-ingress`
-ends at `d9cf10c6`; delivery/focused-field diagnostics are in the pending train.
+at `d9cf10c6` is integrated on main with delivery/focused-field diagnostics.
 Prior injected-key failures and stale captures did not establish where input was
 lost; some earlier logs did contain successful keymap and App action receipts.
 
@@ -211,9 +173,10 @@ of logs; do not use this task to delay or explain away 658's physical defect.
 
 ### 665 — finish Japanese IME ownership in Files and summoned fields
 
-⚪ QUEUED — review, integration and physical input check. Source
-`codex/665-ime-fields` ends at `45c38256`; focused preedit/commit, candidate
-ownership and restart after cancelled preedit are in the pending train.
+⚪ QUEUED — physical Japanese input check. Source
+`codex/665-ime-fields` at `45c38256` is integrated on main: focused preedit/commit,
+candidate ownership and restart after cancelled preedit. Integration also repaired
+the single-line field path; physical OS input remains separate evidence.
 
 The user reported Japanese input failing to reach Files search after Cmd-O.
 Verify Japanese and direct Latin input, opening with IME already active, pointer
@@ -229,9 +192,9 @@ Japanese typing evidence separately from replay and unreliable injected keys (66
 
 ### 666 — review the shorter Paperbark caret
 
-⚪ QUEUED — review and integration. Source `codex/666-paperbark-caret`
-ends at `f548f9b8`; shared full-ink block-padding reduction (`c907f9e2`,
-train equivalent `6b7efadb`) is in the pending train, not main.
+🔵 OWED — live caret proportion judgment. The shared full-ink block-padding
+reduction is implemented on main via `6b7efadb`, equivalent to source `c907f9e2`.
+Source `codex/666-paperbark-caret` at `f548f9b8` remains a recovery reference.
 
 Review matched before/after native release captures against the user's oversized
 caret report. Check actual ink and line bounds across Paperbark and nearby serif
@@ -245,8 +208,9 @@ ask the user to judge live proportions where the remaining choice is taste.
 ### 668 — choose visible Japanese Markdown emphasis
 
 🔵 OWED — prototype `9f28df85` on `codex/668-japanese-emphasis-study`;
-no default chosen. This branch includes pending integration work and an experiment;
-it is not a releasable default. Regular upright Japanese currently hides *emphasis*.
+no default chosen. The prototype includes an experiment deliberately excluded
+from main; its gallery and branch remain preserved. Regular upright Japanese
+currently hides *emphasis*.
 
 Present matched native captures of dots above kana/kanji, a real alternate face or
 weight, quiet underline/bousen and optional ink treatment. Keep synthetic slant and
@@ -261,17 +225,12 @@ shipping; private content and HTML mockups are not prototype evidence.
 
 ---
 
-### 669 — land CJK punctuation fixes and resolve the remaining caret taste choice
+### 669 — resolve the remaining CJK caret taste choice
 
-⚪ QUEUED — integration, with a separate taste decision still owed. Source
-`codex/669-cjk-punctuation` at `70eb217c` contains font routing (`46be9e14`)
-and document-evidence invalidation fixes. They are in train `05916301`, whose
-native/wasm pass is recorded, but are absent from main.
-
-Reconcile and land through the combined candidate. Preserve source, insertion
-position, hit testing, selection, IME geometry and stable caret motion. Retain
-coverage for opening/closing punctuation at line starts, within lines and wraps
-across Japanese faces, zoom/DPI and caret modes.
+🔵 OWED — caret/sidebearing judgment. Source `codex/669-cjk-punctuation`
+at `70eb217c`, including font routing (`46be9e14`) and document-evidence
+invalidation, is already on main. Integrated native/wasm and punctuation laws
+cover those implementation fixes; no source integration remains.
 
 The remaining 15 px Paperbark kana-to-caret gap was measured as a font-sidebearing
 and caret-width taste choice. Keep the current ink-hugging fill until the user
@@ -303,7 +262,7 @@ any conflict between the authored accent and legibility as a concrete taste choi
 ## Outstanding review of landed work
 
 These are user judgments, not active implementation claims. Historical evidence
-remains in Git; Kite review is part of active item 582 above.
+remains in Git and preserved local galleries; Kite review is item 582 above.
 
 - **588 — list-marker taste:** `•◦▪` passed the 20-world gallery and focused Metal
   laws; the Brolga depths are distinct, aligned, unclipped and legible. Keep the
@@ -319,18 +278,25 @@ needs no further confirmation sitting.
 
 ## Latest recorded verification
 
-- **Main baseline `63d96042040397cddb51993cc9d3c34400c22bb0`:** the dev-launch
-  session recorded successful `scripts/native-gate.sh` and `scripts/web-smoke.sh`
-  runs in its isolated checkout. The subsequent `e5d30662` edit was queue-only.
-- **Pending integration candidate `05916301`:** native gate and browser smoke
-  passes recorded by `831a8e3e`. That candidate is not main; its receipt does not
-  validate a future merge with current main.
-- **Kite `4f9fd3fb`:** full verification remains with active item 582.
+- **Current code `3df4dc9a64f940f466efa76b962e0306b14c61b1`:** the local frozen
+  composed gate passed. [Required CI](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36885217287)
+  completed with all four gating jobs successful. [Extended verification](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36885216205)
+  passed on Linux and macOS: 640 captures per platform, zero findings, and both
+  actual 120-second built-artifact launches. The three-layer pipeline and scoped
+  Rust 1.99/tool runtime selection are implemented.
+- **Queue-only closure `b1330874c2b562674141533ce7b19a350f33597c`:** its
+  [required CI](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36892748842)
+  completed successfully. It changes no code from `3df4dc9a`.
+- **Reviewed integration `69d67a39`:** native, wasm, profile parity and exact-SHA
+  required hosted CI passed; final Find/Replace/shared-control previews approved.
+  Bounded Search in folder (651), chosen browser refusal and its work-cap laws
+  landed. The excluded transactional browser-storage experiment stays preserved.
 
-This queue cleanup uses diff, heading, reference and status checks under
-`docs/verification.md`; it does not relabel a prior receipt. Earlier detailed
-receipts remain in Git. Local Metal/headless checks do not prove hosted GPU,
-physical-input journeys or Linux desktop behavior.
+Tolerated hosted Mac-render GPU out-of-memory/atlas failures and the AT-SPI
+probe/dependency gaps remain separate; required or extended success does not close
+human accessibility or physical-input obligations. This queue reconciliation uses
+diff, heading, reference and status checks under `docs/verification.md`; receipts
+continue to name their actual tested commits. No new product gate is claimed.
 
 ## Needs specific hardware
 
