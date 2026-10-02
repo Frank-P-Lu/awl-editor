@@ -35,8 +35,10 @@ impl InkBox {
 pub(super) const CARET_VISUAL_BODY_MIN_W: Logical = Logical(6.5);
 pub(super) const CARET_VISUAL_BODY_MIN_H: Logical = Logical(12.0);
 pub(super) const CARET_VISUAL_BODY_MIN_AREA: Area = Area(96.0);
-/// The restrained margin around the complete shaped grapheme ink.
+/// Side and bottom clearance around the complete shaped grapheme ink.
 pub(super) const CARET_BLOCK_INK_PAD: Logical = Logical(2.5);
+/// Tighter top clearance; shared by every glyph, document, and picker.
+pub(super) const CARET_BLOCK_TOP_PAD: Logical = Logical(1.25);
 /// Soft rounding with a full raster-ink safety margin inside each curved corner.
 pub(super) const CARET_BLOCK_CORNER_RADIUS: Logical = Logical(4.5);
 
@@ -66,7 +68,13 @@ pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
 
 /// A shared padded ink rectangle for the document and picker sample.
 pub(super) fn caret_block_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    caret_visual_body_dims_with_pad(ink, px, CARET_BLOCK_INK_PAD, CARET_BLOCK_INK_PAD)
+    let vertical = Logical((CARET_BLOCK_TOP_PAD.0 + CARET_BLOCK_INK_PAD.0) * 0.5);
+    caret_visual_body_dims_with_pad(ink, px, vertical, CARET_BLOCK_INK_PAD)
+}
+
+/// Center below the ink midpoint so only the top edge loses clearance.
+pub(super) fn caret_block_center_offset(ink: InkBox, px: f32) -> f32 {
+    ink.height * 0.5 + Logical(CARET_BLOCK_INK_PAD.0 - CARET_BLOCK_TOP_PAD.0).px(px) * 0.5
 }
 
 /// Clamp the authored rounding to the same resting rectangle in every consumer.

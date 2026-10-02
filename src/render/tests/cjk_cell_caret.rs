@@ -137,9 +137,11 @@ fn cjk_cell_forms_contain_kanji_ink_with_the_authored_pad_full_roster_both_dpis(
                     let bottom_pad = bottom - ink_bottom;
                     // Raster placement is integer-snapped; allow one device px
                     // while still requiring the authored logical pad on both edges.
+                    let top_floor =
+                        super::super::caret_body::CARET_BLOCK_TOP_PAD.px(p.metrics.scale) - dpi;
                     let floor = pad - dpi;
                     assert!(
-                        top_pad >= floor && bottom_pad >= floor,
+                        top_pad >= top_floor && bottom_pad >= floor,
                         "{} d{dpi} {mode:?} col {anchor_col}: CJK ink \
                          {ink_top:.2}..{ink_bottom:.2} \
                          must sit inside caret {top:.2}..{bottom:.2} with authored pad {pad:.2}; \
@@ -230,13 +232,18 @@ fn rendered_cjk_cell_is_present_and_contains_kanji_ink_with_pad() {
                 // Geometry above proves the authored logical pad. Final pixel
                 // bounds are inclusive and both glyph and quad edges snap, so
                 // retain that pad minus two device pixels at this raster seam.
+                let required_top = (super::super::caret_body::CARET_BLOCK_TOP_PAD
+                    .px(p.metrics.scale)
+                    .floor() as i32
+                    - 2)
+                .max(0);
                 let required = (super::super::caret_body::CARET_BLOCK_INK_PAD
                     .px(p.metrics.scale)
                     .floor() as i32
                     - 2)
                 .max(0);
                 assert!(
-                    top_pad >= required && bottom_pad >= required,
+                    top_pad >= required_top && bottom_pad >= required,
                     "{} d{dpi} {mode:?}: rendered CJK ink {ink:?} must fit inside \
                      rendered caret {caret:?} with pad >= {required}px; got \
                      {top_pad}/{bottom_pad}px",

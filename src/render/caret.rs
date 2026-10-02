@@ -264,9 +264,8 @@ impl TextPipeline {
         self.adaptive_anchor_ink_box()
     }
 
-    /// Resting adaptive block height and centre, in absolute pixels. Glyphless
-    /// and independent ligature cells retain their stable row fallback. The
-    /// moving streak reaches this endpoint through the spring's settle factor.
+    /// Resting adaptive block height and centre; glyphless and independent
+    /// ligature cells retain their row fallback and the streak settles here.
     pub(super) fn caret_cell_vertical(&mut self) -> (f32, f32) {
         let m = self.metrics;
         let px = m.scale;
@@ -274,7 +273,8 @@ impl TextPipeline {
             && let Some(ink) = self.caret_anchor_ink_box()
         {
             let (_, height) = super::caret_body::caret_block_body_dims(ink, px);
-            return (self.caret_baseline_y() - ink.top + ink.height * 0.5, height);
+            let centre = super::caret_body::caret_block_center_offset(ink, px);
+            return (self.caret_baseline_y() - ink.top + centre, height);
         }
 
         if !crate::caret::font_is_mono(self.doc_family()) {
