@@ -8,7 +8,7 @@
 
 **14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659, 661–665, 668 and 672 are queued for the remaining journeys,
-release proof or implementation. Item 673 is the active caret implementation claim.
+release proof or implementation. Items 668 and 673 are active implementation claims.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
 
@@ -207,7 +207,8 @@ ask the user to judge live proportions where the remaining choice is taste.
 
 ### 668 — implement the approved Japanese emphasis dots
 
-⚪ QUEUED — the user selected restrained dots above Japanese characters on
+🟡 IN PROGRESS — Codex dots task `01a0fa2a-a51e-752f-8a30-f9bb33638099`,
+branch `codex/668-japanese-dots`. The user selected restrained dots on
 2026-10-02: “Yeah agreed. Dots are good.” Prototype `9f28df85` on
 `codex/668-japanese-emphasis-study` remains deliberately excluded from main;
 its branch and actual six-world/stress captures are preserved. This approves
