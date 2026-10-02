@@ -129,9 +129,9 @@ fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, qu
         );
     }
 
-    // Magpie's Diagonal workspace is deliberately bare: its spine and
-    // connector read directly against the crisp room, rather than inventing a
-    // Pane card for Settings. The no-frost claim belongs to that composition.
+    // Diagonal keeps its spine and connector composition while the shared
+    // controls workspace owns one opaque backing. That backing does not blur
+    // the document or turn individual rows into cards.
     crate::theme::set_active_by_name("Magpie").unwrap();
     p.sync_theme();
     p.set_view(&controls);
@@ -143,8 +143,8 @@ fn assert_settings_focus_regions(p: &mut TextPipeline, device: &wgpu::Device, qu
     );
     assert_eq!(
         p.panel_card.instance_count(),
-        0,
-        "Magpie's Diagonal Settings must not grow a Pane card"
+        1,
+        "Diagonal controls must upload their one shared workspace backing"
     );
 
     // Force the Pane composition for the same Settings workspace. Its
