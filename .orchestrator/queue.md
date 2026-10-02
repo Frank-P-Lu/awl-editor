@@ -6,10 +6,11 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks:** 582, 666 and 669 await user review;
+**14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
 674 is the active local rounded-caret refinement; 675 is the active Files
-parent-listing refresh repair. Dots appearance is explicitly
+parent-listing refresh repair; 676 owns the separate Settings workspace overlap.
+Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
 (adaptive caret plus previous-character preference) are complete on main at
@@ -270,6 +271,24 @@ Identify the first stale owner and add a regression law at the real App/Files
 refresh seam plus the same live pointer journey. The parent will supply detailed
 worker context. Do not mix caret or close-× changes here; no push is authorized
 for these new refinements until the current approval is handled.
+
+---
+
+### 676 — keep Settings workspace controls clear of document ink
+
+🟡 IN PROGRESS — Codex Mac (codex), branch `codex/676-settings-workspace`,
+isolated `.worktrees/676-settings-workspace/`.
+Live Linux QA on `c864b144` reproduced sharp document text overlapping Settings
+labels and controls in Paperbark at 641×800 and 1180×812. Reproduce with a heading
+and dense prose behind Settings. The workspace currently stays crisp while its
+backing can inherit Ruled's bare surface: those policies disagree.
+
+Repair shared workspace/backdrop composition with one ownership rule, preserving
+world identities, the Settings rail/controls, theme/caret live auditions and ordinary
+list composition. Verify native pixels against different documents underneath,
+cover narrow/wide dimensions and affected backing styles, and prove the regression
+law fails when the defect is restored. Keep this work separate from caret 674 and
+Files 675. Return a local commit and captures; no push or Library upload yet.
 
 ---
 
