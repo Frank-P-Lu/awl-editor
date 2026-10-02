@@ -8,7 +8,7 @@
 
 **14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659, 661–665, 668 and 672 are queued for the remaining journeys,
-release proof or implementation. Items 668 and 673 are active implementation claims.
+release proof or implementation. Items 668, 672 and 673 are active implementation claims.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
 
@@ -239,7 +239,11 @@ current treatment. Do not conflate that choice with the repaired font/cache defe
 
 ### 672 — keep the selected document’s × accented on hover
 
-⚪ QUEUED — user decision, 2026-09-27. The selected document's close mark should
+🟡 IN PROGRESS — cloud worker `/root/fix_document_close_hover`,
+branch `codex/672-close-hover`, isolated `/workspace/shared/awl-672-close-hover`.
+Source base `1fef7abe`; deliver a local patch for sequential integration, no push.
+
+ user decision, 2026-09-27. The selected document's close mark should
 receive the theme accent on hover too. Keep the selected plate present; this is
 a change to its × feedback, not a request to show the plate only on hover.
 
