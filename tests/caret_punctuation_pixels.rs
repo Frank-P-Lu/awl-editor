@@ -63,6 +63,13 @@ struct Capture<'a> {
 }
 
 impl Capture<'_> {
+    fn blank_reference(&self, out: &Path) -> (u32, u32, Vec<u8>) {
+        let doc = self.sandbox.join("blank.txt");
+        std::fs::write(&doc, BLANK_DOC).unwrap();
+        Capture { doc: &doc, ..*self }.run(out, None, "Down Down Down");
+        rgba(out)
+    }
+
     fn run(&self, out: &Path, mode: Option<&str>, keys: &str) {
         let mut c = common::awl(self.sandbox);
         c.args([
@@ -314,8 +321,6 @@ fn assert_swallowed_control_is_red(
 fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
     let dir = temp(world);
     let doc = fixture(&dir);
-    let blank_doc = dir.join("blank.txt");
-    std::fs::write(&blank_doc, BLANK_DOC).unwrap();
     let mut active_comma = false;
     for (dpi, zoom) in SCALES {
         let tag = format!("{world}-{dpi}-{zoom}");
@@ -342,12 +347,7 @@ fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
         let caret_rgb = hex_rgb(&side["theme"]["primary"]);
         let refimg = rgba(&reference);
         let blank_path = dir.join(format!("{tag}-blank.png"));
-        Capture {
-            doc: &blank_doc,
-            ..capture
-        }
-        .run(&blank_path, None, "Down Down Down");
-        let blank = rgba(&blank_path);
+        let blank = capture.blank_reference(&blank_path);
         assert_visible_controls(
             &capture,
             &dir,
