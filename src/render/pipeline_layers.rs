@@ -221,6 +221,7 @@ impl TextPipeline {
         self.nit_pipeline.draw(pass);
         self.strike_pipeline.draw(pass);
         self.link_underline_pipeline.draw(pass);
+        self.japanese_emphasis_dot_pipeline.draw(pass);
         self.caret_pipeline.draw(pass);
         self.caret_trail_pipeline.draw(pass);
         self.renderer

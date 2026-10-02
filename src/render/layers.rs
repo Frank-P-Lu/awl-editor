@@ -4,6 +4,8 @@
 
 use super::*;
 
+mod japanese_emphasis;
+
 pub(in crate::render) mod fold_chevron;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_placeholders;

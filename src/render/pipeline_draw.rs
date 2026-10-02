@@ -37,6 +37,7 @@ impl TextPipeline {
         let mut wash_highlight_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         wash_highlight_pipeline.set_dither(wagtail_dither_density());
         wash_highlight_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
+        let japanese_emphasis_dot_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         let fence_panel_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let code_pill_pipeline =
@@ -285,6 +286,7 @@ impl TextPipeline {
             wash_comment_pipeline,
             wash_string_pipeline,
             wash_highlight_pipeline,
+            japanese_emphasis_dot_pipeline,
             fence_panel_pipeline,
             code_pill_pipeline,
             selection_pipeline,

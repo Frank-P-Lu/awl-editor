@@ -51,6 +51,8 @@ impl TextPipeline {
             .set_dither(wagtail_dither_density());
         self.wash_highlight_pipeline
             .set_dither_cell(wagtail_stipple_cell_px(self.dpi));
+        self.japanese_emphasis_dot_pipeline
+            .set_color(theme::muted().rgba_bytes());
         // WYSIWYG value-step panel/pill: re-tint from `base_200` (O(1) — geometry
         // is theme-independent, so a theme switch re-tints without rebuilding).
         self.fence_panel_pipeline

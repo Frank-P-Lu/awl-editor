@@ -165,6 +165,7 @@ mod japanese_bold_assets;
 /// Requires the native headless GPU harness for pixel comparisons.
 #[cfg(not(target_arch = "wasm32"))]
 mod japanese_bold_pixels;
+mod japanese_emphasis;
 mod layout_oracle;
 mod list_surfaces;
 mod magpie_bands;

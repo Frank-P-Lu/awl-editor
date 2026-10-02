@@ -1675,6 +1675,8 @@ pub struct TextPipeline {
     /// `sync_theme_colors`. Every world carries it (no opt-out); empty for prose /
     /// non-highlight buffers (byte-identical).
     pub wash_highlight_pipeline: SelectionPipeline,
+    /// Restrained dots over Japanese emphasis, using the shared quad renderer.
+    pub japanese_emphasis_dot_pipeline: SelectionPipeline,
     pub fence_panel_pipeline: SelectionPipeline,
     pub code_pill_pipeline: SelectionPipeline,
     /// The GPU quad pipeline that draws translucent selection highlights.

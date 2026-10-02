@@ -44,6 +44,7 @@ impl TextPipeline {
         self.prepare_nit_layer(device, queue, width, height);
         self.prepare_strike_layer(device, queue, width, height);
         self.prepare_link_underline_layer(device, queue, width, height);
+        self.prepare_japanese_emphasis_layer(device, queue, width, height);
         self.prepare_blur(device, queue, width, height);
         Ok(())
     }

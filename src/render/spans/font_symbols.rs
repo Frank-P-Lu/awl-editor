@@ -59,8 +59,8 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 /// faces — a 700/italic request would drop the 400/Normal bundled JP face and
 /// tofu/system-fall mid-sentence). The pin derives from `base` (the plain doc
 /// attrs, already Normal), so even a styled base can never leak a synthetic
-/// slant onto a CJK run. The emphasis still reads — via the revealed
-/// `**`/`*` markers on the caret's line and the surrounding Latin styling.
+/// slant onto a CJK run. Japanese emphasis draws dots in the content decoration
+/// layer; bold keeps its authentic companion and Latin keeps its italic face.
 ///
 /// There is still no synthetic slant: Japanese italic remains upright, and
 /// zh/ko continue to pin their real Regular faces until genuine companions are

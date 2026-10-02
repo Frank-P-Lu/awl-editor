@@ -3,6 +3,8 @@
 use super::*;
 
 type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
+mod japanese_emphasis;
+pub(super) use japanese_emphasis::JA_EMPHASIS_DOT_SIZE;
 mod ranges;
 #[cfg(test)]
 pub(super) use ranges::intersecting_rows;
@@ -509,7 +511,7 @@ impl UnderlineCache {
 /// stale bucket would keep drawing a pill after the toggle), rebuilt via the
 /// ONE-WALK [`TextPipeline::visual_rows_for_lines`], and per frame just offset by
 /// `doc_top` / `text_left` + culled to the visible band (O(visible), never
-/// O(doc)). Cursor moves and scrolls never invalidate it. SIX proto buckets so
+/// O(doc)). Cursor moves and scrolls never invalidate it. Separate proto buckets so
 /// the comment, string, highlight, code-pill, strike-line, and link-underline
 /// geometries ride their own fixed-tint pipelines (the markdown `==highlight==`
 /// band has its OWN violet tint now, decoupled from the comment wash — see
@@ -532,6 +534,7 @@ pub(super) struct WashCache {
     /// `strike_line_band` rides, just a different vertical fraction). A sixth
     /// bucket of the SAME cache/build walk.
     link_underline_protos: std::cell::RefCell<Vec<UnderlineProto>>,
+    japanese_emphasis_protos: std::cell::RefCell<Vec<UnderlineProto>>,
 }
 
 impl WashCache {
@@ -544,6 +547,7 @@ impl WashCache {
             code_pill_protos: std::cell::RefCell::new(Vec::new()),
             strike_protos: std::cell::RefCell::new(Vec::new()),
             link_underline_protos: std::cell::RefCell::new(Vec::new()),
+            japanese_emphasis_protos: std::cell::RefCell::new(Vec::new()),
         }
     }
 }
@@ -1514,6 +1518,7 @@ impl TextPipeline {
             self.wash_cache.code_pill_protos.borrow_mut().clear();
             self.wash_cache.strike_protos.borrow_mut().clear();
             self.wash_cache.link_underline_protos.borrow_mut().clear();
+            self.rebuild_japanese_emphasis_protos();
             self.wash_cache.version.set(Some(key));
             return;
         }
@@ -1598,6 +1603,7 @@ impl TextPipeline {
         *self.wash_cache.code_pill_protos.borrow_mut() = code_pill_protos;
         *self.wash_cache.strike_protos.borrow_mut() = strike_protos;
         *self.wash_cache.link_underline_protos.borrow_mut() = link_underline_protos;
+        self.rebuild_japanese_emphasis_protos();
         self.wash_cache.version.set(Some(key));
     }
 
