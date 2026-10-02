@@ -350,6 +350,7 @@ mod workspace;
 mod workspace_back_height;
 mod workspace_back_width;
 mod workspace_footer_plate;
+mod workspace_opacity;
 mod workspace_plate;
 /// The shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.

@@ -149,7 +149,7 @@ fn content_rows(
 // ---------------------------------------------------------------------------
 
 /// GRADE ONE RENDERED `Ruled` CARD against the whole composition: the two
-/// authored weights, the no-scrim/no-pane claim, boundary continuity, the two
+/// authored weights, no row scrims, workspace backing, boundary continuity, the two
 /// spans, and that the selection is marked exactly once. `None` when this cell
 /// draws no list at all (a staged workspace region, an empty popup); otherwise
 /// `(rules graded, a selection was marked)`.
@@ -173,12 +173,11 @@ fn grade_ruled_card(
     let (hair, heavy) = p.rule_weights();
     let quads = p.overlay_row_surfaces_probe();
 
-    // NO SCRIM, NO PANE. Both are objects; this style draws none.
+    let opaque = geom.workspace && !p.overlay_rows_primary;
     assert_eq!(
         p.panel_card.instance_count(),
-        0,
-        "{ctx}: a rule carries NO scrim — padding one out on every side is exactly how it \
-         becomes the plate this style refuses"
+        u32::from(opaque),
+        "{ctx}: only a controls workspace gets one continuous backing; rules get no scrims"
     );
     assert_eq!(
         p.float_card.instance_count(),
