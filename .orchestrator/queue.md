@@ -6,19 +6,14 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks:** 582, 666 and 669 await user review;
+**11 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-674's newest top-clearance candidate is ready; 675 owns the active Files
-parent-listing refresh repair; 676 is accepted and ready for integration.
-No new product candidate is pushed or integrated.
+Items 674 (rounded caret and tighter top clearance), 675 (Files parent refresh
+and pointer activation) and 676 (opaque controls workspace) landed on main at
+`03f5c22f`. The frozen native, wasm runtime and eight-family profile-parity gates
+passed; exact-SHA required hosted CI will be checked after the authorized push.
+Settings appearance was accepted; physical Mac/IME and human comfort remain open.
 
-**Integration claim — Codex Mac (codex):** sequentially combine Files 675,
-accepted Settings 676 and visually checked newest caret 674 in isolated
-`codex/integration-674-676` / `.worktrees/integration-674-676/`; freeze the combined
-candidate and run `scripts/verify.sh full` before any authorized push.
-Files patch `e616a743` + `4c1d2c44` is received privately and SHA256-verified;
-its 291 focused checks and actual Linux pointer journey are worker evidence,
-not closure of physical Mac/IME or human comfort obligations.
 Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
@@ -245,73 +240,6 @@ adaptive implementation are complete, while this visual choice remains open.
 
 ---
 
-### 674 — soften the adaptive caret corners
-
-🔵 READY FOR INTEGRATION — local candidate `80bfe80d2b1ee5f8a8cdcf9507005f8bd641e43f`
-on `codex/674-rounded-caret`; shared top clearance is tighter, with width,
-bottom and rounding preserved, and 273 caret checks/1 ignored, eight punctuation
-integrations, named mutations, native/Linux Clippy and structural ratchets passed.
-Eighteen final native frames and a private Library three-way Å comparison are
-ready; the actual body is two device pixels shorter at the top than prior rounded
-at 2x DPI with ring pixels unchanged, and parent product integration/gates remain.
-The user asked on 2026-10-02 for a bit more rounding, closer to the former look,
-while retaining character-sized fit. Tune shared corner radius and ink padding
-together; keep document and picker geometry on one owner. Preserve x/a/H/g/Å/W,
-combining marks, serifs, resolved CJK coverage, visibility floors, glyphless and
-ligature fallbacks, motion, and the previous-character preference unchanged.
-
-Verify actual rounded-boundary containment and native pixels at 1x/2x DPI,
-focused caret/preview/input laws and a named regression mutation. Prepare actual
-matched local before/after captures for judgment. Private Library comparison uploads are approved; hold product integration
-until the newest caret and separate Files repair are ready. Inspect the newly reported close-×
-alignment read-only and return a diagnosis; do not mix its implementation here.
-
----
-
-### 675 — refresh Files after returning from an empty subfolder
-
-🟡 IN PROGRESS — cloud worker `/root/fix_files_parent_refresh` (codex),
-branch `codex/675-files-parent-refresh`, isolated `.worktrees/675-files-parent-refresh/`.
-Base product `c864b144`; create the isolated checkout through `scripts/worktree.py`.
-
-Live cloud QA twice reproduced the failure with real X11 pointer clicks:
-seeded notes contains alpha.md, beta.md and empty-folder. Open empty-folder,
-then click Up. The heading returns to notes and subfolders remain, but Markdown
-files disappear and the panel says no supported files. Escape and Ctrl-O restore
-the files; the filesystem remains intact. Reproduce and repair the Files parent
-navigation refresh under 657's remaining browsing acceptance, preserving query,
-focus, root, supported-file filtering and ordinary folder selection boundaries.
-
-Identify the first stale owner and add a regression law at the real App/Files
-refresh seam plus the same live pointer journey. The parent will supply detailed
-worker context. Do not mix caret or close-× changes here; no push is authorized
-for these new refinements until the current approval is handled.
-
----
-
-### 676 — keep Settings workspace controls clear of document ink
-
-🔵 READY FOR INTEGRATION — user accepted the native before/after for local
-candidate `2603843c6dff4959c09b8a19ca7acd8f67948734`
-on `codex/676-settings-workspace`; shared controls-workspace opacity passes all
-160 pixel cells, fails the original policy by name, and passes 109 workspace
-checks/1 ignored plus ruled/comparison/audition laws and full source-health.
-Four matched native App frames per phase and two local contacts are ready;
-integrated product gates remain owed.
-Live Linux QA on `c864b144` reproduced sharp document text overlapping Settings
-labels and controls in Paperbark at 641×800 and 1180×812. Reproduce with a heading
-and dense prose behind Settings. The workspace currently stays crisp while its
-backing can inherit Ruled's bare surface: those policies disagree.
-
-Repair shared workspace/backdrop composition with one ownership rule, preserving
-world identities, the Settings rail/controls, theme/caret live auditions and ordinary
-list composition. Verify native pixels against different documents underneath,
-cover narrow/wide dimensions and affected backing styles, and prove the regression
-law fails when the defect is restored. Keep this work separate from caret 674 and
-Files 675. Return a local commit and captures; no push or Library upload yet.
-
----
-
 ## Outstanding review of landed work
 
 These are user judgments, not active implementation claims. Historical evidence
@@ -331,7 +259,18 @@ needs no further confirmation sitting.
 
 ## Latest recorded verification
 
-- **Current product code `7f554e63e5fa318370f0ab89b4cb171b09df1f19`:** the
+- **Current product code `03f5c22fe6ee191bbedca3b1c32f749a5669bb5d`:** frozen
+  `verify.sh full` passed native health and the complete 5,300-unit roster across
+  six shards (5,275 passed/25 ignored in each convention), the full opposite-menu
+  roster, 18 integration targets, wasm
+  runtime and all eight debug/release parity families. Files cloud transport has
+  identical stable patch IDs; native caret captures match the reviewed pixels.
+  Integration repairs retained typed pixel ownership and adapted the Diagonal
+  backing law; the punctuation ink oracle now uses a matched blank background,
+  preserving its half-ink floor and swallowed-glyph control. Required hosted CI
+  is pending the authorized publication. Physical input/IME and human motion
+  acceptance remain open. The queue-only reconciliation changes no product code.
+- **Earlier product code `7f554e63e5fa318370f0ab89b4cb171b09df1f19`:** the
   frozen local `verify.sh full` passed native, wasm runtime and all eight
   debug/release parity families. [Exact-SHA required CI](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36963886854)
   completed successfully: Linux, Mac non-render, wasm and Mac live-probe all
@@ -357,7 +296,7 @@ Tolerated hosted Mac-render GPU out-of-memory/atlas failures and the AT-SPI
 probe/dependency gaps remain separate; required or extended success does not close
 human accessibility or physical-input obligations. This queue reconciliation uses
 diff, heading, reference and status checks under `docs/verification.md`; receipts
-continue to name their actual tested commits. No new product gate is claimed.
+continue to name their actual tested commits; the new receipt names `03f5c22f`.
 
 ## Remaining execution and acceptance
 
