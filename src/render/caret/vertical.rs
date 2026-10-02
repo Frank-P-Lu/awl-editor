@@ -220,7 +220,7 @@ impl TextPipeline {
     ) -> (f32, f32) {
         let box_ = self.caret_block_ink_box(ascent, font);
         let pad = super::super::caret_body::CARET_BLOCK_INK_PAD;
-        let (_, floor_h) = super::super::caret_body::caret_visual_body_dims_with_pad(box_, px, pad);
+        let (_, floor_h) = super::super::caret_body::caret_block_body_dims(box_, px);
         let ideal_h = floor_h.max(box_.height + 2.0 * pad.px(px));
         let row_h = self.cursor_row_height();
         let clearance = Logical(1.0).px(px);

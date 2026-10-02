@@ -228,11 +228,11 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
     );
 
     // The settled BLOCK quad must sit on the glyph's ink box GROWN by the
-    // shared horizontal pad ([`CARET_INK_PAD_W`], the width counterpart of
-    // `CARET_INK_PAD`) on both sides — never the naive advance cell, and never
+    // shared Block margin ([`caret_body::CARET_BLOCK_INK_PAD`]) on both sides —
+    // never the naive advance cell, and never
     // the bare ink box either now that the resting body carries a real margin.
     let pen_x = p.caret.pos.x;
-    let pad_w = CARET_INK_PAD_W.px(p.metrics.scale);
+    let pad_w = super::super::caret_body::CARET_BLOCK_INK_PAD.px(p.metrics.scale);
     let (cx, _cy, w, _h, _corner, _ax, _ay) = p.caret_geometry();
     let got_left = cx - w * 0.5;
     let want_left = pen_x + ink_left - pad_w;

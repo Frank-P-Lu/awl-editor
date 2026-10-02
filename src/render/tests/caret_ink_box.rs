@@ -44,9 +44,27 @@ fn adaptive_caret_contains_every_resolved_grapheme_in_both_axes() {
                     world.name
                 );
                 assert!(
-                    radius <= 2.0 * pad + 0.01,
-                    "rounding must remain inside padded corners"
+                    radius >= (3.5 * pad).min(w * 0.5).min(h * 0.5) - 0.01,
+                    "{} dpi={dpi} {text}: rounded body must remain visibly softer",
+                    world.name
                 );
+                // Test the actual rounded boundary, not just its enclosing box.
+                // The entire raster rectangle conservatively includes every serif,
+                // accent and independently positioned combining mark.
+                for x in [left, left + ink.width] {
+                    for y in [top, top + ink.height] {
+                        let qx = (x - cx).abs() - (w * 0.5 - radius);
+                        let qy = (y - cy).abs() - (h * 0.5 - radius);
+                        let distance =
+                            qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - radius;
+                        assert!(
+                            distance <= -0.6 * pad,
+                            "{} dpi={dpi} {text}: curved corner must contain complete ink \
+                             with antialias margin: distance={distance} radius={radius}",
+                            world.name
+                        );
+                    }
+                }
                 resolved += 1;
             }
         }
@@ -180,4 +198,69 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+}
+
+/// Read the emitted resting bounds: the top is tighter while side/bottom air
+/// and the rounded-boundary containment law remain unchanged.
+#[test]
+fn block_top_clearance_is_tight_and_bottom_clearance_stays_full() {
+    let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let _page = crate::page::PagePin::snapshot();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
+    let Some(mut p) = headless_pipeline() else {
+        return;
+    };
+    let mut graded = 0;
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for text in ["x", "a", "H", "g", "Å", "W", "A\u{30a}", "漢"] {
+                p.set_view(&view(text, 0, 0));
+                p.settle_caret();
+                let Some(ink) = p.caret_anchor_ink_box() else {
+                    continue;
+                };
+                let (_, cy, w, h, ..) = p.caret_geometry();
+                let scale = p.metrics.scale;
+                // Tiny punctuation may grow to visibility floors; these subjects
+                // must be ordinary unfloored glyphs before grading exact air.
+                let raw_w = ink.width + 5.0 * scale;
+                let raw_h = ink.height + 3.75 * scale;
+                if raw_w < 6.5 * scale
+                    || raw_h < 12.0 * scale
+                    || raw_w * raw_h < 96.0 * scale * scale
+                {
+                    continue;
+                }
+                let top = p.caret_baseline_y() - ink.top;
+                let top_air = top - (cy - h * 0.5);
+                let bottom_air = cy + h * 0.5 - (top + ink.height);
+                assert!(
+                    (top_air - 1.25 * scale).abs() < 0.02,
+                    "{} dpi={dpi} {text}: top clearance must be 1.25 logical px: {top_air}",
+                    world.name
+                );
+                assert!(
+                    (bottom_air - 2.5 * scale).abs() < 0.02,
+                    "{} dpi={dpi} {text}: bottom clearance must stay 2.5 logical px: {bottom_air}",
+                    world.name
+                );
+                assert!(
+                    (w - ink.width - 5.0 * scale).abs() < 0.02,
+                    "{} dpi={dpi} {text}: side clearance must stay unchanged",
+                    world.name
+                );
+                graded += 1;
+            }
+        }
+    }
+    assert!(
+        graded >= theme::THEMES.len() * 8,
+        "ordinary glyph roster must be graded: {graded}"
+    );
 }

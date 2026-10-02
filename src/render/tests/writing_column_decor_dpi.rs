@@ -70,7 +70,7 @@ const AUTHORED_NIT_GAP: f32 = 1.0;
 /// The resting block caret's corner radius, and the travelling streak's. ⚠️ NOT
 /// `selection.rs`'s own `CORNER_RADIUS` — that one is 2.5, uploaded once at
 /// pipeline construction and legitimately physical. Same name, opposite verdict.
-const AUTHORED_CARET_CORNER: f32 = 7.0;
+const AUTHORED_CARET_CORNER: f32 = 4.5;
 const AUTHORED_STREAK_CORNER: f32 = 1.4;
 
 /// A FRESH pipeline at `dpi`, sized so the LOGICAL window is 1200x800 at every
@@ -348,7 +348,7 @@ fn the_carets_corner_radii_hold_their_logical_size_at_every_panel_density() {
         let Some((device, queue, mut p)) = tier_pipeline(dpi) else {
             continue;
         };
-        p.set_view(&view("hello caret\n", 0, 3));
+        p.set_view(&view("H caret\n", 0, 0));
         p.prepare(&device, &queue, (1200.0 * dpi) as u32, (800.0 * dpi) as u32)
             .expect("a headless frame prepares");
         p.atlas.trim();
@@ -356,7 +356,7 @@ fn the_carets_corner_radii_hold_their_logical_size_at_every_panel_density() {
         // and nothing else.
         let (_, _, w, h, corner, _, _) = p.caret_geometry();
         assert!(
-            (corner / dpi - super::super::caret_body::CARET_BLOCK_INK_PAD.0).abs() < 1e-2,
+            (corner / dpi - super::super::caret_body::CARET_BLOCK_CORNER_RADIUS.0).abs() < 1e-2,
             "dpi {dpi}: the resting caret's corner radius is {corner} device px ({} \
              logical) against an authored {AUTHORED_CARET_CORNER} — a radius on the \
              reader's zoom alone sharpens the corner as the panel gets denser",
@@ -371,8 +371,7 @@ fn the_carets_corner_radii_hold_their_logical_size_at_every_panel_density() {
         // is against a width that also scales, so the authored value survives it.
         let (_, _, bar_w, _, bar_corner) = p.caret_space_bar_geometry();
         assert!(
-            (bar_corner / dpi - super::super::caret_body::CARET_BLOCK_INK_PAD.0).abs() < 1e-2
-                || bar_corner >= bar_w * 0.5,
+            (bar_corner / dpi - CORNER_RADIUS.0).abs() < 1e-2 || bar_corner >= bar_w * 0.5,
             "dpi {dpi}: the space bar's corner is {bar_corner} device px ({} logical) \
              and its half-width is {} — neither the authored radius nor the clamp",
             bar_corner / dpi,

@@ -410,9 +410,13 @@ fn dominant_off_segment(
     primary: [u8; 3],
     page: [u8; 3],
     tol: f32,
+    ink_population: impl Fn(u32, u32) -> bool,
 ) -> Option<([u8; 3], usize)> {
     let mut candidates: Vec<([u8; 3], f32)> = Vec::new();
     for (x, y) in probe(rect, img.0) {
+        if !ink_population(x, y) {
+            continue;
+        }
         let c = px(img, x, y);
         let d = segment_dist(c, primary, page);
         if d > tol {
@@ -537,7 +541,11 @@ fn assert_color_ownership(
     // in off the caret — read from `reference`'s own rendering of the SAME
     // rect, not a hardcoded palette entry, so no world's data is duplicated
     // into this file.
-    let on_caret_ink = dominant_off_segment(rendered, rect, primary, page_color, 24.0);
+    let on_caret_ink = dominant_off_segment(rendered, rect, primary, page_color, 24.0, |x, y| {
+        // The reference/blank difference identifies real glyph pixels. Rounded
+        // edge blends can leave the RGB segment without being recoloured ink.
+        dist(px(reference, x, y), px(blank, x, y)) > 20.0
+    });
     let Some((on_ink, on_n)) = on_caret_ink else {
         // Solid-accent silhouette (no distinct ink population) — correct and
         // unaffected by this bug either way; nothing further to compare.
@@ -993,9 +1001,14 @@ fn comma_and_roster_in_bowerbird_never_flip_black() {
                 );
                 let (l, t, r, b, _) = footprint(&rendered, &refimg, band_top, band_bottom);
                 let page_color = px(&refimg, l, t);
-                if let Some((dominant, n)) =
-                    dominant_off_segment(&rendered, (l, t, r, b), primary, page_color, 24.0)
-                    && n >= 4
+                if let Some((dominant, n)) = dominant_off_segment(
+                    &rendered,
+                    (l, t, r, b),
+                    primary,
+                    page_color,
+                    24.0,
+                    |x, y| dist(px(&refimg, x, y), px(&blankimg, x, y)) > 20.0,
+                ) && n >= 4
                 {
                     let d = dist(dominant, reported_black);
                     assert!(
@@ -1242,9 +1255,14 @@ fn mid_glide_frames_never_engage_the_punctuation_colour_swap() {
         // never a third, unrelated colour — i.e. the settled-frame knockback
         // bug this file fixes does not reappear mid-travel either.
         let page_color = px(&refimg, l, t);
-        if let Some((on_ink, on_n)) =
-            dominant_off_segment(&rendered, (l, t, r, b), primary, page_color, 24.0)
-            && on_n >= 4
+        if let Some((on_ink, on_n)) = dominant_off_segment(
+            &rendered,
+            (l, t, r, b),
+            primary,
+            page_color,
+            24.0,
+            |_, _| true,
+        ) && on_n >= 4
         {
             let off_ink = off_caret_ink(&refimg, &blankimg, (l, t, r, b))
                 .expect("comma must render real off-caret ink at this rect");

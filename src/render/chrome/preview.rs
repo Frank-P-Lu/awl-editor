@@ -2,7 +2,9 @@
 //! padded rectangular geometry. The demo spring owns its choreography.
 
 use super::*;
-use crate::render::caret_body::{CARET_BLOCK_INK_PAD, InkBox, caret_visual_body_dims_with_pad};
+use crate::render::caret_body::{
+    InkBox, caret_block_body_dims, caret_block_center_offset, caret_block_corner,
+};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The picker sample has one unwrapped visual row.
@@ -119,7 +121,7 @@ impl TextPipeline {
 
         let text_top = row_cy - 0.5 * m.line_height * s;
         let (anchor_char, target) =
-            self.preview_anchor_target(look, &text, text_left, row_cy, text_top);
+            self.preview_anchor_target(look, &text, text_left, row_cy, text_top, m.scale * s);
         let first = self
             .caret_demo
             .set_metrics(m.char_width * s, m.line_height * s);
@@ -269,7 +271,7 @@ impl TextPipeline {
                 m.px(IBEAM_W) * demo_scale,
             )
         } else if let Some(ink) = ink {
-            let (w, h) = caret_visual_body_dims_with_pad(ink, scale, CARET_BLOCK_INK_PAD);
+            let (w, h) = caret_block_body_dims(ink, scale);
             (w, h, m.caret_streak_h * demo_scale)
         } else {
             (
@@ -295,7 +297,8 @@ impl TextPipeline {
         );
         let corner = match look {
             CaretMode::Block => {
-                m.px(STREAK_RADIUS) + (CARET_BLOCK_INK_PAD.px(scale) - m.px(STREAK_RADIUS)) * s
+                m.px(STREAK_RADIUS)
+                    + (caret_block_corner(block_w, block_h, scale) - m.px(STREAK_RADIUS)) * s
             }
             _ => m.px(STREAK_RADIUS).max(half_across.min(half_along) * 0.6),
         };
@@ -331,6 +334,7 @@ impl TextPipeline {
         text_left: f32,
         row_cy: f32,
         text_top: f32,
+        scale: f32,
     ) -> (usize, crate::caret::Sample) {
         let cursor = self.caret_demo.cursor_char();
         let previous = look == CaretMode::Block && crate::caret::highlight_previous_character();
@@ -350,7 +354,7 @@ impl TextPipeline {
         let anchor_ink = self.preview_anchor_ink(text, anchor_char);
         let caret_y = if look == CaretMode::Block {
             anchor_ink.map_or(row_cy, |ink| {
-                self.preview_baseline_y(text_top) - ink.top + ink.height * 0.5
+                self.preview_baseline_y(text_top) - ink.top + caret_block_center_offset(ink, scale)
             })
         } else {
             row_cy
