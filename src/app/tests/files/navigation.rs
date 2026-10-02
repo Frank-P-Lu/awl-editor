@@ -206,3 +206,168 @@ fn folder_outcomes_reset_and_reopening_refreshes_the_cached_roster() {
         "alpha stays untouched\n"
     );
 }
+
+const FILES_FOCI: [FilesFocus; 7] = [
+    FilesFocus::Up,
+    FilesFocus::Query,
+    FilesFocus::Files,
+    FilesFocus::Recent,
+    FilesFocus::Choices,
+    FilesFocus::ChangeFolder,
+    FilesFocus::NewDocument,
+];
+
+fn row_position(app: &App, path: &str) -> usize {
+    let card = card(app);
+    card.items
+        .iter()
+        .position(|&i| card.rows[i].accept == path)
+        .unwrap()
+}
+
+#[test]
+fn pointer_row_activation_reclaims_focus_after_up_and_every_files_control() {
+    let _serial = crate::testlock::serial();
+    for focus in FILES_FOCI {
+        let mem = fixture();
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let mut app = app_on(
+            Some(PathBuf::from("/proj/alpha.md")),
+            "/proj",
+            Config::empty(),
+        );
+        let exit = crate::app::schedule::RecordingExit::new();
+        apply(&mut app, Action::OpenGoto);
+        choose(&mut app, "empty-folder", Action::Newline);
+        ascend(&mut app, FilesFocus::Up, Action::Newline);
+        assert_root(&app);
+        for _ in 0..2 {
+            app.workspace_state.overlay_mut().unwrap().files_focus = focus;
+            app.activate_overlay_row(row_position(&app, "research"), &exit);
+            assert_eq!(
+                card(&app).browse_dir.as_deref(),
+                Some("research"),
+                "prior focus {focus:?}"
+            );
+            assert_eq!(card(&app).files_focus, FilesFocus::Choices);
+            assert!(visible(&app).contains(&"research/field-notes.md"));
+            ascend(&mut app, FilesFocus::Up, Action::Newline);
+            assert_root(&app);
+        }
+        app.workspace_state.overlay_mut().unwrap().files_focus = focus;
+        app.activate_overlay_row(row_position(&app, "beta.md"), &exit);
+        assert!(
+            !app.workspace_state.overlay_open(),
+            "file click accepts, prior focus {focus:?}"
+        );
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(std::path::Path::new("/proj/beta.md"))
+        );
+        assert_eq!(
+            mem.read_to_string(std::path::Path::new("/proj/alpha.md"))
+                .unwrap(),
+            "alpha stays untouched\n"
+        );
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn semantic_row_targeting_sets_exact_selection_and_choices_focus_before_acceptance() {
+    let _serial = crate::testlock::serial();
+    for focus in FILES_FOCI {
+        for already_selected in [false, true] {
+            let _fs = crate::fs::FsGuard::install(Arc::new(fixture()));
+            let mut app = app_on(
+                Some(PathBuf::from("/proj/alpha.md")),
+                "/proj",
+                Config::empty(),
+            );
+            apply(&mut app, Action::OpenGoto);
+            let target = row_position(&app, "research");
+            let overlay = app.workspace_state.overlay_mut().unwrap();
+            overlay.files_focus = focus;
+            overlay.selected = if already_selected {
+                target
+            } else {
+                (target + 1) % overlay.items.len()
+            };
+            let id = format!("overlay.goto.row.{}", overlay.items[target]);
+            assert!(
+                app.apply_semantic_request(crate::semantic::SemanticRequest::Focus {
+                    id: id.clone()
+                })
+            );
+            assert_eq!(card(&app).selected, target, "prior focus {focus:?}");
+            assert_eq!(
+                card(&app).files_focus,
+                FilesFocus::Choices,
+                "prior focus {focus:?}"
+            );
+            assert_eq!(card(&app).browse_dir, None, "focus alone does not accept");
+            let overlay = app.workspace_state.overlay_mut().unwrap();
+            overlay.files_focus = focus;
+            overlay.selected = if already_selected {
+                target
+            } else {
+                (target + 1) % overlay.items.len()
+            };
+            assert!(app.apply_semantic_request(crate::semantic::SemanticRequest::Click { id }));
+            assert_eq!(card(&app).browse_dir.as_deref(), Some("research"));
+            assert!(visible(&app).contains(&"research/field-notes.md"));
+        }
+    }
+}
+
+#[test]
+fn stale_pointer_row_index_does_not_dispatch_a_files_control_action() {
+    let _serial = crate::testlock::serial();
+    let _fs = crate::fs::FsGuard::install(Arc::new(fixture()));
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/alpha.md")),
+        "/proj",
+        Config::empty(),
+    );
+    apply(&mut app, Action::OpenGoto);
+    app.workspace_state.overlay_mut().unwrap().files_focus = FilesFocus::NewDocument;
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.activate_overlay_row(card(&app).items.len(), &exit);
+    assert_root(&app);
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(std::path::Path::new("/proj/alpha.md"))
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn semantic_files_focus_reveals_a_deep_row_and_retains_its_scroll_window() {
+    let _serial = crate::testlock::serial();
+    let mem = InMemoryFs::new();
+    let window = crate::overlay::OverlayKind::Goto.window_rows();
+    for index in 0..window * 3 {
+        mem.write(
+            &PathBuf::from(format!("/proj/note-{index:03}.md")),
+            b"text\n",
+        )
+        .unwrap();
+    }
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem));
+    let mut app = app_on(None, "/proj", Config::empty());
+    apply(&mut app, Action::OpenGoto);
+    let deep = window * 2;
+    for (target, expected_scroll) in [
+        (deep, deep + 1 - window),
+        (deep - 1, deep + 1 - window),
+        (0, 0),
+    ] {
+        app.workspace_state.overlay_mut().unwrap().files_focus = FilesFocus::Recent;
+        let id = format!("overlay.goto.row.{}", card(&app).items[target]);
+        assert!(app.apply_semantic_request(crate::semantic::SemanticRequest::Focus { id }));
+        assert_eq!(card(&app).selected, target);
+        assert_eq!(card(&app).files_focus, FilesFocus::Choices);
+        assert_eq!(card(&app).scroll, expected_scroll, "target {target}");
+        assert_eq!(card(&app).browse_dir, None);
+    }
+}

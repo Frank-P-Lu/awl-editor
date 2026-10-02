@@ -208,6 +208,16 @@ impl App {
         let Some(target) = self.overlay_target_position(id) else {
             return false;
         };
+        if self
+            .workspace_state
+            .overlay()
+            .is_some_and(|overlay| overlay.files_mode && !overlay.goto_outline_only)
+        {
+            self.focus_overlay_row(target);
+            self.sync_view(true);
+            self.request_frame();
+            return true;
+        }
         if let Some(shape) = self
             .workspace_state
             .overlay()

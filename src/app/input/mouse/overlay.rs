@@ -163,6 +163,37 @@ impl App {
         true
     }
 
+    /// A targeted row owns keyboard focus before its acceptance is dispatched.
+    /// Pointer and accessibility targeting share this selection/focus transition.
+    pub(in crate::app) fn focus_overlay_row(&mut self, index: usize) -> bool {
+        let Some(overlay) = self.workspace_state.overlay_mut() else {
+            return false;
+        };
+        if index >= overlay.items.len() {
+            return false;
+        }
+        overlay.selected = index;
+        overlay.files_select_choices();
+        self.workspace_state
+            .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls);
+        true
+    }
+
+    /// The post-hit-test pointer door, also exercised without a GPU by App laws.
+    pub(in crate::app) fn activate_overlay_row(&mut self, index: usize, exit: &dyn schedule::Exit) {
+        if !self.focus_overlay_row(index) {
+            return;
+        }
+        // Range labels select only; Enter would open the numeric editor.
+        let is_range = self
+            .workspace_state
+            .overlay()
+            .is_some_and(|overlay| overlay.range_of_item(index).is_some());
+        if !is_range {
+            self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
+        }
+    }
+
     /// Use press-time hit tests, never cached hover or release position. Rows
     /// accept through the shared action path, except range labels select only.
     /// Query presses place their caret and arm dragging. Interior gaps consume the
@@ -240,26 +271,7 @@ impl App {
         }
 
         if let Some(idx) = row_hit {
-            // ON a row: ACCEPT through the shared apply path — byte-for-byte the same
-            // as Enter on the highlighted row (open / run / commit / descend / replace).
-            if let Some(ov) = self.workspace_state.overlay_mut()
-                && idx < ov.items.len()
-            {
-                ov.selected = idx;
-            }
-            self.workspace_state
-                .focus_settings_if_open(crate::overlay::workspace::SettingsFocus::Controls);
-            // Range labels select only; Enter would open the numeric editor.
-            let is_range = self
-                .workspace_state
-                .overlay()
-                .is_some_and(|ov| ov.range_of_item(idx).is_some());
-            if is_range {
-                self.sync_view(true);
-                self.request_frame();
-                return;
-            }
-            self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
+            self.activate_overlay_row(idx, exit);
         } else if let Some(char_idx) = query_hit {
             // ON the query line, off a row: place the field's own caret there
             // and arm the drag so a press-drag scrubs it, rather than falling

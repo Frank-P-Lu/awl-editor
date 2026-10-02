@@ -24,7 +24,7 @@ impl OverlayState {
         let next = (at + delta).rem_euclid(route.len() as isize) as usize;
         self.files_focus = route[next];
         if self.files_focus == Choices {
-            self.files_select_first_choice();
+            self.files_select_choices();
         }
     }
 
@@ -34,6 +34,7 @@ impl OverlayState {
         }
         self.files_focus = FilesFocus::Choices;
         self.files_select_first_choice();
+        self.scroll_to_selected();
     }
 
     pub fn files_rows_focused(&self) -> bool {
