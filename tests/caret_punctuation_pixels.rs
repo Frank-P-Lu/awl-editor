@@ -24,6 +24,7 @@ use common::ScratchDir;
 const PUNCT: [char; 10] = [',', '.', '\'', ':', ';', '-', '(', '[', '—', '。'];
 const SCALES: [(f32, f32); 2] = [(1.0, 1.0), (2.0, 1.5)];
 const DOC: &str = "a, . ' : ; - ( [ — 。 z\n\n\nreference\n";
+const BLANK_DOC: &str = "\n\n\nreference\n";
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
 /// [`ScratchDir`] guard that removes it on drop; this fixture used to never
@@ -196,18 +197,15 @@ fn probe(rect: (u32, u32, u32, u32), w: u32) -> impl Iterator<Item = usize> {
 /// landing on the glyph in the caret-bearing one. Reading positions across the two
 /// captures is what made this law platform-fragile: it scored a coincidence of
 /// position, not the visibility of a glyph.
-fn glyph_ink_off_caret(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> usize {
-    let (w, _, pixels) = reference;
-    // The outer top-left is inside the padded body bbox but outside the glyph; it
-    // is the real page colour for this exact capture, so patterned worlds and
-    // antialiasing cannot turn an unrelated palette count into a passing oracle.
-    let page = [
-        pixels[((rect.1 * *w + rect.0) * 4) as usize],
-        pixels[((rect.1 * *w + rect.0) * 4) as usize + 1],
-        pixels[((rect.1 * *w + rect.0) * 4) as usize + 2],
-    ];
-    probe(rect, *w)
-        .filter(|&i| pixels[i..i + 3] != page)
+fn glyph_ink_off_caret(
+    reference: &(u32, u32, Vec<u8>),
+    blank: &(u32, u32, Vec<u8>),
+    rect: (u32, u32, u32, u32),
+) -> usize {
+    // A matching blank row supplies the actual background at every position.
+    // A corner can contain neighbouring glyph AA or a different ground colour.
+    probe(rect, reference.0)
+        .filter(|&i| reference.2[i..i + 3] != blank.2[i..i + 3])
         .count()
 }
 
@@ -249,13 +247,14 @@ fn survival_floor(off_caret_ink: usize) -> usize {
 
 fn assert_punctuation_glyph_contribution(
     reference: &(u32, u32, Vec<u8>),
+    blank: &(u32, u32, Vec<u8>),
     rendered: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
     world: &str,
     ch: char,
     mode: &str,
 ) {
-    let off_caret = glyph_ink_off_caret(reference, rect);
+    let off_caret = glyph_ink_off_caret(reference, blank, rect);
     assert!(
         off_caret >= 2,
         "{world} {ch:?} {mode}: fixture must contain punctuation ink"
@@ -289,13 +288,16 @@ fn swallowed_control(
 /// green run's stderr has already been read as a failure once.
 fn assert_swallowed_control_is_red(
     reference: &(u32, u32, Vec<u8>),
+    blank: &(u32, u32, Vec<u8>),
     swallowed: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
 ) {
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let mutation_failed = std::panic::catch_unwind(|| {
-        assert_punctuation_glyph_contribution(reference, swallowed, rect, "Mopoke", ',', "block");
+        assert_punctuation_glyph_contribution(
+            reference, blank, swallowed, rect, "Mopoke", ',', "block",
+        );
     })
     .is_err();
     std::panic::set_hook(hook);
@@ -312,6 +314,8 @@ fn assert_swallowed_control_is_red(
 fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
     let dir = temp(world);
     let doc = fixture(&dir);
+    let blank_doc = dir.join("blank.txt");
+    std::fs::write(&blank_doc, BLANK_DOC).unwrap();
     let mut active_comma = false;
     for (dpi, zoom) in SCALES {
         let tag = format!("{world}-{dpi}-{zoom}");
@@ -337,6 +341,13 @@ fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
         let band_pad = (8.0 * dpi * zoom).ceil() as u32;
         let caret_rgb = hex_rgb(&side["theme"]["primary"]);
         let refimg = rgba(&reference);
+        let blank_path = dir.join(format!("{tag}-blank.png"));
+        Capture {
+            doc: &blank_doc,
+            ..capture
+        }
+        .run(&blank_path, None, "Down Down Down");
+        let blank = rgba(&blank_path);
         assert_visible_controls(
             &capture,
             &dir,
@@ -382,10 +393,12 @@ fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
                     "{world} {ch:?} {mode}: caret clipped by row band"
                 );
                 let rect = (left, outer_top, right, outer_bottom);
-                assert_punctuation_glyph_contribution(&refimg, &rendered, rect, world, ch, mode);
+                assert_punctuation_glyph_contribution(
+                    &refimg, &blank, &rendered, rect, world, ch, mode,
+                );
                 if world == "Mopoke" && ch == ',' && mode == "block" {
                     let swallowed = swallowed_control(&rendered, rect, caret_rgb);
-                    assert_swallowed_control_is_red(&refimg, &swallowed, rect);
+                    assert_swallowed_control_is_red(&refimg, &blank, &swallowed, rect);
                 }
                 assert!(
                     area as f32 >= 96.0 * scale * scale * 0.25,
