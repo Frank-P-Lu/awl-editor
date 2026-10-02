@@ -460,7 +460,15 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
                 p.set_view(&v);
                 p.settle_caret();
                 let (_cx, _cy, _w, h, ..) = p.caret_geometry();
-                heights.push(h);
+                // Adaptive blocks add a fixed logical margin, not a font-size
+                // multiplier. Remove it before comparing the type-size rung;
+                // glyphless insertion cells retain their own row-height ratio.
+                let ink_height = if p.caret_anchor_ink_box().is_some() {
+                    h - 2.0 * super::super::caret_body::CARET_BLOCK_INK_PAD.px(p.metrics.scale)
+                } else {
+                    h
+                };
+                heights.push(ink_height);
             }
             for level in HEADING_RUNGS {
                 let want = crate::markdown::heading_scale(level);

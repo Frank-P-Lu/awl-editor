@@ -44,9 +44,27 @@ fn adaptive_caret_contains_every_resolved_grapheme_in_both_axes() {
                     world.name
                 );
                 assert!(
-                    radius <= 2.0 * pad + 0.01,
-                    "rounding must remain inside padded corners"
+                    radius >= (3.5 * pad).min(w * 0.5).min(h * 0.5) - 0.01,
+                    "{} dpi={dpi} {text}: rounded body must remain visibly softer",
+                    world.name
                 );
+                // Test the actual rounded boundary, not just its enclosing box.
+                // The entire raster rectangle conservatively includes every serif,
+                // accent and independently positioned combining mark.
+                for x in [left, left + ink.width] {
+                    for y in [top, top + ink.height] {
+                        let qx = (x - cx).abs() - (w * 0.5 - radius);
+                        let qy = (y - cy).abs() - (h * 0.5 - radius);
+                        let distance =
+                            qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - radius;
+                        assert!(
+                            distance <= -0.6 * pad,
+                            "{} dpi={dpi} {text}: curved corner must contain complete ink \
+                             with antialias margin: distance={distance} radius={radius}",
+                            world.name
+                        );
+                    }
+                }
                 resolved += 1;
             }
         }

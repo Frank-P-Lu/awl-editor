@@ -273,11 +273,7 @@ impl TextPipeline {
         if self.effective_caret_look() == CaretMode::Block
             && let Some(ink) = self.caret_anchor_ink_box()
         {
-            let (_, height) = super::caret_body::caret_visual_body_dims_with_pad(
-                ink,
-                px,
-                super::caret_body::CARET_BLOCK_INK_PAD,
-            );
+            let (_, height) = super::caret_body::caret_block_body_dims(ink, px);
             return (self.caret_baseline_y() - ink.top + ink.height * 0.5, height);
         }
 
@@ -509,8 +505,6 @@ impl TextPipeline {
         let block_w = self.caret_block_w(); // real glyph advance (narrow i, wide m)
         let streak_thin = m.caret_streak_h; // the streak's thin cross-dimension
         let streak_r = m.px(STREAK_RADIUS);
-        let rest_corner = m.px(super::caret_body::CARET_BLOCK_INK_PAD);
-        let corner = streak_r + (rest_corner - streak_r) * s;
 
         let speed =
             (self.caret.vel.x * self.caret.vel.x + self.caret.vel.y * self.caret.vel.y).sqrt();
@@ -525,11 +519,7 @@ impl TextPipeline {
         let (block_w, ink_shift) = match self.caret_anchor_ink_box() {
             Some(ink) => {
                 let px = m.scale;
-                let (body_w, _body_h) = super::caret_body::caret_visual_body_dims_with_pad(
-                    ink,
-                    px,
-                    super::caret_body::CARET_BLOCK_INK_PAD,
-                );
+                let (body_w, _body_h) = super::caret_body::caret_block_body_dims(ink, px);
                 // Grow equally about the glyph ink centre.  The pen-relative
                 // offset is still the raster's real bearing, so the floor does
                 // not make a kerned punctuation glyph drift into its neighbour.
@@ -539,6 +529,8 @@ impl TextPipeline {
             None => (block_w, 0.0),
         };
         let (cell_cy, block_h) = self.caret_cell_vertical();
+        let rest_corner = super::caret_body::caret_block_corner(block_w, block_h, m.scale);
+        let corner = streak_r + (rest_corner - streak_r) * s;
         let ink_rise = (cell_cy - self.caret.pos.y) * s;
         let (center, half_along, half_across, axis) = self.caret.motion_geometry(
             block_w,

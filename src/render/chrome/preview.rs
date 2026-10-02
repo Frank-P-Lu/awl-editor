@@ -2,7 +2,7 @@
 //! padded rectangular geometry. The demo spring owns its choreography.
 
 use super::*;
-use crate::render::caret_body::{CARET_BLOCK_INK_PAD, InkBox, caret_visual_body_dims_with_pad};
+use crate::render::caret_body::{InkBox, caret_block_body_dims, caret_block_corner};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// The picker sample has one unwrapped visual row.
@@ -269,7 +269,7 @@ impl TextPipeline {
                 m.px(IBEAM_W) * demo_scale,
             )
         } else if let Some(ink) = ink {
-            let (w, h) = caret_visual_body_dims_with_pad(ink, scale, CARET_BLOCK_INK_PAD);
+            let (w, h) = caret_block_body_dims(ink, scale);
             (w, h, m.caret_streak_h * demo_scale)
         } else {
             (
@@ -295,7 +295,8 @@ impl TextPipeline {
         );
         let corner = match look {
             CaretMode::Block => {
-                m.px(STREAK_RADIUS) + (CARET_BLOCK_INK_PAD.px(scale) - m.px(STREAK_RADIUS)) * s
+                m.px(STREAK_RADIUS)
+                    + (caret_block_corner(block_w, block_h, scale) - m.px(STREAK_RADIUS)) * s
             }
             _ => m.px(STREAK_RADIUS).max(half_across.min(half_along) * 0.6),
         };
