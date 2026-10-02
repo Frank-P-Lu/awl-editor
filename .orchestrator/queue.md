@@ -240,7 +240,7 @@ current treatment. Do not conflate that choice with the repaired font/cache defe
 ### 672 — keep the selected document’s × accented on hover
 
 🟡 IN PROGRESS — cloud worker `/root/fix_document_close_hover`,
-branch `codex/672-close-hover`, isolated `/workspace/shared/awl-672-close-hover`.
+branch `codex/672-close-hover`, isolated `/workspace/shared/awl-editor/.worktrees/672-close-hover`.
 Source base `1fef7abe`; deliver a local patch for sequential integration, no push.
 
  user decision, 2026-09-27. The selected document's close mark should
