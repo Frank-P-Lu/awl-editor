@@ -6,8 +6,10 @@
 
 ## Open build and design tasks
 
-**11 open numbered tasks:** 582, 666 and 669 await user review;
+**12 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
+674 is the active local rounded-caret refinement; dots appearance is explicitly
+accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
 (adaptive caret plus previous-character preference) are complete on main at
 `7f554e63`, with the frozen local gate and all four exact-SHA required CI jobs
@@ -229,6 +231,23 @@ matched native Latin/CJK captures and remeasure the relevant punctuation case
 before asking whether to include leading punctuation-cell space. Preserve the
 current shared ink-hugging treatment pending judgment; the font/cache fixes and
 adaptive implementation are complete, while this visual choice remains open.
+
+---
+
+### 674 — soften the adaptive caret corners
+
+🟡 IN PROGRESS — Codex Mac (codex), branch `codex/674-rounded-caret`.
+The user asked on 2026-10-02 for a bit more rounding, closer to the former look,
+while retaining character-sized fit. Tune shared corner radius and ink padding
+together; keep document and picker geometry on one owner. Preserve x/a/H/g/Å/W,
+combining marks, serifs, resolved CJK coverage, visibility floors, glyphless and
+ligature fallbacks, motion, and the previous-character preference unchanged.
+
+Verify actual rounded-boundary containment and native pixels at 1x/2x DPI,
+focused caret/preview/input laws and a named regression mutation. Prepare actual
+matched local before/after captures for judgment. No push or new Library upload
+is authorized for this refinement yet. Inspect the newly reported close-×
+alignment read-only and return a diagnosis; do not mix its implementation here.
 
 ---
 
