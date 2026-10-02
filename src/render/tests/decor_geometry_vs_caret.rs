@@ -464,9 +464,8 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
                 // multiplier. Remove it before comparing the type-size rung;
                 // glyphless insertion cells retain their own row-height ratio.
                 let ink_height = if p.caret_anchor_ink_box().is_some() {
-                    h - (super::super::caret_body::CARET_BLOCK_INK_PAD.0
-                        + super::super::caret_body::CARET_BLOCK_TOP_PAD.0)
-                        * p.metrics.scale
+                    h - (super::super::caret_body::CARET_BLOCK_INK_PAD.px(p.metrics.scale)
+                        + super::super::caret_body::CARET_BLOCK_TOP_PAD.px(p.metrics.scale))
                 } else {
                     h
                 };

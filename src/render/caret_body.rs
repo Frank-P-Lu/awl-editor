@@ -63,18 +63,18 @@ impl Area {
 /// never a per-glyph raster read, so a narrow letter and a wide one both grow
 /// by the identical two pads before either floor below ever runs.
 pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    caret_visual_body_dims_with_pad(ink, px, CARET_INK_PAD, CARET_INK_PAD_W)
+    caret_visual_body_dims_with_pad(ink, px, 2.0 * CARET_INK_PAD.px(px), CARET_INK_PAD_W.px(px))
 }
 
 /// A shared padded ink rectangle for the document and picker sample.
 pub(super) fn caret_block_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    let vertical = Logical((CARET_BLOCK_TOP_PAD.0 + CARET_BLOCK_INK_PAD.0) * 0.5);
-    caret_visual_body_dims_with_pad(ink, px, vertical, CARET_BLOCK_INK_PAD)
+    let vertical = CARET_BLOCK_TOP_PAD.px(px) + CARET_BLOCK_INK_PAD.px(px);
+    caret_visual_body_dims_with_pad(ink, px, vertical, CARET_BLOCK_INK_PAD.px(px))
 }
 
 /// Center below the ink midpoint so only the top edge loses clearance.
 pub(super) fn caret_block_center_offset(ink: InkBox, px: f32) -> f32 {
-    ink.height * 0.5 + Logical(CARET_BLOCK_INK_PAD.0 - CARET_BLOCK_TOP_PAD.0).px(px) * 0.5
+    ink.height * 0.5 + (CARET_BLOCK_INK_PAD.px(px) - CARET_BLOCK_TOP_PAD.px(px)) * 0.5
 }
 
 /// Clamp the authored rounding to the same resting rectangle in every consumer.
@@ -85,11 +85,11 @@ pub(super) fn caret_block_corner(w: f32, h: f32, px: f32) -> f32 {
 fn caret_visual_body_dims_with_pad(
     ink: InkBox,
     px: f32,
-    vertical_pad: Logical,
-    horizontal_pad: Logical,
+    vertical_pad: f32,
+    horizontal_pad: f32,
 ) -> (f32, f32) {
-    let mut w = (ink.width + 2.0 * horizontal_pad.px(px)).max(CARET_VISUAL_BODY_MIN_W.px(px));
-    let mut h = (ink.height + 2.0 * vertical_pad.px(px)).max(CARET_VISUAL_BODY_MIN_H.px(px));
+    let mut w = (ink.width + 2.0 * horizontal_pad).max(CARET_VISUAL_BODY_MIN_W.px(px));
+    let mut h = (ink.height + vertical_pad).max(CARET_VISUAL_BODY_MIN_H.px(px));
     let min_area = CARET_VISUAL_BODY_MIN_AREA.px2(px);
     if w * h < min_area {
         let grow = (min_area / (w * h)).sqrt();
