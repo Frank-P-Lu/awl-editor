@@ -8,8 +8,9 @@
 
 **14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-674 and 676 are committed local candidates awaiting review; 675 is the active
-Files parent-listing refresh repair. Neither new candidate is pushed or integrated.
+674 is refining top clearance after visual review; 675 owns the active Files
+parent-listing refresh repair; 676 is accepted and ready for integration.
+No new product candidate is pushed or integrated.
 Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
@@ -238,12 +239,14 @@ adaptive implementation are complete, while this visual choice remains open.
 
 ### 674 — soften the adaptive caret corners
 
-🔵 AWAITING REVIEW — local candidate `cf87bfb17a73fc187fd58f0b8787d75cee458d39`
-on `codex/674-rounded-caret`; focused laws (272 passed/1 ignored), owner audits,
-mono-grid/punctuation integrations, source-health and named mutations passed.
-Eighteen matched native frames per phase and two local contacts are ready;
-rounding judgment and integrated product gates remain owed, and the separate
-close-× alignment diagnosis stays read-only.
+🟡 IN PROGRESS — Codex Mac (codex), branch `codex/674-rounded-caret`.
+Prior local candidate `cf87bfb1` passed focused laws and native comparison review;
+the user now likes the overall appearance and asks for less space above Å's ring.
+Compare the original adaptive and rounded actual captures, then refine the shared
+top padding without character-specific policy, preserving accent coverage and
+rounding; new comparison uploads to the same private Library are approved.
+Settings 676's native before/after is explicitly accepted; hold product integration
+until this newest caret refinement and the separate Files 675 patch are ready.
 The user asked on 2026-10-02 for a bit more rounding, closer to the former look,
 while retaining character-sized fit. Tune shared corner radius and ink padding
 together; keep document and picker geometry on one owner. Preserve x/a/H/g/Å/W,
