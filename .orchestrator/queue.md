@@ -6,9 +6,12 @@
 
 ## Open build and design tasks
 
-**14 open numbered tasks:** 582, 666 and 669 await user review;
-657–659, 661–665, 668 and 672 are queued for the remaining journeys,
-release proof or implementation. Items 668, 672 and 673 are active implementation claims.
+**11 open numbered tasks:** 582, 666 and 669 await user review;
+657–659 and 661–665 are queued for the remaining journeys or release proof.
+The approved dots, selected close-hover accent, and adaptive caret implementation
+are in the combined integration candidate; their frozen aggregate gate and exact
+remote CI must pass before delivery. Native caret captures are complete; live
+desktop motion remains blocked by the locked/asleep display.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
 
@@ -205,23 +208,6 @@ ask the user to judge live proportions where the remaining choice is taste.
 
 ---
 
-### 668 — implement the approved Japanese emphasis dots
-
-🟡 IN PROGRESS — Codex dots task `01a0fa2a-a51e-752f-8a30-f9bb33638099`,
-branch `codex/668-japanese-dots`. The user selected restrained dots on
-2026-10-02: “Yeah agreed. Dots are good.” Prototype `9f28df85` on
-`codex/668-japanese-emphasis-study` remains deliberately excluded from main;
-its branch and actual six-world/stress captures are preserved. This approves
-the visual treatment, not completed implementation or verification.
-
-Implement dots through the shared renderer. Preserve punctuation exclusions,
-mixed Japanese/Latin, wrapping, headings, distinct `*` versus `**` roles,
-zoom/DPI, collision avoidance and caret reveal. Verify one-bit Wagtail, real
-Japanese bold, native/wasm behavior and the compressed download cap. Use the
-preserved prototype as evidence and integrate only the selected treatment;
-alternate-face, underline and ink experiments are not approved defaults.
-
----
 
 ### 669 — resolve the remaining CJK caret taste choice
 
@@ -234,30 +220,6 @@ The remaining 15 px Paperbark kana-to-caret gap was measured as a font-sidebeari
 and caret-width taste choice. Keep the current ink-hugging fill until the user
 judges matched captures of including leading punctuation-cell space versus the
 current treatment. Do not conflate that choice with the repaired font/cache defects.
-
----
-
-### 672 — keep the selected document’s × accented on hover
-
-🟡 IN PROGRESS — cloud worker `/root/fix_document_close_hover`,
-branch `codex/672-close-hover`, isolated `/workspace/shared/awl-editor/.worktrees/672-close-hover`.
-Source base `1fef7abe`; deliver a local patch for sequential integration, no push.
-
- user decision, 2026-09-27. The selected document's close mark should
-receive the theme accent on hover too. Keep the selected plate present; this is
-a change to its × feedback, not a request to show the plate only on hover.
-
-`render/chrome/gutter_stack.rs::close_mark_hover_ink` already asks for
-`theme::accent_ink`, but the selected plate's contrast substitution can replace
-the accent with ordinary ink. Reproduce the selected-row case before choosing a
-fix; the reported screenshot alone does not prove that fallback was taken.
-Use one shared treatment for the lone document and working-set stack. Keep the
-mark readable and visibly responsive without shifting the filename or plate.
-
-Verify rest/hover on selected and unselected rows across the theme roster,
-including monochrome Wagtail and low-contrast plates, with native pixel evidence
-and the required visual smoke. Preserve click-to-close and file contents. Return
-any conflict between the authored accent and legibility as a concrete taste choice.
 
 ---
 
@@ -316,17 +278,3 @@ Use ACCESSIBILITY.md and RELEASING.md for scope. No new tag is authorized.
 
 Signing/notarisation setup is complete; it is not an open setup task. Every new
 tag/release still requires the user's explicit instruction per `RELEASING.md`.
-
-### 673 — unify the adaptive caret and previous-character preference
-
-🟡 IN PROGRESS — Codex Mac, branch `codex/673-adaptive-caret`.
-The user approved a shared padded rectangular block fitted to actual shaped glyph
-ink in both axes, replacing Morph's letter silhouette. Add the optional checkbox
-“Highlight previous character”; migrate legacy Morph to Block with this preference
-on. Keep shared resolved-face/cluster ownership, deliberate mono/CJK, ligature and
-glyphless fallbacks, reduced motion and filled/inverse-video behavior.
-
-Verify actual x/a/H/g/Å/W and mixed Latin/CJK captures, neighboring geometry and
-settings laws with mutation proof, then the required frozen native/wasm aggregate.
-Desktop motion remains unreviewed while the Mac display is locked/asleep. Keep
-new artifacts local and do not publish this implementation.
