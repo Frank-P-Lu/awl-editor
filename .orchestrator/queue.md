@@ -6,9 +6,9 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks:** 582, 666 and 669 await user review;
+**14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659, 661–665, 668 and 672 are queued for the remaining journeys,
-release proof or implementation. No implementation claim is currently active.
+release proof or implementation. Item 673 is the active caret implementation claim.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
 
@@ -311,3 +311,17 @@ Use ACCESSIBILITY.md and RELEASING.md for scope. No new tag is authorized.
 
 Signing/notarisation setup is complete; it is not an open setup task. Every new
 tag/release still requires the user's explicit instruction per `RELEASING.md`.
+
+### 673 — unify the adaptive caret and previous-character preference
+
+🟡 IN PROGRESS — Codex Mac, branch `codex/673-adaptive-caret`.
+The user approved a shared padded rectangular block fitted to actual shaped glyph
+ink in both axes, replacing Morph's letter silhouette. Add the optional checkbox
+“Highlight previous character”; migrate legacy Morph to Block with this preference
+on. Keep shared resolved-face/cluster ownership, deliberate mono/CJK, ligature and
+glyphless fallbacks, reduced motion and filled/inverse-video behavior.
+
+Verify actual x/a/H/g/Å/W and mixed Latin/CJK captures, neighboring geometry and
+settings laws with mutation proof, then the required frozen native/wasm aggregate.
+Desktop motion remains unreviewed while the Mac display is locked/asleep. Keep
+new artifacts local and do not publish this implementation.
