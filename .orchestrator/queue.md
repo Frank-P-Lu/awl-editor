@@ -8,8 +8,8 @@
 
 **14 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-674 is the active local rounded-caret refinement; 675 is the active Files
-parent-listing refresh repair; 676 owns the separate Settings workspace overlap.
+674 and 676 are committed local candidates awaiting review; 675 is the active
+Files parent-listing refresh repair. Neither new candidate is pushed or integrated.
 Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
@@ -238,7 +238,12 @@ adaptive implementation are complete, while this visual choice remains open.
 
 ### 674 — soften the adaptive caret corners
 
-🟡 IN PROGRESS — Codex Mac (codex), branch `codex/674-rounded-caret`.
+🔵 AWAITING REVIEW — local candidate `cf87bfb17a73fc187fd58f0b8787d75cee458d39`
+on `codex/674-rounded-caret`; focused laws (272 passed/1 ignored), owner audits,
+mono-grid/punctuation integrations, source-health and named mutations passed.
+Eighteen matched native frames per phase and two local contacts are ready;
+rounding judgment and integrated product gates remain owed, and the separate
+close-× alignment diagnosis stays read-only.
 The user asked on 2026-10-02 for a bit more rounding, closer to the former look,
 while retaining character-sized fit. Tune shared corner radius and ink padding
 together; keep document and picker geometry on one owner. Preserve x/a/H/g/Å/W,
@@ -276,8 +281,12 @@ for these new refinements until the current approval is handled.
 
 ### 676 — keep Settings workspace controls clear of document ink
 
-🟡 IN PROGRESS — Codex Mac (codex), branch `codex/676-settings-workspace`,
-isolated `.worktrees/676-settings-workspace/`.
+🔵 AWAITING REVIEW — local candidate `2603843c6dff4959c09b8a19ca7acd8f67948734`
+on `codex/676-settings-workspace`; shared controls-workspace opacity passes all
+160 pixel cells, fails the original policy by name, and passes 109 workspace
+checks/1 ignored plus ruled/comparison/audition laws and full source-health.
+Four matched native App frames per phase and two local contacts are ready;
+user judgment and integrated product gates remain owed.
 Live Linux QA on `c864b144` reproduced sharp document text overlapping Settings
 labels and controls in Paperbark at 641×800 and 1180×812. Reproduce with a heading
 and dense prose behind Settings. The workspace currently stays crisp while its
