@@ -6,9 +6,10 @@
 
 ## Open build and design tasks
 
-**12 open numbered tasks:** 582, 666 and 669 await user review;
+**13 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-674 is the active local rounded-caret refinement; dots appearance is explicitly
+674 is the active local rounded-caret refinement; 675 is the active Files
+parent-listing refresh repair. Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
 (adaptive caret plus previous-character preference) are complete on main at
@@ -248,6 +249,27 @@ focused caret/preview/input laws and a named regression mutation. Prepare actual
 matched local before/after captures for judgment. No push or new Library upload
 is authorized for this refinement yet. Inspect the newly reported close-×
 alignment read-only and return a diagnosis; do not mix its implementation here.
+
+---
+
+### 675 — refresh Files after returning from an empty subfolder
+
+🟡 IN PROGRESS — cloud worker `/root/fix_files_parent_refresh` (codex),
+branch `codex/675-files-parent-refresh`, isolated `.worktrees/675-files-parent-refresh/`.
+Base product `c864b144`; create the isolated checkout through `scripts/worktree.py`.
+
+Live cloud QA twice reproduced the failure with real X11 pointer clicks:
+seeded notes contains alpha.md, beta.md and empty-folder. Open empty-folder,
+then click Up. The heading returns to notes and subfolders remain, but Markdown
+files disappear and the panel says no supported files. Escape and Ctrl-O restore
+the files; the filesystem remains intact. Reproduce and repair the Files parent
+navigation refresh under 657's remaining browsing acceptance, preserving query,
+focus, root, supported-file filtering and ordinary folder selection boundaries.
+
+Identify the first stale owner and add a regression law at the real App/Files
+refresh seam plus the same live pointer journey. The parent will supply detailed
+worker context. Do not mix caret or close-× changes here; no push is authorized
+for these new refinements until the current approval is handled.
 
 ---
 
