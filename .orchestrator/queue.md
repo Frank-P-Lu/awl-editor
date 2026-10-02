@@ -11,6 +11,14 @@
 674's newest top-clearance candidate is ready; 675 owns the active Files
 parent-listing refresh repair; 676 is accepted and ready for integration.
 No new product candidate is pushed or integrated.
+
+**Integration claim — Codex Mac (codex):** sequentially combine Files 675,
+accepted Settings 676 and visually checked newest caret 674 in isolated
+`codex/integration-674-676` / `.worktrees/integration-674-676/`; freeze the combined
+candidate and run `scripts/verify.sh full` before any authorized push.
+Files patch `e616a743` + `4c1d2c44` is received privately and SHA256-verified;
+its 291 focused checks and actual Linux pointer journey are worker evidence,
+not closure of physical Mac/IME or human comfort obligations.
 Dots appearance is explicitly
 accepted by the user on 2026-10-02.
 Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
