@@ -63,7 +63,7 @@ const CARET_FORMS: [CaretMode; 3] = [CaretMode::Block, CaretMode::Ibeam, CaretMo
 /// against `BandReadings`' own bucket lengths inside that sweep, so a consumer
 /// added to the reader without moving this number fails on the first world
 /// rather than quietly widening the roster arithmetic.
-const BAND_CONSUMERS: usize = 6;
+const BAND_CONSUMERS: usize = 7;
 
 /// One `Heading title` line per rung, a blank, then body — the caret parks on
 /// the body line so the heading is off-caret in the states that need it.
@@ -263,6 +263,15 @@ impl BandReadings {
                 .map(|s| s.y - (band_y + band_h))
                 .unwrap_or(f32::NAN),
         );
+        Self::push(
+            &mut self.gaps,
+            slot,
+            "Japanese emphasis dot offset from the band top",
+            p.japanese_emphasis_dot_rects()
+                .first()
+                .map(|r| r[1] - band_y)
+                .unwrap_or(f32::NAN),
+        );
         // THE FOLLOWABLE UNDERLINE IS STRUCTURALLY ABSENT FROM A HEADING ROW,
         // so it cannot join the fraction family: pulldown-cmark stamps a link's
         // text inside an ATX heading as `MdKind::Heading`, never `LinkText`, so
@@ -380,7 +389,7 @@ fn every_caret_band_consumer_grew_by_the_size_rung_alone() {
     // code (pill), a strike run, a followable link (underline), a misspelling
     // (squiggle), and — appended, so no earlier column moves — a double space
     // between two words, which is the nit detector's own first rule.
-    const TAIL: &str = "alpha `code` ~~gone~~ [lnk](u) wrongg  tidy\n\nbody\n";
+    const TAIL: &str = "alpha `code` ~~gone~~ [lnk](u) wrongg  tidy *日本語かな*\n\nbody\n";
     crate::nits::set_nits_on(true);
     let mut graded = 0usize;
     for t in theme::THEMES.iter() {
@@ -1482,8 +1491,8 @@ fn every_document_band_still_comes_through_the_one_scale_owner() {
     sites.sort();
     assert_eq!(
         sites.len(),
-        8,
-        "the caret-band owner has {} call sites, not the 8 this file's laws account for \
+        9,
+        "the caret-band owner has {} call sites, not the 9 this file's laws account for \
          ({sites:?}) — a new caret-adjacent treatment must be added to \
          `every_caret_band_consumer_grew_by_the_size_rung_alone` (or, for the x-ray path, \
          `an_xrayed_table_rows_band_is_its_short_twins_however_tall_the_grid_row_is`) \

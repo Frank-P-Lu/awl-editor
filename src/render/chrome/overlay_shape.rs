@@ -559,7 +559,7 @@ impl TextPipeline {
         }
         self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
         if elide {
-            self.fit_overlay_range_names(geom, plan, inks, vis, &mut rows, slant_text_w);
+            self.fit_overlay_control_names(geom, plan, inks, vis, &mut rows, slant_text_w);
         }
 
         let name_px = self.widest_candidate_px(geom, plan);

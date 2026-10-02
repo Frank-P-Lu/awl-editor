@@ -272,9 +272,9 @@ fn rebind_menu_summon_capture_key_and_reset() {
 
 #[test]
 fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
-    // Row 0 is "Caret style" (a Picker); NextLine → row 1, "Page mode" (a Toggle).
+    // Enter the named Page mode row through the live Settings journey.
     let mut overlay = super::settings_journey();
-    settings_drive(&mut overlay, &Action::NextLine);
+    assert!(overlay.card_mut().unwrap().select_accept("Page mode"));
     assert_eq!(overlay.card().unwrap().selected_value(), Some("Page mode"));
     // Enter on a TOGGLE row signals SettingToggle for its config key and leaves
     // the menu OPEN (the App flips + persists + refreshes the cell).
@@ -301,7 +301,7 @@ fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
 /// mis-select a neighbor) to `Effect::SettingToggle` carrying its OWN named
 /// key. This is the "does Enter even signal the right thing" half of the
 /// live dispatch chain the Keymap-row bug hid in — the row count assertion
-/// keeps this test itself honest against the settings corpus (15 toggles;
+/// keeps this test itself honest against the settings corpus (17 toggles;
 /// "Date format" left the roster when it became a Picker, "File visibility"
 /// joined it, and "Keymap" itself left it to become a Picker — the fix this
 /// test's own docstring names: a picker's accept always names the resulting
@@ -317,7 +317,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        16,
+        17,
         "the toggle roster changed size — update this sweep deliberately"
     );
     for row in toggle_rows {

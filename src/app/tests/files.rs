@@ -580,7 +580,7 @@ fn keymap_picker_accept_applies_persists_notifies_and_live_reapplies() {
 /// writing nits / outline / menu bar / reduce motion) is back to its
 /// pre-test value by the time the lock releases — no leak into a sibling
 /// test, mirroring the `page::measure()` save/restore convention used
-/// elsewhere in this file. (15 toggles: "File visibility" joined the roster,
+/// elsewhere in this file. (17 toggles: "File visibility" joined the roster,
 /// "Keymap" left it for a Picker.)
 #[test]
 fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
@@ -601,7 +601,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        16,
+        17,
         "the toggle roster changed size — update this sweep deliberately"
     );
 

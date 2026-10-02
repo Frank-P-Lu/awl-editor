@@ -3,10 +3,10 @@
 use super::*;
 
 impl TextPipeline {
-    /// Refine only visible range captions against their measured readout and
-    /// the rail's authored room. Re-shaping the real row buffer preserves every
-    /// font, highlight and baseline decision; non-range captions stay intact.
-    pub(super) fn fit_overlay_range_names(
+    /// Settings controls share one measured value lane. Fit every caption
+    /// against its width so a long checkbox label cannot drop the whole lane;
+    /// range captions additionally reserve the rail's authored room.
+    pub(super) fn fit_overlay_control_names(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
@@ -18,7 +18,7 @@ impl TextPipeline {
         if self.overlay_ranges.is_empty() {
             return;
         }
-        let secondary = self.overlay_row_secondary_px(plan);
+        let value_w = self.widest_right_px();
         loop {
             let primary = self.overlay_row_primary_px(geom);
             let mut changed = false;
@@ -26,16 +26,16 @@ impl TextPipeline {
                 let Some(item) = row.item else {
                     continue;
                 };
-                if self.overlay_ranges.get(item).copied().flatten().is_none() {
-                    continue;
-                }
+                let room = if self.overlay_ranges.get(item).copied().flatten().is_some() {
+                    rowlayout::rail_min_room(row.height)
+                } else {
+                    rowlayout::GAP_CHARS as f32 * self.overlay_char_width()
+                };
                 let Some(caption) = rows.get_mut(row.display) else {
                     continue;
                 };
                 let measured = primary.get(&row.display).copied().unwrap_or(0.0);
-                let value_w = secondary.get(&row.display).copied().unwrap_or(0.0);
-                let budget =
-                    (text_w - value_w - rowlayout::rail_min_room(row.height) - 0.5).max(0.0);
+                let budget = (text_w - value_w - room - 0.5).max(0.0);
                 let chars = caption.chars().count();
                 if measured > budget && chars > 4 {
                     // The ratio reaches the likely fit in one pass. Each further

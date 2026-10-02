@@ -371,6 +371,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // test sandbox instead of leaving it where `AWL_SYMBOL_ATLAS_OUT`
         // pointed. `#[ignore]`d and env-gated, so an ordinary gate run never
         // reaches it; a torn write just means one re-run of the generator.
+        // The close-hover gallery writes disposable native capture sidecars,
+        // never a durable user store; rebuilding its frames replaces them.
+        ("render/tests/gutter_stack_pixels/accent.rs", 1),
         ("render/tests/symbol_atlas_gallery.rs", 1),
         // Disposable release-law fixtures write fake artifacts and checksums
         // under a ScratchDir; none is an app store or user document.
