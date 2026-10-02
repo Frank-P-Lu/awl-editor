@@ -126,10 +126,9 @@ struct Cell {
     labels: Vec<(usize, f32, f32)>,
 }
 
-/// A controlled flat-card crossing which makes BOTH sides of the budget rule
-/// observable. Settings' current roster genuinely yields on narrow cells, but
-/// no granted cell elides a name: treating a different visible row at another
-/// width as "payment" was the stale oracle this repair removes.
+/// A controlled flat-card crossing makes BOTH sides of the budget rule
+/// observable independently of Settings' caption-fitting policy. Payment is
+/// compared on the same row and geometry, never against a different row.
 fn assert_budget_mechanism_crosses(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -197,7 +196,7 @@ fn published_row_lanes_match_the_drawn_ink_and_the_clickable_rail() {
             // These widths STRADDLE the accessory column's yield boundary on the
             // shipped roster, which is what makes `yielded_cells` non-zero and the
             // yielding state graded rather than only the comfortable one.
-            for &logical_width in &[464u32, 520, 640, 1200] {
+            for &logical_width in &[240u32, 320, 464, 520, 640, 1200] {
                 for &dpi in &[1.0f32, 2.0] {
                     let width = (logical_width as f32 * dpi).round() as u32;
                     let height = (800.0 * dpi).round() as u32;
