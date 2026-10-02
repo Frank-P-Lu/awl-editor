@@ -8,10 +8,12 @@
 
 **11 open numbered tasks:** 582, 666 and 669 await user review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
-The approved dots, selected close-hover accent, and adaptive caret implementation
-are in the combined integration candidate; their frozen aggregate gate and exact
-remote CI must pass before delivery. Native caret captures are complete; live
-desktop motion remains blocked by the locked/asleep display.
+Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
+(adaptive caret plus previous-character preference) are complete on main at
+`7f554e63`, with the frozen local gate and all four exact-SHA required CI jobs
+passed. Their implementation claims are closed. Native caret captures are
+complete; user proportion judgment and live desktop motion remain owed below.
+The latest display check still reports locked, asleep and inactive.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
 
@@ -195,8 +197,12 @@ Japanese typing evidence separately from replay and unreliable injected keys (66
 
 ### 666 — review the shorter Paperbark caret
 
-🔵 OWED — live caret proportion judgment. The shared full-ink block-padding
-reduction is implemented on main via `6b7efadb`, equivalent to source `c907f9e2`.
+🔵 OWED — live caret proportion judgment. The earlier shared block-padding
+reduction (`6b7efadb`, source `c907f9e2`) is superseded by the approved shared
+grapheme-ink adaptive caret (`bee5ec68`, integrated and verified at `7f554e63`).
+Matched Paperbark x/a/H/g/Å/W before/after and four-world Latin/CJK native captures
+are saved privately for review. Their automated bounds and mutation proof passed;
+they do not close the user's visual judgment or live motion review.
 Source `codex/666-paperbark-caret` at `f548f9b8` remains a recovery reference.
 
 Review matched before/after native release captures against the user's oversized
@@ -216,10 +222,13 @@ at `70eb217c`, including font routing (`46be9e14`) and document-evidence
 invalidation, is already on main. Integrated native/wasm and punctuation laws
 cover those implementation fixes; no source integration remains.
 
-The remaining 15 px Paperbark kana-to-caret gap was measured as a font-sidebearing
-and caret-width taste choice. Keep the current ink-hugging fill until the user
-judges matched captures of including leading punctuation-cell space versus the
-current treatment. Do not conflate that choice with the repaired font/cache defects.
+The earlier 15 px Paperbark kana-to-caret gap was a measured font-sidebearing
+and caret-width taste choice before the adaptive caret landed at `7f554e63`.
+Do not present that old measurement as current geometry. Review the current
+matched native Latin/CJK captures and remeasure the relevant punctuation case
+before asking whether to include leading punctuation-cell space. Preserve the
+current shared ink-hugging treatment pending judgment; the font/cache fixes and
+adaptive implementation are complete, while this visual choice remains open.
 
 ---
 
@@ -242,7 +251,15 @@ needs no further confirmation sitting.
 
 ## Latest recorded verification
 
-- **Current code `3df4dc9a64f940f466efa76b962e0306b14c61b1`:** the local frozen
+- **Current product code `7f554e63e5fa318370f0ab89b4cb171b09df1f19`:** the
+  frozen local `verify.sh full` passed native, wasm runtime and all eight
+  debug/release parity families. [Exact-SHA required CI](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36963886854)
+  completed successfully: Linux, Mac non-render, wasm and Mac live-probe all
+  passed. This closes implementation claims 668/672/673, including the Settings
+  caption-fit and native caret-contract integration repairs. Headless native
+  captures and automated input laws do not establish live motion, physical input,
+  external clipboard delivery or human accessibility acceptance.
+- **Earlier product baseline `3df4dc9a64f940f466efa76b962e0306b14c61b1`:** the local frozen
   composed gate passed. [Required CI](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36885217287)
   completed with all four gating jobs successful. [Extended verification](https://github.com/Frank-P-Lu/awl-editor/actions/runs/36885216205)
   passed on Linux and macOS: 640 captures per platform, zero findings, and both
@@ -261,6 +278,29 @@ probe/dependency gaps remain separate; required or extended success does not clo
 human accessibility or physical-input obligations. This queue reconciliation uses
 diff, heading, reference and status checks under `docs/verification.md`; receipts
 continue to name their actual tested commits. No new product gate is claimed.
+
+## Remaining execution and acceptance
+
+Assessment only: no additional journey suite or release rehearsal was launched.
+The code gate above is complete; do not repeat it merely to assess this board.
+
+| Remaining work | Available executor evidence | What still prevents closure |
+| --- | --- | --- |
+| 657 Files; 659 Settings/Themes | Seeded headless-App/release captures can check composition, geometry, focus state and cancellation with the existing built candidate | An awake, unlocked Mac for actual browsing, chooser, focus and theme-switching journeys; human appearance judgment |
+| 582 Kite; 666 Paperbark; 669 CJK; landed list-marker/Gumtree review | Preserved actual native images are ready; current CJK punctuation geometry can be measured headlessly | User taste answers; an awake, unlocked Mac for several-minute motion comfort, pause/focus/Reduce Motion and caret movement |
+| 658 physical query selection; 664 keyboard ingress; 665 Japanese IME | Existing route/App laws and diagnostic instrumentation are complete; disposable fixtures can be prepared | Physical Cmd-A/Backspace and Japanese composition in the focused Files query; unlocked desktop and supported automation permissions for comparing injected versus physical delivery |
+| 661 external browser paste | Static release fixtures and bulk-insertion receipts can be inspected | Genuine external OS clipboard delivery in Chrome, Safari and Firefox on an interactive desktop; record versions and keep field/document ownership distinct |
+| 662 macOS packaging | GitHub can run a credentialed nonpublishing rehearsal and inspect universal/signature/notarization/staple/Gatekeeper, compressed sizes and checksums; this is not blocked by the local screen lock | Actual hosted credential availability/operation and final DMG results remain unverified; a real unlocked Mac must launch the mounted app |
+| Linux desktop obligations | Hosted Linux CI is green and nonpublishing artifact checks can run remotely | A real x86_64 Linux desktop/operator for both package forms, launcher/FUSE, drawn-menu Export, and AT-SPI/Orca with audio and a person |
+| 663 release cut | The checklist and final public payload can be prepared after the preceding proof | Remaining acceptance and packaging results, then the user's explicit instruction for a specific tag/release; website deployment requires its own explicit instruction |
+
+The smallest next user steps are to unlock and keep the Mac awake for one seeded
+review session, physically try Files Cmd-A/Backspace and Japanese input, and judge
+the supplied caret/CJK and remaining theme images. That same session can cover
+browser paste and motion. Linux acceptance needs a Linux desktop/operator; it
+cannot be substituted by this Mac's captures. No signing setup question is owed;
+verify the confirmed setup by nonpublishing rehearsal. Ask for a release instruction
+only after the final artifacts and remaining acceptance are reviewable.
 
 ## Needs specific hardware
 
