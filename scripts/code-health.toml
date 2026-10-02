@@ -73,8 +73,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 [[file_size_mark]]
 file = "src/app/apply.rs"
 # +7: recording-only before/after receipts remain at the one action admission door.
-lines = 922
-reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Recording-only before/after receipts stay at that same action door; their state formatter is owned by input/trace.rs."
+lines = 928
+reason = "This file is the live App action interpreter: it preserves one pre-apply door, surface gates, and exhaustive effect dispatch for native and browser actions. Browser Search in folder refuses before any picker gather or storage read, while unsupported browser Yank is refused at the same action boundary. Recording-only before/after receipts stay at that same action door; their state formatter is owned by input/trace.rs. Files navigation borrows cached project inputs at this same action seam, while its builder owns lazy roster gathering; the active path is copied before the mutable document borrow."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"

@@ -2,30 +2,61 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::overlay::{OverlayKind, OverlayState, PickerInput};
+use crate::overlay::{GotoInputs, OverlayKind, OverlayState, PickerInput};
 
-pub(super) struct FilesOverlayBuilder {
-    root: PathBuf,
-    corpus: Vec<String>,
-    open: Vec<usize>,
-    recent: Vec<usize>,
+use super::overlay_inputs::root_relative;
+use crate::app::location::ProjectLocation;
+
+pub(super) struct FilesOverlayBuilder<'a> {
+    location: &'a ProjectLocation,
+    default_folder: &'a Path,
+    active_path: Option<PathBuf>,
 }
 
-impl FilesOverlayBuilder {
-    pub(super) fn new(root: PathBuf, input: Option<&PickerInput<'_>>) -> Self {
-        match input {
-            Some(PickerInput::Goto(inputs)) => Self {
-                root,
-                corpus: inputs.corpus.clone(),
-                open: inputs.open.clone(),
-                recent: inputs.recent.clone(),
-            },
-            _ => Self {
-                root,
-                corpus: Vec::new(),
-                open: Vec::new(),
-                recent: Vec::new(),
-            },
+impl<'a> FilesOverlayBuilder<'a> {
+    pub(super) fn new(
+        location: &'a ProjectLocation,
+        default_folder: &'a Path,
+        active_path: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            location,
+            default_folder,
+            active_path,
+        }
+    }
+
+    /// Summon and directory navigation share the cached root-wide roster.
+    /// Gather lazily: ordinary query edits neither copy it nor read metadata.
+    pub(super) fn inputs(&self) -> GotoInputs {
+        let location = self.location;
+        let recency_now = (location.root == crate::buffers::normalize_path(self.default_folder))
+            .then(crate::clock::system_now);
+        let (corpus, times) =
+            crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
+        let active_rel = self
+            .active_path
+            .as_deref()
+            .and_then(|path| root_relative(path, &location.root));
+        let open = corpus
+            .iter()
+            .enumerate()
+            .filter(|(_, candidate)| Some(*candidate) == active_rel.as_ref())
+            .map(|(index, _)| index)
+            .collect();
+        let recent = location
+            .recent_files
+            .iter()
+            .filter_map(|path| root_relative(path, &location.root))
+            .filter_map(|rel| corpus.iter().position(|candidate| *candidate == rel))
+            .collect();
+        GotoInputs {
+            corpus,
+            open,
+            recent,
+            times,
+            headings: Vec::new(),
+            line_count: 0,
         }
     }
 
@@ -46,23 +77,21 @@ impl FilesOverlayBuilder {
         recent_projects: &[String],
     ) -> Option<OverlayState> {
         if kind == OverlayKind::Goto {
-            let overlay = OverlayState::new_files(
-                self.corpus.clone(),
-                self.open.clone(),
-                self.recent.clone(),
-                rel.clone(),
-            );
+            let input = self.inputs();
+            let mut overlay =
+                OverlayState::new_files(input.corpus, input.open, input.recent, rel.clone());
+            overlay.set_times(input.times);
             return Some(self.attach_level(overlay, rel.as_deref()));
         }
-        crate::overlay::browse_level(kind, rel, &self.root, workspace, recent_projects)
+        crate::overlay::browse_level(kind, rel, &self.location.root, workspace, recent_projects)
     }
 
     fn attach_level(&self, mut overlay: OverlayState, rel: Option<&str>) -> OverlayState {
-        overlay.set_files_root_name(crate::project::folder_name(&self.root));
+        overlay.set_files_root_name(crate::project::folder_name(&self.location.root));
         let prefix = rel
             .filter(|path| !path.is_empty())
             .map(|path| format!("{path}/"));
-        let level = crate::index::try_list_dir_level(&self.root, rel);
+        let level = crate::index::try_list_dir_level(&self.location.root, rel);
         let non_text =
             crate::overlay::non_text_level_files(rel, level.as_deref().unwrap_or_default());
         overlay.exclude_files(&non_text);

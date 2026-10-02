@@ -483,8 +483,14 @@ impl App {
             &config_linux_keep,
             config_keymap_flavor,
         );
-        let files_builder =
-            files_overlay::FilesOverlayBuilder::new(project_root.clone(), picker_input.as_ref());
+        let files_builder = files_overlay::FilesOverlayBuilder::new(
+            &self.project_location,
+            &self.config.default_folder,
+            self.document
+                .buffer_opt()
+                .and_then(|buffer| buffer.path())
+                .map(std::path::Path::to_path_buf),
+        );
         let mut make_overlay = |kind| {
             picker_input
                 .as_ref()

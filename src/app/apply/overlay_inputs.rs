@@ -16,18 +16,9 @@ pub(super) struct OverlayInputs {
     pub(super) search_incomplete: bool,
 }
 
-pub(super) struct GotoInputs {
-    pub(super) goto_corpus: Vec<String>,
-    pub(super) goto_times: Vec<String>,
-    pub(super) goto_open: Vec<usize>,
-    pub(super) goto_recent: Vec<usize>,
-    pub(super) goto_headings: Vec<(String, usize)>,
-    pub(super) goto_line_count: usize,
-}
-
 /// `path` root-relativized against `root` (`/`-separated, matching every
-/// `goto_corpus` entry's own spelling) — the ONE comparison owner for
-/// `gather_goto_inputs`'s two identity checks below. `path` is canonicalized
+/// indexed entry's own spelling) — the comparison owner for both active and
+/// recent file identities. `path` is canonicalized
 /// FIRST, through the same [`crate::buffers::normalize_path`] `root` (already
 /// canonical — [`crate::app::ProjectLocation::new`]/`App::set_root`) was
 /// resolved through: `Buffer::path()` and a persisted `recent_files` entry
@@ -40,7 +31,7 @@ pub(super) struct GotoInputs {
 /// alias class `App::set_root` already resolves) fails `strip_prefix` and the
 /// file silently drops out of both the active-file marker and the Recent lens
 /// bucket, though it is really there.
-fn root_relative(path: &std::path::Path, root: &std::path::Path) -> Option<String> {
+pub(super) fn root_relative(path: &std::path::Path, root: &std::path::Path) -> Option<String> {
     crate::buffers::normalize_path(path)
         .strip_prefix(root)
         .ok()
@@ -48,7 +39,7 @@ fn root_relative(path: &std::path::Path, root: &std::path::Path) -> Option<Strin
 }
 
 impl App {
-    pub(super) fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
+    pub(super) fn gather_goto_inputs(&mut self, action: &Action) -> crate::overlay::GotoInputs {
         if matches!(
             action,
             Action::OpenGoto
@@ -59,30 +50,16 @@ impl App {
         ) {
             self.rescan_file_index();
         }
-        let location = &self.project_location;
-        let recency_now = (location.root
-            == crate::buffers::normalize_path(&self.config.default_folder))
-        .then(crate::clock::system_now);
-        let (goto_corpus, goto_times) =
-            crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
-        let active_rel = self
-            .document
-            .buffer_opt()
-            .and_then(|buffer| buffer.path())
-            .and_then(|path| root_relative(path, &location.root));
-        let goto_open = goto_corpus
-            .iter()
-            .enumerate()
-            .filter(|(_, candidate)| Some(*candidate) == active_rel.as_ref())
-            .map(|(index, _)| index)
-            .collect();
-        let goto_recent = location
-            .recent_files
-            .iter()
-            .filter_map(|path| root_relative(path, &location.root))
-            .filter_map(|rel| goto_corpus.iter().position(|candidate| *candidate == rel))
-            .collect();
-        let goto_headings = if matches!(
+        let mut inputs = super::files_overlay::FilesOverlayBuilder::new(
+            &self.project_location,
+            &self.config.default_folder,
+            self.document
+                .buffer_opt()
+                .and_then(|buffer| buffer.path())
+                .map(std::path::Path::to_path_buf),
+        )
+        .inputs();
+        inputs.headings = if matches!(
             action,
             Action::OpenGoto
                 | Action::OpenProject
@@ -102,7 +79,7 @@ impl App {
         };
         // Go to Line's numeric companion: ANY buffer, not only markdown --
         // the same summon gate as `goto_headings`, minus the markdown check.
-        let goto_line_count = if matches!(
+        inputs.line_count = if matches!(
             action,
             Action::OpenGoto
                 | Action::OpenProject
@@ -115,14 +92,7 @@ impl App {
         } else {
             0
         };
-        GotoInputs {
-            goto_corpus,
-            goto_times,
-            goto_open,
-            goto_recent,
-            goto_headings,
-            goto_line_count,
-        }
+        inputs
     }
 
     pub(super) fn gather_picker_input<'a>(
@@ -166,26 +136,9 @@ impl App {
         action: &Action,
     ) -> Option<crate::overlay::PickerInput<'a>> {
         match kind {
-            crate::overlay::OverlayKind::Goto => {
-                let GotoInputs {
-                    goto_corpus,
-                    goto_times,
-                    goto_open,
-                    goto_recent,
-                    goto_headings,
-                    goto_line_count,
-                } = self.gather_goto_inputs(action);
-                Some(crate::overlay::PickerInput::Goto(
-                    crate::overlay::GotoInputs {
-                        corpus: goto_corpus,
-                        open: goto_open,
-                        recent: goto_recent,
-                        times: goto_times,
-                        headings: goto_headings,
-                        line_count: goto_line_count,
-                    },
-                ))
-            }
+            crate::overlay::OverlayKind::Goto => Some(crate::overlay::PickerInput::Goto(
+                self.gather_goto_inputs(action),
+            )),
             crate::overlay::OverlayKind::Spell => {
                 let OverlayInputs { spell_target, .. } = self.gather_overlay_inputs(action);
                 Some(crate::overlay::PickerInput::Spell(spell_target))

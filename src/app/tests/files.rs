@@ -1,5 +1,7 @@
 use super::*;
 
+mod navigation;
+
 /// A transparent filesystem probe used to make Files' I/O boundary observable:
 /// directory walks remain free, while every whole-file read is recorded.
 #[derive(Clone)]
