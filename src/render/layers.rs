@@ -510,37 +510,8 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        // The caret has two selectable LOOKS (block vs glyph-silhouette morph).
-        // Exactly one of the two pipelines emits geometry per frame; the other is
-        // cleared so nothing stale lingers when the mode (or fallback) changes.
-        //
-        // BLOCK: `caret_geometry` reads the spring's settle factor to interpolate
-        // between the resting rounded square (full advance width) and the moving
-        // trailing-underline streak, and the real glyph advance so a full-width CJK
-        // glyph gets a full-width block (Latin keeps caret_w). Drawn UNDER the text.
-        //
-        // MORPH has three sub-cases, all keyed off the spring:
-        //   * FAST MOTION (settle_factor < SHOW threshold) → DEFER to the BLOCK
-        //     pipeline's trailing-underline STREAK. Holding an arrow / a big jump
-        //     makes the spring lag, settle drops toward 0, and the streak shows; the
-        //     per-glyph silhouette would strobe badly during travel, so we don't
-        //     paint it until motion settles.
-        //   * SETTLED on a real INHABITED glyph → paint the accent SILHOUETTE
-        //     (glyph pipeline, OVER the text) with its glyph-to-glyph cross-fade
-        //     as it lands.
-        //   * NOTHING to inhabit → a SLIM accent bar via the BLOCK pipeline (a
-        //     thin I-beam, not a full block). Two flavours below: a LINE START
-        //     (col 0 — no produced glyph before the insertion point) degrades to
-        //     the I-beam's insertion bar at the insertion x; a GLYPHLESS anchor
-        //     past col 0 (the space just typed / emoji) keeps the cell-centered
-        //     space bar.
-        // THE 1-BIT CARET ROUND: `caret_invert` is parked EMPTY up front, so
-        // any branch that does NOT draw a block-look caret this frame —
-        // Ibeam, or (on an ORDINARY world) the morph silhouette / glyphless
-        // bar — and a live theme switch AWAY from a one-bit world never
-        // leaves a stale rect from a PRIOR frame's inverted block still
-        // drawing. Only `prepare_caret_block`, when it runs on a one-bit
-        // world, repopulates it with this frame's real rect.
+        // Block and insertion-bar frames share the latched geometry. Park the
+        // inverse pass first so a style or world change cannot retain an old quad.
         self.caret_invert.prepare(device, queue, width, height, &[]);
         // A READ-ONLY PROSE SURFACE DRAWS NO CARET. The caret is awl's one
         // accent and it means "you can write here" (DESIGN §one accent); while
@@ -584,69 +555,10 @@ impl TextPipeline {
             self.caret_glyph_pipeline.clear();
             return;
         }
-        // MORPH FOLDS TO BLOCK ON AN INK-CARET WORLD (both special block styles;
-        // documented call — see CLAUDE.md's "1-bit Wagtail caret" round /
-        // `caret_invert`'s field doc + `CaretBlockStyle::folds_morph_to_block`):
-        // the glyph-silhouette look recolors the cursor's own letter to `primary`,
-        // which on an ink-caret world is the SAME value as the letter's own ink —
-        // an invisible no-op recolor (Wagtail's white-on-white), or, for a Filled
-        // world, a green silhouette that vanishes into the green block beneath it.
-        // Building a distinct glyph-morph for that would be per-glyph pipeline work
-        // for a mode whose selling point (a colored accent letter) doesn't exist
-        // when the caret IS the ink; the block path already makes the letter
-        // legible (InverseVideo flips it, Filled knocks it out), so Morph degrades
-        // to Block here. Ibeam is UNCHANGED — its thin bar sits BETWEEN glyph
-        // cells, never over one, so it never collides with a glyph's own ink.
-        // Read the PER-FRAME latched look (`caret_look`), not the live global, so
-        // the paint path agrees with the geometry — and so a live drag's insertion
-        // BAR override (`ViewState::selecting_drag`, latched into `caret_look`)
-        // reaches the draw path too. When not dragging, `caret_look` == the global,
-        // so every non-drag frame is byte-identical.
-        let mode = self.effective_caret_look();
-        let settle = self.caret.settle_factor();
-        let has_glyph = mode == CaretMode::Morph && self.prepare_caret_masks(device, queue);
-        let paint_silhouette = has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
-        let paint_space_bar =
-            mode == CaretMode::Morph && !has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
-        if mode == CaretMode::Ibeam {
+        // The latched anchor preference selects the insertion bar at a row start;
+        // every other Block frame uses the same adaptive rectangle.
+        if self.caret_is_bar_form() {
             let (cx, cy, cw, ch, ccorner) = self.caret_ibeam_geometry();
-            let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
-            self.caret_pipeline.prepare(
-                queue,
-                width,
-                height,
-                CaretRect {
-                    center_x: cx,
-                    center_y: cy,
-                    rect_w: cw,
-                    rect_h: ch,
-                    corner: ccorner,
-                },
-            );
-            self.caret_glyph_pipeline.clear();
-        } else if paint_silhouette {
-            self.prepare_morph_body_or_empty(device, queue, width, height);
-            let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
-            self.caret_glyph_pipeline.prepare(
-                device,
-                queue,
-                width,
-                height,
-                self.caret_mask_from.as_ref(),
-                from_box,
-                self.caret_mask_to.as_ref(),
-                to_box,
-                morph_t,
-                1.0,
-                self.metrics.px(CARET_MORPH_DILATE_PX),
-            );
-        } else if paint_space_bar {
-            let (cx, cy, cw, ch, ccorner) =
-                if crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col()) {
-                    self.caret_linestart_bar_geometry()
-                } else {
-                    self.caret_space_bar_geometry()
-                };
             let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
             self.caret_pipeline.prepare(
                 queue,
@@ -668,22 +580,9 @@ impl TextPipeline {
         self.prepare_caret_trail(queue, width, height);
     }
 
-    /// BLOCK-caret upload — the settle-driven resting square ⇄ trailing-underline
-    /// streak, oriented along the true travel vector. The fast-travel MORPH path
-    /// defers here too (the per-glyph silhouette would strobe), so this is the shared
-    /// block/streak draw. Lifted verbatim out of [`prepare_caret_layer`]'s final
-    /// dispatch arm; byte-identical on every ORDINARY world — see the one-bit branch
-    /// at the bottom (added by THE 1-BIT CARET ROUND) for the true-inverse-video path.
-    ///
-    /// This site computes NO geometry of its own. The caret's vertical
-    /// extent — the anchored glyph's padded INK BOX on a proportional world, the
-    /// row-scaled line cell WITH its descender-aware bottom on a mono / ligature /
-    /// glyphless anchor — belongs entirely to `caret_cell_vertical`, folded into
-    /// `caret_geometry`'s rest endpoints. Re-deriving the descender extension
-    /// HERE, off the already motion-blended rect, keeps a second vertical rule
-    /// at the draw site — which is exactly how the top edge comes to disagree
-    /// with the bottom. `render::tests::caret_ink_box`'s grep-law fails if a raster
-    /// box, a descender depth or a line-cell height reappears in this file.
+    /// Upload the adaptive rectangle and travel streak from the shared geometry
+    /// owner. Filled restores source-weight glyph coverage; InverseVideo swaps
+    /// the covered roles after text. No secondary geometry is derived here.
     pub(super) fn prepare_caret_block(
         &mut self,
         device: &wgpu::Device,
@@ -715,7 +614,7 @@ impl TextPipeline {
                     [ax, ay],
                 );
                 let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
-                if settled && self.prepare_caret_masks(device, queue) {
+                if settled && self.prepare_adaptive_knockout(device, queue) {
                     self.caret_glyph_pipeline
                         .set_color(theme::primary_content().rgb_bytes());
                     let (from_box, to_box, morph_t) = self.caret_glyph_geometry();

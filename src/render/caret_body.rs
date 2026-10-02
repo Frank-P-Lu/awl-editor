@@ -1,8 +1,7 @@
-//! CARET BODY — the shared minimum resting silhouette for proportional carets.
+//! Shared padded rectangular caret dimensions.
 //!
 //! The geometry owner supplies real raster ink. This owner turns it into the
-//! visible Block body and decides whether a settled Morph needs that same body
-//! behind its recoloured glyph, with no punctuation or world identity branch.
+//! visible Block body, with no punctuation or world identity branch.
 
 use super::*;
 
@@ -36,9 +35,8 @@ impl InkBox {
 pub(super) const CARET_VISUAL_BODY_MIN_W: Logical = Logical(6.5);
 pub(super) const CARET_VISUAL_BODY_MIN_H: Logical = Logical(12.0);
 pub(super) const CARET_VISUAL_BODY_MIN_AREA: Area = Area(96.0);
-/// The restrained margin around a full-ink envelope, which already contains
-/// the face's tallest ascender and deepest descender.
-pub(super) const CARET_BLOCK_INK_PAD: Logical = Logical(1.0);
+/// The restrained margin around the complete shaped grapheme ink.
+pub(super) const CARET_BLOCK_INK_PAD: Logical = Logical(2.0);
 
 /// A quantity in SQUARE logical pixels — an AREA floor, not a length. The
 /// newtype carries no `.px()`, only [`Self::px2`], so an area constant cannot
@@ -66,7 +64,7 @@ pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
 
 /// The shared body floor with an explicit vertical margin. The ordinary
 /// glyph-responsive and typical-letter paths use [`CARET_INK_PAD`]; the Block
-/// caret's already-full face envelope supplies [`CARET_BLOCK_INK_PAD`]. Width
+/// adaptive Block rectangle supplies [`CARET_BLOCK_INK_PAD`]. Width
 /// and area floors remain identical, so this is one body policy with one
 /// data-driven vertical input rather than a second caret renderer.
 pub(super) fn caret_visual_body_dims_with_pad(
@@ -83,77 +81,4 @@ pub(super) fn caret_visual_body_dims_with_pad(
         h *= grow;
     }
     (w, h)
-}
-
-impl TextPipeline {
-    /// The sole Morph support decision: prepare its shared body or clear a
-    /// previous frame's block before the glyph silhouette draws.
-    pub(super) fn prepare_morph_body_or_empty(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-    ) {
-        let ink = self.caret_anchor_ink_box();
-        // The height asked of the CELL OWNER (`caret_cell_vertical`), never
-        // re-derived here: a second derivation is how the support body starts
-        // answering a question about a rect the renderer does not draw.
-        let (_, h) = self.caret_cell_vertical();
-        let needs_body = ink.is_some_and(|ink| {
-            let px = self.metrics.scale;
-            let (w, _) = caret_visual_body_dims(ink, px);
-            let glyph_h = ink.height + 2.0 * CARET_INK_PAD.px(px);
-            // The comparison baseline carries BOTH pads a real anchor always
-            // gets (`caret_visual_body_dims`'s own additive margins), not the
-            // bare raster ink: a body is needed only when the WIDTH/AREA
-            // FLOOR pushes the cell past what the uniform pad alone already
-            // guarantees, so growing the pad cannot silently enrol every
-            // anchor into the drawn-body arm — only the floor still can.
-            let glyph_w = ink.width + 2.0 * CARET_INK_PAD_W.px(px);
-            // ⚠️ EXCESS IN EITHER AXIS, deliberately not COVERAGE IN BOTH. One
-            // height per row means the cell can be SHORTER than the glyph on it
-            // — a `;`, a `[` — and a body that does not reach the whole letter
-            // leaves it half-lit: the glyph on top is recoloured to ordinary
-            // prose ink on the assumption that the accent is behind all of it,
-            // so a tall mark reads as a dark silhouette with a sliver of accent
-            // beside it.
-            //
-            // Requiring coverage instead — dropping the body, letting the glyph
-            // carry the accent in its own silhouette — is the WRONG trade, and
-            // the roster says so by name: `caret_punctuation_color`'s
-            // "the caret must not change a covered glyph's colour, only sit
-            // behind it" goes red on Bowerbird's `;` the moment such a mark
-            // takes the bodyless arm. A mark that keeps its own colour under a
-            // partial body is worth more than one lit end to end in an accent
-            // that is not its ink.
-            w > glyph_w + f32::EPSILON || h > glyph_h + f32::EPSILON
-        });
-        if needs_body {
-            self.prepare_caret_block(device, queue, width, height);
-            // The support body is the accent (`primary`), drawn behind the glyph,
-            // on an ordinary Normal-caret-style world (a Filled/InverseVideo world
-            // folds Morph to Block before this function is ever reached — see
-            // `folds_morph_to_block`), where `primary` is a genuine accent distinct
-            // from the page's own text ink. The glyph therefore needs NO contrast
-            // correction at all: ordinary prose ink (`base_content`) already reads
-            // over the accent body exactly as it reads over any other surface —
-            // that is the whole "one accent, ink by value" rule (DESIGN.md).
-            // `primary_content` must NOT be read here: it is the colour authored to
-            // sit ON TOP of a FILLED ink-caret block, where `primary ==
-            // base_content` and a second copy of the same ink would vanish into it
-            // (see `prepare_caret_block`'s `CaretBlockStyle::Filled` arm, the only
-            // other caller of `primary_content` on this path) — reading it on an
-            // ordinary world recolours every landed mark in a colour with no
-            // relation to the page's own ink or the world's accent, and on a world
-            // where `primary_content` happens to sit close to the page ground, the
-            // glyph reads as nearly swallowed.
-            self.caret_glyph_pipeline
-                .set_color(theme::base_content().rgb_bytes());
-        } else {
-            self.caret_pipeline.prepare_empty();
-            self.caret_glyph_pipeline
-                .set_color(theme::primary().rgb_bytes());
-        }
-    }
 }

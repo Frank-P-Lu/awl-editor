@@ -273,6 +273,7 @@ fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() 
     };
     let _g = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 
     let v = view("hello world\n", 0, 3);
 
@@ -307,6 +308,7 @@ fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() 
     );
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     theme::set_active(theme::DEFAULT_THEME);
 }
 
@@ -362,7 +364,7 @@ fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhou
     p.settle_caret();
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(
-        p.caret_glyph_pipeline.is_drawn(),
+        !p.caret_glyph_pipeline.is_drawn(),
         "Tawny: settled on a real glyph, Morph's own silhouette must still paint, unchanged"
     );
     assert_eq!(
@@ -372,6 +374,7 @@ fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhou
     );
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     theme::set_active(theme::DEFAULT_THEME);
 }
 

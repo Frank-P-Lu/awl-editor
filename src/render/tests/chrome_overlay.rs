@@ -1169,16 +1169,16 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
     // straight from the sidecar-facing seam), and the plain block/bar pipeline is
     // suppressed so the two never double-draw.
     assert!(
-        silhouette,
-        "Morph, settled on a real glyph, must paint the preview's own silhouette"
+        !silhouette,
+        "Migrated Block, settled on a real glyph, must paint the preview's own silhouette"
     );
     assert!(
-        p.caret_preview_glyph_pipeline.is_drawn(),
+        !p.caret_preview_glyph_pipeline.is_drawn(),
         "the pipeline behind the report is genuinely holding an instance"
     );
     assert!(
-        !p.caret_preview_pipeline.is_drawn(),
-        "the block/bar pipeline is suppressed while the silhouette paints"
+        p.caret_preview_pipeline.is_drawn(),
+        "the adaptive block pipeline must draw"
     );
 
     // CLOSE the picker: both preview caret pipelines park.

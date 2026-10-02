@@ -18,7 +18,7 @@ flag_roster! {
     // ---- CAPTURE MODES: `awl <flag> …`, listed at the top of `--help`. -------
     Screenshot: &["--screenshot"], Modes, Shown,
         &[Operand::req("OUT.png", "requires an output path")],
-        "caret at rest (rounded square)";
+        "caret at rest (adaptive padded block)";
     ScreenshotMotion: &["--screenshot-motion"], Modes, Shown,
         &[Operand::req("OUT.png", "requires an output path")],
         "caret mid-glide (centred trailing streak)";
@@ -116,8 +116,11 @@ flag_roster! {
             "exit — run from the repo root; see scripts/package-appimage.sh",
         );
     CaretMode: &["--caret-mode"], Options, Shown,
-        &[Operand::req("MODE", "requires 'block' or 'morph'")],
-        "caret look: block, morph, ibeam (default: block, on every world)";
+        &[Operand::req("MODE", "requires 'block' or 'ibeam'")],
+        concat!(
+            "caret look: block or ibeam (default: block, on every world); ",
+            "legacy morph highlights the previous character",
+        );
     CaptureSize: &["--capture-size"], Options, Shown,
         &[Operand::req("WxH", "requires WxH (e.g. 2400x1600)")],
         "physical canvas size for the capture (default 1200x800)";

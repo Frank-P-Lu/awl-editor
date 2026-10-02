@@ -1,26 +1,7 @@
-//! The glyph-silhouette ("Morph") caret pipeline: a parallel pipeline to
-//! [`crate::caret::CaretPipeline`] that draws the caret as the INHABITED GLYPH'S
-//! SHAPE filled SOLID in the accent — the glyph ONE char BEFORE the insertion
-//! point, the letter you just typed/passed (`abc|` silhouettes the `c`; see
-//! [`crate::caret::morph_anchor_col`] — at a line start / empty line it falls
-//! back to the cursor cell) — cross-fading between the previously- and
-//! newly-inhabited glyph as the caret glides. NO glow, NO halo, NO soft falloff — the caret is
-//! eye-catching by COLOUR alone. The silhouette IS expanded by a small HARD,
-//! uniform dilation (a morphological max over a ring of taps, see the shader) so
-//! it reads a touch bolder than the letter, but it stays SOLID in the one accent
-//! colour — a fatter version of the same letter, not a tapered glow.
-//!
-//! Where [`CaretPipeline`](crate::caret::CaretPipeline) rasterizes a rounded rect
-//! in the shader, this pipeline samples TWO small per-glyph coverage MASKS (R8
-//! alpha textures, CPU-rasterized from the same swash cache glyphon uses) and
-//! paints the accent through their cross-faded union. Unlike the block caret it
-//! draws OVER the document text (after the glyph pass), so the accent silhouette
-//! lands exactly on the real letter and RECOLOURS it — the cursor's letter reads
-//! as the accent hue rather than a black letter with a coloured ring around it.
-//!
-//! The renderer owns the mask rasterization (it has `font_system` + `swash_cache`)
-//! and hands this pipeline the two textures + the per-instance geometry each frame.
-//! Block mode is left completely untouched; this is a clean parallel pipeline.
+//! True-weight glyph coverage for Filled block carets.
+//! The renderer composes positioned glyphs of the anchored grapheme into one
+//! cached R8 mask. This post-text pass knocks covered ink through the block in
+//! the world's content colour; ordinary blocks draw through the rectangle pass.
 
 /// A single CPU-rasterized glyph coverage mask uploaded to a small R8 texture,
 /// cached by the cosmic-text [`glyphon::CacheKey`] that produced it (glyph id +

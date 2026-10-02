@@ -249,6 +249,8 @@ impl TextPipeline {
         // form) for the duration of the drag — the drag bar. This is the
         // ONE seam that resolves the effective look, so every reader (geometry
         // AND the paint path, which read `self.caret_look`) sees the same form.
+        self.caret_highlight_previous =
+            !view.selecting_drag && crate::caret::highlight_previous_character();
         self.caret_look = if view.selecting_drag {
             CaretMode::Ibeam
         } else {
@@ -494,8 +496,8 @@ impl TextPipeline {
         if self.overlay_active && self.overlay_is_workspace() {
             self.workspace_primary_w = self.measure_workspace_primary_w();
         }
-        self.caret_preview = view.caret_preview;
-        match view.caret_preview {
+        self.caret_preview = view.caret_preview.map(caret::canonical_caret_look);
+        match self.caret_preview {
             Some(look) => self.caret_demo.mode = look,
             None => self.caret_demo.reset(),
         }

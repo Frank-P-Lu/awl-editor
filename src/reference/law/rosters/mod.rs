@@ -41,6 +41,7 @@ fn every_config_field_is_documented() {
         page_width_prose,
         page_width_code,
         caret_mode,
+        highlight_previous_character,
         dictionary,
         writing_nits,
         spellcheck,

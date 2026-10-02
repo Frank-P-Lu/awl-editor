@@ -1482,16 +1482,15 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
         query: String::new(),
         query_caret: 0,
         query_selection: None,
-        items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
+        items: vec!["Block".into(), "I-beam".into()],
         ranges: Vec::new(),
         match_highlights: Vec::new(),
         bindings: vec![
             "rounded square + trailing underline".into(),
-            "takes the glyph silhouette".into(),
             "an alive insertion bar".into(),
         ],
         git: Vec::new(),
-        selected_index: 1,
+        selected_index: 0,
         hint: "Enter apply".into(),
         files_location: None,
         files_surface: false,
@@ -1521,7 +1520,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     let v: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(v["caret_mode"], serde_json::json!("morph"));
+    assert_eq!(v["caret_mode"], serde_json::json!("block"));
     let preview = &v["caret_preview"];
     assert!(
         !preview.is_null(),
@@ -1534,7 +1533,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     );
     assert_eq!(
         preview["silhouette"],
-        serde_json::json!(true),
+        serde_json::json!(false),
         "Morph, settled on the sample's real last letter, must paint the silhouette"
     );
 

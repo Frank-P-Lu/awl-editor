@@ -191,7 +191,7 @@ pub const CARET_INK_PAD: Logical = Logical(3.0);
 /// (`proportional_worlds_take_one_caret_top_at_every_letter`) already sits
 /// within a fraction of a pixel of its ceiling on the roster's tightest face,
 /// so this axis, not a taller pad, is where a modestly larger body has room.
-pub const CARET_INK_PAD_W: Logical = Logical(1.0);
+pub const CARET_INK_PAD_W: Logical = Logical(2.0);
 pub const CARET_STREAK_H: f32 = 2.8;
 pub const CARET_STREAK_MIN_LEN: f32 = 10.0;
 pub const CARET_STREAK_MAX_LEN: f32 = 64.0;
@@ -199,6 +199,7 @@ pub const CARET_STREAK_VEL_FULL: f32 = 2600.0;
 
 pub const CARET_TRAIL_TEXT_CENTER_DROP: f32 = 3.0;
 
+#[cfg(test)]
 pub const CARET_SPACE_BAR_W: Logical = Logical(3.0);
 
 pub const IBEAM_W: Logical = Logical(2.6);
@@ -211,6 +212,7 @@ pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 /// glyph's own crisp coverage, NOT a soft translucent glow or a tapered halo).
 /// Think "the same letter, a bit bolder, one solid accent colour." Resolved through
 /// [`Metrics::px`] on the CPU and passed per-instance to the shader.
+#[cfg(test)]
 pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 
 /// Clamp and quantize zoom through the shared authored range specification.
@@ -1573,9 +1575,11 @@ pub struct TextPipeline {
     /// INHABITED glyph at the anchor column), keyed by its `CacheKey` so it is
     /// only re-rasterized when the glyph / font / zoom (hence the key) changes.
     caret_mask_to: Option<GlyphMask>,
+    caret_mask_glyphs: Vec<(CacheKey, i32, i32)>,
     caret_mask_from: Option<GlyphMask>,
     caret_from_key: Option<CacheKey>,
     caret_look: CaretMode,
+    caret_highlight_previous: bool,
     pub background_pipeline: BackgroundPipeline,
     /// THE LAVA-LAMP GROUND ([`Background::Lava`]): a slow 2D metaball field
     /// painted MARGINS-ONLY, drawn right AFTER `background_pipeline` and BEFORE the
@@ -2510,9 +2514,6 @@ pub struct TextPipeline {
     roster_memo: [Option<(u64, f32)>; chrome::roster::ROSTER_SLOTS],
     caret_preview: Option<CaretMode>,
     caret_demo: crate::caret::CaretDemo,
-    caret_preview_mask_to: Option<GlyphMask>,
-    caret_preview_mask_from: Option<GlyphMask>,
-    caret_preview_from_key: Option<CacheKey>,
     gutter_name: String,
     gutter_project: String,
     gutter_changed: bool,

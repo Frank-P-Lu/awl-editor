@@ -172,7 +172,7 @@ pub(super) fn parse_flag_loop(ctx: &mut Ctx) -> Result<()> {
                     "morph" => caret::set_mode(caret::CaretMode::Morph),
                     "ibeam" => caret::set_mode(caret::CaretMode::Ibeam),
                     "auto" => {} // leave the universal Block default in effect
-                    _ => bail!("unknown --caret-mode {v:?}; choose block, morph, ibeam, or auto"),
+                    _ => bail!("unknown --caret-mode {v:?}; choose block, ibeam, or auto"),
                 }
                 ctx.caret_flag = true;
             }

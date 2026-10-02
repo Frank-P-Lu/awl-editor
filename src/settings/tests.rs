@@ -14,7 +14,7 @@ fn settings_table_names_are_unique() {
     assert_eq!(SETTINGS.len(), seen.len());
     assert_eq!(
         SETTINGS.len(),
-        32,
+        33,
         "corpus size changed — update this count deliberately (and the doc comments \
              at the top of settings.rs) rather than let it drift"
     );
@@ -742,6 +742,7 @@ impl SettingId {
     fn witness(self) {
         match self {
             SettingId::CaretStyle
+            | SettingId::HighlightPreviousCharacter
             | SettingId::PageMode
             | SettingId::TypewriterScroll
             | SettingId::ReduceMotion
@@ -781,6 +782,7 @@ impl SettingId {
 fn every_setting_id_maps_1_to_1_to_the_registry() {
     let roster: &[SettingId] = &[
         SettingId::CaretStyle,
+        SettingId::HighlightPreviousCharacter,
         SettingId::PageMode,
         SettingId::TypewriterScroll,
         SettingId::ReduceMotion,
@@ -816,7 +818,7 @@ fn every_setting_id_maps_1_to_1_to_the_registry() {
     roster.iter().for_each(|id| id.witness());
     assert_eq!(
         roster.len(),
-        32,
+        33,
         "the hand-listed roster changed size — update deliberately"
     );
     assert_eq!(roster.len(), SETTINGS.len(), "roster/registry size drifted");
@@ -994,7 +996,8 @@ fn the_complete_settings_roster_has_an_explicit_range_decision() {
             | SettingId::Dictionary
             | SettingId::CjkReadsAs
             | SettingId::Keymap => Some("discrete choice"),
-            SettingId::PageMode
+            SettingId::HighlightPreviousCharacter
+            | SettingId::PageMode
             | SettingId::TypewriterScroll
             | SettingId::ReduceMotion
             | SettingId::Wysiwyg

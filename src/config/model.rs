@@ -10,6 +10,7 @@ pub struct Config {
     pub page_width_prose: Option<usize>,
     pub page_width_code: Option<usize>,
     pub caret_mode: Option<String>,
+    pub highlight_previous_character: Option<bool>,
     pub dictionary: Option<String>,
     pub writing_nits: Option<bool>,
     pub spellcheck: Option<bool>,
@@ -58,6 +59,7 @@ impl Config {
             page_width_prose: None,
             page_width_code: None,
             caret_mode: None,
+            highlight_previous_character: None,
             dictionary: None,
             writing_nits: None,
             spellcheck: None,
@@ -310,13 +312,14 @@ fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
     cfg.stats = value("stats");
     cfg.file_visibility = value("file_visibility");
     cfg.reduce_motion = value("reduce_motion");
+    cfg.highlight_previous_character = value("highlight_previous_character");
     cfg.ambient_motion = value("ambient_motion");
 }
 
 pub fn caret_mode_name(m: crate::caret::CaretMode) -> &'static str {
     match m {
         crate::caret::CaretMode::Block => "block",
-        crate::caret::CaretMode::Morph => "morph",
+        crate::caret::CaretMode::Morph => "block",
         crate::caret::CaretMode::Ibeam => "ibeam",
     }
 }
@@ -324,7 +327,7 @@ pub fn caret_mode_name(m: crate::caret::CaretMode) -> &'static str {
 pub fn parse_caret_mode(s: &str) -> Option<crate::caret::CaretMode> {
     match s.trim().to_ascii_lowercase().as_str() {
         "block" => Some(crate::caret::CaretMode::Block),
-        "morph" => Some(crate::caret::CaretMode::Morph),
+        "morph" => Some(crate::caret::CaretMode::Block),
         "ibeam" => Some(crate::caret::CaretMode::Ibeam),
         _ => None,
     }

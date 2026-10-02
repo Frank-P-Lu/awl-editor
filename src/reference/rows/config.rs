@@ -117,6 +117,10 @@ const CONFIG_KEYS: &[ConfigKey] = &[
         ty: ConfigType::Choice(caret_modes),
     },
     ConfigKey {
+        key: "highlight_previous_character",
+        ty: ConfigType::Bool,
+    },
+    ConfigKey {
         key: "dictionary",
         ty: ConfigType::Choice(dictionaries),
     },

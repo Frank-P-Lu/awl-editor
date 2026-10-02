@@ -1158,11 +1158,14 @@ fn stale_autosnapshot_secs_key_is_ignored() {
 fn caret_mode_name_round_trips() {
     for m in [
         crate::caret::CaretMode::Block,
-        crate::caret::CaretMode::Morph,
         crate::caret::CaretMode::Ibeam,
     ] {
         assert_eq!(parse_caret_mode(caret_mode_name(m)), Some(m));
     }
+    assert_eq!(
+        parse_caret_mode("morph"),
+        Some(crate::caret::CaretMode::Block)
+    );
     // Case-insensitive; an unknown value is None (keep the default).
     assert_eq!(
         parse_caret_mode("IBEAM"),
@@ -1707,6 +1710,7 @@ fn apply_sticky_globals_restores_theme_page_caret_and_honours_flags() {
         page_width_prose: Some(50),
         page_width_code: Some(130),
         caret_mode: Some("ibeam".to_string()),
+        highlight_previous_character: None,
         ..Config::empty()
     };
     crate::page::set_page_on(true); // start opposite so the apply is observable
@@ -1751,6 +1755,7 @@ fn apply_sticky_globals_restores_theme_page_caret_and_honours_flags() {
     let bad = Config {
         theme: Some("NotAWorld".to_string()),
         caret_mode: Some("squiggle".to_string()),
+        highlight_previous_character: None,
         ..Config::empty()
     };
     bad.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
@@ -2095,4 +2100,47 @@ fn effective_linux_keep_a_duplicate_of_the_builtin_floor_does_not_double_count()
     cfg.linux_keep_emacs = vec!["Ctrl-k".to_string()]; // == "C-k", already the built-in floor
     let eff = cfg.effective_linux_keep();
     assert_eq!(eff.len(), crate::keymap::linux_builtin_keep().len());
+}
+
+#[test]
+fn legacy_morph_migrates_to_block_and_previous_character_preference() {
+    let _guard = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let mut cfg = Config::empty();
+    cfg.caret_mode = Some("morph".into());
+    cfg.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
+    assert!(crate::caret::highlight_previous_character());
+    cfg.highlight_previous_character = Some(false);
+    cfg.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::caret::highlight_previous_character(),
+        "explicit preference wins migration"
+    );
+    cfg.caret_mode = Some("block".into());
+    cfg.highlight_previous_character = None;
+    cfg.apply_sticky_globals(false, false, false, false, crate::page::PageClass::Prose);
+    assert!(
+        !crate::caret::highlight_previous_character(),
+        "ordinary insertion point is the default"
+    );
+}
+
+#[test]
+fn previous_character_preference_survives_canonical_style_writes() {
+    use std::sync::Arc;
+    let path = PathBuf::from("/cfg/config.toml");
+    crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
+        Config::write_pref(&path, "caret_mode", "\"morph\"").unwrap();
+        Config::write_pref(&path, "highlight_previous_character", "true").unwrap();
+        Config::write_pref(&path, "caret_mode", "\"block\"").unwrap();
+        let cfg = Config::load(path.clone());
+        assert_eq!(cfg.highlight_previous_character, Some(true));
+        assert_eq!(cfg.caret_mode.as_deref(), Some("block"));
+        Config::write_pref(&path, "highlight_previous_character", "false").unwrap();
+        assert_eq!(
+            Config::load(path.clone()).highlight_previous_character,
+            Some(false)
+        );
+    });
 }

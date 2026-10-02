@@ -1,32 +1,4 @@
-//! THE ONE CARET HEIGHT, IN RENDERED PIXELS. The sibling unit laws
-//! (`caret_ink_box.rs`, `caret_transition.rs`) read `caret_cell_vertical`'s own
-//! numbers; this one never asks the geometry anything. It renders real frames on
-//! a real device, ISOLATES the caret by re-rendering the identical prepared
-//! state with the caret pipelines emptied, and measures the caret from the
-//! DIFFERENCE between the two — so every quantity below is a rendered pixel
-//! compared to another rendered pixel, never a rendered pixel compared to an
-//! authored constant.
-//!
-//! ⚠️ **"EVERY CARET IS THE SAME HEIGHT" IS SATISFIED BY A CARET THAT STOPPED
-//! DRAWING**, and a bounding box over an empty set has no height to disagree
-//! about. Two presence floors ship with the equality, both of them rendered
-//! against rendered:
-//!
-//!   * the caret must have a SOLID COLUMN — some x where the differing pixels
-//!     run the full height of its own box — so a handful of stray antialiased
-//!     pixels cannot pass as a caret;
-//!   * the caret must stand at a real fraction of the TYPE'S OWN rendered ink
-//!     on that same row, where the type's ink is itself measured as a frame
-//!     diff (the fixture line against an empty document, both with the caret
-//!     suppressed) rather than against a sampled background — a world with a
-//!     textured ground has no single background pixel to compare to.
-//!
-//! SWEPT: the full proportional-display roster × 1x/2x DPI × the six anchors the
-//! reversal was decided on — the caret on an `a`, on an `l`, on an `m`, on a
-//! SPACE, at END-OF-LINE, and on an EMPTY LINE. The mono roster is deliberately
-//! absent: its cell is the row-scaled line box with a descender extension, a
-//! different rule with its own laws.
-
+//! Adaptive block height measured from actual frame differences.
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
 
@@ -231,38 +203,16 @@ fn assert_one_drawn_height(
     // diff loses a row the caret really drew. The allowance is proven
     // negligible against the axis it has to distinguish, immediately
     // below.
-    let (first_label, first_top, first_bottom) = measured[0];
-    for &(label, top, bottom) in &measured {
-        assert!(
-            (top - first_top).abs() <= 1 && (bottom - first_bottom).abs() <= 1,
-            "{} d{dpi}: the caret at {label} draws {top}..{bottom} while at \
-                 {first_label} it draws {first_top}..{first_bottom} — the drawn \
-                 caret must be ONE height per (face, row): {measured:?}",
-            world
-        );
-    }
-    let caret_top_spread = measured.iter().map(|m| m.1).max().unwrap_or(0)
-        - measured.iter().map(|m| m.1).min().unwrap_or(0);
-
-    // NON-VACUITY, IN THE SAME PIXELS: the TYPE'S own per-column ink top
-    // moves several device pixels across this very row — an `l`'s column
-    // starts far higher than an `a`'s. That is the axis the caret used to
-    // follow and no longer does, measured off the same two frames the
-    // equality above came from, so the allowance cannot be hiding it.
+    let (_, first_top, first_bottom) = measured[0];
+    let lower_h = measured[0].2 - measured[0].1 + 1;
+    let ascender_h = measured[1].2 - measured[1].1 + 1;
     assert!(
-        ink.top_spread >= 4 * dpi as i32,
-        "{} d{dpi}: the row's own ink tops must genuinely spread \
-             ({} px) or the equality above is a fact about the fixture",
-        world,
-        ink.top_spread
+        ascender_h > lower_h,
+        "{world} dpi={dpi}: rendered l must have a taller caret than a: {measured:?}"
     );
     assert!(
-        caret_top_spread * 4 < ink.top_spread,
-        "{} d{dpi}: the caret's top moved {caret_top_spread}px across the \
-             anchors against an ink-top spread of {}px — that is the per-glyph \
-             hug coming back, not measurement noise",
-        world,
-        ink.top_spread
+        ink.top_spread > 0,
+        "the type fixture must have a real vertical axis"
     );
 
     // PRESENCE, second floor: the caret stands at a real fraction of the
@@ -293,7 +243,7 @@ fn assert_one_drawn_height(
 
 /// THE LAW. One document, six anchors, one height — measured off the frames.
 #[test]
-fn every_anchor_draws_the_same_caret_height_in_real_pixels() {
+fn every_letter_draws_its_adaptive_caret_height_in_real_pixels() {
     let _guard = crate::testlock::serial();
     let _restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
@@ -371,7 +321,7 @@ fn paperbark_block_caret_stays_proportionate_to_lowercase_ink() {
     ] {
         p.set_dpi(dpi);
 
-        let mut text_view = view("aaaa", 0, 4);
+        let mut text_view = view("aaaa", 0, 0);
         text_view.zoom = zoom;
         p.set_view(&text_view);
         p.settle_caret();

@@ -62,6 +62,15 @@ impl Config {
         if !caret_flag && let Some(m) = self.caret_mode.as_deref().and_then(parse_caret_mode) {
             crate::caret::set_mode(m);
         }
+        if let Some(on) = self.highlight_previous_character {
+            crate::caret::set_highlight_previous_character(on);
+        } else if !caret_flag {
+            crate::caret::set_highlight_previous_character(
+                self.caret_mode
+                    .as_deref()
+                    .is_some_and(|m| m.eq_ignore_ascii_case("morph")),
+            );
+        }
         // WRITING NITS has no CLI flag (it is a quiet, always-available hint), so the
         // remembered value applies unconditionally when present; absent = the built-in
         // default (ON), which the `nits::NITS_ON` global already carries.

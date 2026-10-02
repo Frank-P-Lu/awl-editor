@@ -5,6 +5,7 @@
 pub(super) use super::caret_body::{InkBox, caret_visual_body_dims};
 use super::*;
 
+pub(super) mod adaptive;
 mod motion;
 mod vertical;
 
@@ -35,7 +36,7 @@ pub(super) struct CaretLineGlyphs {
     /// `(start_byte, end_byte, CacheKey)` per shaped glyph, in layout (wrap) order —
     /// the exact glyph objects `layout_runs()` would yield for this line, so the
     /// key/span lookups match what a whole-document walk finds.
-    clusters: Vec<(usize, usize, CacheKey)>,
+    clusters: Vec<(usize, usize, CacheKey, i32, i32)>,
 }
 
 impl TextPipeline {
@@ -53,13 +54,14 @@ impl TextPipeline {
         {
             return;
         }
-        let mut clusters: Vec<(usize, usize, CacheKey)> = Vec::new();
+        let mut clusters: Vec<(usize, usize, CacheKey, i32, i32)> = Vec::new();
         if let Some(bline) = self.buffer.lines.get(line)
             && let Some(layout) = bline.layout_opt()
         {
             for lline in layout.iter() {
                 for g in lline.glyphs.iter() {
-                    clusters.push((g.start, g.end, g.physical((0.0, 0.0), 1.0).cache_key));
+                    let physical = g.physical((0.0, 0.0), 1.0);
+                    clusters.push((g.start, g.end, physical.cache_key, physical.x, physical.y));
                 }
             }
         }
@@ -79,24 +81,9 @@ impl TextPipeline {
             .unwrap_or(0)
     }
 
-    /// THE effective caret form for this frame: the latched `caret_look` after an
-    /// ink-caret world's Morph→Block fold (`CaretBlockStyle::folds_morph_to_block`).
-    ///
-    /// ONE OWNER, read by the GEOMETRY and the PAINT alike — neither may read
-    /// `caret_look` directly. The fold once lived in the paint path alone, so such a
-    /// world painted a Block while the ANCHOR still took Morph's one-column step
-    /// back: the caret sat a column left of the insertion point, and at a soft-wrap
-    /// boundary that column became a whole visual row.
+    /// Canonical latched style shared by geometry and paint.
     pub(super) fn effective_caret_look(&self) -> CaretMode {
-        if self.caret_look == CaretMode::Morph
-            && theme::active()
-                .render_caps
-                .caret_block_style
-                .folds_morph_to_block()
-        {
-            return CaretMode::Block;
-        }
-        self.caret_look
+        canonical_caret_look(self.caret_look)
     }
 
     /// The char column of the caret's own VISUAL row start — affinity-aware, and `0`
@@ -107,8 +94,8 @@ impl TextPipeline {
     }
 
     pub(super) fn caret_anchor_col(&self) -> usize {
-        if self.effective_caret_look() == CaretMode::Morph {
-            crate::caret::morph_anchor_col(self.cursor_col, self.caret_row_start_col())
+        if self.caret_highlight_previous && self.effective_caret_look() == CaretMode::Block {
+            self.previous_grapheme_col()
         } else {
             self.cursor_col
         }
@@ -159,6 +146,7 @@ impl TextPipeline {
     /// visible. Used by the Morph space-bar; the BLOCK quad uses
     /// [`Self::caret_block_w`], and the IME rect computes its own insertion-point
     /// cell in [`Self::caret_pixel_rect`].
+    #[cfg(test)]
     pub fn caret_target_w(&self) -> f32 {
         let (_x, adv) = self.col_x_and_advance_aff(
             self.cursor_line,
@@ -223,45 +211,12 @@ impl TextPipeline {
         self.ensure_caret_line_glyphs(line);
         let rec = self.caret_line_glyphs.borrow();
         let clusters = &rec.as_ref()?.clusters;
-        for &(start, end, key) in clusters {
+        for &(start, end, key, _, _) in clusters {
             if cur_byte >= start && cur_byte < end {
                 return Some(key);
             }
         }
         None
-    }
-
-    /// The char SPAN of the shaped glyph CLUSTER owning column `col` on `line` —
-    /// the number of chars between that glyph's byte-range boundaries: `1` for the
-    /// overwhelmingly common case of one glyph per char, `>1` for a LIGATURE
-    /// (several chars collapse into a single shaped glyph, e.g. an "fi"/"ffi"
-    /// fixture on a font that ligates it). `None` when no shaped run owns the
-    /// column (end-of-line / empty line). Read by [`Self::caret_anchor_ink_box`]
-    /// to decide whether a column may safely be replaced by its glyph's own ink
-    /// box (a 1-char cluster IS that glyph, one-to-one) or must keep the CELL
-    /// math's fair linear split (a multi-char cluster's cell already spreads one
-    /// glyph's ink fairly across the chars it covers — no single column owns the
-    /// whole glyph). Reads the SAME target-line-local glyph record as
-    /// [`Self::cursor_glyph_key_at`] (`layout_opt()`, not the whole-doc walk).
-    fn cluster_char_span(&self, line: usize, col: usize) -> Option<usize> {
-        let line_text = self.buffer.lines.get(line)?.text().to_string();
-        let cur_byte = line_text
-            .char_indices()
-            .nth(col)
-            .map(|(b, _)| b)
-            .unwrap_or(line_text.len());
-        if cur_byte >= line_text.len() {
-            return None;
-        }
-        self.ensure_caret_line_glyphs(line);
-        let rec = self.caret_line_glyphs.borrow();
-        let clusters: Vec<(usize, usize)> = rec
-            .as_ref()?
-            .clusters
-            .iter()
-            .map(|&(s, e, _)| (s, e))
-            .collect();
-        cluster_span_at(&line_text, &clusters, cur_byte)
     }
 
     /// THE ONE RASTER READ on the caret path: the anchored glyph's full swash
@@ -303,111 +258,29 @@ impl TextPipeline {
         })
     }
 
-    /// Ink-aligned box for a single-glyph proportional anchor. Mono, ligature, and
-    /// glyphless anchors use cell geometry to preserve a uniform or fair split.
+    /// Complete shaped grapheme ink. Independent ligature characters and
+    /// glyphless anchors retain insertion-cell geometry.
     pub(super) fn caret_anchor_ink_box(&mut self) -> Option<InkBox> {
-        if crate::caret::font_is_mono(self.shaped_font) {
-            return None;
-        }
-        let line = self.cursor_line;
-        let col = self.caret_anchor_col();
-        if self.cluster_char_span(line, col) != Some(1) {
-            return None;
-        }
-        self.caret_anchor_raster_box()
+        self.adaptive_anchor_ink_box()
     }
 
-    /// THE ONE OWNER of the CELL-form caret's VERTICAL extent: `(center_y, height)`
-    /// in absolute pixels for the caret's RESTING pose. Every caret that draws as a
-    /// CELL reads its top and bottom from here and nowhere else — the Block quad,
-    /// Morph's fast-travel / ink-caret-world fold to that quad
-    /// ([`Self::caret_geometry`]), and the glyphless SPACE BAR
-    /// ([`Self::caret_space_bar_geometry`]). The BAR forms deliberately do NOT:
-    /// the I-beam and Morph's line-start degrade span the LINE BOX by design
-    /// ([`Self::ibeam_bar_dims`] — an insertion bar marks a boundary between glyphs,
-    /// so it has no glyph of its own to hug).
-    ///
-    /// The mono gate preserves its grid; proportional anchors select a stable cell:
-    /// * **LATIN PROPORTIONAL: ONE HEIGHT PER (FACE, ROW), AND TWO BOXES.** Every
-    ///   Latin anchor on the row — a letter, a ligature, a space, end-of-line, an
-    ///   empty row — reads no per-anchor ink at all, so anchors on the same
-    ///   face/row cannot disagree; the height moves only with the face, row
-    ///   scale, and zoom/DPI the pad rides. The typical box uses [`CARET_INK_PAD`];
-    ///   the full Block envelope uses `CARET_BLOCK_INK_PAD`. Both pass through the shared
-    ///   minimum-visible-body floor — WHICH box is grown splits on
-    ///   [`Self::effective_caret_look`]:
-    ///
-    ///   - **The literal Block caret** ([`CaretMode::Block`], including a Morph
-    ///     preference folded to Block on an ink-caret world — see
-    ///     `folds_morph_to_block`) takes [`Self::caret_cell_vertical_block`]: the
-    ///     row's real ASCENDER-to-DESCENDER ink envelope
-    ///     ([`facepitch::ink_envelope_em`]) — a real ascender (`d`, `l`, `b`,
-    ///     `h`, `k`) must never poke its ink above the accent body it sits on.
-    ///   - **Everything else that shares this cell** (Morph's support-body
-    ///     decision, Morph's fast-travel deferral before it settles onto a real
-    ///     glyph, the glyphless space bar) takes [`Self::caret_cell_vertical_typical`]:
-    ///     the row's TYPICAL-LETTER box, `facepitch::typical_letter_ratio`'s
-    ///     measured mean of x-height and cap-height. Morph's own selling point is
-    ///     a SLIM accent that mostly doesn't need a body at all
-    ///     (`caret_body::prepare_morph_body_or_empty`'s floor decision); handing
-    ///     it the Block envelope would make that floor trip on nearly every
-    ///     ordinary x-height letter, drawing a full body behind text Morph is
-    ///     built to leave uncovered. Explicit Morph and the I-beam therefore do
-    ///     NOT inherit the taller envelope merely because their geometry sits
-    ///     next to the Block quad's.
-    ///
-    ///   ⚠️ TWO SHAPES ARE BOTH WRONG for the TYPICAL box, and it sits
-    ///   deliberately between them (the Block envelope is a separate, THIRD axis
-    ///   — see [`Self::caret_cell_vertical_block`]'s own doc for why `hhea`
-    ///   ascent/descent cannot supply it either). Sizing to the ANCHORED GLYPH'S
-    ///   own raster ink tracks the letter exactly — and makes the caret's top
-    ///   jump with every letter typed, ~8–9px between an `a` and an `l` on
-    ///   Gumtree/Literata at zoom 1, which reads as distracting in ordinary
-    ///   prose. A fixed FRACTION OF THE ROW (`caret_block_h`, the mono arm
-    ///   below) is stable but hangs that SAME 8–9px of empty accent above an
-    ///   `a`/`m` while clearing an `l` by ~3px, because a row box is not a
-    ///   letter. The typical letter is neither: it lands within a pad of the
-    ///   letters actually being typed, on every face, without reading any of
-    ///   them.
-    ///
-    ///   The ascent either box scales, and the FONT that ratio is keyed on, both
-    ///   come from [`Self::caret_row_metrics`] in one lookup — a real shaped
-    ///   row's `max_ascent` is a property of `shaped_font` (the face ACTUALLY on
-    ///   screen, which may lag the live theme mid theme-picker preview), an
-    ///   empty row's is REBUILT from `doc_family()`'s own per-em ascent, and
-    ///   multiplying one font's ascent by ANOTHER font's ratio pops a few px on
-    ///   ordinary text mid-scrub. The gate above reads `doc_family()` (the LIVE
-    ///   effective face the ACTIVE theme wants) rather than `shaped_font`: this
-    ///   arm has no on-screen glyph to align with, so it should track the
-    ///   preview's instant O(1) colour retint rather than wait on the
-    ///   separately-deferred reshape.
-    ///
-    ///   DESCENDERS get no SEPARATE extension in either box — the Block
-    ///   envelope's own bottom already covers a real descender's ink by
-    ///   construction, and the typical box still deliberately omits one (a
-    ///   descender-aware bottom is per-glyph, and one on the bottom edge is the
-    ///   same jump the top edge was just relieved of). The mono arm keeps its
-    ///   own extension ([`CARET_DESCENDER_PAD`]) because its cell is row-derived
-    ///   and clears the whole band anyway.
-    /// * **CJK PROPORTIONAL:** one padded resolved-face em, shared by adjacent
-    ///   kanji — unaffected by the Block/typical split above, on every caret
-    ///   form.
-    /// * **LINE CELL (mono only).**
-    ///   `caret_block_h` row-scaled, centred on the spring anchor, with the
-    ///   DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded in
-    ///   here rather than at the draw site. The uniform mono grid never
-    ///   reads ANY ink box, real or synthetic — every column on a mono row shares
-    ///   one `caret.pos.y`/`caret_block_h`, so the cell stays column-independent
-    ///   by construction.
-    ///
-    /// The descender extension lives at this REST endpoint, not the draw site's
-    /// re-scaled by the settle factor. The two are algebraically identical at
-    /// rest (settle 1 — the deterministic capture), but only here can
-    /// `motion_geometry` blend it out with everything else mid-glide, so the
-    /// travelling streak has exactly one thickness rule.
+    /// Resting adaptive block height and centre, in absolute pixels. Glyphless
+    /// and independent ligature cells retain their stable row fallback. The
+    /// moving streak reaches this endpoint through the spring's settle factor.
     pub(super) fn caret_cell_vertical(&mut self) -> (f32, f32) {
         let m = self.metrics;
         let px = m.scale;
+        if self.effective_caret_look() == CaretMode::Block
+            && let Some(ink) = self.caret_anchor_ink_box()
+        {
+            let (_, height) = super::caret_body::caret_visual_body_dims_with_pad(
+                ink,
+                px,
+                super::caret_body::CARET_BLOCK_INK_PAD,
+            );
+            return (self.caret_baseline_y() - ink.top + ink.height * 0.5, height);
+        }
+
         if !crate::caret::font_is_mono(self.doc_family()) {
             let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
             if let Some((font_size, em)) = self.caret_anchor_ideographic_cell() {
@@ -439,7 +312,7 @@ impl TextPipeline {
     }
 
     pub(super) fn caret_inhabited_key(&self) -> Option<CacheKey> {
-        if self.effective_caret_look() == CaretMode::Morph
+        if self.caret_highlight_previous
             && crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col())
         {
             return None;
@@ -447,59 +320,9 @@ impl TextPipeline {
         self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col())
     }
 
-    /// Ensure `slot`'s cached mask matches `key`, rasterizing only when the key
-    /// changed (the key folds glyph id + font + size + subpixel, so zoom / font /
-    /// world switches re-rasterize automatically). A `None` key clears the slot.
-    ///
-    /// `pub(super)` (not private): the caret-style picker's PREVIEW demo
-    /// (`render/chrome.rs`'s `emit_preview_caret`) reuses this SAME rasterizer for
-    /// its own mask slots — a throwaway `GlyphBuffer` + a separate `CaretGlyphPipeline`
-    /// instance, never the document's — rather than duplicating the swash-cache
-    /// walk (one owner, per CLAUDE.md's "same behavior ⇒ same code").
-    pub(super) fn ensure_mask(
-        slot: &mut Option<GlyphMask>,
-        swash_cache: &mut SwashCache,
-        font_system: &mut FontSystem,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        key: Option<CacheKey>,
-    ) {
-        match key {
-            None => *slot = None,
-            Some(k) => {
-                if slot.as_ref().map(|m| m.key) == Some(k) {
-                    return; // already cached
-                }
-                let mask = swash_cache
-                    .get_image_uncached(font_system, k)
-                    .and_then(|image| {
-                        if image.content != SwashContent::Mask {
-                            return None;
-                        }
-                        let w = image.placement.width;
-                        let h = image.placement.height;
-                        if w == 0 || h == 0 || image.data.is_empty() {
-                            return None;
-                        }
-                        Some(GlyphMask::from_coverage(
-                            device,
-                            queue,
-                            k,
-                            image.placement.left,
-                            image.placement.top,
-                            w,
-                            h,
-                            &image.data,
-                        ))
-                    });
-                *slot = mask;
-            }
-        }
-    }
-
     /// The baseline y (absolute, scroll-applied pixels) of the cursor's visual row:
-    /// the EXACT pen baseline glyphon draws the real glyph at, so the MORPH
-    /// silhouette overlaps it pixel-for-pixel. Each glyph mask's placement box is
+    /// the EXACT pen baseline glyphon draws the real glyph at, so the Filled
+    /// knockout overlaps it pixel-for-pixel. Each glyph mask's placement box is
     /// positioned relative to this baseline (box top = baseline - placement.top),
     /// mirroring how the swash placement box hangs off the pen origin — which is
     /// the same convention glyphon uses to blit the real glyph. Because the morph
@@ -617,17 +440,8 @@ impl TextPipeline {
         (line_top + centering + ascent, ascent, ascent_font)
     }
 
-    /// Geometry for the MORPH caret this frame: the two glyph placement boxes
-    /// (`from`/`to`) positioned at the ANIMATED caret anchor (so they slide along
-    /// the spring), plus the cross-fade `morph_t`. Returns the boxes as
-    /// `[min_x, min_y, w, h]` in absolute pixels. The masks themselves are cached
-    /// in `caret_mask_from`/`caret_mask_to`. There is no soft halo; the silhouette
-    /// is the glyph's own crisp coverage, HARD-dilated ~`CARET_MORPH_DILATE_PX` in
-    /// the shader so the caret reads a touch fatter than the letter but stays solid.
-    ///
-    /// `morph_t` is driven by the spring's settle factor: 0 mid-glide (show the
-    /// FROM glyph), rising to 1 as the caret decelerates onto the destination (show
-    /// the TO glyph). At rest there is no `from`, so it pins to 1.
+    /// Position the Filled coverage mask at the animated pen and the real row
+    /// baseline. The composite destination includes every positioned mark.
     pub(super) fn caret_glyph_geometry(&self) -> ([f32; 4], [f32; 4], f32) {
         let pen_x = self.caret.pos.x;
         let baseline_y = self.caret_baseline_y();
@@ -652,48 +466,6 @@ impl TextPipeline {
             1.0
         };
         (from_box, to_box, morph_t)
-    }
-
-    pub(super) fn prepare_caret_masks(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> bool {
-        let to_key = self.caret_inhabited_key();
-        let from_key = if self.caret.is_animating() {
-            self.caret_from_key
-        } else {
-            None
-        };
-        // Split the borrows: ensure_mask needs the swash cache + font system by
-        // &mut alongside each slot, all distinct fields of self. Scoped so the
-        // partial borrows release before the final whole-field read below.
-        {
-            let Self {
-                caret_mask_to,
-                caret_mask_from,
-                swash_cache,
-                font_system,
-                ..
-            } = self;
-            Self::ensure_mask(
-                caret_mask_to,
-                swash_cache,
-                font_system,
-                device,
-                queue,
-                to_key,
-            );
-            Self::ensure_mask(
-                caret_mask_from,
-                swash_cache,
-                font_system,
-                device,
-                queue,
-                from_key,
-            );
-        }
-        self.caret_mask_to.is_some()
     }
 
     /// The drawn caret rectangle `(center_x, center_y, w, h, corner)` for THIS
@@ -737,7 +509,8 @@ impl TextPipeline {
         let block_w = self.caret_block_w(); // real glyph advance (narrow i, wide m)
         let streak_thin = m.caret_streak_h; // the streak's thin cross-dimension
         let streak_r = m.px(STREAK_RADIUS);
-        let corner = streak_r + (m.px(CORNER_RADIUS) - streak_r) * s;
+        let rest_corner = m.px(super::caret_body::CARET_BLOCK_INK_PAD);
+        let corner = streak_r + (rest_corner - streak_r) * s;
 
         let speed =
             (self.caret.vel.x * self.caret.vel.x + self.caret.vel.y * self.caret.vel.y).sqrt();
@@ -752,7 +525,11 @@ impl TextPipeline {
         let (block_w, ink_shift) = match self.caret_anchor_ink_box() {
             Some(ink) => {
                 let px = m.scale;
-                let (body_w, _body_h) = caret_visual_body_dims(ink, px);
+                let (body_w, _body_h) = super::caret_body::caret_visual_body_dims_with_pad(
+                    ink,
+                    px,
+                    super::caret_body::CARET_BLOCK_INK_PAD,
+                );
                 // Grow equally about the glyph ink centre.  The pen-relative
                 // offset is still the raster's real bearing, so the floor does
                 // not make a kerned punctuation glyph drift into its neighbour.
@@ -817,6 +594,7 @@ impl TextPipeline {
     /// the space gap exactly where the block would. It rides the spring anchor
     /// (`pos`) so it slides with the caret. Drawn through the BLOCK pipeline (a
     /// solid accent rounded rect), which is exactly the slim-bar look we want.
+    #[cfg(test)]
     pub(super) fn caret_space_bar_geometry(&mut self) -> (f32, f32, f32, f32, f32) {
         let w = self.metrics.px(CARET_SPACE_BAR_W);
         let (cy, h) = self.caret_cell_vertical();
@@ -847,15 +625,12 @@ impl TextPipeline {
     /// DRAG — which overrides `caret_look` to the I-beam bar form
     /// ([`crate::render::ViewState::selecting_drag`]) — reports bar form here too.
     pub(super) fn caret_is_bar_form(&self) -> bool {
-        match self.effective_caret_look() {
-            CaretMode::Ibeam => true,
-            CaretMode::Morph => {
-                crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col())
-            }
-            CaretMode::Block => false,
-        }
+        self.effective_caret_look() == CaretMode::Ibeam
+            || (self.caret_highlight_previous
+                && crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col()))
     }
 
+    #[cfg(test)]
     pub(super) fn caret_linestart_bar_geometry(&self) -> (f32, f32, f32, f32, f32) {
         let (thin, tall) = self.ibeam_bar_dims();
         let cx = self.caret.pos.x + thin * 0.5;
@@ -928,5 +703,13 @@ impl TextPipeline {
         let cy = self.caret.pos.y + m.caret_trail_drop * motion;
         let corner = 0.5 * w.min(h);
         (cx, cy, w, h, corner)
+    }
+}
+
+/// Legacy decoded styles share the ordinary rectangular paint path.
+pub(super) fn canonical_caret_look(look: CaretMode) -> CaretMode {
+    match look {
+        CaretMode::Morph => CaretMode::Block,
+        look => look,
     }
 }

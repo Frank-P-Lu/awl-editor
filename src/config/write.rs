@@ -132,8 +132,10 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #                max_width). Which one applies follows the ACTIVE buffer's own kind;
 #                zoom is DECOUPLED from both — zoom sizes the glyphs, these size the
 #                column.
-#   caret_mode : caret look (block | morph | ibeam) — set by the Caret style… /
+#   caret_mode : caret look (block | ibeam) — set by the Caret style… /
 #                Toggle caret style commands
+#   highlight_previous_character : anchor Block on the previous Unicode grapheme
+#                on the current visual row (default false); legacy morph implies true
 #   dictionary : spell-check dictionary (en_US | en_GB | en_AU) — default en_US;
 #                set via Cmd-P -> \"Dictionary…\"
 #   writing_nits : the quiet mechanical-typo underline highlighter on/off
@@ -225,6 +227,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # page_width_prose = 70
 # page_width_code = 100
 # caret_mode = \"block\"
+# highlight_previous_character = false
 # dictionary = \"en_US\"
 # writing_nits = true
 # spellcheck = true

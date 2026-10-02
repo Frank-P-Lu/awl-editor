@@ -13,6 +13,7 @@ use super::{keyspec, replay_keys};
 #[test]
 fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
     let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _t = crate::testlock::serial();
     let root = PathBuf::from("/tmp");
     let keys =
@@ -32,7 +33,8 @@ fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
         !crate::caret::is_auto(),
         "an explicit pin is never cleared by a theme journey"
     );
-    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Morph);
+    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
+    assert!(crate::caret::highlight_previous_character());
 
     crate::caret::clear_override();
     crate::theme::set_active_by_name("Gumtree").unwrap();
@@ -65,6 +67,7 @@ fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
 #[test]
 fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
     let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _t = crate::testlock::serial();
     let root = PathBuf::from("/tmp");
     let opts = CaptureOpts::default();
@@ -113,7 +116,11 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
         );
         assert_eq!(
             crate::caret::mode(),
-            mode,
+            if mode == crate::caret::CaretMode::Morph {
+                crate::caret::CaretMode::Block
+            } else {
+                mode
+            },
             "the detour never touched the pinned mode"
         );
         let detour_png = dir.join(format!("awl_caret_stateless_detour_{mode:?}_{pid}.png"));
@@ -151,6 +158,7 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
 #[test]
 fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_check() {
     let _g = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let mut buffer = Buffer::scratch();
     let corpus: Vec<String> = (0..40).map(|i| format!("row{i}.md")).collect();
     let root = PathBuf::from("/tmp");

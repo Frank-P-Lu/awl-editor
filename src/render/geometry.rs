@@ -691,6 +691,7 @@ pub(super) fn glyph_x_assembly_count() -> usize {
 /// multi-char cluster — no bundled awl font actually ligates "fi"/"ffi" under
 /// the current shaper (verified empirically across every world), so this is
 /// the only way to exercise that branch.
+#[cfg(test)]
 pub(super) fn cluster_span_at(
     line_text: &str,
     clusters: &[(usize, usize)],

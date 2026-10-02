@@ -37,6 +37,7 @@ pub enum SettingKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingId {
     CaretStyle,
+    HighlightPreviousCharacter,
     PageMode,
     TypewriterScroll,
     ReduceMotion,
@@ -83,7 +84,7 @@ pub struct SettingRow {
     pub kind: SettingKind,
 }
 
-/// The 32-setting corpus, in stable display order (grouped by category). The ONE
+/// The setting corpus, in stable display order (grouped by category). The ONE
 /// owner — the FacetScheme bucket + the value readout both key off this table.
 pub static SETTINGS: &[SettingRow] = &[
     SettingRow {
@@ -91,6 +92,12 @@ pub static SETTINGS: &[SettingRow] = &[
         name: "Caret style",
         category: "Editor",
         kind: SettingKind::Picker,
+    },
+    SettingRow {
+        id: SettingId::HighlightPreviousCharacter,
+        name: "Highlight previous character",
+        category: "Editor",
+        kind: SettingKind::Toggle,
     },
     SettingRow {
         id: SettingId::PageMode,
@@ -426,6 +433,9 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::PageMode => on_off(crate::page::page_on()).to_string(),
         SettingId::TypewriterScroll => on_off(crate::typewriter::typewriter_on()).to_string(),
         SettingId::ReduceMotion => on_off(crate::motion::reduced()).to_string(),
+        SettingId::HighlightPreviousCharacter => {
+            on_off(crate::caret::highlight_previous_character()).to_string()
+        }
         SettingId::PageWidthProse => {
             crate::range::PAGE_WIDTH_PROSE.format(values.page_width_prose as f32)
         }
@@ -513,6 +523,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
         SettingId::PageMode => "page_mode",
         SettingId::TypewriterScroll => "typewriter_scroll",
         SettingId::ReduceMotion => "reduce_motion",
+        SettingId::HighlightPreviousCharacter => "highlight_previous_character",
         SettingId::Wysiwyg => "wysiwyg",
         SettingId::FormatPopover => "popover",
         SettingId::InlineImages => "inline_images",

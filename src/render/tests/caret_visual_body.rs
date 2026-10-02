@@ -38,6 +38,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
             p.set_dpi(dpi);
             for mode in [CaretMode::Block, CaretMode::Morph] {
                 crate::caret::set_mode(mode);
+                crate::caret::set_highlight_previous_character(mode == CaretMode::Morph);
                 for ch in PUNCTUATION {
                     // Morph inhabits the character behind the insertion point.
                     let col = if mode == CaretMode::Morph { 2 } else { 1 };
@@ -96,13 +97,13 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
 /// that proof instead, swept over the full mono subset and the full
 /// punctuation roster, both caret forms, no wildcard.
 #[test]
-fn mono_worlds_never_read_a_punctuation_ink_box() {
+fn mono_worlds_use_actual_punctuation_ink_boxes() {
     let _serial = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _world = theme::WorldPin::snapshot();
     let _caret = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping mono_worlds_never_read_a_punctuation_ink_box: no wgpu adapter");
+        eprintln!("skipping mono_worlds_use_actual_punctuation_ink_boxes: no wgpu adapter");
         return;
     };
 
@@ -116,6 +117,7 @@ fn mono_worlds_never_read_a_punctuation_ink_box() {
         mono += 1;
         for mode in [CaretMode::Block, CaretMode::Morph] {
             crate::caret::set_mode(mode);
+            crate::caret::set_highlight_previous_character(mode == CaretMode::Morph);
             for ch in PUNCTUATION {
                 let col = if mode == CaretMode::Morph { 2 } else { 1 };
                 let text = format!("a{ch}z");
@@ -123,7 +125,7 @@ fn mono_worlds_never_read_a_punctuation_ink_box() {
                 p.set_view(&v);
                 p.settle_caret();
                 assert!(
-                    p.caret_anchor_ink_box().is_none(),
+                    p.caret_anchor_ink_box().is_some(),
                     "{} {mode:?} {ch:?}: a mono world must never read a punctuation ink box — \
                      if this fails, `needs_body` can trigger on mono and this item's mono \
                      immunity claim no longer holds",
@@ -137,6 +139,7 @@ fn mono_worlds_never_read_a_punctuation_ink_box() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// **THE AREA FLOOR SCALES AS THE SQUARE OF THE DISPLAY FACTOR — a property

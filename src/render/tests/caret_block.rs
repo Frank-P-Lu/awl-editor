@@ -270,7 +270,7 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
 ///     real-cluster caret/hit-test path is now covered on the code monos by
 ///     `caret_and_hit_test_are_per_char_inside_a_programming_ligature_cluster`.)
 #[test]
-fn caret_ink_box_off_for_mono_and_ligature_cluster() {
+fn caret_ink_box_on_for_mono_and_off_for_ligature_cluster() {
     let _t = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
@@ -278,7 +278,9 @@ fn caret_ink_box_off_for_mono_and_ligature_cluster() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping caret_ink_box_off_for_mono_and_ligature_cluster: no wgpu adapter");
+        eprintln!(
+            "skipping caret_ink_box_on_for_mono_and_off_for_ligature_cluster: no wgpu adapter"
+        );
         return;
     };
 
@@ -291,8 +293,8 @@ fn caret_ink_box_off_for_mono_and_ligature_cluster() {
     for col in 0..text.chars().count() {
         p.set_view(&view(text, 0, col));
         assert!(
-            p.caret_anchor_ink_box().is_none(),
-            "mono world must never ink-align (col {col})"
+            p.caret_anchor_ink_box().is_some(),
+            "mono world must ink-align (col {col})"
         );
     }
 

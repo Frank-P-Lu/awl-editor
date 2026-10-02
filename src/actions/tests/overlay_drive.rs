@@ -36,8 +36,6 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
     let mut overlay =
         crate::overlay::Journey::seeded(Some(OverlayState::new_caret(CaretMode::Block)));
     let mut accept = None;
-    drive(&mut overlay, &mut accept, &Action::NextLine); // -> Morph
-    assert_eq!(crate::caret::mode(), CaretMode::Morph);
     drive(&mut overlay, &mut accept, &Action::NextLine); // -> I-beam
     assert_eq!(crate::caret::mode(), CaretMode::Ibeam);
 
@@ -54,7 +52,6 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
     let mut overlay =
         crate::overlay::Journey::seeded(Some(OverlayState::new_caret(CaretMode::Ibeam)));
     let mut accept2 = None;
-    drive(&mut overlay, &mut accept2, &Action::PreviousLine); // preview moves up
     drive(&mut overlay, &mut accept2, &Action::PreviousLine); // -> Block previewed
     assert_eq!(crate::caret::mode(), CaretMode::Block);
     drive(&mut overlay, &mut accept2, &Action::Cancel);
@@ -105,7 +102,7 @@ fn caret_picker_cancel_from_auto_restores_auto_not_a_pin() {
         crate::overlay::Journey::seeded(Some(OverlayState::new_caret(crate::caret::mode())));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview -> Morph
-    assert_eq!(crate::caret::mode(), CaretMode::Morph);
+    assert_eq!(crate::caret::mode(), CaretMode::Ibeam);
     drive(&mut overlay, &mut accept, &Action::Cancel);
     assert!(overlay.card().is_none(), "Esc closes the caret picker");
     assert_eq!(accept, None, "a revert must not persist");

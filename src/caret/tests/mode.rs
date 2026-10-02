@@ -37,6 +37,7 @@ fn font_mono_detection() {
 #[test]
 fn default_mode_is_block_in_every_world_with_no_override() {
     let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let restore = crate::theme::active_index();
     // Non-vacuity: the roster must genuinely carry both pitches, or a
     // font-derived default could have agreed with Block everywhere by
@@ -70,87 +71,9 @@ fn default_mode_is_block_in_every_world_with_no_override() {
 }
 
 #[test]
-fn morph_anchor_col_is_one_back_but_never_across_its_own_row_start() {
-    // The MORPH caret inhabits the char BEFORE the insertion point: typing
-    // `abc|` (cursor col 3) anchors the `c` at col 2 — one back, within the row.
-    assert_eq!(morph_anchor_col(3, 0), 2);
-    assert_eq!(
-        morph_anchor_col(1, 0),
-        0,
-        "cursor after the first char anchors it"
-    );
-    assert_eq!(morph_anchor_col(42, 0), 41);
-    // FALLBACK: a ROW START has no previous glyph ON THIS ROW — the GEOMETRY
-    // anchor stays at the cursor cell (whose left edge is the insertion x),
-    // never underflowing and never reaching back across the row boundary. The
-    // caret does NOT light that cell's glyph there — see `morph_row_start`.
-    assert_eq!(morph_anchor_col(0, 0), 0);
-    // THE WRAPPED ROW, which a logical-column rule gets wrong: column 58 is the
-    // FIRST column of a soft-wrapped row, so its "previous" character sits on the
-    // row ABOVE. Stepping back there drew the caret a whole visual row away from
-    // its own insertion point — the entire reason this takes a `row_start`.
-    assert_eq!(
-        morph_anchor_col(58, 58),
-        58,
-        "a wrapped row's first column anchors itself, never the row above"
-    );
-    assert_eq!(
-        morph_anchor_col(59, 58),
-        58,
-        "one column into a wrapped row anchors that row's own first glyph"
-    );
-}
-
-/// The MORPH DEGRADE decision: exactly at a VISUAL ROW START — column 0, a fresh
-/// line after Enter, an empty line, AND the first column of a soft-wrapped row —
-/// there is no produced glyph before the insertion point ON THAT ROW, so the morph
-/// melts to the thin insertion bar (no silhouette) instead of lighting a character
-/// it does not sit beside (`|abc` must NOT glow the `a`; a wrapped row's first
-/// column must not reach back to the row above). Any column past its row's start has
-/// a previous glyph cell and keeps the silhouette machinery.
-#[test]
-fn morph_degrade_fires_at_every_visual_row_start_not_only_column_zero() {
-    assert!(
-        morph_row_start(0, 0),
-        "col 0 (incl. empty lines) melts to the bar"
-    );
-    assert!(
-        !morph_row_start(1, 0),
-        "aI bc: the just-passed 'a' stays lit"
-    );
-    assert!(!morph_row_start(2, 0));
-    assert!(!morph_row_start(42, 0));
-    // THE WRAPPED ROW START — false under the retired `col == 0` rule, which is
-    // how a Morph caret came to sit at the END OF THE ROW ABOVE its insertion point.
-    assert!(
-        morph_row_start(58, 58),
-        "a soft-wrapped row's first column is a row start too"
-    );
-    assert!(
-        !morph_row_start(59, 58),
-        "one column in, the row's own first glyph is behind the caret"
-    );
-    // The decision agrees with the anchor math on EVERY row start, not just col 0:
-    // the only columns whose anchor is not strictly one back are the ones that
-    // degrade — the two seams can't drift apart.
-    for row_start in [0usize, 1, 17, 58] {
-        for col in row_start..row_start + 64 {
-            assert_eq!(
-                morph_row_start(col, row_start),
-                morph_anchor_col(col, row_start) == col,
-                "degrade ⇔ the anchor held at the cursor cell (col {col}, row_start {row_start})"
-            );
-        }
-    }
-}
-
-#[test]
 fn caret_mode_label_description_and_from_label_round_trip() {
     // ALL lists the three looks in picker order; each has a label + description.
-    assert_eq!(
-        CaretMode::ALL,
-        [CaretMode::Block, CaretMode::Morph, CaretMode::Ibeam]
-    );
+    assert_eq!(CaretMode::ALL, [CaretMode::Block, CaretMode::Ibeam]);
     for m in CaretMode::ALL {
         assert!(!m.label().is_empty());
         assert!(!m.description().is_empty());
@@ -235,6 +158,7 @@ fn mode_is_block_on_both_mono_and_proportional_worlds_with_no_override() {
     // this can't race another test's theme read/write. `super::TEST_LOCK` alone
     // (caret's) does not exclude `theme::TEST_LOCK`-holding tests.
     let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     // Clear any explicit override so the universal default applies.
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
@@ -255,6 +179,7 @@ fn explicit_override_beats_the_block_default_across_a_world_switch() {
     // Hold theme's lock too — this mutates the shared theme global (see the
     // note on `mode_is_block_on_both_mono_and_proportional_worlds_with_no_override`).
     let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     // An explicit Morph override survives a switch between a mono world and a
     // proportional one — both now share the same Block default, so this proves
@@ -262,11 +187,12 @@ fn explicit_override_beats_the_block_default_across_a_world_switch() {
     // on one side.
     crate::theme::set_active_by_name("Tawny").unwrap();
     set_mode(CaretMode::Morph);
-    assert_eq!(mode(), CaretMode::Morph);
+    assert_eq!(mode(), CaretMode::Block);
+    assert!(highlight_previous_character());
     crate::theme::set_active_by_name("Gumtree").unwrap();
     assert_eq!(
         mode(),
-        CaretMode::Morph,
+        CaretMode::Block,
         "an explicit pick survives a world switch, not just disagreement with one font"
     );
     // And an explicit Ibeam pick wins too, then toggle flips it to Block.
@@ -284,6 +210,7 @@ fn toggle_mode_flips_block_and_ibeam() {
     // Hold theme's lock too — this mutates the shared theme global (see the
     // note on `mode_is_block_on_both_mono_and_proportional_worlds_with_no_override`).
     let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     // Start from the Block default (no override) — any world does, since the
     // default no longer tracks the world's font; Tawny is picked arbitrarily.
@@ -298,8 +225,9 @@ fn toggle_mode_flips_block_and_ibeam() {
     assert_eq!(mode(), CaretMode::Block);
     // Morph is NOT on the toggle: from Morph the chord enters the pair at Block.
     set_mode(CaretMode::Morph);
-    assert_eq!(toggle_mode(), CaretMode::Block);
-    assert_eq!(mode(), CaretMode::Block);
+    assert!(highlight_previous_character());
+    assert_eq!(toggle_mode(), CaretMode::Ibeam);
+    assert_eq!(mode(), CaretMode::Ibeam);
     // Restore.
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
@@ -314,6 +242,7 @@ fn toggle_mode_flips_block_and_ibeam() {
 #[test]
 fn is_auto_and_clear_override_round_trip() {
     let _t = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
     assert!(is_auto(), "no override set: auto");

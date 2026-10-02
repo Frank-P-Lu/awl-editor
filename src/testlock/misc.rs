@@ -76,6 +76,7 @@ pub(crate) struct MiscPins {
     popover: bool,
     file_visibility_all: bool,
     reduced_motion: bool,
+    highlight_previous_character: bool,
     code_ligatures: bool,
     wysiwyg: bool,
     inline_images: bool,
@@ -108,6 +109,7 @@ pub(crate) fn pins() -> MiscPins {
         popover: crate::popover::popover_on(),
         file_visibility_all: crate::file_visibility::all_on(),
         reduced_motion: crate::motion::reduced(),
+        highlight_previous_character: crate::caret::highlight_previous_character(),
         code_ligatures: crate::render::code_ligatures_on(),
         wysiwyg: crate::markdown::wysiwyg_on(),
         inline_images: crate::markdown::inline_images_on(),
@@ -143,6 +145,7 @@ pub(crate) fn restore(p: &MiscPins) {
     crate::popover::set_popover_on(p.popover);
     crate::file_visibility::set_all_on(p.file_visibility_all);
     crate::motion::set_reduced(p.reduced_motion);
+    crate::caret::set_highlight_previous_character(p.highlight_previous_character);
     crate::render::set_code_ligatures_on(p.code_ligatures);
     crate::markdown::set_wysiwyg_on(p.wysiwyg);
     crate::markdown::set_inline_images_on(p.inline_images);
@@ -178,24 +181,25 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         typewriter: b_typewriter,
         nits: b_nits,
         popover: b_popover,
-        file_visibility_all: b_file_visibility_all,
+        file_visibility_all: b_visibility,
         reduced_motion: b_reduced_motion,
+        highlight_previous_character: b_previous,
         code_ligatures: b_code_ligatures,
         wysiwyg: b_wysiwyg,
         inline_images: b_inline_images,
         footnote_ladder: b_footnote_ladder,
-        whichkey_force_shown: b_whichkey_force_shown,
+        whichkey_force_shown: b_whichkey,
         caret_mode: b_caret_mode,
         about_open: b_about_open,
         lifetime_open: b_lifetime_open,
         streaks_open: b_streaks_open,
         peek_open: b_peek_open,
         hud_held: b_hud_held,
-        menu_dropdown_open: b_menu_dropdown_open,
+        menu_dropdown_open: b_menu,
         spell_variant: b_spell_variant,
         date_format: b_date_format,
-        scroll_sensitivity: b_scroll_sensitivity,
-        ambient_motion_on: b_ambient_motion_on,
+        scroll_sensitivity: b_scroll,
+        ambient_motion_on: b_ambient,
     } = before;
     let MiscPins {
         debug: a_debug,
@@ -205,32 +209,31 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         typewriter: a_typewriter,
         nits: a_nits,
         popover: a_popover,
-        file_visibility_all: a_file_visibility_all,
+        file_visibility_all: a_visibility,
         reduced_motion: a_reduced_motion,
+        highlight_previous_character: a_previous,
         code_ligatures: a_code_ligatures,
         wysiwyg: a_wysiwyg,
         inline_images: a_inline_images,
         footnote_ladder: a_footnote_ladder,
-        whichkey_force_shown: a_whichkey_force_shown,
+        whichkey_force_shown: a_whichkey,
         caret_mode: a_caret_mode,
         about_open: a_about_open,
         lifetime_open: a_lifetime_open,
         streaks_open: a_streaks_open,
         peek_open: a_peek_open,
         hud_held: a_hud_held,
-        menu_dropdown_open: a_menu_dropdown_open,
+        menu_dropdown_open: a_menu,
         spell_variant: a_spell_variant,
         date_format: a_date_format,
-        scroll_sensitivity: a_scroll_sensitivity,
-        ambient_motion_on: a_ambient_motion_on,
+        scroll_sensitivity: a_scroll,
+        ambient_motion_on: a_ambient,
     } = after;
 
     let mut out = Vec::new();
     macro_rules! field {
         ($name:literal, $b:ident, $a:ident) => {
-            if $b != $a {
-                out.push(format!("{}: {:?} -> {:?}", $name, $b, $a));
-            }
+            report_change(&mut out, $name, $b, $a);
         };
     }
     field!("debug", b_debug, a_debug);
@@ -240,44 +243,25 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
     field!("typewriter", b_typewriter, a_typewriter);
     field!("nits", b_nits, a_nits);
     field!("popover", b_popover, a_popover);
-    field!(
-        "file_visibility_all",
-        b_file_visibility_all,
-        a_file_visibility_all
-    );
+    field!("file_visibility_all", b_visibility, a_visibility);
     field!("reduced_motion", b_reduced_motion, a_reduced_motion);
+    field!("highlight_previous_character", b_previous, a_previous);
     field!("code_ligatures", b_code_ligatures, a_code_ligatures);
     field!("wysiwyg", b_wysiwyg, a_wysiwyg);
     field!("inline_images", b_inline_images, a_inline_images);
     field!("footnote_ladder", b_footnote_ladder, a_footnote_ladder);
-    field!(
-        "whichkey_force_shown",
-        b_whichkey_force_shown,
-        a_whichkey_force_shown
-    );
+    field!("whichkey_force_shown", b_whichkey, a_whichkey);
     field!("caret_mode", b_caret_mode, a_caret_mode);
     field!("about_open", b_about_open, a_about_open);
     field!("lifetime_open", b_lifetime_open, a_lifetime_open);
     field!("streaks_open", b_streaks_open, a_streaks_open);
     field!("peek_open", b_peek_open, a_peek_open);
     field!("hud_held", b_hud_held, a_hud_held);
-    field!(
-        "menu_dropdown_open",
-        b_menu_dropdown_open,
-        a_menu_dropdown_open
-    );
+    field!("menu_dropdown_open", b_menu, a_menu);
     field!("spell_variant", b_spell_variant, a_spell_variant);
     field!("date_format", b_date_format, a_date_format);
-    field!(
-        "scroll_sensitivity",
-        b_scroll_sensitivity,
-        a_scroll_sensitivity
-    );
-    field!(
-        "ambient_motion_on",
-        b_ambient_motion_on,
-        a_ambient_motion_on
-    );
+    field!("scroll_sensitivity", b_scroll, a_scroll);
+    field!("ambient_motion_on", b_ambient, a_ambient);
     out
 }
 
@@ -311,3 +295,15 @@ impl Drop for TogglesRestore {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+fn report_change<T: PartialEq + std::fmt::Debug>(
+    out: &mut Vec<String>,
+    name: &str,
+    before: &T,
+    after: &T,
+) {
+    if before != after {
+        out.push(format!("{name}: {before:?} -> {after:?}"));
+    }
+}

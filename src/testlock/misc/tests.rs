@@ -136,13 +136,13 @@ fn every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here() {
         .iter()
         .filter(|f| !covered_by_name.contains(&f.as_str()))
         .collect();
-    // The fifteen `MiscPins` toggle fields: debug, outline, menu_bar,
+    // The sixteen `MiscPins` toggle fields: debug, outline, menu_bar,
     // typewriter, nits, popover, file_visibility_all, reduced_motion,
-    // code_ligatures, wysiwyg, inline_images, footnote_ladder,
+    // highlight_previous_character, code_ligatures, wysiwyg, inline_images, footnote_ladder,
     // whichkey_force_shown, ambient_motion_on, cjk_auto.
     assert_eq!(
         uncovered_toggles.len(),
-        15,
+        16,
         "a `Toggle::new(` site appeared or vanished outside page.rs/spell.rs: {:?}. \
          Add (or remove) the matching field in testlock::misc::MiscPins — pins/restore/leaked \
          all need it — and update this count, or add the file to ALREADY_COVERED_ELSEWHERE \

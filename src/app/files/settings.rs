@@ -39,6 +39,9 @@ impl App {
             "outline" => self.config.outline = Some(value == "true"),
             "menu_bar" => self.config.menu_bar = Some(value == "true"),
             "reduce_motion" => self.config.reduce_motion = Some(value == "true"),
+            "highlight_previous_character" => {
+                self.config.highlight_previous_character = Some(value == "true")
+            }
             "file_visibility" => self.config.file_visibility = Some(value == "true"),
             "keymap" => self.config.keymap = Some(value.trim_matches('"').to_string()),
             "date_format" => self.config.date_format = Some(value.trim_matches('"').to_string()),
@@ -282,6 +285,15 @@ impl App {
     }
 
     pub(in crate::app) fn persist_caret_mode(&mut self) {
+        let previous = crate::caret::highlight_previous_character();
+        self.persist_pref(
+            "highlight_previous_character",
+            if previous { "true" } else { "false" },
+        );
+        // Retain a legacy user's anchor preference before replacing the old style key.
+        if self.config.highlight_previous_character != Some(previous) {
+            return;
+        }
         let name = crate::config::caret_mode_name(crate::caret::mode());
         self.persist_pref("caret_mode", &format!("\"{name}\""));
     }

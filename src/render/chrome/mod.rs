@@ -705,25 +705,6 @@ impl TextPipeline {
     }
 }
 
-fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<CacheKey> {
-    let byte = text
-        .char_indices()
-        .nth(idx)
-        .map(|(b, _)| b)
-        .unwrap_or(text.len());
-    if byte >= text.len() {
-        return None;
-    }
-    for run in buf.layout_runs() {
-        for g in run.glyphs.iter() {
-            if byte >= g.start && byte < g.end {
-                return Some(g.physical((0.0, 0.0), 1.0).cache_key);
-            }
-        }
-    }
-    None
-}
-
 pub(super) const BAR_SIDE_INSET: Logical = Logical(8.0);
 
 pub(in crate::render) const BAR_TEXT_PAD: Logical = Logical(13.0);

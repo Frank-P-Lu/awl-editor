@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
+fn caret_picker_lists_two_styles_navigates_and_maps_modes() {
     use crate::caret::CaretMode;
     // `new_caret` reads `crate::caret::is_auto()` at construction (for
     // `original_caret_was_auto`), so hold the caret global's lock and pin an
@@ -13,14 +13,10 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     crate::caret::set_mode(CaretMode::Block);
     let ov = OverlayState::new_caret(CaretMode::Block);
     assert_eq!(ov.kind.as_str(), "caret");
-    assert_eq!(ov.item_strings(), vec!["Block", "Morph", "I-beam"]);
+    assert_eq!(ov.item_strings(), vec!["Block", "I-beam"]);
     assert_eq!(
         ov.item_bindings(),
-        vec![
-            "rounded square + trailing underline",
-            "takes the glyph silhouette",
-            "an alive insertion bar",
-        ]
+        vec!["padded block follows glyph ink", "an alive insertion bar",]
     );
     // Opens highlighting the ACTIVE look, and `original_caret` remembers it.
     assert_eq!(ov.selected_value(), Some("Block"));
@@ -35,8 +31,6 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     );
     // NAVIGATE down the list -> the selected look maps back via from_label.
     let mut ov = ov;
-    ov.move_sel(1);
-    assert_eq!(ov.selected_caret_mode(), Some(CaretMode::Morph));
     ov.move_sel(1);
     assert_eq!(ov.selected_caret_mode(), Some(CaretMode::Ibeam));
     // Opening with a non-Block look pre-selects THAT row.

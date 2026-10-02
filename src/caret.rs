@@ -77,13 +77,12 @@ pub const CARET_COPY_PULSE_MS: f32 = 180.0;
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
-enum_with_all! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-    pub enum CaretMode {
-        Block,
-        Morph,
-        Ibeam,
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaretMode {
+    Block,
+    /// Legacy input only; setters migrate it to Block plus previous-character highlighting.
+    Morph,
+    Ibeam,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -94,6 +93,7 @@ pub enum Affinity {
 }
 
 impl CaretMode {
+    pub const ALL: [Self; 2] = [Self::Block, Self::Ibeam];
     fn as_u8(self) -> u8 {
         match self {
             CaretMode::Block => 0,
@@ -112,7 +112,7 @@ impl CaretMode {
 
     pub fn description(self) -> &'static str {
         match self {
-            CaretMode::Block => "rounded square + trailing underline",
+            CaretMode::Block => "padded block follows glyph ink",
             CaretMode::Morph => "takes the glyph silhouette",
             CaretMode::Ibeam => "an alive insertion bar",
         }
@@ -126,6 +126,17 @@ impl CaretMode {
 }
 
 static MODE_OVERRIDE: AtomicU8 = AtomicU8::new(0);
+pub const HIGHLIGHT_PREVIOUS_CHARACTER_DEFAULT: bool = false;
+static HIGHLIGHT_PREVIOUS_CHARACTER: crate::toggle::Toggle =
+    crate::toggle::Toggle::new(HIGHLIGHT_PREVIOUS_CHARACTER_DEFAULT);
+
+pub fn highlight_previous_character() -> bool {
+    HIGHLIGHT_PREVIOUS_CHARACTER.on()
+}
+
+pub fn set_highlight_previous_character(on: bool) {
+    HIGHLIGHT_PREVIOUS_CHARACTER.set(on);
+}
 
 pub fn font_is_mono(family: &str) -> bool {
     crate::render::facepitch::family_is_mono(family)
@@ -142,13 +153,19 @@ pub fn default_mode() -> CaretMode {
 pub fn mode() -> CaretMode {
     match MODE_OVERRIDE.load(Ordering::Relaxed) {
         1 => CaretMode::Block,
-        2 => CaretMode::Morph,
+        2 => CaretMode::Block,
         3 => CaretMode::Ibeam,
         _ => default_mode(),
     }
 }
 
 pub fn set_mode(m: CaretMode) {
+    let m = if m == CaretMode::Morph {
+        set_highlight_previous_character(true);
+        CaretMode::Block
+    } else {
+        m
+    };
     MODE_OVERRIDE.store(m.as_u8() + 1, Ordering::Relaxed);
 }
 
@@ -160,24 +177,7 @@ pub fn clear_override() {
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
 }
 
-/// The column the MORPH caret inhabits: the character BEFORE the insertion point
-/// (typing `abc|` lights the `c`). `row_start` is the caret's own VISUAL row start,
-/// and the step back never crosses it — one column back from the first column of a
-/// soft-wrapped row is a character on the row ABOVE, which drew the caret a whole
-/// visual row away from its insertion point.
-pub fn morph_anchor_col(col: usize, row_start: usize) -> usize {
-    if col <= row_start {
-        return col;
-    }
-    col.saturating_sub(1)
-}
-
-/// Does the MORPH caret melt to the line-start bar? It does exactly when there is no
-/// preceding character ON THE CARET'S OWN VISUAL ROW to inhabit.
-///
-/// The rule is ROW-relative, not logical-line-relative: a soft-wrapped row's first
-/// column is a row start with nothing behind it, exactly like column 0, and `col == 0`
-/// remains covered because an unwrapped line's row starts at 0.
+/// Whether the current visual row has no preceding character to highlight.
 pub fn morph_row_start(col: usize, row_start: usize) -> bool {
     col == row_start
 }

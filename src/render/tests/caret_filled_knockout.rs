@@ -28,7 +28,7 @@ struct Cell {
     code: bool,
 }
 
-const CELLS: [Cell; 8] = [
+const CELLS: [Cell; 10] = [
     Cell {
         name: "round",
         text: "o",
@@ -77,6 +77,22 @@ const CELLS: [Cell; 8] = [
         has_glyph: false,
         code: false,
     },
+    Cell {
+        name: "accent",
+        text: "Å",
+        col: 0,
+        look: CaretMode::Block,
+        has_glyph: true,
+        code: false,
+    },
+    Cell {
+        name: "combining mark",
+        text: "A\u{30a}",
+        col: 0,
+        look: CaretMode::Block,
+        has_glyph: true,
+        code: false,
+    },
     // `calt` substitutes shapes while retaining one glyph per fixed-pitch cell.
     Cell {
         name: "ligature",
@@ -93,9 +109,9 @@ const CELLS: [Cell; 8] = [
     // neither mode, which put the caret a column left of its insertion point on every
     // ink-caret world.
     Cell {
-        name: "folded-morph",
+        name: "legacy-previous",
         text: "o",
-        col: 0,
+        col: 1,
         look: CaretMode::Morph,
         has_glyph: true,
         code: false,
@@ -118,6 +134,7 @@ fn prepare(
     prepared: PreparedView<'_>,
 ) {
     crate::caret::set_mode(prepared.look);
+    crate::caret::set_highlight_previous_character(prepared.look == CaretMode::Morph);
     let mut v = super::view(prepared.text, prepared.line, prepared.col);
     v.zoom = prepared.zoom;
     if prepared.code {
@@ -464,8 +481,8 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
     assert_eq!(
         glyph_cells,
-        7 * 3 * 2 * 2,
-        "seven inhabited classes x zoom x dpi x menu bar"
+        9 * 3 * 2 * 2,
+        "nine inhabited classes x zoom x dpi x menu bar"
     );
     assert_eq!(
         glyphless_cells,
@@ -478,82 +495,24 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
-/// Ordinary Morph is re-uploaded through an independent explicit reference call
-/// using `CARET_MORPH_DILATE_PX`; the whole frame must remain byte-identical at
-/// every requested zoom/DPI pair. This catches an over-broad "make every glyph
-/// mask true-weight" repair even if Cassowary itself looks correct.
+/// Legacy Morph now uses the same padded rectangle and no accent glyph silhouette.
 #[test]
-fn ordinary_morph_keeps_its_dilated_pixels_byte_identical() {
+fn ordinary_legacy_morph_draws_a_block_without_a_glyph_silhouette() {
     let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
     let _restore = crate::testlock::misc::TogglesRestore::capture();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping ordinary Morph identity law: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Tawny").unwrap();
     p.sync_theme();
-
-    // Both menu-bar arms, for the reason the law above sweeps them: the bar's
-    // reserve moves the caret's row, and leaving the axis ambient asks this
-    // identity question at one set of canvas coordinates on macOS and another on
-    // every Linux host.
-    let ambient_menu_bar = crate::menubar::menu_bar_on();
-    for menu_bar in [false, true] {
-        crate::menubar::set_menu_bar_on(menu_bar);
-        for dpi in [1.0_f32, 2.0] {
-            p.set_dpi(dpi);
-            for zoom in [0.8_f32, 1.0, 2.0] {
-                let text = "xo\npark";
-                // Morph inhabits the character immediately before the insertion point.
-                prepare(
-                    &mut p,
-                    &device,
-                    &queue,
-                    PreparedView {
-                        text,
-                        line: 0,
-                        col: 2,
-                        look: CaretMode::Morph,
-                        zoom,
-                        code: false,
-                    },
-                );
-                assert!(
-                    p.caret_glyph_pipeline.is_drawn(),
-                    "zoom={zoom} dpi={dpi} menu_bar={menu_bar}: fixture mask"
-                );
-                let actual = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-
-                let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
-                p.caret_glyph_pipeline
-                    .set_color(theme::primary().rgb_bytes());
-                p.caret_glyph_pipeline.prepare(
-                    &device,
-                    &queue,
-                    W,
-                    H,
-                    p.caret_mask_from.as_ref(),
-                    from_box,
-                    p.caret_mask_to.as_ref(),
-                    to_box,
-                    morph_t,
-                    1.0,
-                    p.metrics.px(CARET_MORPH_DILATE_PX),
-                );
-                let reference = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-                assert_eq!(
-                    actual, reference,
-                    "zoom={zoom} dpi={dpi} menu_bar={menu_bar}: ordinary Morph bytes changed"
-                );
-            }
-        }
-    }
-    crate::menubar::set_menu_bar_on(ambient_menu_bar);
-
-    p.set_dpi(1.0);
-    theme::set_active(theme::DEFAULT_THEME);
-    p.sync_theme();
-    crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_mode(CaretMode::Morph);
+    p.set_view(&super::view("xo", 0, 2));
+    p.settle_caret();
+    p.prepare(&device, &queue, W, H).unwrap();
+    assert!(p.caret_pipeline.is_drawn());
+    assert!(!p.caret_glyph_pipeline.is_drawn());
 }

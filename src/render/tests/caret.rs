@@ -166,6 +166,7 @@ fn block_descender_extends_only_for_dippers() {
     let _c = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping block_descender_extends_only_for_dippers: no wgpu adapter");
         return;
@@ -207,6 +208,7 @@ fn cosmetic_trail_anchor_is_mode_aware() {
     // Pin a cursor-cell-anchored look BEFORE the set_view latch (the anchor is
     // mode-keyed: Morph would shift the cell one back).
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping cosmetic_trail_anchor_is_mode_aware: no wgpu adapter");
         return;
@@ -227,6 +229,7 @@ fn cosmetic_trail_anchor_is_mode_aware() {
     // the live app re-latches every prepared frame. Re-`set_view` at the same
     // position after each `set_mode` so the latch tracks the global under test.
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     p.set_view(&view(text, 1, 2));
     p.caret.kick_trail(from, to, false);
     p.caret.step_trail(0.03);
@@ -254,6 +257,7 @@ fn cosmetic_trail_anchor_is_mode_aware() {
         "block | must sit right of the i-beam |: block={block_x} ibeam={ibeam_x}"
     );
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// The I-beam caret: at REST a steady thin/tall bar pinned at the insertion
@@ -344,6 +348,7 @@ fn space_bar_caret_centers_on_cell_advance() {
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping space_bar_caret_centers_on_cell_advance: no wgpu adapter");
         crate::caret::set_mode(CaretMode::Block);
+        crate::caret::set_highlight_previous_character(false);
         return;
     };
     let text = "a b"; // cursor past the space: the ANCHOR (col 1) is the glyphless space cell
@@ -365,6 +370,7 @@ fn space_bar_caret_centers_on_cell_advance() {
         "space-bar width == CARET_SPACE_BAR_W*scale: w={w}"
     );
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// THE MORPH ANCHOR (the living caret rides the last-typed glyph): MORPH's
@@ -395,6 +401,7 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
 
     // BLOCK at end-of-line: the caret cell is the (glyphless) cell AFTER 'c'.
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     p.set_view(&view(text, 0, 3));
     assert_eq!(p.caret_anchor_col(), 3, "block anchors the insertion cell");
     let xs = p.line_glyph_xs(0);
@@ -456,6 +463,7 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
     );
     let (m0x, m0y) = p.caret_target_xy();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     p.set_view(&view(text, 2, 0));
     let (b0x, b0y) = p.caret_target_xy();
     assert!(
@@ -485,6 +493,7 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
     );
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// The MORPH LINE-START DEGRADE draws the I-BEAM'S bar — same behavior, same
@@ -505,6 +514,7 @@ fn morph_linestart_bar_is_the_ibeam_rest_bar() {
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping morph_linestart_bar_is_the_ibeam_rest_bar: no wgpu adapter");
         crate::caret::set_mode(CaretMode::Block);
+        crate::caret::set_highlight_previous_character(false);
         return;
     };
     let text = "abc\n\nxyz";
@@ -541,6 +551,7 @@ fn morph_linestart_bar_is_the_ibeam_rest_bar() {
     assert!((ew - mw).abs() < 1e-6 && (eh - mh).abs() < 1e-6 && (ec - mc).abs() < 1e-6);
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// At a SOFT-WRAP boundary the MORPH caret stays on ITS OWN visual row. The
@@ -569,6 +580,7 @@ fn morph_at_a_wrap_boundary_holds_its_own_row_and_degrades_to_the_bar() {
     let long = "word ".repeat(80); // wraps on the 1200px canvas
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     p.set_view(&view(&long, 0, 0));
     let rows = p.visual_rows(0);
     assert!(
@@ -627,6 +639,7 @@ fn morph_at_a_wrap_boundary_holds_its_own_row_and_degrades_to_the_bar() {
     );
 
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// A FULL-WIDTH CJK previous char keeps its full-width cell as the MORPH
@@ -670,6 +683,7 @@ fn morph_anchor_cjk_full_width_cell() {
         "本 rasterizes a full-width silhouette"
     );
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 }
 
 /// The morph FROM/TO cross-fade captures are ANCHOR-CONSISTENT: on a cursor
@@ -711,6 +725,7 @@ fn morph_from_key_latches_the_old_anchor() {
 
     // BLOCK: the latch keeps reading the old CURSOR cell itself (unchanged).
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     p.set_view(&view(text, 0, 2)); // re-latch the Block look
     let key_c = p.cursor_glyph_key_at(0, 2);
     assert!(key_c.is_some(), "'c' has a glyph");
@@ -1006,6 +1021,7 @@ fn caret_lookup_position_independent() {
     };
     let saved = crate::caret::mode();
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
 
     // Many IDENTICAL non-wrapping content lines: one shaped run each, so the prefix
     // before the cursor line grows 1:1 with the line index.

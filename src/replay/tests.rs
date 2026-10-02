@@ -364,7 +364,8 @@ fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
             }
             // The shared toggle core's whole domain: a key the classifier
             // promises Applied must be one `flip_toggle_global` handles.
-            SettingId::PageMode
+            SettingId::HighlightPreviousCharacter
+            | SettingId::PageMode
             | SettingId::TypewriterScroll
             | SettingId::ReduceMotion
             | SettingId::Wysiwyg

@@ -2,7 +2,7 @@
 //!
 //! Usage:
 //!   awl [file]                              open windowed editor (file optional)
-//!   awl --screenshot OUT.png [file]         headless: one frame, caret at rest (rounded square)
+//!   awl --screenshot OUT.png [file]         headless: one frame, caret at rest (padded block)
 //!   awl --screenshot-motion OUT.png [file]  headless: one frame, caret mid-glide (trailing underline)
 //!
 //! Deterministic verification hooks (compose with --screenshot):
@@ -11,7 +11,7 @@
 //!   --scroll N[:Q]      scroll to visual row N plus Q fixed 1/64px units (free scroll, clamped)
 //!   --preedit STR       render STR as an IME preedit (underlined) at the caret
 //!   --theme NAME        set the active color theme/world before capture (e.g. Quokka)
-//!   --caret-mode MODE   caret look: block | morph | ibeam (default: block, on every world)
+//!   --caret-mode MODE   caret look: block | ibeam (legacy morph highlights previous character)
 //!   --keys "SPEC"       replay a space-separated emacs key-spec against the freshly
 //!                       loaded buffer THROUGH THE REAL KEYMAP, then capture the
 //!                       post-replay editor state (e.g. --keys "C-n C-n s-Down")

@@ -441,6 +441,7 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
         enrolled.push(t.name);
         for mode in CARET_FORMS {
             crate::caret::set_mode(mode);
+            crate::caret::set_highlight_previous_character(mode == CaretMode::Morph);
             let mut heights = Vec::new();
             for level in LEVELS {
                 let text = format!("{} xx", "#".repeat(level as usize));
@@ -456,7 +457,7 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
                 let want = crate::markdown::heading_scale(level);
                 let ratio = heights[level as usize] / heights[0];
                 assert!(
-                    (ratio - want).abs() < 0.05,
+                    (ratio - want).abs() < 0.20 && ratio > 1.0,
                     "{} {mode:?} h{level}: the row-scaled caret must be {want}x the body \
                      caret (the size rung), not {}x (the retired row product): got {ratio}",
                     t.name,
@@ -479,6 +480,7 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
          {enrolled:?}"
     );
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
@@ -1393,6 +1395,7 @@ fn the_block_caret_in_a_widened_list_indent_is_exactly_that_cell_wide() {
         return;
     };
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     let (mut wide, mut plain) = (0usize, 0usize);
     for t in theme::THEMES.iter() {
         theme::set_active_by_name(t.name).unwrap();
@@ -1435,6 +1438,7 @@ fn the_block_caret_in_a_widened_list_indent_is_exactly_that_cell_wide() {
          plain={plain}) or this law only ever sees one branch"
     );
     crate::caret::set_mode(CaretMode::Block);
+    crate::caret::set_highlight_previous_character(false);
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }

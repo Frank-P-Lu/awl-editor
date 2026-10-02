@@ -53,6 +53,7 @@ pub(crate) fn toggle_core_now(key: &str, config: &crate::config::Config) -> Opti
         "outline" => crate::outline::outline_on(),
         "menu_bar" => crate::menubar::menu_bar_on(),
         "reduce_motion" => crate::motion::reduced(),
+        "highlight_previous_character" => crate::caret::highlight_previous_character(),
         "file_visibility" => crate::file_visibility::all_on(),
         "autosave" => config.autosave_on(),
         "history" => config.history_on(),
@@ -80,6 +81,7 @@ fn toggle_core_set(key: &str, next: bool) {
         "outline" => crate::outline::set_outline_on(next),
         "menu_bar" => crate::menubar::set_menu_bar_on(next),
         "reduce_motion" => crate::motion::set_reduced(next),
+        "highlight_previous_character" => crate::caret::set_highlight_previous_character(next),
         "file_visibility" => crate::file_visibility::set_all_on(next),
         // Config-only: autosave/history/session_restore have no global.
         _ => {}
@@ -117,6 +119,7 @@ pub fn toggle_default(key: &str) -> Option<bool> {
         "page_mode" => crate::page::PAGE_MODE_DEFAULT,
         "typewriter_scroll" => crate::typewriter::TYPEWRITER_SCROLL_DEFAULT,
         "reduce_motion" => crate::motion::REDUCE_MOTION_DEFAULT,
+        "highlight_previous_character" => crate::caret::HIGHLIGHT_PREVIOUS_CHARACTER_DEFAULT,
         "wysiwyg" => crate::markdown::WYSIWYG_DEFAULT,
         "popover" => crate::popover::POPOVER_DEFAULT,
         "inline_images" => crate::markdown::INLINE_IMAGES_DEFAULT,
