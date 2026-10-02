@@ -6,8 +6,8 @@
 
 ## Open build and design tasks
 
-**13 open numbered tasks:** 582, 666, 668 and 669 await user review or a
-choice; 657–659, 661–665 and 672 are queued for the remaining journeys,
+**13 open numbered tasks:** 582, 666 and 669 await user review;
+657–659, 661–665, 668 and 672 are queued for the remaining journeys,
 release proof or implementation. No implementation claim is currently active.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
@@ -205,23 +205,20 @@ ask the user to judge live proportions where the remaining choice is taste.
 
 ---
 
-### 668 — choose visible Japanese Markdown emphasis
+### 668 — implement the approved Japanese emphasis dots
 
-🔵 OWED — prototype `9f28df85` on `codex/668-japanese-emphasis-study`;
-no default chosen. The prototype includes an experiment deliberately excluded
-from main; its gallery and branch remain preserved. Regular upright Japanese
-currently hides *emphasis*.
+⚪ QUEUED — the user selected restrained dots above Japanese characters on
+2026-10-02: “Yeah agreed. Dots are good.” Prototype `9f28df85` on
+`codex/668-japanese-emphasis-study` remains deliberately excluded from main;
+its branch and actual six-world/stress captures are preserved. This approves
+the visual treatment, not completed implementation or verification.
 
-Present matched native captures of dots above kana/kanji, a real alternate face or
-weight, quiet underline/bousen and optional ink treatment. Keep synthetic slant and
-invisible Regular as rejected baselines. Existing six-world/stress captures favor
-restrained dots: visible in one-bit Wagtail and less link-like than underline.
-
-Decision: should restrained dots become the default for Japanese emphasis?
-Include punctuation exclusions, mixed Japanese/Latin, wrapping, headings, `*` versus
-`**` roles, zoom/DPI, collision and caret-reveal evidence, and bundle-size/implementation
-cost. Preserve real Japanese bold and the download cap. The user must choose before
-shipping; private content and HTML mockups are not prototype evidence.
+Implement dots through the shared renderer. Preserve punctuation exclusions,
+mixed Japanese/Latin, wrapping, headings, distinct `*` versus `**` roles,
+zoom/DPI, collision avoidance and caret reveal. Verify one-bit Wagtail, real
+Japanese bold, native/wasm behavior and the compressed download cap. Use the
+preserved prototype as evidence and integrate only the selected treatment;
+alternate-face, underline and ink experiments are not approved defaults.
 
 ---
 
