@@ -55,6 +55,12 @@ fn step<'a>(job: &'a str, name: &str) -> &'a str {
     &rest[..end]
 }
 
+fn lipo_inputs_precede_verification(mac: &str) -> bool {
+    mac.contains("lipo target/universal/awl -verify_arch arm64 x86_64")
+        && mac.contains("lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64")
+        && !mac.contains("lipo -verify_arch")
+}
+
 fn release_audit(
     workflow: &str,
     packager: &str,
@@ -108,10 +114,7 @@ fn release_audit(
             failures.push(label);
         }
     }
-    if !mac.contains("lipo target/universal/awl -verify_arch arm64 x86_64")
-        || !mac.contains("lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64")
-        || mac.contains("lipo -verify_arch")
-    {
+    if !lipo_inputs_precede_verification(mac) {
         failures.push("xcode26-lipo-order");
     }
     if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-universal.dmg")

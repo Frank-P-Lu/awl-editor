@@ -661,8 +661,8 @@ reason = "Existing constructor owner and exhaustive App construction site. Docum
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
 function = "App::resumed"
-message = "this function has too many lines (125/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`. +7: installs the canvas paste listener beside the other resumed-window browser wiring, where its event proxy and lifecycle cleanup have one owner."
+message = "this function has too many lines (127/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`. +7: installs the canvas paste listener beside the other resumed-window browser wiring, where its event proxy and lifecycle cleanup have one owner. +2: Linux launcher identity must be assigned from the active event loop immediately before the one window-creation call."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
