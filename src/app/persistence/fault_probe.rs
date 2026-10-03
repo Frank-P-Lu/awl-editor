@@ -126,7 +126,7 @@ mod clipboard_isolation_tests {
             .clipboard
             .as_mut()
             .expect("memory backend installed before construction");
-        assert!(clip.get_text().is_err());
+        clip.get_text().unwrap_err();
         clip.set_text("probe-only".into()).unwrap();
         assert_eq!(clip.get_text().unwrap(), "probe-only");
     }

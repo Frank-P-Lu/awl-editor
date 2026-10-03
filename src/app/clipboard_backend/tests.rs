@@ -77,7 +77,7 @@ fn actual_unit_capture_and_scheduler_constructors_start_with_memory() {
             .clipboard
             .as_mut()
             .expect("memory handle installed at construction");
-        assert!(clip.get_text().is_err());
+        clip.get_text().unwrap_err();
         clip.set_text("isolated".into()).unwrap();
         assert_eq!(clip.get_text().unwrap(), "isolated");
     }
