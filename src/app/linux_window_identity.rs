@@ -1,14 +1,12 @@
 //! Stable launcher identity, independent of the executable filename and title.
 
-use winit::event_loop::ActiveEventLoop;
-use winit::platform::wayland::ActiveEventLoopExtWayland;
 use winit::window::WindowAttributes;
 
 const X11_CLASS: &str = "awl";
 const WAYLAND_APP_ID: &str = "dev.franklu.awl";
 
-pub(super) fn apply(attrs: WindowAttributes, event_loop: &ActiveEventLoop) -> WindowAttributes {
-    for_backend(attrs, event_loop.is_wayland())
+pub(super) fn apply(attrs: WindowAttributes, wayland: bool) -> WindowAttributes {
+    for_backend(attrs, wayland)
 }
 
 fn for_backend(attrs: WindowAttributes, wayland: bool) -> WindowAttributes {

@@ -1,3 +1,6 @@
+#[cfg(target_os = "linux")]
+use winit::platform::wayland::ActiveEventLoopExtWayland;
+
 //! Live winit application lifecycle callbacks.
 
 use super::*;
@@ -193,7 +196,7 @@ impl ApplicationHandler<AwlEvent> for App {
             attrs.with_canvas(canvas)
         };
         #[cfg(target_os = "linux")]
-        let attrs = super::linux_window_identity::apply(attrs, event_loop);
+        let attrs = super::linux_window_identity::apply(attrs, event_loop.is_wayland());
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         #[cfg(target_arch = "wasm32")]
         {
