@@ -403,6 +403,8 @@ mod gpu_recovery;
 mod input;
 pub(in crate::app) use input::{TextDoor, TextEdit};
 mod lifecycle;
+#[cfg(target_os = "linux")]
+mod linux_window_identity;
 mod location;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
 /// ambient (lava/stars) tick, event-toast expiry, GPU acquire retries + soak

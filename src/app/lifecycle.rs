@@ -192,6 +192,8 @@ impl ApplicationHandler<AwlEvent> for App {
                 .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok());
             attrs.with_canvas(canvas)
         };
+        #[cfg(target_os = "linux")]
+        let attrs = super::linux_window_identity::apply(attrs, event_loop);
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         #[cfg(target_arch = "wasm32")]
         {
