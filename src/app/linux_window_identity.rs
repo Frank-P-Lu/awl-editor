@@ -30,7 +30,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn launcher_metadata_matches_both_backend_identities() {
+    fn default_launcher_metadata_matches_both_backend_identities() {
         let _guard = crate::testlock::serial();
         let packager = include_str!("../../scripts/package-appimage.sh");
         assert!(packager.contains(&format!("StartupWMClass={X11_CLASS}\n")));

@@ -110,6 +110,7 @@ fn release_audit(
     }
     if !mac.contains("lipo target/universal/awl -verify_arch arm64 x86_64")
         || !mac.contains("lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64")
+        || mac.contains("lipo -verify_arch")
     {
         failures.push("xcode26-lipo-order");
     }
@@ -224,6 +225,16 @@ fn release_audit_rejects_each_headline_regression() {
         ),
         (
             "lipo target/universal/awl -verify_arch arm64 x86_64",
+            "lipo -verify_arch arm64 x86_64 target/universal/awl",
+            "xcode26-lipo-order",
+        ),
+        (
+            "lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64",
+            "lipo -verify_arch arm64 x86_64 \"$MOUNT/Awl.app/Contents/MacOS/awl\"",
+            "xcode26-lipo-order",
+        ),
+        (
+            "lipo -info target/universal/awl",
             "lipo -verify_arch arm64 x86_64 target/universal/awl",
             "xcode26-lipo-order",
         ),
