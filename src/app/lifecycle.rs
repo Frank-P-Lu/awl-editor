@@ -1,9 +1,8 @@
-#[cfg(target_os = "linux")]
-use winit::platform::wayland::ActiveEventLoopExtWayland;
-
 //! Live winit application lifecycle callbacks.
 
 use super::*;
+#[cfg(target_os = "linux")]
+use winit::platform::wayland::ActiveEventLoopExtWayland;
 
 fn current_window_title(app: &App) -> String {
     app.document.buffer_opt().map_or_else(
