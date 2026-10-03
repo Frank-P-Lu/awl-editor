@@ -39,9 +39,8 @@ impl App {
     /// Session restore and reduce-motion are pinned off for the same reason the
     /// two hermetic siblings pin them: a capture may not depend on what a
     /// previous run remembered, nor on the test machine's OS accessibility
-    /// preferences. Routes through `Self::new`, not the raw constructor's
-    /// open-paren needle, so `app::tests::source_audit`'s accounting guard is
-    /// unaffected.
+    /// preferences. Injects a private memory clipboard before App construction,
+    /// keeping every live action real while containing clipboard effects too.
     pub(crate) fn new_headless_capture(
         file: Option<PathBuf>,
         root: PathBuf,
@@ -53,7 +52,14 @@ impl App {
             reduce_motion: Some(false),
             ..config
         };
-        Self::new(file, root, workspace, None, config)
+        Self::new_with_clipboard(
+            file,
+            root,
+            workspace,
+            None,
+            config,
+            clipboard_backend::for_route(clipboard_backend::Route::Capture),
+        )
     }
 
     /// Fold THIS live `App`'s current state into the [`CaptureOpts`] the

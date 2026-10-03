@@ -24,12 +24,13 @@ fn app_on(path: &Path, history: bool) -> App {
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
-    App::new(
+    App::new_with_clipboard(
         Some(path.to_path_buf()),
         root,
         None,
         None,
         probe_config(history),
+        clipboard_backend::for_route(clipboard_backend::Route::Persistence),
     )
 }
 
@@ -111,4 +112,22 @@ fn peak_rss_bytes() -> Option<u64> {
 #[cfg(not(unix))]
 fn peak_rss_bytes() -> Option<u64> {
     None
+}
+
+#[cfg(test)]
+mod clipboard_isolation_tests {
+    use super::*;
+    #[test]
+    fn persistence_constructor_uses_memory_before_app_startup() {
+        let _serial = crate::testlock::serial();
+        let _fs = crate::fs::FsGuard::install(std::sync::Arc::new(crate::fs::InMemoryFs::new()));
+        let mut app = app_on(Path::new("/n/a.md"), false);
+        let clip = app
+            .clipboard
+            .as_mut()
+            .expect("memory backend installed before construction");
+        assert!(clip.get_text().is_err());
+        clip.set_text("probe-only".into()).unwrap();
+        assert_eq!(clip.get_text().unwrap(), "probe-only");
+    }
 }

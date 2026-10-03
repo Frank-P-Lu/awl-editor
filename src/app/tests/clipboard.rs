@@ -34,10 +34,8 @@
 use super::*;
 use crate::fs::InMemoryFs;
 
-/// Install a hermetic [`FakeClipboard`] on `app`, replacing whatever
-/// `App::new`'s own `arboard::Clipboard::new()` attempt produced (or failed
-/// to produce — a headless CI runner has no clipboard service at all). No law
-/// in this file touches the real OS pasteboard.
+/// Retain a shared memory backend for external-change assertions. App startup
+/// already injected a fresh memory backend; this replaces only that memory.
 fn install_fake_clipboard(app: &mut App) -> FakeClipboard {
     let fake = FakeClipboard::new();
     app.clipboard = Some(Box::new(fake.clone()));
