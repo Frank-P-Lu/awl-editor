@@ -242,12 +242,8 @@ pub(super) fn close_mark_hover_ink(active: bool) -> glyphon::Color {
 
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
-/// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row is a
-/// file or the current project's heading, and every other row's name is `faint`.
-/// A row's LOCATION is `faint` throughout, quieter than the name it qualifies on
-/// the row that matters. That forward name is [`active_row_ink`]'s — a heading's
-/// too, though only a File row ever draws the fill ([`plate_rects`]) — and its
-/// whole legibility rationale lives on that owner rather than a second time here.
+/// Active files read against their plate; active headings use content ink on
+/// the bare margin. Other names recede. Only files acquire a selection fill.
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
@@ -267,7 +263,13 @@ pub(super) fn stack_spans(
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
-        let name_ink = if line.active { active_ink } else { faint };
+        let name_ink = match line.kind {
+            crate::workingset::StackRowKind::Group { .. } if line.active => {
+                theme::base_content().to_glyphon()
+            }
+            _ if line.active => active_ink,
+            _ => faint,
+        };
         // The mark's text is ALWAYS shaped FIRST for EVERY row kind — a
         // LEADING span in a right-aligned line grows the row's shaped width
         // into the ragged margin a shorter-than-budget name already leaves
@@ -288,7 +290,7 @@ pub(super) fn stack_spans(
         let mark_ink = if !closable {
             glyphon::Color::rgba(0, 0, 0, 0)
         } else if hovered {
-            close_mark_hover_ink(line.active)
+            close_mark_hover_ink(line.active && line.kind == crate::workingset::StackRowKind::File)
         } else {
             name_ink
         };
@@ -296,7 +298,7 @@ pub(super) fn stack_spans(
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if !parent.is_empty() {
             let parent_ink = if line.active {
-                active_ink
+                name_ink
             } else {
                 theme::muted().to_glyphon()
             };
@@ -379,7 +381,7 @@ pub(super) fn drag_indicator_rect(
 /// silently inheriting either answer.
 ///
 /// A heading that IS the current project keeps its distinct ink ([`stack_spans`]
-/// still routes it through [`theme::selected_row_secondary_ink`]) but draws no
+/// uses content ink on the bare margin) but draws no
 /// fill: the project identity is stated once, by the gutter's own folder heading
 /// above the block (or, once the panel draws headings itself, by that ink-marked
 /// heading) — plating it too would state "you are in this project" a second time

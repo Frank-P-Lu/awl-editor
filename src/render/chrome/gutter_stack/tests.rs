@@ -631,32 +631,31 @@ fn only_the_active_file_ever_plates_never_any_group_heading() {
     );
 }
 
-/// **507: AN ACTIVE HEADING WEARS THE SAME ROUTED INK AN ACTIVE FILE DOES.**
-/// Before this fix a heading's ink came from the ladder's plain `muted`
-/// default, never [`theme::selected_row_secondary_ink`] — exactly the shape
-/// this file's own tripwire names for File rows (a plate that fills at
-/// page-inverse on Wagtail swallows unrouted ink). Now that a heading plates
-/// too, it must be routed the same way.
+/// Heading ink is resolved against its bare margin; file ink against its plate.
 #[test]
-fn an_active_group_heading_wears_the_same_routed_ink_as_an_active_file() {
+fn active_group_heading_uses_bare_margin_ink_across_worlds() {
     let _g = crate::testlock::serial();
-    let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
-    let fitted = fit_rows(&files, 24);
-    let spans = stack_spans(&fitted, None);
-    let heading_ink = spans
-        .iter()
-        .find(|(text, _)| text.contains("notes/"))
-        .expect("the heading draws its own name span")
-        .1;
-    let file_ink = spans
-        .iter()
-        .find(|(text, _)| text.contains("welcome.md"))
-        .expect("the file draws its own name span")
-        .1;
-    assert_eq!(
-        heading_ink.0, file_ink.0,
-        "an active heading and an active file must share the same routed ink"
-    );
+    let _pin = theme::WorldPin::snapshot();
+    assert!(!theme::THEMES.is_empty());
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
+        let spans = stack_spans(&fit_rows(&files, 24), None);
+        let ink = |name: &str| {
+            spans
+                .iter()
+                .find(|(text, _)| text.contains(name))
+                .unwrap()
+                .1
+        };
+        assert_eq!(
+            ink("notes/").0,
+            theme::base_content().to_glyphon().0,
+            "{}",
+            world.name
+        );
+        assert_eq!(ink("welcome.md").0, active_row_ink().0, "{}", world.name);
+    }
 }
 
 /// The production close mark is a one-stage color-only reveal over one
@@ -777,7 +776,14 @@ fn assert_hover_flip_at_row(
     let faint_ink = theme::faint().to_glyphon();
     let rest_ink_for = |at: usize| {
         if fitted[at].active {
-            active_row_ink()
+            if matches!(
+                fitted[at].kind,
+                crate::workingset::StackRowKind::Group { .. }
+            ) {
+                theme::base_content().to_glyphon()
+            } else {
+                active_row_ink()
+            }
         } else {
             faint_ink
         }
