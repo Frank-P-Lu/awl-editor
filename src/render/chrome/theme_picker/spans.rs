@@ -28,18 +28,12 @@ impl TextPipeline {
             .labels
             .iter()
             .map(|(range, active)| {
-                let color = if *active
-                    && matches!(
-                        crate::render::effective_facet_style(),
-                        theme::FacetStyle::DockedTab
-                    ) {
-                    // Keep the active glyphs shaped for the hit geometry. Paint
-                    // this original span in the tab's own surface colour; the
-                    // dock's line-height buffer then draws the label exactly
-                    // once. A transparent mid-line span made glyphon drop the
-                    // remainder of the strip on some active categories.
-                    theme::pane_surface_for(chrome, crate::render::effective_card_elevation())
-                        .to_glyphon()
+                // The dedicated buffer owns all docked label ink. Hide this
+                // entire original line uniformly: its unbilled spacing beat
+                // can be shorter than the glyph overhang, so clipping its
+                // planned box alone cannot prevent duplicate label slivers.
+                let color = if super::super::facet_strip_is_docked() {
+                    glyphon::Color::rgba(0, 0, 0, 0)
                 } else if *active {
                     active_ink
                 } else {
@@ -47,7 +41,14 @@ impl TextPipeline {
                 };
                 (range.clone(), color)
             })
-            .chain(strip.separators.iter().cloned().map(|range| (range, faint)))
+            .chain(strip.separators.iter().cloned().map(|range| {
+                let ink = if super::super::facet_strip_is_docked() {
+                    glyphon::Color::rgba(0, 0, 0, 0)
+                } else {
+                    faint
+                };
+                (range, ink)
+            }))
             .collect();
         pushes.sort_by_key(|(range, _)| range.start);
         // The strip's own PLANNED box height carries the query beat. Inflation

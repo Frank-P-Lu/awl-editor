@@ -957,3 +957,45 @@ fn actual_files_header_runs_and_uploaded_actions_match_the_planned_bands() {
         }
     }
 }
+
+#[test]
+fn docked_facet_labels_never_leave_duplicate_ink_inside_the_files_card() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    for world in crate::theme::THEMES
+        .iter()
+        .filter(|world| world.render_caps.facet_style == crate::theme::FacetStyle::DockedTab)
+    {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi) in [(1200, 1.0), (720, 2.0)] {
+            p.set_dpi(dpi);
+            p.set_size(width as f32, 800.0);
+            let mut v = files_view_at(DENSE, false, "notes");
+            p.set_view(&v);
+            let first = render_frame(&device, &queue, &mut p, width, 800);
+            let (_, card) = p.docked_facet_geometry_probe().unwrap();
+            v.overlay_lens[1].0 = "XXXXXX".into();
+            p.set_view(&v);
+            let second = render_frame(&device, &queue, &mut p, width, 800);
+            let (_, changed) = p.docked_facet_geometry_probe().unwrap();
+            assert_eq!(card, changed);
+            for y in ((card[1] + 3.0 * dpi).ceil() as u32)
+                ..((card[1] + card[3] - 3.0 * dpi).floor() as u32)
+            {
+                for x in ((card[0] + 3.0 * dpi).ceil() as u32)
+                    ..((card[0] + card[2] - 3.0 * dpi).floor() as u32)
+                {
+                    let at = (y * width + x) as usize;
+                    assert_eq!(
+                        first[at], second[at],
+                        "{} @{dpi}: duplicate facet ink remains inside card at {x},{y}",
+                        world.name
+                    );
+                }
+            }
+        }
+    }
+}
