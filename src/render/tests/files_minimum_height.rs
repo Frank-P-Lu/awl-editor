@@ -93,7 +93,7 @@ fn files_minimum_window_keeps_candidate_ink_hits_and_controls_across_worlds_and_
                 p.prepare(&device, &queue, w, roomy_h).unwrap();
                 assert_eq!(
                     p.overlay_geometry(w).header_rows,
-                    4,
+                    3,
                     "{} roomy header",
                     world.name
                 );

@@ -70,8 +70,8 @@ you quit. {{key:save}} writes immediately, if you would rather be sure than
 trusting.
 
 If something outside awl changes a file while you have unsaved edits in it, awl
-keeps both. It stops writing to that file and shows `changed elsewhere`; the
-commands **Save your version** and **Use disk version** settle it. Your unsaved
+keeps both. It stops writing to that file and shows `This file changed outside Awl`; the
+commands **Keep my version** and **Use disk version** settle it. Your unsaved
 text is held in awl's own data folder until you choose, so it survives a crash.
 
 On a desktop these are real files in a real folder, and anything on your

@@ -716,6 +716,8 @@ fn fingerprint(
 /// (`above`) actually carries text at this scroll position, the OTHER edge's
 /// line is still reserved, blank, so the reservation itself cannot change
 /// shape if the reader scrolls to where `below` also has something to say.
+// Re-pinned for the approved header hierarchy: the duplicate query/title
+// line no longer bills an extra line; the short Browse card gains one row.
 #[test]
 fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
     let _g = crate::testlock::serial();
@@ -741,10 +743,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 zoom: 1.0,
             },
             (
-                532.199_95,
+                505.199_98,
                 (300.0, 900.0),
                 12,
-                Some((25, 12, 11, 532.199_95, 800.0)),
+                Some((25, 12, 11, 505.199_98, 800.0)),
             ),
         ),
         (
@@ -755,10 +757,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 zoom: 1.0,
             },
             (
-                559.399_96,
+                532.399_96,
                 (300.0, 900.0),
                 13,
-                Some((25, 13, 12, 559.399_96, 800.0)),
+                Some((25, 13, 12, 532.399_96, 800.0)),
             ),
         ),
         (
@@ -772,10 +774,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // This therefore retains the same 600-logical-pixel cap and
             // candidate window as zoom 1 on this canvas.
             (
-                532.199_95,
+                505.199_98,
                 (50.0, 650.0),
                 12,
-                Some((25, 12, 11, 532.199_95, 800.0)),
+                Some((25, 12, 11, 505.199_98, 800.0)),
             ),
         ),
         // `History` does not belong in this cell: it is not a GROUPED picker
@@ -794,10 +796,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // The sub-1 companion: chrome again remains at its authored UI
             // size rather than shrinking with the document.
             (
-                559.399_96,
+                532.399_96,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 559.399_96, 1600.0)),
+                Some((25, 13, 12, 532.399_96, 1600.0)),
             ),
         ),
         // `Settings` does not belong in this fifth cell: it is not a GROUPED
@@ -817,7 +819,12 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // fewer visible row (7 -> 6), and `card_h` also drops for the
             // same content-derived-not-window-clamped reason; the separator's
             // own magnitude then only shifts how much of its slack survives.
-            (314.6, (150.0, 750.0), 4, Some((34, 4, 3, 314.6, 460.0))),
+            (
+                314.800_02,
+                (150.0, 750.0),
+                5,
+                Some((33, 5, 4, 314.800_02, 460.0)),
+            ),
         ),
     ];
     // EVERY cell is reported, not just the first to move: a pinned-fingerprint

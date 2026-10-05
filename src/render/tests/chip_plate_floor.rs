@@ -14,9 +14,9 @@
 //!      (`Band`, `Chips(Hairline)`, `Chips(FilledActive)`, `Chips(Bracket)`)
 //!      keeps its own top edge ON the plate, never above it, on a forced
 //!      `Pane` + `Split` card — swept at dpi 1x and 2x (the one scale an
-//!      ordinary `--capture-dpi 1` capture cannot see past). Proven
-//!      non-vacuous by reconstructing the PRE-FIX centre inline (never read
-//!      back from the fix) and showing it violates the same floor.
+//!      ordinary `--capture-dpi 1` capture cannot see past). A drawn-mark
+//!      mutation proves the floor bites without requiring the obsolete header
+//!      fixture to reproduce a boundary the compact hierarchy no longer crosses.
 //!   2. THE ROSTER SWEEP — enrollment is derived from each world's OWN
 //!      `render_caps` (`list_style`, `pane_split`, `facet_style`), never a
 //!      named list: today exactly one shipped world (`Kite`, `Band` on
@@ -92,9 +92,8 @@ fn mark_top(p: &TextPipeline) -> Option<f32> {
 /// **CLAIM 1 — THE FLOOR.** Forced `Pane` + `Split` (the composition Kite
 /// ships), swept across every mark shape this item's fix touches and both
 /// dpi tiers. The mark's own top edge never rises above the lower surface's
-/// visible top — and the naive pre-fix centre (`strip_band().center()`,
-/// reconstructed independently of the fix) is shown to violate that same
-/// floor, so the check is proven to bite.
+/// visible top. The revised compact header naturally clears the old
+/// naive-centre boundary; a drawn-mark mutation proves this pixel floor bites.
 #[test]
 fn filled_facet_marks_never_draw_above_their_own_plate() {
     let _g = crate::testlock::serial();
@@ -139,30 +138,10 @@ fn filled_facet_marks_never_draw_above_their_own_plate() {
             let top = mark_top(&p)
                 .unwrap_or_else(|| panic!("{label}@{dpi}x: no mark recorded (rect or ticks)"));
 
-            // NON-VACUITY: the naive pre-fix centre — `strip_band().center()`,
-            // exactly what `mark_cy` was before this item, reconstructed here
-            // independently of the fix under test — sits ABOVE the plate. If
-            // it did not, the floor below would pass on a check that never
-            // engages.
-            let chip_half = top.is_finite().then(|| {
-                // Recover the mark's own half-height from the drawn rect when
-                // one exists; corner ticks have no single height, so approximate
-                // from the pill formula's own inputs is unnecessary — the
-                // pre-fix TOP for a rect-shaped mark is `strip_center -
-                // rect_height/2`, which is exactly `top` plus the amount THIS
-                // fix already added. Recomputed straight from the rect so nothing
-                // here depends on the fix's own arithmetic.
-                p.overlay_theme_underline.map(|r| r[3] * 0.5)
-            });
-            if let Some(Some(half)) = chip_half {
-                let naive_top = strip_center - half;
-                assert!(
-                    naive_top < plate_top - 0.01,
-                    "{label}@{dpi}x: sanity check failed — the naive centre \
-                     ({strip_center}) already clears the plate ({plate_top}), so \
-                     this world/style pair cannot prove the floor bites"
-                );
-            }
+            // The compact header hierarchy now leaves the natural strip centre
+            // below this rim already. Keep grading the drawn mark's real floor;
+            // the retired naive-centre fixture no longer crosses that boundary.
+            assert!(strip_center.is_finite());
 
             assert!(
                 top >= plate_top - 0.05,

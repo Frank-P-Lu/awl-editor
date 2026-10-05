@@ -30,7 +30,12 @@ use super::dither;
 /// hands the GPU cannot disagree about what "linear" means.
 pub(super) fn lab(p: [u8; 4]) -> (f64, f64, f64) {
     let lin = crate::theme::srgb_channel_to_linear;
-    let (r, g, b) = (lin(p[0]), lin(p[1]), lin(p[2]));
+    lab_from_linear([lin(p[0]), lin(p[1]), lin(p[2])])
+}
+
+/// A linear-light mean must stay floating point: re-quantizing it to one
+/// eight-bit pixel can manufacture a chroma jump larger than the measured drift.
+pub(super) fn lab_from_linear([r, g, b]: [f64; 3]) -> (f64, f64, f64) {
     // sRGB → CIE XYZ (D65), then XYZ → Lab against the D65 white point.
     let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
     let y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -868,4 +873,13 @@ mod tests {
              claim that scale changes the verdict"
         );
     }
+}
+
+#[test]
+fn linear_mean_lab_preserves_sub_byte_colour_differences() {
+    // Both means encode to the same eight-bit sRGB pixel. Their measured
+    // chroma still differs: averaging millions of pixels must retain that.
+    let neutral = lab_from_linear([0.01; 3]);
+    let tint = lab_from_linear([0.010_01, 0.01, 0.01]);
+    assert!((neutral.1 - tint.1).abs() > 0.001);
 }
