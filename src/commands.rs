@@ -168,7 +168,7 @@ pub fn slug(name: &str) -> String {
         .replace(' ', "_")
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn slug_for_action(action: &Action) -> Option<String> {
     COMMANDS
         .iter()
