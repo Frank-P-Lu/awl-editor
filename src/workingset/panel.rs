@@ -89,7 +89,7 @@ impl DrawnRow {
 /// [`WorkingSet::expanded_rows`] arms read, so a heading cannot be spelled
 /// two different ways depending on whether it scrolled into view or was
 /// pinned there.
-fn group_stack_row(root: &Path, active: bool, roots: &[&Path]) -> StackRow {
+pub(super) fn group_stack_row(root: &Path, active: bool, roots: &[&Path]) -> StackRow {
     StackRow {
         // Trailing `/` for FOLDER identity — the same rule `row_display`
         // already applies to a picker's own folder rows (`row.is_dir` /

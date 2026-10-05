@@ -163,6 +163,7 @@ pub struct WorkingSet {
     active: Option<usize>,
     /// First file in the compact, directly scrollable margin window.
     direct_scroll: usize,
+    direct_projection: direct::Projection,
     panel: panel::Panel,
 }
 
@@ -232,6 +233,7 @@ impl WorkingSet {
         if let Some(file) = self.active.and_then(|at| self.files.get_mut(at)) {
             file.key = key;
             file.path = path;
+            self.refresh_direct();
         }
     }
 

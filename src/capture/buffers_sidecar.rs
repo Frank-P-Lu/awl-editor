@@ -24,7 +24,7 @@ pub(in crate::capture) fn json(opts: &CaptureOpts, view: &crate::render::ViewSta
     let active_index = view
         .gutter_files
         .iter()
-        .position(|row| row.active)
+        .position(|row| row.active && row.kind == crate::workingset::StackRowKind::File)
         .map(|at| at.to_string())
         .unwrap_or_else(|| "null".to_string());
     let (open, active) = match &opts.buffers {

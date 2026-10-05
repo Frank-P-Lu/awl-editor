@@ -76,19 +76,21 @@ impl App {
         if working.is_expanded() {
             return working.expanded_row_open_file(row);
         }
-        // The compact margin is a direct window over stable open order,
-        // including files retained under a different root.
+        // The compact margin shares root grouping with the expanded panel.
         let at = working.direct_row_index(row)?;
         working.files().get(at)
     }
 
     /// THE ROOT A DRAWN GROUP-HEADING ROW NAMES — the close route's own
     /// resolution for a heading, mirroring [`Self::gutter_stack_row_key`] for
-    /// a file. Only the expanded panel ever draws a `Group` row (the compact
-    /// stack emits `File` alone), so this is
-    /// structurally `None` outside it — no root check of its own is needed.
+    /// a file. Both presentations resolve headings through their drawn window.
     pub(in crate::app) fn gutter_stack_row_group_root(&self, row: usize) -> Option<PathBuf> {
-        self.document.working_set().expanded_row_group_root(row)
+        let working = self.document.working_set();
+        if working.is_expanded() {
+            working.expanded_row_group_root(row)
+        } else {
+            working.direct_row_group_root(row)
+        }
     }
 
     /// Switching uses the row's key, so this path-only projection remains only
