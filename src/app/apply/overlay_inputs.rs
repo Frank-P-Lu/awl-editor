@@ -357,6 +357,10 @@ impl App {
             row_gates: crate::commands::RowGates {
                 has_waiter,
                 change_unresolved: self.change_unresolved(),
+                deleted_file: self
+                    .persistence
+                    .unresolved()
+                    .is_some_and(|held| held.disk_state == persistence::ExternalDiskState::Deleted),
                 named_file: self
                     .document
                     .buffer_opt()

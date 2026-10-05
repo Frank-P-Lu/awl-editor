@@ -295,7 +295,12 @@ pub(super) fn stack_spans(
         out.push((format!("{lead}{CLOSE_MARK_TEXT}"), mark_ink));
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if !parent.is_empty() {
-            out.push((parent.to_string(), faint));
+            let parent_ink = if line.active {
+                active_ink
+            } else {
+                theme::muted().to_glyphon()
+            };
+            out.push((parent.to_string(), parent_ink));
         }
         out.push((leaf.to_string(), name_ink));
     }

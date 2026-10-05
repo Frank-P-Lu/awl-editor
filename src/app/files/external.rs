@@ -43,7 +43,28 @@ use std::path::{Path, PathBuf};
 /// a way out is a dead end — which is precisely what its predecessor
 /// ("reopen for theirs") was, since no reopen path existed.
 pub(crate) const CHANGED_ELSEWHERE_NOTICE: &str =
-    "changed elsewhere — Save your version, or Use disk version";
+    "This file changed outside Awl — Use disk version, or Keep my version";
+pub(in crate::app) const DELETED_ELSEWHERE_NOTICE: &str =
+    "This file was deleted outside Awl — Save to restore, or Close without saving";
+const UNREADABLE_NOTICE: &str =
+    "This file cannot be read — changes are held; check access and try again";
+
+fn read_disk(path: &Path) -> (persistence::ExternalDiskState, Option<String>) {
+    use persistence::ExternalDiskState;
+    let fs = crate::fs::active();
+    if let Err(error) = fs.metadata(path)
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        return (ExternalDiskState::Unreadable, None);
+    }
+    match fs.read_to_string(path) {
+        Ok(text) => (ExternalDiskState::Modified, Some(text)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            (ExternalDiskState::Deleted, None)
+        }
+        Err(_) => (ExternalDiskState::Unreadable, None),
+    }
+}
 
 /// The scratch stash's own version of the same trouble: two awl windows sharing
 /// one stash. Deliberately a different sentence, because the resolutions above
@@ -74,9 +95,9 @@ impl App {
     /// **THE ONE GUARD.** Look at the active document's file and settle what may
     /// happen next; see the module doc for the three outcomes.
     ///
-    /// Idempotent and cheap to repeat: a conflict already latched for this path
-    /// returns `Held` without re-reading, and an unchanged file adopts its own
-    /// fresh observation so the next call is not re-deciding the same fact.
+    /// An existing conflict holds writes while refreshing the observed disk
+    /// state, so reappearance and access failures update the available choices.
+    /// An unchanged file adopts its fresh observation as the next baseline.
     ///
     /// A path-less buffer (the scratch surface, an unnamed fresh document) has
     /// no file to be raced for and returns `Clear` — the stash has its own arm
@@ -86,6 +107,14 @@ impl App {
             return WritePermission::Clear;
         };
         if self.persistence.unresolved_for(&path) {
+            let (disk_state, theirs) = read_disk(&path);
+            if self
+                .persistence
+                .unresolved()
+                .is_some_and(|held| held.disk_state != disk_state || held.theirs != theirs)
+            {
+                self.latch_unresolved(path, disk_state, theirs);
+            }
             return WritePermission::Held;
         }
         let (change, seen) = crate::external::look(&path, &self.document.disk_baseline());
@@ -99,18 +128,24 @@ impl App {
             // would destroy it just as thoroughly.
             crate::external::Change::Modified | crate::external::Change::Appeared => {
                 if self.is_document_dirty() {
-                    let theirs = crate::fs::active().read_to_string(&path).ok();
-                    self.latch_unresolved(path, theirs);
+                    let (disk_state, theirs) = read_disk(&path);
+                    self.latch_unresolved(path, disk_state, theirs);
                     WritePermission::Held
                 } else {
-                    self.reload_clean_document(seen);
-                    WritePermission::Reloaded
+                    if self.reload_clean_document(seen) {
+                        WritePermission::Reloaded
+                    } else {
+                        let (disk_state, theirs) = read_disk(&path);
+                        self.latch_unresolved(path, disk_state, theirs);
+                        WritePermission::Held
+                    }
                 }
             }
             // A deletion always latches, clean buffer or not: there is nothing
             // to reload TO, and re-creating the file would undo the deletion.
-            crate::external::Change::Deleted => {
-                self.latch_unresolved(path, None);
+            crate::external::Change::Deleted | crate::external::Change::Unreadable => {
+                let (disk_state, theirs) = read_disk(&path);
+                self.latch_unresolved(path, disk_state, theirs);
                 WritePermission::Held
             }
         }
@@ -128,7 +163,7 @@ impl App {
         if !self.change_unresolved() {
             return false;
         }
-        self.set_sticky_notice(CHANGED_ELSEWHERE_NOTICE);
+        self.set_sticky_notice(self.external_change_notice());
         self.request_frame();
         true
     }
@@ -141,11 +176,31 @@ impl App {
     /// lines just changed length; line/column at least lands on the same
     /// sentence. Both are clamped by the buffer, so a file that shrank does not
     /// leave the caret past the end.
-    fn reload_clean_document(&mut self, seen: crate::external::Seen) {
+    fn reload_clean_document(&mut self, seen: crate::external::Seen) -> bool {
         if self.document.reload_active_from_disk(seen) {
             self.set_toast_notice("reloaded — changed elsewhere");
             self.sync_page_measure();
             self.update_title();
+            self.request_frame();
+            return true;
+        }
+        false
+    }
+
+    fn external_change_notice(&self) -> &'static str {
+        match self.persistence.unresolved().map(|held| held.disk_state) {
+            Some(persistence::ExternalDiskState::Deleted) => DELETED_ELSEWHERE_NOTICE,
+            Some(persistence::ExternalDiskState::Unreadable) => UNREADABLE_NOTICE,
+            Some(persistence::ExternalDiskState::Modified) | None => CHANGED_ELSEWHERE_NOTICE,
+        }
+    }
+
+    pub(in crate::app) fn cancel_deleted_close(&mut self) {
+        if let Some(mut held) = self.persistence.unresolved().cloned()
+            && held.close_requested_version.take().is_some()
+        {
+            self.persistence.set_unresolved(held);
+            self.set_sticky_notice(self.external_change_notice());
             self.request_frame();
         }
     }
@@ -156,11 +211,21 @@ impl App {
     /// The record is written BEFORE the latch is set, so there is no window in
     /// which awl believes it is holding text for the user without that text
     /// being on disk.
-    fn latch_unresolved(&mut self, path: PathBuf, theirs: Option<String>) {
+    fn latch_unresolved(
+        &mut self,
+        path: PathBuf,
+        disk_state: persistence::ExternalDiskState,
+        theirs: Option<String>,
+    ) {
         self.write_recovery_record(&path);
         self.persistence
-            .set_unresolved(persistence::UnresolvedChange { path, theirs });
-        self.set_sticky_notice(CHANGED_ELSEWHERE_NOTICE);
+            .set_unresolved(persistence::UnresolvedChange {
+                path,
+                theirs,
+                disk_state,
+                close_requested_version: None,
+            });
+        self.set_sticky_notice(self.external_change_notice());
         self.request_frame();
     }
 
@@ -192,6 +257,11 @@ impl App {
         let Some(unresolved) = self.persistence.unresolved() else {
             return;
         };
+        if unresolved.disk_state == persistence::ExternalDiskState::Unreadable {
+            self.set_sticky_notice(UNREADABLE_NOTICE);
+            self.request_frame();
+            return;
+        }
         let card = crate::overlay::OverlayState::new_conflict(
             unresolved.path.clone(),
             unresolved.theirs.clone(),
@@ -214,15 +284,28 @@ impl App {
             return;
         };
         let path = unresolved.path.clone();
-        let now_on_disk = crate::fs::active().read_to_string(&path).ok();
-        if now_on_disk != unresolved.theirs {
-            self.persistence.take_unresolved();
-            self.latch_unresolved(path, now_on_disk);
-            self.set_sticky_notice("changed elsewhere again — check before saving");
+        let (disk_state, now_on_disk) = read_disk(&path);
+        if disk_state == persistence::ExternalDiskState::Unreadable
+            || disk_state != unresolved.disk_state
+            || now_on_disk != unresolved.theirs
+        {
+            self.latch_unresolved(path, disk_state, now_on_disk);
+            if disk_state != persistence::ExternalDiskState::Unreadable {
+                self.set_sticky_notice("changed elsewhere again — check before saving");
+            }
             return;
         }
         let bytes = self.document.buffer().disk_bytes();
-        match crate::durable::write(crate::durable::Owner::ManualSave, &path, &bytes) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let saved = if disk_state == persistence::ExternalDiskState::Deleted {
+            crate::durable::write_new(crate::durable::Owner::ManualSave, &path, &bytes)
+        } else {
+            crate::durable::write(crate::durable::Owner::ManualSave, &path, &bytes)
+        };
+        // The browser backend is synchronous and has no interleaving publisher.
+        #[cfg(target_arch = "wasm32")]
+        let saved = crate::durable::write(crate::durable::Owner::ManualSave, &path, &bytes);
+        match saved {
             Ok(()) => {
                 let version = self.document.buffer().version();
                 self.document.record_document_saved(
@@ -230,13 +313,21 @@ impl App {
                     crate::external::Seen::after_write(&path, &bytes),
                 );
                 self.persistence.take_unresolved();
-                crate::recovery::clear();
+                crate::recovery::clear_for(&path);
                 self.snapshot_after_save();
                 let now = self.frame.now();
                 self.persistence.record_save(now);
-                self.set_toast_notice("saved your version");
+                self.set_toast_notice(if disk_state == persistence::ExternalDiskState::Deleted {
+                    "restored the file"
+                } else {
+                    "kept your version"
+                });
             }
-            Err(e) => self.set_sticky_notice(format!("save failed: {e}")),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                let (disk_state, theirs) = read_disk(&path);
+                self.latch_unresolved(path.clone(), disk_state, theirs);
+            }
+            Err(error) => self.set_sticky_notice(format!("save failed: {error}")),
         }
         self.update_title();
         self.request_frame();
@@ -258,9 +349,18 @@ impl App {
             return;
         };
         let path = unresolved.path.clone();
-        let Ok(theirs) = crate::fs::active().read_to_string(&path) else {
-            self.set_sticky_notice("the file is gone — Save your version to write it back");
-            self.request_frame();
+        let (disk_state, theirs) = read_disk(&path);
+        if disk_state != unresolved.disk_state
+            || disk_state == persistence::ExternalDiskState::Unreadable
+        {
+            self.latch_unresolved(path, disk_state, theirs);
+            return;
+        }
+        if disk_state == persistence::ExternalDiskState::Deleted {
+            self.close_deleted_buffer();
+            return;
+        }
+        let Some(theirs) = theirs else {
             return;
         };
         // A NAMED EXEMPTION from the census's wall
@@ -272,7 +372,7 @@ impl App {
         self.document
             .record_document_saved(version, crate::external::Seen::at(&path));
         self.persistence.take_unresolved();
-        crate::recovery::clear();
+        crate::recovery::clear_for(&path);
         self.sync_page_measure();
         self.update_title();
         self.set_toast_notice(format!(
@@ -290,7 +390,10 @@ impl App {
         self.frame.notice().kind() == crate::app::NoticeKind::Sticky
             && matches!(
                 self.frame.notice().text(),
-                Some(CHANGED_ELSEWHERE_NOTICE) | Some(SCRATCH_CHANGED_NOTICE)
+                Some(CHANGED_ELSEWHERE_NOTICE)
+                    | Some(SCRATCH_CHANGED_NOTICE)
+                    | Some(DELETED_ELSEWHERE_NOTICE)
+                    | Some(UNREADABLE_NOTICE)
             )
     }
 
@@ -303,7 +406,7 @@ impl App {
         if !self.persistence.defer_quit_for_conflict() {
             return false;
         }
-        self.set_sticky_notice(CHANGED_ELSEWHERE_NOTICE);
+        self.set_sticky_notice(self.external_change_notice());
         if let Some(path) = self
             .document
             .buffer_opt()
@@ -341,7 +444,7 @@ impl App {
     /// The record is NOT cleared when it belongs to a different file: it is the
     /// only copy of that text, and it is not this document's business.
     pub(in crate::app) fn adopt_unresolved_for(&mut self, path: &Path) {
-        let Some(record) = crate::recovery::read() else {
+        let Some(record) = crate::recovery::read_for(path) else {
             return;
         };
         if !crate::recovery::matches_path(&record, path) {
@@ -357,12 +460,14 @@ impl App {
             TextDoor::RelaunchRecoveryAdopt,
             TextEdit::Whole(&record.text),
         );
-        let theirs = crate::fs::active().read_to_string(path).ok();
+        let (disk_state, theirs) = read_disk(path);
         self.persistence
             .set_unresolved(persistence::UnresolvedChange {
                 path: path.to_path_buf(),
                 theirs,
+                disk_state,
+                close_requested_version: None,
             });
-        self.set_sticky_notice(CHANGED_ELSEWHERE_NOTICE);
+        self.set_sticky_notice(self.external_change_notice());
     }
 }

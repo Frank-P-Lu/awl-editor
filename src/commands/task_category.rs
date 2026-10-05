@@ -58,7 +58,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Search in folder…", Navigate),
     ("Keep version…", Files),
     ("Review the change", Files),
-    ("Save your version", Files),
+    ("Keep my version", Files),
     ("Use disk version", Files),
     ("Last file", Navigate),
     ("New document", Files),
@@ -163,6 +163,11 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
 ];
 
 pub fn task_category_of(name: &str) -> Option<TaskCategory> {
+    let name = match name {
+        "Save to restore" => "Keep my version",
+        "Close without saving" => "Use disk version",
+        name => name,
+    };
     COMMAND_TASK_CATEGORIES
         .iter()
         .find_map(|(candidate, category)| (*candidate == name).then_some(*category))

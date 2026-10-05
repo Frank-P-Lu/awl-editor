@@ -319,6 +319,7 @@ impl TextPipeline {
         self.asset_preview_text_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon asset preview render failed: {e:?}"))?;
+        self.overlay_tab_backing.draw(pass);
         self.overlay_facet_ghost.draw(pass);
         self.overlay_lens_underline.draw(pass);
         self.overlay_facet_material.draw(pass);

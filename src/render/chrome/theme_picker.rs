@@ -556,6 +556,16 @@ impl TextPipeline {
                     // the card's own ground color, so the active facet reads
                     // continuous with the card instead of a chip floating above it.
                     ghosts.push(tab);
+                    for (range, active) in &label_ranges {
+                        if !active && let Some((left, right, _)) = mark_span(range) {
+                            ghosts.push([
+                                left - chip_hpad,
+                                tab[1],
+                                right - left + 2.0 * chip_hpad,
+                                tab[3],
+                            ]);
+                        }
+                    }
                     let seam_overlap = ui.px(DOCKED_TAB_SEAM_OVERLAP);
                     Some([tab[0], tab[1], tab[2], tab[3] + seam_overlap])
                 }
@@ -719,9 +729,9 @@ impl TextPipeline {
             }
         };
         let folder_head = |c| {
-            chrome_attrs()
+            overlay_panel_attrs()
                 .color(c)
-                .metrics(GlyphMetrics::new(name_fs * 1.15, header_lh))
+                .metrics(GlyphMetrics::new(name_fs, header_lh))
         };
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         let separated_actions = self
@@ -729,9 +739,9 @@ impl TextPipeline {
             .then(|| self.files_action_suffix());
         if self.files_query_is_split(geom) {
             spans.push((title_prefix.as_str(), folder_head(ink)));
-            if let Some(actions) = separated_actions.as_deref() {
+            if separated_actions.is_some() {
                 spans.push(("\n", head(muted)));
-                spans.push((actions, head_chrome(ink)));
+                spans.push((" ", head(muted)));
             }
             spans.push(("\n", head(muted)));
             spans.push(("Search files: ", head(muted)));
@@ -763,7 +773,13 @@ impl TextPipeline {
         let cue_above_text = geom.cue_above.map(|n| super::edge_cue_text(true, n));
         if geom.cue_reserved {
             spans.push(("\n", mk(muted)));
-            spans.push((cue_above_text.as_deref().unwrap_or(" "), mk(muted)));
+            spans.push((
+                cue_above_text.as_deref().unwrap_or(" "),
+                mk(muted).metrics(GlyphMetrics::new(
+                    self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                    self.overlay_lh(),
+                )),
+            ));
         }
         self.push_theme_plan_spans(&mut spans, geom, &fitted, trailing, inks, vis);
         if let Some(msg) = &geom.empty {
@@ -778,7 +794,13 @@ impl TextPipeline {
         let cue_below_text = geom.cue_below.map(|n| super::edge_cue_text(false, n));
         if geom.cue_reserved {
             spans.push(("\n", mk(muted)));
-            spans.push((cue_below_text.as_deref().unwrap_or(" "), mk(muted)));
+            spans.push((
+                cue_below_text.as_deref().unwrap_or(" "),
+                mk(muted).metrics(GlyphMetrics::new(
+                    self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                    self.overlay_lh(),
+                )),
+            ));
         }
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(

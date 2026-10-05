@@ -108,15 +108,14 @@ fn the_verdict_survives_having_the_stat_taken_away() {
         Change::Modified,
         "content, not the stat, decides"
     );
-    // And the same pair with the digests removed — the guard awl used to have —
-    // reports nothing at all. This is the defect, pinned, so the law above can
-    // never be read as belt-and-braces.
+    // Without the digests the current guard must hold the write; matching
+    // metadata alone cannot establish that it is safe.
     let last_blind = opaque(0, old_stat.len.unwrap_or(0));
     let now_blind = opaque(0, old_stat.len.unwrap_or(0));
     assert_eq!(
         compare(&last_blind, &now_blind),
-        Change::Unchanged,
-        "a stat-only compare cannot see this, which is why the digest exists"
+        Change::Unreadable,
+        "identical metadata without content must never authorize a write"
     );
 }
 
@@ -153,27 +152,26 @@ fn the_full_truth_table() {
     );
 }
 
-/// The DEGRADED arm: an unreadable file has no digest, so the compare falls back
-/// to the stat — and the fallback is pessimistic. "We could not check" must
-/// never render as "safe to overwrite".
+/// Unknown current bytes never authorize a write, even with identical metadata.
 #[test]
-fn an_unreadable_file_degrades_to_the_stat_and_degrades_pessimistically() {
+fn an_unreadable_file_holds_writes_without_claiming_deletion() {
+    let _guard = crate::testlock::serial();
     let a = b"alpha\n";
-    // Unknown on the NOW side, stat moved → Modified.
-    assert_eq!(
-        compare(&present(10, 6, a), &opaque(999, 6)),
-        Change::Modified
-    );
-    // Unknown on the LAST side, stat moved → Modified.
+    for last in [
+        Seen::Absent,
+        Seen::Unavailable,
+        present(10, 6, a),
+        opaque(10, 6),
+    ] {
+        for now in [Seen::Unavailable, opaque(999, 6), opaque(10, 6)] {
+            assert_eq!(compare(&last, &now), Change::Unreadable);
+        }
+    }
     assert_eq!(
         compare(&opaque(10, 6), &present(999, 6, a)),
         Change::Modified
     );
-    // Unknown on both sides, length differs at the same mtime → Modified (the
-    // old size guard's one genuine catch, kept for exactly this case).
-    assert_eq!(compare(&opaque(10, 6), &opaque(10, 7)), Change::Modified);
-    // Unknown, stat identical → Unchanged is all that can honestly be said.
-    assert_eq!(compare(&opaque(10, 6), &opaque(10, 6)), Change::Unchanged);
+    assert_eq!(compare(&Seen::Unavailable, &Seen::Absent), Change::Deleted);
 }
 
 /// REPEATED external writes: each look is judged against the baseline awl
@@ -292,6 +290,7 @@ fn every_change_arm_but_unchanged_counts() {
         Change::Modified,
         Change::Appeared,
         Change::Deleted,
+        Change::Unreadable,
     ];
     assert!(!Change::Unchanged.is_change());
     for c in all {

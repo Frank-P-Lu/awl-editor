@@ -127,15 +127,6 @@ impl TextPipeline {
                     chrome_attrs()
                         .color(if *active {
                             chrome.base_content.to_glyphon()
-                        } else if matches!(
-                            crate::render::effective_facet_style(),
-                            theme::FacetStyle::DockedTab
-                        ) {
-                            // A docked strip has one real tab. Its inactive
-                            // categories stay available but recede to the
-                            // console's orientation rung instead of reading as
-                            // a second row of equally loud poster headlines.
-                            chrome.faint.to_glyphon()
                         } else {
                             chrome.muted.to_glyphon()
                         })

@@ -91,7 +91,7 @@ fn every_save_model_document_uses_the_live_conflict_vocabulary() {
 
     // The two resolutions, verified to EXIST before they are demanded of prose.
     let resolutions = [
-        ("Save your version", crate::keymap::Action::ResolveKeepMine),
+        ("Keep my version", crate::keymap::Action::ResolveKeepMine),
         ("Use disk version", crate::keymap::Action::ResolveTakeTheirs),
     ];
     for (label, action) in &resolutions {

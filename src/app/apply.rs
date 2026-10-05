@@ -430,6 +430,9 @@ impl App {
     }
 
     fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) {
+        if matches!(action, Action::Cancel) {
+            self.cancel_deleted_close();
+        }
         // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
         // per-command counts (`app/stats.rs`), which surface discoverability signals
         // but never a nudge. Native-only + config-gated inside; a non-catalog

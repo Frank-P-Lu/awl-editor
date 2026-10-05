@@ -29,7 +29,7 @@
 //!   parked path is not a lesser version of the guard — it is a data-loss bug:
 //!   `resolve_keep_mine` writes `self.document.buffer()`'s bytes to
 //!   `unresolved.path`, so a conflict latched for a parked file would let the
-//!   user's next "Save your version" write the WRONG DOCUMENT over it.
+//!   user's next "Keep my version" write the WRONG DOCUMENT over it.
 //!
 //! The parked arm therefore asks the same question — has the disk moved since
 //! awl last looked — and answers it by REFUSING, without latching anything. The
@@ -210,6 +210,55 @@ impl App {
         {
             return false;
         }
+        self.release_active_entry(key, closing_path)
+    }
+
+    /// Explicit deleted-file close; dirty text survives in recovery and requires
+    /// a second choice for the unchanged buffer version. Escape cancels it.
+    pub(in crate::app) fn close_deleted_buffer(&mut self) {
+        let Some(mut held) = self.persistence.unresolved().cloned() else {
+            return;
+        };
+        if held.disk_state != persistence::ExternalDiskState::Deleted
+            || crate::external::Seen::at(&held.path) != crate::external::Seen::Absent
+        {
+            return;
+        }
+        let Some(key) = self.document.active_key() else {
+            return;
+        };
+        let version = self.document.buffer().version();
+        if self.is_document_dirty() && held.close_requested_version != Some(version) {
+            held.close_requested_version = Some(version);
+            self.persistence.set_unresolved(held);
+            self.set_sticky_notice(concat!(
+                "Unsaved text will stay in recovery — ",
+                "choose Close without saving again to confirm; Escape cancels",
+            ));
+            self.request_frame();
+            return;
+        }
+        if self.is_document_dirty()
+            && !crate::recovery::retain_closed(&crate::recovery::Record {
+                path: held.path.clone(),
+                text: self.document.buffer().text(),
+            })
+        {
+            self.set_sticky_notice("Recovery could not be saved — the document stays open");
+            self.request_frame();
+            return;
+        }
+        crate::recovery::clear();
+        self.persistence.take_unresolved();
+        self.notify_close_waiters(&key);
+        self.release_active_entry(key, Some(held.path));
+    }
+
+    fn release_active_entry(
+        &mut self,
+        key: crate::buffers::BufferKey,
+        closing_path: Option<PathBuf>,
+    ) -> bool {
         let successor = self.document.successor_key(&key);
         let Some(closed) = self.document.unseat_active(&key, successor.as_ref()) else {
             return false;

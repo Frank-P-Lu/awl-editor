@@ -346,3 +346,51 @@ fn every_enrolled_world_scales_its_facet_mark_by_dpi() {
     p.set_dpi(1.0);
     p.set_size(LOGICAL.0, LOGICAL.1);
 }
+
+#[test]
+fn traditional_tabs_are_opaque_over_real_document_ink() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    for world in theme::THEMES
+        .iter()
+        .filter(|world| world.render_caps.facet_style == theme::FacetStyle::DockedTab)
+    {
+        theme::set_active_by_name(world.name).unwrap();
+        for dpi in [1.0, 2.0] {
+            let w = (1200.0 * dpi) as u32;
+            let h = (800.0 * dpi) as u32;
+            p.set_dpi(dpi);
+            p.set_size(w as f32, h as f32);
+            let mut v = facet_view();
+            v.text = "W".repeat(120) + "\n";
+            p.set_view(&v);
+            let first = super::frost_feather::render_frame(&device, &queue, &mut p, w, h);
+            let tabs = p.overlay_theme_facet_ghosts.clone();
+            assert!(
+                tabs.len() > 1,
+                "inactive traditional tabs must own surfaces"
+            );
+            v.text = "i".repeat(120) + "\n";
+            p.set_view(&v);
+            let second = super::frost_feather::render_frame(&device, &queue, &mut p, w, h);
+            for [x, y, width, height] in tabs {
+                for py in ((y + 2.0 * dpi).ceil() as u32)..((y + height - 2.0 * dpi).floor() as u32)
+                {
+                    for px in
+                        ((x + 2.0 * dpi).ceil() as u32)..((x + width - 2.0 * dpi).floor() as u32)
+                    {
+                        assert_eq!(
+                            first[(py * w + px) as usize],
+                            second[(py * w + px) as usize],
+                            "{} @{dpi}: document ink leaks through a traditional tab at {px},{py}",
+                            world.name
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

@@ -55,7 +55,7 @@ impl QuoteOrnaments {
         let close_gap = metrics.font_size * QUOTE_CLOSE_GAP_EM;
         let column_left = pipeline.column_left();
         let text_left = pipeline.text_left();
-        let text_right = text_left + pipeline.text_wrap_width();
+        let text_right = column_left + pipeline.column_width();
 
         // Shape one end's glyph and report its own shaped advance (for x) and its
         // own single-line baseline offset from its box's top (`line_y`, the same
@@ -101,9 +101,9 @@ impl QuoteOrnaments {
             .map(|(top, side, line)| match side {
                 QuoteSide::Open => (top, open_x, side),
                 QuoteSide::Close => {
-                    // x: one gap past THIS block's own last-row ink, yielding
-                    // inside the text column rather than escaping past its right
-                    // edge at the widest wrap.
+                    // Hang outside this block's widest shaped row. The page's
+                    // existing right text pad contains full-width ornaments;
+                    // the final row still owns the baseline below.
                     let ink_right = pipeline.quote_close_row_end_x(line);
                     let x = super::super::geometry::pull_quote_close_x(
                         ink_right, text_left, text_right, close_gap, close_w,

@@ -254,9 +254,9 @@ fn stack_spans_bring_only_the_active_name_forward() {
             .find(|(text, _)| text.ends_with("journal/"))
             .expect("the nested row draws its location");
         if active == 1 {
-            assert_ne!(
+            assert_eq!(
                 location.1.0, forward.0,
-                "the active row's location must stay quieter than its name"
+                "the active path uses readable secondary ink over its plate"
             );
         }
     }

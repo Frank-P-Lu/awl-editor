@@ -63,46 +63,46 @@ impl TextPipeline {
             (field.height - 2.0 * inset_y).max(1.0),
         ];
 
-        let split = self.files_query_is_split(&geom);
-        let actions_split = self.files_actions_are_split(&geom);
-        let action_line = usize::from(split && actions_split);
-        let (up, change) = (if split {
-            plan.header_lines().get(action_line).copied()
-        } else {
-            plan.query_band()
-        })
-        .and_then(|line| {
-            let prefix = if actions_split {
-                self.files_action_suffix()
-            } else if split {
-                self.overlay_files_fitted_title_prefix.clone()
-            } else {
-                self.overlay_title_prefix(&geom)
-            };
-            let run = self.panel_buffer.layout_runs().nth(action_line)?;
-            let origin = self.overlay_head_left(&geom, &plan);
-            let glyph_x = |byte: usize| {
-                run.glyphs
-                    .iter()
-                    .find(|glyph| glyph.start >= byte)
-                    .map(|glyph| origin + glyph.x)
-                    .unwrap_or(origin + run.line_w)
-            };
-            let region = |needle: &str| {
-                let start = prefix.rfind(needle)?;
-                let word = needle.trim();
-                let word_start = start + needle.find(word)?;
-                let word_end = word_start + word.len();
-                let x0 = glyph_x(word_start);
-                let x1 = glyph_x(word_end);
-                Some([x0, line.top, x1 - x0, line.height])
-            };
-            Some((region("Up"), region("Change folder")?))
-        })?;
+        let action_line = 0;
+        let (up, change) = plan
+            .header_lines()
+            .get(action_line)
+            .copied()
+            .and_then(|line| {
+                let prefix = self
+                    .files_action_suffix()
+                    .replace("Change folder", "Change…");
+                let run = self.panel_bind_buffer.layout_runs().nth(action_line)?;
+                let origin = self.overlay_head_left(&geom, &plan);
+                let glyph_x = |byte: usize| {
+                    run.glyphs
+                        .iter()
+                        .find(|glyph| glyph.start >= byte)
+                        .map(|glyph| origin + glyph.x)
+                        .unwrap_or_else(|| {
+                            run.glyphs
+                                .last()
+                                .map_or(origin, |glyph| origin + glyph.x + glyph.w)
+                        })
+                };
+                let region = |needle: &str| {
+                    let start = prefix.rfind(needle)?;
+                    let word = needle.trim();
+                    let word_start = start + needle.find(word)?;
+                    let word_end = word_start + word.len();
+                    let x0 = glyph_x(word_start);
+                    let x1 = glyph_x(word_end);
+                    Some([x0, line.top, x1 - x0, line.height])
+                };
+                Some((region("Up"), region("Change…")?))
+            })?;
+        let left_pad = up.map_or(pad_x, |up| {
+            pad_x.min(((change[0] - up[0] - up[2]) * 0.5).max(0.0))
+        });
         let change = [
-            change[0] - pad_x,
+            change[0] - left_pad,
             change[1] + inset_y,
-            change[2] + 2.0 * pad_x,
+            change[2] + left_pad + pad_x,
             (change[3] - 2.0 * inset_y).max(1.0),
         ];
         let up = up.map(|rect| {
@@ -157,24 +157,16 @@ impl TextPipeline {
             queue,
             width,
             height,
-            &[layout.query, layout.change, layout.footer],
+            &[layout.query, layout.footer],
         );
 
         let focused = chrome.primary.rgba_bytes();
         let quiet = chrome.muted.rgba_bytes();
         let grow = |[x, y, w, h]: [f32; 4]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0];
-        let rims = [
+        let mut rims = vec![
             (
                 grow(layout.query),
                 if self.overlay_query_focused {
-                    focused
-                } else {
-                    quiet
-                },
-            ),
-            (
-                grow(layout.change),
-                if self.overlay_title.contains("› Change folder") {
                     focused
                 } else {
                     quiet
@@ -189,6 +181,9 @@ impl TextPipeline {
                 },
             ),
         ];
+        if self.overlay_title.contains("› Change folder") {
+            rims.push((grow(layout.change), focused));
+        }
         self.files_control_rim.set_corner(radius + 1.0);
         self.files_control_rim
             .prepare_multicolor(device, queue, width, height, &rims);
@@ -285,13 +280,17 @@ impl TextPipeline {
         let header_lines = 1
             + usize::from(self.files_query_is_split(&geom))
             + usize::from(self.files_actions_are_split(&geom));
-        let header = self
+        let mut header = self
             .panel_buffer
             .layout_runs()
             .take(header_lines)
             .map(|run| run.text.to_string())
             .collect::<Vec<_>>()
             .join(" | ");
+        if let Some(actions) = self.panel_bind_buffer.layout_runs().next() {
+            header.push_str(" | ");
+            header.push_str(actions.text);
+        }
         let footer = self.panel_buffer.layout_runs().find(|run| {
             (run.text.starts_with("New document") || run.text.starts_with("› New document"))
                 && run.glyphs.first().is_some_and(|glyph| glyph.start == 0)

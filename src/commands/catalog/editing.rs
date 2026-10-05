@@ -171,7 +171,7 @@ pub(super) static COMMANDS: &[Command] = &[
         ),
     },
     Command {
-        name: "Save your version",
+        name: "Keep my version",
         action: Action::ResolveKeepMine,
         native: "",
         emacs: "",

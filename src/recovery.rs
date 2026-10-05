@@ -1,29 +1,10 @@
-//! src/recovery.rs — THE UNRESOLVED-CHANGE RECORD: exactly one, under awl's own
-//! data root, holding the one thing that exists nowhere else.
+//! Unsaved text held after external changes, under Awl's data root.
 //!
-//! When a file changes on disk while awl holds unsaved edits, both versions are
-//! real work and neither may be destroyed. The disk version is safe by
-//! construction — awl simply stops writing to that path. The user's version is
-//! safe only for as long as the process lives, and a process can be killed.
-//!
-//! So the unsaved text is written here, atomically, for exactly as long as the
-//! conflict is unresolved. It is deleted the moment the user resolves, either
-//! way.
-//!
-//! # What this is deliberately NOT
-//!
-//! Not a versioning system, not a backup, not a crash-recovery service, and not
-//! a second copy of the user's file. There is **one** record, it exists **only**
-//! while a conflict is open, and it holds **one** document. Local history
-//! ([`crate::history`]) already owns "what did this file used to say"; the
-//! scratch stash already owns "what was I typing with no file open". This owns
-//! the narrow gap between them: text the user typed, that awl has been forbidden
-//! to write to its own file, that would otherwise live only in RAM.
-//!
-//! It follows the scratch stash's pattern exactly — one path under
-//! [`crate::fs::data_root`], one [`crate::fs::write_atomic`], read once at
-//! startup — because that pattern is already proven for the same job, and a
-//! second mechanism for the same job is how the two drift.
+//! One active conflict record follows the unresolved document. Explicitly
+//! closing a dirty deleted document durably retains its latest text by path
+//! identity before releasing the buffer. A later conflict cannot overwrite it.
+//! Opening that path adopts the retained manuscript through the same conflict
+//! owner; resolving that document clears only its own retained record.
 //!
 //! # The format, and why it is hand-rolled
 //!
@@ -142,6 +123,57 @@ pub fn read() -> Option<Record> {
 /// can do nothing about.
 pub fn clear() {
     let _ = crate::fs::active().remove_file(&record_path());
+}
+
+/// Closed deleted documents need independent recovery ownership: the next
+/// unresolved document may replace or clear the active conflict record.
+fn retained_path(path: &Path) -> PathBuf {
+    let identity = crate::external::digest(path.as_os_str().as_encoded_bytes());
+    crate::fs::data_root()
+        .join("recovery")
+        .join(format!("closed-{identity:016x}.md"))
+}
+
+/// Preserve the latest explicitly closed manuscript for this identity. A
+/// failed durable write refuses the close, keeping the editable buffer alive.
+pub fn retain_closed(record: &Record) -> bool {
+    let Some(body) = encode(record) else {
+        return false;
+    };
+    let path = retained_path(&record.path);
+    let fs = crate::fs::active();
+    if let Some(parent) = path.parent()
+        && fs.create_dir_all(parent).is_err()
+    {
+        return false;
+    }
+    // Do not replace an unrelated record even if path hashing collides.
+    match fs.read_to_string(&path) {
+        Ok(raw) if decode(&raw).is_none_or(|old| old.path != record.path) => return false,
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => return false,
+        Ok(_) | Err(_) => {}
+    }
+    crate::durable::write(crate::durable::Owner::Recovery, &path, body.as_bytes()).is_ok()
+}
+
+/// Opening the original path recovers its retained text through the same
+/// conflict mechanism. Other documents cannot consume or clear this record.
+pub fn read_for(path: &Path) -> Option<Record> {
+    read()
+        .filter(|record| matches_path(record, path))
+        .or_else(|| {
+            let raw = crate::fs::active()
+                .read_to_string(&retained_path(path))
+                .ok()?;
+            decode(&raw).filter(|record| matches_path(record, path))
+        })
+}
+
+pub fn clear_for(path: &Path) {
+    if read().is_some_and(|record| matches_path(&record, path)) {
+        clear();
+    }
+    let _ = crate::fs::active().remove_file(&retained_path(path));
 }
 
 /// Does this record belong to `path`? The startup restore's own guard: a record
