@@ -182,13 +182,12 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
         "no world enrols in the footprint frost — this law has no subject"
     );
     for world in &worlds {
+        crate::theme::set_active_by_name(world).unwrap();
         for (dpi, w, h) in [(1.0f32, 1200u32, 800u32), (2.0, 2400, 1600)] {
             let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
                 eprintln!("skipping the frost-footprint sweep: no wgpu adapter");
                 return;
             };
-            crate::theme::set_active_by_name(world).unwrap();
-            p.sync_theme();
             p.set_dpi(dpi);
 
             // A: the picker over dense prose. B: the SAME picker over an empty
@@ -401,13 +400,12 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
     for world in enrolled_worlds() {
+        crate::theme::set_active_by_name(world).unwrap();
         for (dpi, w, h) in [(1.0f32, 1200u32, 800u32), (2.0, 2400, 1600)] {
             let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
                 eprintln!("skipping the_footprint_frost_keeps_the_pages_own_hue: no wgpu adapter");
                 return;
             };
-            crate::theme::set_active_by_name(world).unwrap();
-            p.sync_theme();
             p.set_dpi(dpi);
 
             p.set_view(&theme_picker(DENSE));
