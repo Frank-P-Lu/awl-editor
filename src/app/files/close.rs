@@ -232,23 +232,25 @@ impl App {
             held.close_requested_version = Some(version);
             self.persistence.set_unresolved(held);
             self.set_sticky_notice(concat!(
-                "Unsaved text will stay in recovery — ",
-                "choose Close without saving again to confirm; Escape cancels",
+                "Close without saving again to confirm; Esc cancels — ",
+                "text stays in recovery",
             ));
             self.request_frame();
             return;
         }
-        if self.is_document_dirty()
-            && !crate::recovery::retain_closed(&crate::recovery::Record {
-                path: held.path.clone(),
-                text: self.document.buffer().text(),
-            })
-        {
+        let record = crate::recovery::Record {
+            path: held.path.clone(),
+            text: self.document.buffer().text(),
+        };
+        // Refresh the active record before retaining it: a failed removal must
+        // leave the latest text whichever record startup reads first.
+        let preserved = !self.is_document_dirty()
+            || (crate::recovery::write(&record) && crate::recovery::retain_closed(&record));
+        if !preserved || !crate::recovery::clear_active_for(&held.path) {
             self.set_sticky_notice("Recovery could not be saved — the document stays open");
             self.request_frame();
             return;
         }
-        crate::recovery::clear();
         self.persistence.take_unresolved();
         self.notify_close_waiters(&key);
         self.release_active_entry(key, Some(held.path));

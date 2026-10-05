@@ -1221,3 +1221,40 @@ fn metadata_permission_error_is_not_deletion_even_when_the_read_reports_not_foun
     assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_FIRST);
     assert!(!app.frame.notice().text().unwrap().contains("deleted"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_active_recovery_removal_keeps_the_latest_deleted_text() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::{ScriptedFailure, ScriptedFs, ScriptedOperation};
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    mem.remove_file(&doc()).unwrap();
+    app.manual_save();
+    let newest = "latest text edited after the conflict was recorded\n";
+    app.document.set_text(newest);
+    app.resolve_take_theirs();
+    let fail = ScriptedFs::new(
+        mem.clone(),
+        ScriptedFailure {
+            operation: ScriptedOperation::RemoveFile,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "active recovery removal refused",
+        },
+    );
+    let fault = crate::fs::FsGuard::install(Arc::new(fail));
+    app.resolve_take_theirs();
+    assert!(app.document.has_active());
+    assert!(app.change_unresolved());
+    assert_eq!(app.document.buffer().text(), newest);
+    assert_eq!(crate::recovery::read_for(&doc()).unwrap().text, newest);
+    assert!(!mem.exists(&doc()));
+    drop(fault);
+    drop(app);
+    let reopened = app_on(Some(doc()), "/notes", Config::empty());
+    assert_eq!(reopened.document.buffer().text(), newest);
+    assert!(reopened.change_unresolved());
+}

@@ -121,6 +121,7 @@ pub fn read() -> Option<Record> {
 /// next launch and discarded there ([`matches_path`] is what makes that safe),
 /// which is a far better failure than a resolve that reports an error the user
 /// can do nothing about.
+#[cfg(test)]
 pub fn clear() {
     let _ = crate::fs::active().remove_file(&record_path());
 }
@@ -169,11 +170,36 @@ pub fn read_for(path: &Path) -> Option<Record> {
         })
 }
 
-pub fn clear_for(path: &Path) {
-    if read().is_some_and(|record| matches_path(&record, path)) {
-        clear();
+/// Refuse a close if its active record cannot be removed. The caller first
+/// writes the latest text to both records, so failed removal cannot hide it.
+pub fn clear_active_for(path: &Path) -> bool {
+    let fs = crate::fs::active();
+    let active = record_path();
+    match fs.read_to_string(&active) {
+        Ok(raw) => match decode(&raw) {
+            Some(record) if matches_path(&record, path) => match fs.remove_file(&active) {
+                Ok(()) => true,
+                Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+            },
+            Some(_) => true,
+            None => false,
+        },
+        Err(error) => error.kind() == std::io::ErrorKind::NotFound,
     }
-    let _ = crate::fs::active().remove_file(&retained_path(path));
+}
+
+pub fn clear_for(path: &Path) {
+    let _ = clear_active_for(path);
+    let retained = retained_path(path);
+    let fs = crate::fs::active();
+    if fs
+        .read_to_string(&retained)
+        .ok()
+        .and_then(|raw| decode(&raw))
+        .is_some_and(|record| matches_path(&record, path))
+    {
+        let _ = fs.remove_file(&retained);
+    }
 }
 
 /// Does this record belong to `path`? The startup restore's own guard: a record
