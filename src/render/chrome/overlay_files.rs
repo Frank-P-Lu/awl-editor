@@ -13,6 +13,41 @@ struct FilesChromeLayout {
     footer: [f32; 4],
 }
 
+/// Header actions share the folder's origin; candidate accessories retain
+/// the secondary column's beat-adjusted origin. Disjoint clips prevent
+/// either copy of this buffer from drawing in the other's band.
+pub(in crate::render) fn files_accessory_areas<'a>(
+    buffer: &'a GlyphBuffer,
+    geom: &OverlayGeom,
+    plan: &OverlayRowPlan,
+    bounds: TextBounds,
+    left: f32,
+    ink: glyphon::Color,
+) -> [TextArea<'a>; 2] {
+    let area = |top, clip_top, clip_bottom| TextArea {
+        buffer,
+        left,
+        top,
+        scale: 1.0,
+        bounds: TextBounds {
+            top: clip_top,
+            bottom: clip_bottom,
+            ..bounds
+        },
+        default_color: ink,
+        custom_glyphs: &[],
+    };
+    let header_bottom = plan.header_lines()[0].bottom().ceil() as i32;
+    [
+        area(geom.text_top, bounds.top, header_bottom),
+        area(
+            plan.secondary_top(),
+            plan.first_top().floor() as i32,
+            bounds.bottom,
+        ),
+    ]
+}
+
 impl TextPipeline {
     /// A Files surface yields discretionary spacing before its last candidate.
     /// Keep all identity, action, query, and lens rows; the footer action also

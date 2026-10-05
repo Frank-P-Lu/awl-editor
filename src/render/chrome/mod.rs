@@ -438,6 +438,7 @@ mod workspace_column;
 pub(crate) mod overlay_composition;
 mod overlay_draw;
 mod overlay_files;
+pub(in crate::render) use overlay_files::files_accessory_areas;
 mod overlay_ink;
 mod overlay_material;
 mod overlay_query_field;

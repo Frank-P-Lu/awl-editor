@@ -378,7 +378,7 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
 # +1: enroll the shared field-composition chrome owner.
-lines = 1290
+lines = 1291
 # +8: Files row/action/layout data and its focused geometry module are exposed at
 # the shared chrome boundary.
 reason = "Focused-field geometry, existing close and disclosure controls, and workspace composition share the chrome module boundary. +1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero. +13: the float-panel border's outset moves off an inline literal onto a named, documented `FLOAT_BORDER_RING_PX` constant, so the docked-tab seam merge can size its own overlap against the ring's real width instead of guessing it. +1: declares the gutter's own lava frost seeds as a sibling module, split out to keep gutter.rs under its production ceiling. +1: declares the new overlay_query_field module beside its sibling overlay_draw/overlay_rows, split out to keep overlay_draw.rs under its own file-size mark. +151: re-exports the count-cue arithmetic (window_edge_counts, resolve_window_and_cue, OverlayGeom's cue_reserved/cue_above/cue_below split) through the shared chrome surface, plus the new fit_rows submodule split out of overlay_rows.rs to keep it under its own file-size mark. Insert Table's dimension-picker geometry module is declared beside the other per-overlay-kind chrome owners. +1: declares the new `asset_preview` submodule beside the other per-overlay-kind chrome owners. +27: `PanelShape::selection_span` (the band's two edges in the caret's own coordinate shape), `field_view_window_offset` (the field-scroll rule stated once so the band and the caret cross by the same arithmetic), and the `panel_selection` submodule declaration split out to keep `panel.rs` under its own ceiling. +5: re-exports the start surface's convention-truthful Go-to chord label so the capture sidecar can report the exact string the folder line drew, rather than a second derivation of its own. +16: `PanelHit` gains four click targets the reference bordered chrome adds (nav prev/next, Replace, Replace all); re-exports `ControlSpan`/`PanelControlSpans` so `panel.rs` and `panel_draw.rs` share one control-span owner; declares `panel_controls` and `panel_draw`, the latter split out of `panel.rs` (the upload + hit-test half) to keep it under its own ceiling. Close and Replace disclosure extend the existing exhaustive panel hit roster. +4: declares and re-exports the shared control-mark capability so composition, drawing and tests use the same role/slot owner."
@@ -397,7 +397,7 @@ reason = "DOWN 9: rail availability now reads the shared actual shaped name/valu
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
 # +2: overlay draw dispatch passes the focused preedit through shared chrome.
-lines = 556
+lines = 567
 # 550 -> 554: Files control pipelines park in the shared overlay draw pass.
 # +5: Files surface gating stays beside the overlay draw dispatch it controls.
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit. Insert Table's dimension-picker grid draw joins the other overlay pipelines this shared upload owner already serves. +8: `prepare_asset_preview`/`park_asset_preview` join the shared overlay prepare/park pass, drawn after the card so painter's order never hides the preview. +21: every overlay draw branch resolves its chrome geometry through the shared UI metric owner in this single painter-ordered upload pass, keeping document zoom out of card marks, rules, selection bands, and rotated-location bounds without creating per-surface draw owners."
@@ -433,7 +433,7 @@ reason = "Toast placement and collision planning live in `readout/toast.rs`, lea
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 847
+lines = 845
 reason = "Grouped/faceted overlays are planned and shaped here from one row plan, including lens strip seats, selected marks, Files headers, candidate rows, and workspace continuation. The faceted History path now forwards its fixed footer through the same span helper as the flat Settings path; seven lines keep that footer in the existing ordered borrowed-span stream. Extracting those lines would split one shaping owner without reducing state or work. Extracted Files spacing policy now runs before this same row plan is fitted: thirteen lines charge one selected candidate and apply its yielded beat, top drop, separator and padding. This placement hook preserves the shared inventory and later count-cue degradation instead of planning Files twice. The existing DockedTab mark owner now seats all inactive tab surfaces; Files header and quiet count metrics remain in the same ordered span stream and row billing owner."
 
 [[file_size_mark]]
@@ -753,8 +753,8 @@ reason = "One ordered measured composition owns field windows, responsive rows, 
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
 function = "TextPipeline::overlay_upload_text"
-message = "this function has too many lines (204/100)"
-reason = "The mirrored row cluster seats names from shaped ink and chords from the accessory-column flow; the diagonal chord column uses the shaped buffer width for right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. The workspace rail has its own clipped text area, and rotated-location shaping/geometry lives in dedicated `chrome::rotated_location` rather than growing this function."
+message = "this function has too many lines (215/100)"
+reason = "The mirrored row cluster seats names from shaped ink and chords from the accessory-column flow; the diagonal chord column uses the shaped buffer width for right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. The workspace rail has its own clipped text area, and rotated-location shaping/geometry lives in dedicated `chrome::rotated_location` rather than growing this function. Files header actions share the folder origin while candidate metadata keeps its beat-adjusted origin; the dedicated helper owns the two disjoint clips."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -788,7 +788,7 @@ reason = "The row plan reaches this shaper so the strip's active mark rides its 
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::shape_theme_spans"
-message = "this function has too many lines (121/100)"
+message = "this function has too many lines (117/100)"
 reason = "One ordered borrowed span stream keeps header metrics, lens-strip byte ranges, cue reservations, candidate rows, and the workspace continuation footer synchronized with shaping and hit testing; splitting the footer into a second shaping pass would duplicate line ownership. Files adds the folder context to its existing header stream, while quieter count cue metrics preserve the billed rows and their byte offsets."
 
 [[clippy_exception]]

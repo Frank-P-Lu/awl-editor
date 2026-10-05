@@ -700,11 +700,9 @@ impl TextPipeline {
             } else {
                 1.0
             };
-        let header_lh = plan
-            .header_lines()
-            .get(usize::from(self.overlay_files_surface) * 2)
-            .copied()
-            .map_or_else(|| self.overlay_lh(), |field| field.height);
+        // Folder and query are ordinary header lines. The final strip may
+        // own only a short beat when its labels dock above the card.
+        let header_lh = self.overlay_lh();
         let title_prefix = if self.overlay_files_surface {
             let fitted = self.fit_files_title_prefix(geom, name_fs, header_lh);
             self.overlay_files_fitted_title_prefix = fitted.clone();

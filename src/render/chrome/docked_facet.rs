@@ -11,7 +11,9 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Option<crate::render::plan::PlannedHeader> {
         let strip = plan.strip_band()?;
-        let dock_h = self.overlay_lh().min(strip.height);
+        // The original unbilled strip owns only the spacing beat. Its
+        // dedicated glyph buffer still needs a complete line above the card.
+        let dock_h = self.overlay_lh();
         matches!(
             crate::render::effective_facet_style(),
             theme::FacetStyle::DockedTab

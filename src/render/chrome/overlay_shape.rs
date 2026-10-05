@@ -657,7 +657,7 @@ impl TextPipeline {
         if self.overlay_files_surface {
             // Header actions own their row; candidate metadata still yields
             // whenever the real shaped primary would overlap its accessory.
-            let first = geom.shaped_first_row_line();
+            let first = plan.billed_header_rows() + plan.cue_above_rows();
             let last = first + plan.candidate_rows();
             let right_px = self
                 .panel_bind_buffer

@@ -876,3 +876,84 @@ fn folder_context_and_small_right_action_share_a_nonoverlapping_shaped_row() {
         }
     }
 }
+
+#[test]
+fn actual_files_header_runs_and_uploaded_actions_match_the_planned_bands() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi) in [(1200, 1.0), (720, 2.0), (1920, 2.0)] {
+            p.set_dpi(dpi);
+            p.set_size(width as f32, 800.0);
+            let v = files_view_at(DENSE, false, "notes");
+            p.set_view(&v);
+            p.prepare(&device, &queue, width, 800).unwrap();
+            let geom = p.overlay_geometry(width);
+            let plan = p.overlay_row_plan(&geom);
+            let runs: Vec<_> = p.panel_buffer.layout_runs().collect();
+            for header in plan.header_lines().iter().take(2) {
+                let run = runs.iter().find(|run| run.line_i == header.line).unwrap();
+                assert!(
+                    (geom.text_top + run.line_top - header.top).abs() < 0.1,
+                    "{} @{dpi}: header {} starts outside its band",
+                    world.name,
+                    header.line
+                );
+                assert!(
+                    (run.line_height - header.height).abs() < 0.1,
+                    "{} @{dpi}: header {} has wrong line height",
+                    world.name,
+                    header.line
+                );
+            }
+            let query = runs
+                .iter()
+                .find(|run| run.text.starts_with("Search files:"))
+                .unwrap();
+            let field = p.overlay_query_band(&plan).unwrap();
+            assert_eq!(
+                field.line, query.line_i,
+                "query field must enclose the actual Search files row"
+            );
+            let first = runs
+                .iter()
+                .find(|run| run.line_i == geom.shaped_first_row_line())
+                .unwrap();
+            assert!(
+                (geom.text_top + first.line_top - plan.first_top()).abs() < 0.1,
+                "{} @{dpi}: candidate glyphs disagree with selected band",
+                world.name
+            );
+            let bounds = glyphon::TextBounds {
+                left: 0,
+                top: 0,
+                right: width as i32,
+                bottom: 800,
+            };
+            let areas = super::super::chrome::files_accessory_areas(
+                &p.panel_bind_buffer,
+                &geom,
+                &plan,
+                bounds,
+                geom.text_left,
+                world.base_content.to_glyphon(),
+            );
+            let action = p.panel_bind_buffer.layout_runs().next().unwrap();
+            assert!(
+                (areas[0].top + action.line_top - plan.header_lines()[0].top).abs() < 0.1,
+                "header action upload must share the folder's origin"
+            );
+            if let Some((dock, _)) = p.docked_facet_geometry_probe() {
+                let line = p.docked_facet_buffer.layout_runs().next().unwrap();
+                assert!(
+                    line.line_height <= dock.height + 0.1,
+                    "docked labels cannot be clipped to the spacing beat"
+                );
+            }
+        }
+    }
+}
