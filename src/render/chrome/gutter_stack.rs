@@ -242,8 +242,8 @@ pub(super) fn close_mark_hover_ink(active: bool) -> glyphon::Color {
 
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
-/// Active files read against their plate; active headings use content ink on
-/// the bare margin. Other names recede. Only files acquire a selection fill.
+/// The active file and its root heading read against their selection plates.
+/// Other names recede on the bare margin.
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
@@ -263,13 +263,7 @@ pub(super) fn stack_spans(
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
-        let name_ink = match line.kind {
-            crate::workingset::StackRowKind::Group { .. } if line.active => {
-                theme::base_content().to_glyphon()
-            }
-            _ if line.active => active_ink,
-            _ => faint,
-        };
+        let name_ink = if line.active { active_ink } else { faint };
         // The mark's text is ALWAYS shaped FIRST for EVERY row kind — a
         // LEADING span in a right-aligned line grows the row's shaped width
         // into the ragged margin a shorter-than-budget name already leaves
@@ -290,7 +284,7 @@ pub(super) fn stack_spans(
         let mark_ink = if !closable {
             glyphon::Color::rgba(0, 0, 0, 0)
         } else if hovered {
-            close_mark_hover_ink(line.active && line.kind == crate::workingset::StackRowKind::File)
+            close_mark_hover_ink(line.active)
         } else {
             name_ink
         };
@@ -368,32 +362,9 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// **THE PLATE MEANS THE ACTIVE FILE, AND EVERY SHAPE OF "THE ACTIVE FILE" EARNS
-/// IT.** At most ONE plate per frame, across the lone identity line, the resting
-/// stack and the expanded panel alike — never a Group heading, even the current
-/// project's own.
-///
-/// [`gutter::GutterLine::Name`] IS the active file: [`GutterLayout::lines`] draws
-/// it only when the working set has no rows to widen into, so the one file open is
-/// by construction the one being edited. It is plated HERE rather than by a second
-/// rect placed beside it — one owner of "which line is filled" — and the match
-/// below carries no wildcard arm, so a new line kind fails to compile instead of
-/// silently inheriting either answer.
-///
-/// A heading that IS the current project keeps its distinct ink ([`stack_spans`]
-/// uses content ink on the bare margin) but draws no
-/// fill: the project identity is stated once, by the gutter's own folder heading
-/// above the block (or, once the panel draws headings itself, by that ink-marked
-/// heading) — plating it too would state "you are in this project" a second time
-/// in the same column the active file's own plate already occupies, the exact
-/// double-selection a screenshot once caught (two purple plates answering two
-/// different questions, "which file" and "which project", read as two selections).
-///
-/// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and the
-/// SAME planner rows they sit on, so a plate cannot mark a different line than the
-/// one the reader is editing. Adding a line to the block (an affordance appearing,
-/// the project line vanishing) moves the glyphs and the plate through one shared
-/// index rather than two agreeing counts.
+/// Selection marks the active file and the root heading that contains it.
+/// Both use the same shaped row geometry and selected ink. Inactive roots,
+/// the separate project label and the changed notice remain unplated.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -411,7 +382,7 @@ pub(super) fn plate_rects(
                 gutter::GutterLine::Name => {}
                 gutter::GutterLine::File(at) => {
                     let file = layout.files.get(at)?;
-                    if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
+                    if !file.active {
                         return None;
                     }
                 }
@@ -430,7 +401,7 @@ pub(super) fn plate_rects(
 }
 
 impl TextPipeline {
-    /// THE ACTIVE FILE'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
+    /// The first selected plate rect `[x, y, w, h]`, off the EXACT SAME
     /// layout + planner rows [`TextPipeline::prepare_gutter`] draws
     /// `gutter_stack_plate` from ([`plate_rects`] answers for both the lone
     /// identity line and a stack row). `None` when the gutter is hidden/off.

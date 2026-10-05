@@ -1287,8 +1287,8 @@ fn the_stack_close_mark_flips_colour_on_real_pixels_for_an_inactive_row_too() {
 
 mod accent;
 
-/// A folder heading on bare margin must carry actual glyph pixels, including
-/// inverse worlds where selected-file ink would disappear without its plate.
+/// The selected root must have readable glyphs and a visible selection change
+/// on every world, including one-bit palettes.
 #[test]
 fn active_group_headings_have_real_pixels_on_every_world() {
     let _guard = crate::testlock::serial();
@@ -1341,6 +1341,21 @@ fn active_group_headings_have_real_pixels_on_every_world() {
             world.name
         );
         let band = bands[0];
+        v.gutter_files[0].active = false;
+        v.gutter_files[0].kind = crate::workingset::StackRowKind::Group { active: false };
+        p.set_view(&v);
+        let inactive = render_frame(&device, &queue, &mut p);
+        let selected_delta = (band[1].max(0.0) as u32..((band[1] + band[3]) as u32).min(H))
+            .flat_map(|y| (0..(band[2] as u32).min(W)).map(move |x| (y * W + x) as usize))
+            .filter(|&at| dist(pixels[at], inactive[at]) > 16.0)
+            .count();
+        assert!(
+            selected_delta >= 16,
+            "{}: root selection has no visible change",
+            world.name
+        );
+        v.gutter_files[0].active = true;
+        v.gutter_files[0].kind = crate::workingset::StackRowKind::Group { active: true };
         // Retain the same heading kind and row slot, clearing only its name.
         // An invisible heading and its invisible close mark yield no delta.
         v.gutter_files[0].leaf = " ".repeat(v.gutter_files[0].leaf.chars().count());
