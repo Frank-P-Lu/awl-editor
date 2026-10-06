@@ -389,7 +389,7 @@ impl TextPipeline {
         // too, or a mark computed against the un-relocated position would
         // disagree with where the label it marks actually renders.
         let dock_seat = self.relocated_strip_seat(geom, plan);
-        self.shape_docked_facet_strip(geom, strip_scale);
+        self.shape_docked_facet_strip(geom, strip_scale, dock_seat);
         // Record the active-lens mark from the shaped strip glyphs (line 1 of
         // `panel_buffer`, or line 0 of the relocated `docked_facet_buffer`).
         // Line-1 glyphs are byte-indexed WITHIN the strip line's own text —
@@ -543,11 +543,12 @@ impl TextPipeline {
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::DockedTab => {
+                    let dock = dock_seat?;
                     let tab = [
                         min_x - chip_hpad,
-                        geom.card_y - chip_h,
+                        dock.top,
                         max_x - min_x + 2.0 * chip_hpad,
-                        chip_h,
+                        dock.height,
                     ];
                     // THE TAB'S MOUTH: the ghost ring frames the tab at its true
                     // bounds (its own bottom-edge stroke lands on the card's top
@@ -840,6 +841,11 @@ impl TextPipeline {
                 w = w.max(run.line_w);
             }
         }
-        w
+        if facet_strip_is_docked() {
+            // Reserve the rounded label edge so the independently shaped dock fits.
+            w.ceil() + self.metrics.ui().px(Logical(2.0))
+        } else {
+            w
+        }
     }
 }

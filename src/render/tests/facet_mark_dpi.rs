@@ -392,10 +392,17 @@ fn traditional_tabs_are_opaque_over_real_document_ink() {
                             .count()
                             >= (2.0 * dpi) as usize
                     })
-                    .count();
+                    .collect::<Vec<_>>();
                 assert!(
-                    ink_rows as f32 >= height * 0.35,
-                    "{} @{dpi}: clipped tab label ({ink_rows} ink rows in {height}px)",
+                    ink_rows.len() as f32 >= height * 0.35,
+                    "{} @{dpi}: clipped tab label ({:?} ink rows in {height}px)",
+                    world.name,
+                    ink_rows.len()
+                );
+                assert!(
+                    ink_rows[0] as f32 >= y + 8.0 * dpi
+                        && (*ink_rows.last().unwrap() + 1) as f32 <= y + height - 8.0 * dpi,
+                    "{} @{dpi}: traditional labels need air above and below their ink",
                     world.name
                 );
                 for py in ((y + 2.0 * dpi).ceil() as u32)..((y + height - 2.0 * dpi).floor() as u32)

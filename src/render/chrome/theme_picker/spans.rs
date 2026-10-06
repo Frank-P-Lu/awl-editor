@@ -66,7 +66,7 @@ impl TextPipeline {
             let fs = m.font_size * ui * strip.scale.min(1.0);
             spans.push((
                 &strip.text[range],
-                chrome_attrs()
+                super::super::docked_facet::facet_label_attrs()
                     .color(color)
                     .metrics(GlyphMetrics::new(fs, strip_lh)),
             ));
@@ -113,7 +113,9 @@ impl TextPipeline {
                     if crate::render::effective_location_style().draws_inline() {
                         spans.push((
                             label.as_str(),
-                            chrome_attrs().color(muted).metrics(location_metrics),
+                            super::super::docked_facet::facet_label_attrs()
+                                .color(muted)
+                                .metrics(location_metrics),
                         ));
                     }
                 }
