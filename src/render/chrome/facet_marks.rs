@@ -9,6 +9,8 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
+        self.overlay_tab_backing
+            .prepare(device, queue, width, height, &[]);
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &[]);
         self.overlay_facet_material
@@ -28,6 +30,8 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
+        self.overlay_tab_backing
+            .prepare(device, queue, width, height, &[]);
         if geom.workspace && !geom.theme {
             self.prepare_rail_mark(device, queue, width, height, geom);
             return;
@@ -59,6 +63,24 @@ impl TextPipeline {
                 self.overlay_facet_ghost.set_corner(0.0);
                 self.overlay_facet_ghost.set_stroke(bar_stroke);
                 ghosts = self.overlay_theme_facet_ghosts.clone();
+                if geom.theme {
+                    let plan = self.overlay_row_plan(geom);
+                    if let Some(dock) = self.docked_facet_band(geom, &plan) {
+                        let mut backing = vec![(
+                            [geom.card_x, dock.top, geom.card_w, dock.height],
+                            chrome.base_100.rgba_bytes(),
+                        )];
+                        backing.extend(
+                            ghosts
+                                .iter()
+                                .copied()
+                                .map(|rect| (rect, chrome.base_200.rgba_bytes())),
+                        );
+                        self.overlay_tab_backing.set_corner(0.0);
+                        self.overlay_tab_backing
+                            .prepare_multicolor(device, queue, width, height, &backing);
+                    }
+                }
             }
             theme::FacetStyle::Chips(v) => {
                 use theme::ChipVariant as V;

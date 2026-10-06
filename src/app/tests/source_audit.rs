@@ -56,12 +56,9 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         ("app/tests/lifecycle.rs", 2),
         ("app/tests/buffers.rs", 1),
         ("app/tests/common.rs", 1),
-        // The hidden real-process persistence probe deliberately opens a
-        // NativeFs-backed, GPU-less App: its integration tests must observe a
-        // killable autosave/export and real resident memory. The constructor
-        // disables session restore inline, while each parent process pins
-        // HOME/XDG/AWL_CONFIG to its own scratch root.
-        ("app/persistence/fault_probe.rs", 1),
+        // The real-process persistence probe now injects its clipboard; its
+        // real-FS constructor is enrolled in the exact injected-constructor
+        // census in app/clipboard_backend/tests.rs.
         // One real-disk test (`finish_buffer_saves_...`) disables session
         // restore inline. The zero-document refusal law uses an installed
         // `InMemoryFs`: it must present an unsupported file to `load_path`

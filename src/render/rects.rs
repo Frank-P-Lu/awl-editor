@@ -65,6 +65,7 @@ pub(super) struct OrnamentCache {
     /// `(first line, last line)` per contiguous blockquote BLOCK — the two ends the
     /// hanging pull-quote pair hangs from (see [`QuoteSide`]).
     quote_blocks: std::cell::RefCell<Vec<(usize, usize)>>,
+    quote_right_edges: std::cell::RefCell<std::collections::BTreeMap<usize, f32>>,
     fence_lang_blocks: std::cell::RefCell<Vec<(usize, crate::syntax::Lang)>>,
     /// `(line, char column, source range, display number)` for recognized
     /// references and first-line definition labels. Cursor/selection reveal is
@@ -91,6 +92,7 @@ impl OrnamentCache {
             list_lines: std::cell::RefCell::new(Vec::new()),
             table_blocks: std::cell::RefCell::new(Vec::new()),
             quote_blocks: std::cell::RefCell::new(Vec::new()),
+            quote_right_edges: std::cell::RefCell::new(std::collections::BTreeMap::new()),
             fence_lang_blocks: std::cell::RefCell::new(Vec::new()),
             footnote_marks: std::cell::RefCell::new(Vec::new()),
             bare_url_tails: std::cell::RefCell::new(Vec::new()),
@@ -780,6 +782,17 @@ impl TextPipeline {
         *self.ornament_cache.rule_lines.borrow_mut() = rules;
         *self.ornament_cache.list_lines.borrow_mut() = list_lines;
         *self.ornament_cache.table_blocks.borrow_mut() = tables;
+        *self.ornament_cache.quote_right_edges.borrow_mut() = quotes
+            .iter()
+            .map(|&(first, last)| {
+                let right = (first..=last)
+                    .flat_map(|line| self.visual_rows(line))
+                    .filter_map(|row| row.xs.get(row.end_col).copied())
+                    .filter(|x| x.is_finite())
+                    .fold(0.0_f32, f32::max);
+                (last, right)
+            })
+            .collect();
         *self.ornament_cache.quote_blocks.borrow_mut() = quotes;
         *self.ornament_cache.fence_lang_blocks.borrow_mut() = fence_langs;
         *self.ornament_cache.footnote_marks.borrow_mut() = footnotes;
@@ -838,15 +851,17 @@ impl TextPipeline {
     /// [`Self::fold_affordance_row_end_x`] (which deliberately reads the FIRST
     /// row, appropriate to a collapsed heading's own affordance). The blockquote
     /// pull-quote's CLOSING mark hangs one gap past THIS edge: the block's real
-    /// final row of shaped ink, never a row above it.
+    /// widest shaped row; its final row independently owns the baseline.
     pub(super) fn quote_close_row_end_x(&self, line: usize) -> f32 {
-        let end = self
-            .visual_rows(line)
-            .last()
-            .and_then(|r| r.xs.get(r.end_col).copied())
-            .filter(|x| x.is_finite())
-            .unwrap_or(0.0);
-        self.text_left() + end
+        self.ensure_ornament_lists();
+        self.text_left()
+            + self
+                .ornament_cache
+                .quote_right_edges
+                .borrow()
+                .get(&line)
+                .copied()
+                .unwrap_or(0.0)
     }
 
     pub(super) fn table_blocks(&self) -> Vec<(usize, std::ops::Range<usize>)> {

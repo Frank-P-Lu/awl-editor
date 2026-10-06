@@ -26,6 +26,7 @@ type ClipboardHandle = Clipboard;
 /// `println_audit`'s table counts occurrences textually, so writing the same
 /// macro call out twice under opposite `#[cfg]` arms would double-count it
 /// even though only one ever compiles.
+#[cfg(any(target_arch = "wasm32", not(test)))]
 fn clipboard_disabled(e: impl std::fmt::Display) {
     eprintln!("system clipboard disabled: {e}");
 }
@@ -36,78 +37,10 @@ mod browser_paste_events;
 mod web_clipboard;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod clipboard_backend {
-    //! The clipboard surface `app/apply.rs`'s kill-ring bridge
-    //! (`sync_kill_to_clipboard`/`refresh_kill_from_clipboard`/
-    //! `paste_image_reference`) needs, abstracted behind a trait so a test can
-    //! inject a deterministic fake instead of reaching the real OS pasteboard —
-    //! `arboard::Clipboard` has no test backend of its own, and reaching the
-    //! real one from a unit test is either flaky (a shared, host-ambient
-    //! resource under parallel test threads) or a silent no-op (a headless CI
-    //! runner with no clipboard service at all), neither of which can prove a
-    //! buffer-switch/clipboard-bridge law.
-    pub(super) trait ClipboardBackend {
-        fn set_text(&mut self, text: String) -> Result<(), ()>;
-        fn get_text(&mut self) -> Result<String, ()>;
-        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()>;
-    }
-
-    impl ClipboardBackend for arboard::Clipboard {
-        fn set_text(&mut self, text: String) -> Result<(), ()> {
-            self.set_text(text).map_err(|_| ())
-        }
-        fn get_text(&mut self) -> Result<String, ()> {
-            self.get_text().map_err(|_| ())
-        }
-        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()> {
-            self.get_image().map_err(|_| ())
-        }
-    }
-
-    /// A deterministic, hermetic stand-in for the OS clipboard. `Clone`s share
-    /// the same backing cell, so a test can keep one handle installed on `App`
-    /// and a second in its own scope to simulate an EXTERNAL app changing the
-    /// clipboard behind awl's back — the exact shape a buffer-switch law needs
-    /// to drive independently of anything `App` itself last wrote.
-    #[cfg(test)]
-    #[derive(Clone, Default)]
-    pub(crate) struct FakeClipboard(std::sync::Arc<std::sync::Mutex<Option<String>>>);
-
-    #[cfg(test)]
-    impl FakeClipboard {
-        pub(crate) fn new() -> Self {
-            Self::default()
-        }
-
-        /// Set the clipboard's content as if another application had just
-        /// written it — never touches `App`'s own `clipboard_last_written`.
-        pub(crate) fn set_external(&self, text: &str) {
-            *self.0.lock().unwrap() = Some(text.to_string());
-        }
-
-        /// What the (fake) OS clipboard currently holds, for assertions.
-        pub(crate) fn current(&self) -> Option<String> {
-            self.0.lock().unwrap().clone()
-        }
-    }
-
-    #[cfg(test)]
-    impl ClipboardBackend for FakeClipboard {
-        fn set_text(&mut self, text: String) -> Result<(), ()> {
-            *self.0.lock().unwrap() = Some(text);
-            Ok(())
-        }
-        fn get_text(&mut self) -> Result<String, ()> {
-            self.0.lock().unwrap().clone().ok_or(())
-        }
-        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()> {
-            Err(()) // text-only fake: the OS clipboard never holds an image
-        }
-    }
-}
+mod clipboard_backend;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-pub(crate) use clipboard_backend::FakeClipboard;
+pub(crate) use clipboard_backend::MemoryClipboard as FakeClipboard;
 
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(400);
 
@@ -403,6 +336,8 @@ mod gpu_recovery;
 mod input;
 pub(in crate::app) use input::{TextDoor, TextEdit};
 mod lifecycle;
+#[cfg(target_os = "linux")]
+mod linux_window_identity;
 mod location;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
 /// ambient (lava/stars) tick, event-toast expiry, GPU acquire retries + soak
@@ -571,6 +506,42 @@ impl App {
         cli_default_folder: Option<PathBuf>,
         config: Config,
     ) -> Self {
+        Self::new_with_clipboard(
+            file,
+            root,
+            cli_workspace,
+            cli_default_folder,
+            config,
+            Self::default_clipboard(),
+        )
+    }
+
+    fn default_clipboard() -> Option<ClipboardHandle> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            clipboard_backend::for_route(clipboard_backend::Route::default_app())
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            match Clipboard::new() {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    clipboard_disabled(e);
+                    None
+                }
+            }
+        }
+    }
+
+    /// The one exhaustive construction body receives its backend before startup.
+    fn new_with_clipboard(
+        file: Option<PathBuf>,
+        root: PathBuf,
+        cli_workspace: Option<PathBuf>,
+        cli_default_folder: Option<PathBuf>,
+        config: Config,
+        clipboard: Option<ClipboardHandle>,
+    ) -> Self {
         // ACCESSIBILITY TIER 1 — REDUCE MOTION: resolve the config->OS ladder
         // ONCE, here, at live startup (native + wasm both construct `App`
         // through this one seam). See `motion.rs`'s module doc for the full
@@ -659,22 +630,7 @@ impl App {
             soak_passed: None,
             #[cfg(not(target_arch = "wasm32"))]
             probe_ready: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            clipboard: match arboard::Clipboard::new() {
-                Ok(c) => Some(Box::new(c) as ClipboardHandle),
-                Err(e) => {
-                    clipboard_disabled(e);
-                    None
-                }
-            },
-            #[cfg(target_arch = "wasm32")]
-            clipboard: match Clipboard::new() {
-                Ok(c) => Some(c),
-                Err(e) => {
-                    clipboard_disabled(e);
-                    None
-                }
-            },
+            clipboard,
             clipboard_last_written: None,
             project_location,
             pending_crash: None,
@@ -850,15 +806,15 @@ impl App {
     /// [`crate::clock::VirtualClock`] in ([`set_clock`](Self::set_clock)) and steps
     /// the real scheduling body; this App renders nothing itself (`gpu: None`), so
     /// its buffer is just the scheduling driver — the harness draws the document +
-    /// the panel its state reports through its OWN offscreen pipeline. Constructs via
-    /// `Self::new` (not the raw open-paren needle the accounting guard scans for), so
-    /// that guard is unaffected.
+    /// the panel its state reports through its OWN offscreen pipeline. A private
+    /// memory clipboard is injected before construction; neither construction
+    /// nor later diagnostic actions can acquire the system clipboard.
     ///
     /// Installs the `InMemoryFs` via the production `fs::set_active` (the SAME door
     /// `crate::scenario::install_hermetic_fs` uses for a strict replay), restoring the
     /// prior backend when construction returns — no test-only `with_fs`/serial lock
     /// (this is a single-threaded one-shot CLI, never a concurrent test). Routes
-    /// through `Self::new`, not the raw constructor's open-paren needle, so the
+    /// through the injected common constructor, so the
     /// real-FS-constructor accounting guard is unaffected.
     pub(crate) fn new_headless_scheduler(root: PathBuf, config: Config) -> Self {
         let config = Config {
@@ -868,7 +824,14 @@ impl App {
         };
         let prev = crate::fs::active();
         crate::fs::set_active(Arc::new(crate::fs::InMemoryFs::new()));
-        let app = Self::new(None, root, None, None, config);
+        let app = Self::new_with_clipboard(
+            None,
+            root,
+            None,
+            None,
+            config,
+            clipboard_backend::for_route(clipboard_backend::Route::Scheduler),
+        );
         crate::fs::set_active(prev);
         app
     }

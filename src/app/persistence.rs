@@ -88,8 +88,18 @@ struct NoteLedger {
 
 /// A file that changed on disk while awl held unsaved edits for it. Both texts
 /// are real work; awl holds the editable one and stops writing to the path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) enum ExternalDiskState {
+    Modified,
+    Deleted,
+    Unreadable,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::app) struct UnresolvedChange {
+    pub(in crate::app) disk_state: ExternalDiskState,
+    /// A dirty close requires confirmation of this exact buffer version.
+    pub(in crate::app) close_requested_version: Option<u64>,
     /// The user's file — the path awl has stopped writing to.
     pub(in crate::app) path: std::path::PathBuf,
     /// What the disk said when the conflict was raised, or `None` when the file

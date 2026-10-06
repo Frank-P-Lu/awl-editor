@@ -67,7 +67,7 @@ Commands are grouped by the same task categories the palette browses.
 | Export as PDF… | Choose a folder, then export as `.pdf`; markdown buffers only, native builds only. | — | — | Native |
 | Save | Save the buffer to disk. | `⌘S` | `Ctrl+S` | Native, browser |
 | Review the change | Show an unresolved change: differences, your version, disk version. Changes nothing. | — | — | Native |
-| Save your version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |
+| Keep my version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |
 | Use disk version | Settle an unresolved change by replacing the buffer with the disk file, as one edit. | — | — | Native |
 | Quit | Quit the application. | `⌘Q` | `Ctrl+Q` | Native |
 

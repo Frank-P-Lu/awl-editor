@@ -3,15 +3,17 @@ use super::*;
 impl TextPipeline {
     /// Seat the shaped facet line immediately above the card. The grouped
     /// strip's planned box also owns the beat below its glyph line, so only
-    /// its glyph-bearing line docks; otherwise the tab outgrows a narrow
-    /// canvas's top margin.
+    /// the padded label line docks. The available top margin clamps its height
+    /// on a short canvas.
     pub(in crate::render) fn docked_facet_band(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<crate::render::plan::PlannedHeader> {
         let strip = plan.strip_band()?;
-        let dock_h = self.overlay_lh().min(strip.height);
+        // The original unbilled strip owns only the spacing beat. Its
+        // dedicated glyph buffer still needs a complete line above the card.
+        let dock_h = self.overlay_lh() + 2.0 * self.metrics.ui().px(Logical(6.0));
         matches!(
             crate::render::effective_facet_style(),
             theme::FacetStyle::DockedTab
@@ -95,14 +97,24 @@ impl TextPipeline {
             .map(|dock| (dock, [geom.card_x, geom.card_y, geom.card_w, geom.card_h]))
     }
 
-    pub(super) fn shape_docked_facet_strip(&mut self, geom: &OverlayGeom, scale: f32) {
+    pub(super) fn shape_docked_facet_strip(
+        &mut self,
+        geom: &OverlayGeom,
+        scale: f32,
+        seat: Option<crate::render::plan::PlannedHeader>,
+    ) {
         // This one buffer serves TWO relocation seats — `DockedTab` (above the
         // card) and a `Split` composition's own seam (past the lower surface's
         // rim) — never both on the same world (`floating_strip_band` excludes
         // `DockedTab` by construction), so one shaped pass covers either.
         let relocated =
             facet_strip_is_docked() || (!self.overlay_files_surface && split_seam_active(geom));
-        let metrics = self.overlay_metrics();
+        let lh = if facet_strip_is_docked() {
+            seat.map_or(self.overlay_lh(), |band| band.height)
+        } else {
+            self.overlay_lh()
+        };
+        let metrics = GlyphMetrics::new(self.overlay_metrics().font_size, lh);
         self.docked_facet_buffer
             .set_metrics(&mut self.font_system, metrics);
         self.docked_facet_buffer
@@ -117,29 +129,20 @@ impl TextPipeline {
                 if idx > 0 {
                     spans.push((
                         super::strip_gap(),
-                        chrome_attrs()
+                        facet_label_attrs()
                             .color(chrome.faint.to_glyphon())
-                            .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
+                            .metrics(GlyphMetrics::new(fs, lh)),
                     ));
                 }
                 spans.push((
                     label.as_str(),
-                    chrome_attrs()
+                    facet_label_attrs()
                         .color(if *active {
                             chrome.base_content.to_glyphon()
-                        } else if matches!(
-                            crate::render::effective_facet_style(),
-                            theme::FacetStyle::DockedTab
-                        ) {
-                            // A docked strip has one real tab. Its inactive
-                            // categories stay available but recede to the
-                            // console's orientation rung instead of reading as
-                            // a second row of equally loud poster headlines.
-                            chrome.faint.to_glyphon()
                         } else {
                             chrome.muted.to_glyphon()
                         })
-                        .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
+                        .metrics(GlyphMetrics::new(fs, lh)),
                 ));
             }
         }
@@ -283,4 +286,13 @@ pub(super) fn push_docked_facet_areas<'a>(
         custom_glyphs: &[],
     });
     true
+}
+
+/// Traditional tabs use the regular reading face; other facets keep chrome's voice.
+pub(super) fn facet_label_attrs() -> Attrs<'static> {
+    if facet_strip_is_docked() {
+        overlay_panel_attrs()
+    } else {
+        chrome_attrs()
+    }
 }

@@ -599,10 +599,13 @@ impl TextPipeline {
             shaped_geom.text_w = shaped_geom.text_w.min(budget);
         }
         let right_labels = self.overlay_right_labels();
-        let has_right = !right_labels.is_empty();
+        let has_right = !right_labels.is_empty() || self.overlay_files_surface;
         // Timeline metadata remains a quiet, right-aligned lane even in a Bars
         // world whose ordinary shortcut chords hug the primary label inline.
-        let hug_inline = has_right && super::bars_inline_shortcut() && !geom.workspace;
+        let hug_inline = has_right
+            && super::bars_inline_shortcut()
+            && !geom.workspace
+            && !self.overlay_files_surface;
         let trailing: Vec<String> = if hug_inline {
             geom.plan
                 .iter()
@@ -651,6 +654,35 @@ impl TextPipeline {
             return shown;
         }
         self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
+        if self.overlay_files_surface {
+            // Header actions own their row; candidate metadata still yields
+            // whenever the real shaped primary would overlap its accessory.
+            let first = plan.billed_header_rows() + plan.cue_above_rows();
+            let last = first + plan.candidate_rows();
+            let right_px = self
+                .panel_bind_buffer
+                .layout_runs()
+                .filter(|run| run.line_i >= first && run.line_i < last)
+                .map(|run| run.line_w)
+                .fold(0.0_f32, f32::max);
+            let gap = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
+            if right_px > 0.0
+                && !rowlayout::fits(
+                    shaped_geom.text_w,
+                    gap,
+                    self.widest_candidate_px(&shaped_geom, plan),
+                    right_px,
+                )
+            {
+                let empty = right_bind_lines(
+                    plan.billed_header_rows() + plan.cue_above_rows(),
+                    geom.plan.iter().map(|_| ""),
+                );
+                self.shape_overlay_right(&shaped_geom, ink, muted, vis, &empty);
+            }
+            self.overlay_right_shown = true;
+            return true;
+        }
 
         // THE NO-OVERLAP LAW, extended to the faceted path: unlike the
         // flat shaper, `shape_theme_spans`'s primary NEVER reserves budget for a
@@ -762,7 +794,7 @@ impl TextPipeline {
         self.overlay_files_split_measure_attempts += 1;
         let actions_fit =
             self.measure_files_header_px(&action_line, "", name_fs, self.overlay_lh()) <= text_w;
-        self.overlay_files_split_actions = true;
+        self.overlay_files_split_actions = false;
         if actions_fit
             && !self.overlay_items.is_empty()
             && self.theme_overlay_geometry(width).visible == 0
@@ -793,9 +825,7 @@ impl TextPipeline {
                 .strip_suffix("  Search")
                 .unwrap_or(&suffix)
                 .to_string();
-            if self.files_actions_are_split(geom) {
-                suffix.clear();
-            }
+            suffix.clear();
         }
         let query = if self.overlay_query.is_empty() {
             self.overlay_query_placeholder.clone().unwrap_or_default()
@@ -814,15 +844,19 @@ impl TextPipeline {
             self.overlay_files_title_fit_attempts += 1;
             let measured_query = if split { "" } else { query.as_str() };
             let reserve = if split {
-                0.0
+                let actions = self
+                    .files_action_suffix()
+                    .replace("Change folder", "Change…");
+                self.measure_files_header_px(
+                    &actions,
+                    "",
+                    self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                    header_lh,
+                ) + self.metrics.ui().px(Logical(16.0))
             } else {
                 self.metrics.caret_w + 0.5
             };
-            let measured_name_fs = if split && self.files_actions_are_split(geom) {
-                name_fs * 1.15
-            } else {
-                name_fs
-            };
+            let measured_name_fs = name_fs;
             if self.measure_files_header_px(&candidate, measured_query, measured_name_fs, header_lh)
                 <= geom.text_w - reserve
             {
@@ -859,7 +893,7 @@ impl TextPipeline {
         self.workspace_hint_measure_buffer.set_rich_text(
             &mut self.font_system,
             [
-                (prefix, chrome_attrs().color(muted).metrics(metrics)),
+                (prefix, overlay_panel_attrs().color(muted).metrics(metrics)),
                 (query, attrs.clone()),
             ],
             &attrs,
@@ -1142,10 +1176,21 @@ impl TextPipeline {
         bind_strs: &[String],
     ) {
         let base = overlay_panel_attrs();
+        let files_actions = self.overlay_files_surface.then(|| {
+            self.files_action_suffix()
+                .replace("Change folder", "Change…")
+        });
         let mono = |c| Attrs::new().family(Family::Monospace).color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let sel_muted = super::overlay_selected_secondary_ink();
         let mut bind_spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
+        if let Some(actions) = files_actions.as_deref() {
+            let metrics = GlyphMetrics::new(
+                self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                self.overlay_lh(),
+            );
+            bind_spans.push((actions, base.clone().color(muted).metrics(metrics)));
+        }
         for (li, s) in bind_strs.iter().enumerate() {
             let c = match sel_muted {
                 Some(flip) if vis.reads_selected(li) => flip,

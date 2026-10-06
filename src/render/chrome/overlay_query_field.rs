@@ -5,15 +5,22 @@ use super::*;
 use crate::render::plan::PlannedHeader;
 
 impl TextPipeline {
-    pub(super) fn overlay_query_band(&self, plan: &OverlayRowPlan) -> Option<PlannedHeader> {
-        let line = usize::from(self.overlay_files_surface) * 2;
-        plan.header_lines().get(line).copied()
+    fn overlay_query_line(&self) -> usize {
+        usize::from(self.overlay_files_surface && self.overlay_files_split_header)
+            * (1 + usize::from(self.overlay_files_split_actions))
+    }
+
+    pub(in crate::render) fn overlay_query_band(
+        &self,
+        plan: &OverlayRowPlan,
+    ) -> Option<PlannedHeader> {
+        plan.header_lines().get(self.overlay_query_line()).copied()
     }
 
     fn overlay_query_run(&self) -> Option<glyphon::LayoutRun<'_>> {
         self.panel_buffer
             .layout_runs()
-            .nth(usize::from(self.overlay_files_surface) * 2)
+            .find(|run| run.line_i == self.overlay_query_line())
     }
 
     /// Left edge of the editable query span. Files reserves the shaped title

@@ -1301,16 +1301,20 @@ fn picker_chrome_is_pinned() -> bool {
     PICKER_CHROME_PIN.with(|c| c.get() < theme::THEMES.len())
 }
 
-/// Palette and authored surface character for the active summoned card. A
-/// Themes card keeps the palette it opened with while the document previews
-/// another world; every other surface reads the live world as before.
+/// Preview the live palette while retaining the chooser's opening fonts and
+/// surface geometry. Color changes never move its rows or pointer targets.
 pub(crate) fn overlay_chrome_theme() -> theme::Theme {
-    picker_chrome_theme()
+    let opening = picker_chrome_theme();
+    theme::Theme {
+        font: opening.font,
+        mono: opening.mono,
+        render_caps: opening.render_caps,
+        ..theme::active()
+    }
 }
 
-/// Themes has one composition across the roster. Palette, corner treatment
-/// and texture still come from the opening world, but these layout-bearing
-/// caps do not make the chooser rearrange itself when it is reopened there.
+/// Themes has one composition across the roster. Previewed colours change
+/// immediately, while these layout-bearing caps keep the chooser stable.
 fn shared_theme_picker_caps() -> theme::RenderCaps {
     theme::THEMES[theme::DEFAULT_THEME].render_caps
 }
@@ -1769,6 +1773,7 @@ pub struct TextPipeline {
     pub panel_buffer: GlyphBuffer,
     pub docked_facet_buffer: GlyphBuffer,
     pub panel_bind_buffer: GlyphBuffer,
+    pub(in crate::render) overlay_tab_backing: SelectionPipeline,
     pub placard_buffer: GlyphBuffer,
     pub panel_caret: CaretPipeline,
     /// The find/replace panel's own INNER chrome — bordered field/button/checkbox

@@ -128,7 +128,7 @@ fn assert_files_text_fits(
              ink={ink:?} title={fitted_title:?} footer={fitted_footer:?}"
         );
     }
-    for essential in ["Up", "Change folder", "Search"] {
+    for essential in ["Up", "Change…", "Search"] {
         assert!(
             fitted_title.contains(essential),
             "{width}px @{dpi}x dropped {essential:?}: {fitted_title:?}"
@@ -267,7 +267,7 @@ fn assert_potoroo_first_narrow_files_frame() -> bool {
     assert!(
         header.contains("Search files: zzz")
             && header.contains("root")
-            && header.contains("Change folder"),
+            && header.contains("Change…"),
         "first narrow frame dropped compact rows: {header:?}"
     );
     assert_eq!(footer, "New document — root");
@@ -618,19 +618,19 @@ fn files_scope_and_controls_have_visible_hierarchy_on_every_world_and_geometry()
                 .expect("Files control layout");
             let [fills, rims] = pipeline.files_surface_control_quad_counts_probe();
             assert_eq!(
-                fills, 3,
+                fills, 2,
                 "{} {width}px @{dpi}x: Files control fills were removed or parked",
                 world.name
             );
             assert_eq!(
-                rims, 3,
+                rims, 2,
                 "{} {width}px @{dpi}x: Files control rims were removed or parked",
                 world.name
             );
             let (header, footer_text) = pipeline.files_surface_text_probe().unwrap();
             assert!(
                 header.contains("Search files: ")
-                    && header.contains("Change folder")
+                    && header.contains("Change…")
                     && header.contains(location.rsplit('/').next().unwrap()),
                 "{} {width}px @{dpi}x lost Files hierarchy: {header:?}",
                 world.name
@@ -652,7 +652,7 @@ fn files_scope_and_controls_have_visible_hierarchy_on_every_world_and_geometry()
                  query={query:?} footer={footer:?}",
                 world.name
             );
-            for (label, rect) in [("search", query), ("change", change), ("new", footer)] {
+            for (label, rect) in [("search", query), ("new", footer)] {
                 let edge_delta = max_edge_delta(&pixels, width as usize, 800, rect);
                 assert!(
                     edge_delta >= 2.3,
@@ -713,7 +713,7 @@ fn every_world_fits_the_real_720_at_2x_files_header() {
         let (header, footer) = pipeline
             .files_surface_text_probe()
             .expect("Files rendered text");
-        for essential in ["Up", "Change folder", "Search"] {
+        for essential in ["Up", "Change…", "Search"] {
             assert!(
                 header.contains(essential),
                 "{} dropped {essential:?}: {header:?}",
@@ -822,5 +822,180 @@ fn files_level_notices_keep_their_own_band_above_the_destination_footer() {
             footer.starts_with("New document — "),
             "notice displaced destination footer: {footer:?}"
         );
+    }
+}
+
+#[test]
+fn folder_context_and_small_right_action_share_a_nonoverlapping_shaped_row() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    let location = "Writing/a long parent folder/another long parent/deep notes";
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi) in [(1200, 1.0), (720, 2.0), (1920, 2.0)] {
+            p.set_dpi(dpi);
+            p.set_size(width as f32, 800.0);
+            let v = files_view_at(DENSE, false, location);
+            p.set_view(&v);
+            p.prepare(&device, &queue, width, 800).unwrap();
+            let left = p.panel_buffer.layout_runs().next().expect("folder context");
+            let right = p
+                .panel_bind_buffer
+                .layout_runs()
+                .next()
+                .expect("header action");
+            assert!(right.text.contains("Change…"));
+            assert_eq!(left.line_top, right.line_top);
+            let context_right = left
+                .glyphs
+                .iter()
+                .map(|g| g.x + g.w)
+                .fold(0.0_f32, f32::max);
+            let action_left = right
+                .glyphs
+                .iter()
+                .map(|g| g.x)
+                .fold(f32::INFINITY, f32::min);
+            assert!(
+                context_right + 2.0 * dpi <= action_left,
+                "{} {width} @{dpi}: folder/action overlap ({context_right}, {action_left})",
+                world.name
+            );
+            let geom = p.overlay_geometry(width);
+            for g in right.glyphs {
+                assert!(
+                    g.x >= -0.5 && g.x + g.w <= geom.text_w + 0.5,
+                    "{}: right action clipped at {width} @{dpi}",
+                    world.name
+                );
+            }
+            assert_files_action_regions(&p);
+        }
+    }
+}
+
+#[test]
+fn actual_files_header_runs_and_uploaded_actions_match_the_planned_bands() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi) in [(1200, 1.0), (720, 2.0), (1920, 2.0)] {
+            p.set_dpi(dpi);
+            p.set_size(width as f32, 800.0);
+            let v = files_view_at(DENSE, false, "notes");
+            p.set_view(&v);
+            p.prepare(&device, &queue, width, 800).unwrap();
+            let geom = p.overlay_geometry(width);
+            let plan = p.overlay_row_plan(&geom);
+            let runs: Vec<_> = p.panel_buffer.layout_runs().collect();
+            for header in plan.header_lines().iter().take(2) {
+                let run = runs.iter().find(|run| run.line_i == header.line).unwrap();
+                assert!(
+                    (geom.text_top + run.line_top - header.top).abs() < 0.1,
+                    "{} @{dpi}: header {} starts outside its band",
+                    world.name,
+                    header.line
+                );
+                assert!(
+                    (run.line_height - header.height).abs() < 0.1,
+                    "{} @{dpi}: header {} has wrong line height",
+                    world.name,
+                    header.line
+                );
+            }
+            let query = runs
+                .iter()
+                .find(|run| run.text.starts_with("Search files:"))
+                .unwrap();
+            let field = p.overlay_query_band(&plan).unwrap();
+            assert_eq!(
+                field.line, query.line_i,
+                "query field must enclose the actual Search files row"
+            );
+            let first = runs
+                .iter()
+                .find(|run| run.line_i == geom.shaped_first_row_line())
+                .unwrap();
+            assert!(
+                (geom.text_top + first.line_top - plan.first_top()).abs() < 0.1,
+                "{} @{dpi}: candidate glyphs disagree with selected band",
+                world.name
+            );
+            let bounds = glyphon::TextBounds {
+                left: 0,
+                top: 0,
+                right: width as i32,
+                bottom: 800,
+            };
+            let areas = super::super::chrome::files_accessory_areas(
+                &p.panel_bind_buffer,
+                &geom,
+                &plan,
+                bounds,
+                geom.text_left,
+                world.base_content.to_glyphon(),
+            );
+            let action = p.panel_bind_buffer.layout_runs().next().unwrap();
+            assert!(
+                (areas[0].top + action.line_top - plan.header_lines()[0].top).abs() < 0.1,
+                "header action upload must share the folder's origin"
+            );
+            if let Some((dock, _)) = p.docked_facet_geometry_probe() {
+                let line = p.docked_facet_buffer.layout_runs().next().unwrap();
+                assert!(
+                    line.line_height <= dock.height + 0.1,
+                    "docked labels cannot be clipped to the spacing beat"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn docked_facet_labels_never_leave_duplicate_ink_inside_the_files_card() {
+    let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    for world in crate::theme::THEMES
+        .iter()
+        .filter(|world| world.render_caps.facet_style == crate::theme::FacetStyle::DockedTab)
+    {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        for (width, dpi) in [(1200, 1.0), (720, 2.0)] {
+            p.set_dpi(dpi);
+            p.set_size(width as f32, 800.0);
+            let mut v = files_view_at(DENSE, false, "notes");
+            p.set_view(&v);
+            let first = render_frame(&device, &queue, &mut p, width, 800);
+            let (_, card) = p.docked_facet_geometry_probe().unwrap();
+            v.overlay_lens[1].0 = "XXXXXX".into();
+            p.set_view(&v);
+            let second = render_frame(&device, &queue, &mut p, width, 800);
+            let (_, changed) = p.docked_facet_geometry_probe().unwrap();
+            assert_eq!(card, changed);
+            for y in ((card[1] + 3.0 * dpi).ceil() as u32)
+                ..((card[1] + card[3] - 3.0 * dpi).floor() as u32)
+            {
+                for x in ((card[0] + 3.0 * dpi).ceil() as u32)
+                    ..((card[0] + card[2] - 3.0 * dpi).floor() as u32)
+                {
+                    let at = (y * width + x) as usize;
+                    assert_eq!(
+                        first[at], second[at],
+                        "{} @{dpi}: duplicate facet ink remains inside card at {x},{y}",
+                        world.name
+                    );
+                }
+            }
+        }
     }
 }

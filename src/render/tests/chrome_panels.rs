@@ -1186,7 +1186,7 @@ fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
 /// other keeps — and cross-checked against the actual shaped row-Y
 /// (`overlay_row_top`) so the law can never drift from what the pixels draw.
 #[test]
-fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
+fn query_input_beat_stays_below_one_row_flat_and_faceted() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
@@ -1204,7 +1204,7 @@ fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
     let lh = p.overlay_lh();
     let gap = p.overlay_header_gap();
     assert!(
-        gap > lh,
+        gap > 0.0 && gap < lh,
         "the beat must read as MORE than a full row of space (gap {gap} vs row {lh})"
     );
     // Cross-check against the real shaped geometry: row 0's top sits a full
@@ -1229,7 +1229,7 @@ fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
     let lh_f = p.overlay_lh();
     let gap_f = p.overlay_header_gap();
     assert!(
-        gap_f > lh_f,
+        gap_f > 0.0 && gap_f < lh_f,
         "the faceted picker shares the SAME widened beat (gap {gap_f} vs row {lh_f})"
     );
     assert_eq!(

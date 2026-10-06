@@ -339,6 +339,8 @@ fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backen
             .set_unresolved(crate::app::persistence::UnresolvedChange {
                 path: path.clone(),
                 theirs: Some("disk version\n".into()),
+                disk_state: crate::app::persistence::ExternalDiskState::Modified,
+                close_requested_version: None,
             });
         let before = s.open_files();
         let facts_before = s.app.document.close_facts(&key).unwrap();
@@ -634,7 +636,7 @@ fn a_dirty_inactive_entry_is_saved_before_it_is_closed() {
 /// A CONFLICTED INACTIVE ENTRY IS REFUSED, NOT DISCARDED — and refused without
 /// latching, because the unresolved slot and the recovery record are
 /// active-scoped: a conflict latched for a parked path would let the next
-/// "Save your version" write the ACTIVE document's bytes over this file.
+/// "Keep my version" write the ACTIVE document's bytes over this file.
 #[test]
 fn a_conflicted_inactive_entry_is_refused_and_nothing_is_lost() {
     let _guard = crate::testlock::serial();

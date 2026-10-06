@@ -159,7 +159,7 @@ fn catalog_non_empty_and_named() {
         "Export as PDF…",
         "Copy link destination",
         "Review the change",
-        "Save your version",
+        "Keep my version",
         "Use disk version",
     ];
     for c in COMMANDS.iter() {
@@ -1185,7 +1185,7 @@ const HIDE_ON_WEB: &[&str] = &[
     "Compare with version…",
     "Keep version…",
     "Review the change",
-    "Save your version",
+    "Keep my version",
     "Use disk version",
     "Lifetime stats",
     "Writing streaks",
@@ -1456,7 +1456,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
             .chain([
                 "Finish file",
                 "Review the change",
-                "Save your version",
+                "Keep my version",
                 "Use disk version"
             ])
             .collect::<Vec<_>>(),
@@ -1486,7 +1486,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         hidden_row_names(&corpus, &mask_waiting),
         trash_off_macos
             .into_iter()
-            .chain(["Review the change", "Save your version", "Use disk version"])
+            .chain(["Review the change", "Keep my version", "Use disk version"])
             .collect::<Vec<_>>(),
         "the waiter fact gates the waiter row and nothing else"
     );
@@ -1555,7 +1555,7 @@ fn visible_hidden_mask_gates_reveal_and_copy_path_on_the_named_file_fact_alone()
             .chain([
                 "Finish file",
                 "Review the change",
-                "Save your version",
+                "Keep my version",
                 "Use disk version",
             ])
             .collect::<Vec<_>>(),
@@ -2633,5 +2633,34 @@ fn every_spell_summon_door_is_the_same_action_and_therefore_one_suggest_path() {
     assert!(
         include_str!("../app/input/context_menu.rs").contains("Action::OpenSpellSuggest"),
         "the right-click summon fires the same Action, not its own gather"
+    );
+}
+
+#[test]
+fn deleted_labels_preserve_action_identity_and_saved_binding_slug() {
+    let _guard = crate::testlock::serial();
+    let gates = RowGates {
+        change_unresolved: true,
+        deleted_file: true,
+        ..Default::default()
+    };
+    let names = visible_names_for(gates);
+    for (action, label) in [
+        (Action::ResolveKeepMine, "Save to restore"),
+        (Action::ResolveTakeTheirs, "Close without saving"),
+    ] {
+        let index = visible()
+            .iter()
+            .position(|command| command.action == action)
+            .unwrap();
+        assert_eq!(names[index], label);
+        assert_eq!(visible_action_of(index), action);
+        assert_eq!(action_for_name(label), Some(action.clone()));
+        assert_eq!(action_for_name(&slug(label)), Some(action));
+        assert_eq!(task_category_of(label), Some(TaskCategory::Files));
+    }
+    assert_eq!(
+        slug_for_action(&Action::ResolveKeepMine),
+        Some("save_your_version".into())
     );
 }

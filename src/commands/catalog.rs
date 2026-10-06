@@ -23,12 +23,18 @@ pub fn command_slug(command: &Command) -> String {
     match &command.action {
         Action::OpenGoto => "go_to".to_string(),
         Action::OpenFolder => "open_folder".to_string(),
+        Action::ResolveKeepMine => "save_your_version".to_string(),
         _ => super::slug(command.name),
     }
 }
 
 pub fn action_for_name(name: &str) -> Option<Action> {
     let want = super::slug(name);
+    match want.as_str() {
+        "save_to_restore" => return Some(Action::ResolveKeepMine),
+        "close_without_saving" => return Some(Action::ResolveTakeTheirs),
+        _ => {}
+    }
     super::COMMANDS
         .iter()
         .find(|command| command_slug(command) == want || super::slug(command.name) == want)

@@ -2,11 +2,11 @@
 //! seam (`TextPipeline::quote_mark_geometry_for_test`), independent of a GPU
 //! render. The opening mark ("66") is untouched by this item and keeps its own
 //! coverage; these laws are about the CLOSING mark ("99") alone: its x follows
-//! the block's own last-row ink, its y never rises above that row's own top,
+//! the block's own widest ink edge, its y never rises above that row's own top,
 //! and a wide-wrap block yields the mark inside the column instead of letting
 //! it escape past the text edge.
 
-use super::{headless_pipeline, view};
+use super::{headless_dqp, headless_pipeline, view};
 use crate::render::rects::QuoteSide;
 
 fn close_mark(p: &mut crate::render::TextPipeline) -> (f32, f32, f32) {
@@ -86,7 +86,8 @@ fn close_mark_clamps_inside_the_column_at_the_widest_wrap() {
     };
     crate::page::set_page_on(true);
 
-    let text_right = p.text_left() + p.text_wrap_width();
+    let text_right = p.column_left() + p.column_width();
+    let wrap_right = p.text_left() + p.text_wrap_width();
     let mut best_ink_right = f32::MIN;
     let mut best_right_edge = f32::MIN;
     for reps in 40..=160 {
@@ -112,14 +113,14 @@ fn close_mark_clamps_inside_the_column_at_the_widest_wrap() {
         best_right_edge = best_right_edge.max(left + width);
     }
     assert!(
-        best_ink_right > text_right - 40.0,
+        best_ink_right > wrap_right - 40.0,
         "the sweep never brought the block's last row within 40px of the \
          column's own right edge (closest {best_ink_right} vs {text_right}) \
          — this law needs a configuration that actually reaches the clamp \
          boundary, not just headroom under it"
     );
     assert!(
-        (best_right_edge - text_right).abs() < 2.0,
+        best_right_edge > wrap_right && best_right_edge <= text_right + 0.5,
         "the sweep's tightest configuration never pinned the mark's own right \
          edge to the column's right edge ({best_right_edge} vs {text_right}) \
          — the clamp's `.min(...)` arm may never actually bind"
@@ -189,4 +190,98 @@ fn close_mark_anchors_to_the_last_wrapped_row_not_the_first() {
          ({last_row_top})"
     );
     crate::page::set_page_on(was_page);
+}
+
+#[test]
+fn closing_quote_uses_its_own_block_edge_and_final_row_at_every_zoom() {
+    let _guard = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    crate::page::set_page_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+    for dpi in [1.0, 2.0] {
+        p.set_dpi(dpi);
+        for zoom in [0.5, 1.0, 2.0] {
+            for document in [
+                concat!(
+                    "> A long opening sentence that occupies the quote block.\n",
+                    "> dog.\n\ntail\n"
+                ),
+                "> Short.\n\ntail\n",
+                concat!(
+                    "> One long logical line wrapping through the block ",
+                    "with a much shorter final word dog.\n\ntail\n"
+                ),
+                concat!(
+                    "> A long opening sentence that occupies the quote block.\n",
+                    "> dog.\n\n> Short block.\n\ntail\n"
+                ),
+            ] {
+                let tail = document.lines().count() - 1;
+                let mut v = view(document, tail, 0);
+                v.is_markdown = true;
+                v.zoom = zoom;
+                p.set_view(&v);
+                p.prepare(&device, &queue, 1200, 800)
+                    .expect("prepared quote frame");
+                let report = p.layout_report().expect("shaped layout");
+                let last = if document.starts_with("> A long") {
+                    1
+                } else {
+                    0
+                };
+                let edge = report
+                    .rows
+                    .iter()
+                    .filter(|row| row.logical_line <= last)
+                    .flat_map(|row| row.xs.iter().copied())
+                    .fold(0.0_f32, f32::max);
+                let last_top = p.doc_top() + p.visual_rows(last).last().unwrap().line_top;
+                let (top, left, width) = close_mark(&mut p);
+                assert!(
+                    left >= edge - 0.5,
+                    "closing mark overlaps owning block: {left} < {edge} @ {zoom}"
+                );
+                assert!(left + width <= p.column_left() + p.column_width() + 0.5);
+                assert!(top >= last_top - 0.5);
+                if document.contains("> Short block.") {
+                    let marks = p.quote_mark_geometry_for_test();
+                    let closes: Vec<_> = marks
+                        .iter()
+                        .filter(|mark| mark.3 == QuoteSide::Close)
+                        .collect();
+                    let opens: Vec<_> = marks
+                        .iter()
+                        .filter(|mark| mark.3 == QuoteSide::Open)
+                        .collect();
+                    assert_eq!(closes.len(), 2);
+                    assert_eq!(opens.len(), 2);
+                    assert!(closes[0].1 > closes[1].1, "each quote owns its block width");
+                    assert_eq!(
+                        opens[0].1, opens[1].1,
+                        "opening marks retain their shared left gutter"
+                    );
+                }
+                assert_eq!(
+                    p.layout_report().expect("shaped layout").rows.len(),
+                    report.rows.len(),
+                    "ornament added a text row"
+                );
+                if last == 1 {
+                    let last_edge = report
+                        .rows
+                        .iter()
+                        .filter(|row| row.logical_line == last)
+                        .flat_map(|row| row.xs.iter().copied())
+                        .fold(0.0_f32, f32::max);
+                    assert!(
+                        left > last_edge + p.metrics.font_size,
+                        "mark still follows short final word"
+                    );
+                }
+            }
+        }
+    }
 }

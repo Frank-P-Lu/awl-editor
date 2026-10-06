@@ -66,11 +66,10 @@ impl VpCorner {
 }
 
 /// Each held target is shown for this long...
-pub const DWELL_SECONDS: f32 = 15.0;
-/// ...then the camera drifts to the next one over this long. The approved
-/// study used 9 seconds; the user explicitly asked for longer so the move
-/// reads as the tunnel CONTORTING rather than a camera sliding.
-pub const TRANSIT_SECONDS: f32 = 12.0;
+pub const DWELL_SECONDS: f32 = 30.0;
+/// ...then the camera drifts to the next one over this long. Dwell and
+/// transit are sequential, so a slow move never overlaps the next hold.
+pub const TRANSIT_SECONDS: f32 = 48.0;
 pub const SEGMENT_SECONDS: f32 = DWELL_SECONDS + TRANSIT_SECONDS;
 
 /// A fast, deterministic, non-cryptographic mix (splitmix64's finalizer) —
@@ -300,6 +299,10 @@ mod tests {
 
     #[test]
     fn exact_dwell_then_exact_transit() {
+        let _guard = crate::testlock::serial();
+        assert_eq!(DWELL_SECONDS, 30.0);
+        assert_eq!(TRANSIT_SECONDS, 48.0);
+        assert_eq!(SEGMENT_SECONDS, 78.0);
         let seed = 7;
         let from = corner_at(0, seed);
         let to = next_corner(from, seed, 0);

@@ -279,7 +279,7 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
     p.prepare(&device, &queue, W, H).unwrap();
     assert_eq!(p.overlay_geometry(W).card_probe(), geom.card_probe());
     assert_eq!(p.theme_panel_action_report(), Some((switch, cancel)));
-    assert_eq!(p.overlay_composition_inks(), (fill, border));
+    assert_ne!(p.overlay_composition_inks(), (fill, border));
     let after = render_frame(&mut p, &device, &queue, W, H);
     let actions = Region::new(
         switch[0],
@@ -287,10 +287,9 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
         cancel[0] + cancel[2] - switch[0],
         switch[3].max(cancel[3]),
     );
-    assert_eq!(
-        diff_region(&before, &after, W as i64, H as i64, actions).differing,
-        0,
-        "previewing a world must not recolor or reshape the chooser controls"
+    assert!(
+        diff_region(&before, &after, W as i64, H as i64, actions).differing > 100,
+        "previewing a world must recolor the controls while retaining their geometry"
     );
 }
 

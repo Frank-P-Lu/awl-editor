@@ -163,3 +163,46 @@ fn one_open_file_reports_no_working_set_rows_at_all() {
         "no stack means no active row to name"
     );
 }
+
+#[test]
+fn grouped_compact_sidecar_selection_names_the_file_instead_of_its_heading() {
+    let _guard = crate::testlock::serial();
+    if !adapter_available() {
+        eprintln!("skipping grouped sidecar law: no wgpu adapter");
+        return;
+    }
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_grouped_sidecar_{}", std::process::id())),
+    );
+    let mut ws = seeded();
+    let root = PathBuf::from("/archive");
+    let path = root.join("far.md");
+    ws.open(crate::buffers::BufferKey::path(&path), Some(path), root);
+    for active in 0..ws.len() {
+        ws.set_active(active);
+        let drawn = ws.margin_rows(Path::new(ROOT));
+        let file_row = drawn
+            .iter()
+            .position(|row| row.active && row.kind == crate::workingset::StackRowKind::File)
+            .unwrap();
+        let heading = drawn
+            .iter()
+            .position(|row| {
+                matches!(
+                    row.kind,
+                    crate::workingset::StackRowKind::Group { active: true }
+                )
+            })
+            .unwrap();
+        assert_ne!(file_row, heading);
+        let buffers = capture_buffers(&dir, &format!("grouped-{active}"), &ws);
+        assert_eq!(buffers["active_index"], serde_json::json!(file_row));
+        assert_eq!(
+            buffers["files"][file_row],
+            serde_json::json!(format!(
+                "{}{}",
+                drawn[file_row].parent, drawn[file_row].leaf
+            ))
+        );
+    }
+}

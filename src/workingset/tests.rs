@@ -508,6 +508,7 @@ fn fit_parent_never_overruns_its_budget_and_never_lies_about_depth() {
 /// A second file opens the compact stack even when it belongs to another root.
 #[test]
 fn a_second_file_in_another_root_appears_directly_in_the_compact_stack() {
+    let _guard = crate::testlock::serial();
     let mut ws = WorkingSet::default();
     opened(&mut ws, "index.md");
     assert!(
@@ -524,10 +525,18 @@ fn a_second_file_in_another_root_appears_directly_in_the_compact_stack() {
         rows.iter()
             .map(|r| format!("{}{}", r.parent, r.leaf))
             .collect::<Vec<_>>(),
-        vec!["index.md", "archive/old.md"]
+        vec!["notes/", "index.md", "archive/", "old.md"]
     );
-    assert!(rows.iter().all(|r| r.kind == StackRowKind::File));
-    assert!(rows[1].active);
+    assert!(matches!(
+        rows[0].kind,
+        StackRowKind::Group { active: false }
+    ));
+    assert!(matches!(rows[2].kind, StackRowKind::Group { active: true }));
+    assert!(rows[3].active);
+    assert_eq!(ws.direct_row_index(0), None);
+    assert_eq!(ws.direct_row_index(1), Some(0));
+    assert_eq!(ws.direct_row_index(2), None);
+    assert_eq!(ws.direct_row_index(3), Some(1));
 }
 
 #[test]
@@ -548,12 +557,12 @@ fn compact_margin_scrolls_directly_through_all_roots_without_an_expand_row() {
             .map(|row| (format!("{}{}", row.parent, row.leaf), row.kind))
             .collect::<Vec<_>>()
     };
-    assert_eq!(labels(&ws).len(), RESTING_FILES);
-    assert_eq!(labels(&ws)[0].0, "f0.md");
+    assert_eq!(labels(&ws).len(), RESTING_FILES + 1);
+    assert_eq!(labels(&ws)[1].0, "f0.md");
     assert!(
         labels(&ws)
             .iter()
-            .all(|(_, kind)| *kind == StackRowKind::File)
+            .all(|(_, kind)| !matches!(kind, StackRowKind::Overflow { .. }))
     );
 
     ws.scroll_direct(1000);
@@ -562,20 +571,20 @@ fn compact_margin_scrolls_directly_through_all_roots_without_an_expand_row() {
         Some(0),
         "scrolling does not activate a file"
     );
-    assert_eq!(labels(&ws).last().unwrap().0, "archive/old.md");
-    assert_eq!(ws.direct_row_index(RESTING_FILES - 1), Some(7));
-    assert_eq!(ws.direct_row_index(RESTING_FILES), None);
+    assert_eq!(labels(&ws).last().unwrap().0, "old.md");
+    assert_eq!(ws.direct_row_index(RESTING_FILES + 1), Some(7));
+    assert_eq!(ws.direct_row_index(RESTING_FILES + 2), None);
 
     ws.scroll_direct(-1);
     let scrolled = labels(&ws);
-    assert_eq!(scrolled[0].0, "f2.md");
+    assert_eq!(scrolled[1].0, "f2.md");
     assert_eq!(
         labels(&ws),
         scrolled,
         "a passive read never recentres the window"
     );
     assert!(ws.set_active(0));
-    assert_eq!(labels(&ws)[0].0, "f0.md", "activation reveals its own file");
+    assert_eq!(labels(&ws)[1].0, "f0.md", "activation reveals its own file");
 }
 
 /// **WHICH ROW IS MARKED ACTIVE, SWEPT OVER EVERY SLOT.** A stack that marked
@@ -750,6 +759,7 @@ fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
 /// Activating any file reveals it in the compact window without an expand row.
 #[test]
 fn the_active_file_is_revealed_in_the_compact_window_across_roots() {
+    let _guard = crate::testlock::serial();
     let mut ws = WorkingSet::default();
     ten(&mut ws);
     let other = PathBuf::from("/proj/archive");
@@ -776,7 +786,19 @@ fn the_active_file_is_revealed_in_the_compact_window_across_roots() {
             active_file_shown(&rows),
             "target={target}: the active file is not in the drawn window {visible_files:?}"
         );
-        assert!(rows.iter().all(|r| r.kind == StackRowKind::File));
+        assert!(
+            rows.iter()
+                .any(|r| matches!(r.kind, StackRowKind::Group { .. }))
+        );
+        for (row, drawn) in rows.iter().enumerate() {
+            if drawn.kind == StackRowKind::File {
+                let at = ws.direct_row_index(row).expect("drawn file resolves");
+                assert_eq!(ws.files()[at].leaf(), drawn.leaf);
+            } else {
+                assert_eq!(ws.direct_row_index(row), None);
+                assert!(ws.direct_row_group_root(row).is_some());
+            }
+        }
     }
 }
 
@@ -1575,4 +1597,61 @@ fn reorder_target_resolves_through_the_sticky_window_not_a_raw_offset() {
             "origin=archive row={row} (sticky window)"
         );
     }
+}
+
+#[test]
+fn compact_headings_own_every_file_across_interleaved_roots_and_scrolls() {
+    let _guard = crate::testlock::serial();
+    let roots = [
+        PathBuf::from("/ws/notes"),
+        PathBuf::from("/ws/archive/notes"),
+        PathBuf::from("/ws/research"),
+    ];
+    let mut ws = WorkingSet::default();
+    for i in 0..12 {
+        let root = roots[i % roots.len()].clone();
+        let path = root.join(format!("f{i}.md"));
+        ws.open(BufferKey::path(&path), Some(path), root);
+    }
+    let expected: Vec<usize> = roots.iter().flat_map(|root| ws.group(root)).collect();
+    let original: Vec<_> = ws.files().iter().map(|file| file.key.clone()).collect();
+    assert!(ws.set_active(0));
+    for scroll in 0..=ws.len() - RESTING_FILES {
+        ws.scroll_direct(-1000);
+        ws.scroll_direct(scroll as isize);
+        let rows = ws.direct_rows(&roots[0]);
+        let mut heading = None;
+        let mut files = Vec::new();
+        for (row, drawn) in rows.iter().enumerate() {
+            match drawn.kind {
+                StackRowKind::Group { .. } => {
+                    heading = ws.direct_row_group_root(row);
+                    assert_eq!(ws.direct_row_index(row), None);
+                    assert!(drawn.leaf.ends_with('/'));
+                }
+                StackRowKind::File => {
+                    let at = ws.direct_row_index(row).unwrap();
+                    assert_eq!(heading.as_deref(), Some(ws.files()[at].root.as_path()));
+                    assert_eq!(drawn.leaf, ws.files()[at].leaf());
+                    assert_eq!(ws.direct_row_group_root(row), None);
+                    files.push(at);
+                }
+                StackRowKind::Overflow { .. } => panic!("compact window has no expand row"),
+            }
+        }
+        assert_eq!(files, expected[scroll..scroll + RESTING_FILES]);
+        assert_eq!(ws.direct_row_index(rows.len()), None);
+        assert_eq!(ws.active_index(), Some(0));
+    }
+    for at in 0..ws.len() {
+        ws.set_active(at);
+        assert!(active_file_shown(&ws.direct_rows(&roots[0])));
+    }
+    assert_eq!(
+        ws.files()
+            .iter()
+            .map(|file| file.key.clone())
+            .collect::<Vec<_>>(),
+        original
+    );
 }

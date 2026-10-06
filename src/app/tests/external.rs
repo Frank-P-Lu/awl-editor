@@ -14,6 +14,7 @@
 
 use super::*;
 use crate::fs::{FileSystem, InMemoryFs};
+use std::path::Path;
 
 const DISK_FIRST: &str = "what was on disk\n";
 /// Deliberately the SAME LENGTH as `DISK_FIRST`: every external write in this
@@ -245,7 +246,7 @@ fn save_your_version_writes_and_clears_the_record() {
     let (mut app, mem, _fs) = conflicted();
     app.manual_save();
     assert!(
-        run_from_palette(&mut app, "Save your version"),
+        run_from_palette(&mut app, "Keep my version"),
         "the row is offered"
     );
 
@@ -329,39 +330,212 @@ fn use_disk_version_is_one_undoable_replacement() {
     );
 }
 
-/// A DELETED file has no version to take, and the resolution declines rather
-/// than replacing a manuscript with nothing.
+/// Deletion offers an explicit restore; no persistence boundary recreates it.
 #[test]
-fn use_disk_version_declines_when_the_file_was_deleted() {
-    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
-    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let mut app = app_on(Some(doc()), "/notes", Config::empty());
-    app.document.set_text(MINE);
-    mem.remove_file(&doc()).unwrap();
+fn deleted_file_restore_is_explicit_for_clean_and_dirty_buffers() {
+    let _guard = crate::testlock::serial();
+    for dirty in [false, true] {
+        crate::recovery::clear();
+        let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let mut app = app_on(Some(doc()), "/notes", Config::empty());
+        if dirty {
+            app.document.set_text(MINE);
+        }
+        let text = app.document.buffer().text();
+        mem.remove_file(&doc()).unwrap();
+        app.manual_save();
+        assert!(app.change_unresolved());
+        assert!(
+            app.frame
+                .notice()
+                .text()
+                .unwrap()
+                .contains("This file was deleted outside Awl")
+        );
+        app.autosave_flush();
+        assert!(!mem.exists(&doc()));
+        assert!(run_from_palette(&mut app, "Save to restore"));
+        assert_eq!(mem.read_to_string(&doc()).unwrap(), text);
+        assert!(!app.change_unresolved());
+    }
+}
 
-    app.manual_save();
-    assert!(
-        app.change_unresolved(),
-        "a deletion latches like any other change"
-    );
-    assert!(
-        !mem.exists(&doc()),
-        "awl must not silently re-create a file somebody deleted"
-    );
+#[test]
+fn deleted_close_preserves_recovery_and_dirty_confirmation_can_be_cancelled() {
+    let _guard = crate::testlock::serial();
+    for dirty in [false, true] {
+        crate::recovery::clear();
+        let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let mut app = app_on(Some(doc()), "/notes", Config::empty());
+        if dirty {
+            app.document.set_text(MINE);
+        }
+        let text = app.document.buffer().text();
+        mem.remove_file(&doc()).unwrap();
+        app.manual_save();
+        assert!(run_from_palette(&mut app, "Close without saving"));
+        if dirty {
+            assert!(app.document.has_active());
+            app.press_spec_headless("Escape").unwrap();
+            assert!(run_from_palette(&mut app, "Close without saving"));
+            assert!(
+                app.document.has_active(),
+                "Escape cancelled the prior confirmation"
+            );
+            app.document.set_text("newest unsaved text\n");
+            assert!(run_from_palette(&mut app, "Close without saving"));
+            assert!(app.document.has_active(), "a new edit requires new consent");
+            assert!(run_from_palette(&mut app, "Close without saving"));
+        }
+        assert!(!app.document.has_active());
+        assert!(!mem.exists(&doc()));
+        let expected = if dirty {
+            "newest unsaved text\n".to_string()
+        } else {
+            text
+        };
+        if dirty {
+            assert_eq!(crate::recovery::read_for(&doc()).unwrap().text, expected);
+        } else {
+            assert!(crate::recovery::read_for(&doc()).is_none());
+        }
+    }
+}
 
-    app.resolve_take_theirs();
-    assert_eq!(
-        app.document.buffer().text(),
-        MINE,
-        "there is no disk version to take, so nothing was replaced"
-    );
-    assert!(app.change_unresolved(), "still unresolved");
+#[test]
+fn deleted_resolution_rechecks_reappearance_and_repeated_events() {
+    let _guard = crate::testlock::serial();
+    for restore in [false, true] {
+        crate::recovery::clear();
+        let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let mut app = app_on(Some(doc()), "/notes", Config::empty());
+        app.document.set_text(MINE);
+        mem.remove_file(&doc()).unwrap();
+        app.manual_save();
+        app.manual_save();
+        assert!(!mem.exists(&doc()));
+        mem.write(&doc(), DISK_SECOND.as_bytes()).unwrap();
+        if restore {
+            app.resolve_keep_mine();
+        } else {
+            app.resolve_take_theirs();
+        }
+        assert!(app.document.has_active());
+        assert_eq!(app.document.buffer().text(), MINE);
+        assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_SECOND);
+        assert!(app.change_unresolved());
+        assert_eq!(
+            app.persistence.unresolved().unwrap().disk_state,
+            persistence::ExternalDiskState::Modified
+        );
+    }
+}
 
-    // Save your version is the way out of a deletion, and it re-creates the
-    // file deliberately, on an explicit instruction.
-    app.resolve_keep_mine();
-    assert_eq!(mem.read_to_string(&doc()).unwrap(), MINE);
-    assert!(!app.change_unresolved());
+/// Faults affect only the synthetic document, keeping recovery available.
+struct UnreadableDocument {
+    inner: InMemoryFs,
+    metadata_error: bool,
+    read_missing: bool,
+    kind: std::io::ErrorKind,
+}
+impl crate::fs::FileSystem for UnreadableDocument {
+    fn read_to_string(&self, p: &Path) -> std::io::Result<String> {
+        if p == doc() {
+            Err(std::io::Error::from(if self.read_missing {
+                std::io::ErrorKind::NotFound
+            } else {
+                self.kind
+            }))
+        } else {
+            self.inner.read_to_string(p)
+        }
+    }
+    fn read(&self, p: &Path) -> std::io::Result<Vec<u8>> {
+        if p == doc() {
+            Err(std::io::Error::from(if self.read_missing {
+                std::io::ErrorKind::NotFound
+            } else {
+                self.kind
+            }))
+        } else {
+            self.inner.read(p)
+        }
+    }
+    fn metadata(&self, p: &Path) -> std::io::Result<crate::fs::Metadata> {
+        if p == doc() && self.metadata_error {
+            Err(std::io::Error::from(self.kind))
+        } else {
+            self.inner.metadata(p)
+        }
+    }
+    fn read_bounded(&self, p: &Path, cap: usize) -> crate::fs::BoundedRead {
+        self.inner.read_bounded(p, cap)
+    }
+    fn write(&self, p: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        self.inner.write(p, bytes)
+    }
+    fn create_dir_all(&self, p: &Path) -> std::io::Result<()> {
+        self.inner.create_dir_all(p)
+    }
+    fn rename(&self, a: &Path, b: &Path) -> std::io::Result<()> {
+        self.inner.rename(a, b)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn rename_no_replace(&self, a: &Path, b: &Path) -> std::io::Result<()> {
+        self.inner.rename_no_replace(a, b)
+    }
+    fn exists(&self, p: &Path) -> bool {
+        self.inner.exists(p)
+    }
+    fn is_dir(&self, p: &Path) -> bool {
+        self.inner.is_dir(p)
+    }
+    fn read_dir(&self, p: &Path) -> std::io::Result<Vec<crate::fs::DirEntry>> {
+        self.inner.read_dir(p)
+    }
+    fn remove_file(&self, p: &Path) -> std::io::Result<()> {
+        self.inner.remove_file(p)
+    }
+}
+
+#[test]
+fn read_and_metadata_failures_hold_all_resolutions_without_claiming_deletion() {
+    let _guard = crate::testlock::serial();
+    for metadata_error in [false, true] {
+        for kind in [
+            std::io::ErrorKind::PermissionDenied,
+            std::io::ErrorKind::Other,
+        ] {
+            crate::recovery::clear();
+            let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+            let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+            let mut app = app_on(Some(doc()), "/notes", Config::empty());
+            app.document.set_text(MINE);
+            let baseline = app.document.disk_baseline();
+            let _fault = crate::fs::FsGuard::install(Arc::new(UnreadableDocument {
+                inner: mem.clone(),
+                metadata_error,
+                read_missing: false,
+                kind,
+            }));
+            assert_eq!(
+                crate::external::look(&doc(), &baseline).0,
+                crate::external::Change::Unreadable
+            );
+            app.manual_save();
+            assert!(app.change_unresolved());
+            assert!(!app.frame.notice().text().unwrap().contains("deleted"));
+            app.resolve_keep_mine();
+            app.resolve_take_theirs();
+            app.autosave_flush();
+            assert_eq!(app.document.buffer().text(), MINE);
+            assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_FIRST);
+            assert_eq!(crate::recovery::read().unwrap().text, MINE);
+        }
+    }
 }
 
 /// THE ROWS ARE HIDDEN when there is nothing to resolve. Offering an action that
@@ -371,7 +545,7 @@ fn the_resolution_rows_are_offered_only_while_a_change_is_unresolved() {
     let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
     let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(doc()), "/notes", Config::empty());
-    for name in ["Save your version", "Use disk version"] {
+    for name in ["Keep my version", "Use disk version"] {
         assert!(
             !run_from_palette(&mut app, name),
             "{name:?} must not be selectable with no conflict open"
@@ -386,7 +560,7 @@ fn the_resolution_rows_are_offered_only_while_a_change_is_unresolved() {
     // divergence from scratch, because the PREVIOUS probe's acceptance resolved
     // it — a loop that reuses one conflict would find the second row correctly
     // hidden and report that as a failure of the gate rather than of the test.
-    for name in ["Save your version", "Use disk version"] {
+    for name in ["Keep my version", "Use disk version"] {
         crate::recovery::clear();
         mem.write(&doc(), DISK_FIRST.as_bytes()).unwrap();
         let mut probe = app_on(Some(doc()), "/notes", Config::empty());
@@ -933,4 +1107,154 @@ fn neither_enter_nor_shift_enter_settles_anything_from_the_views() {
             "{chord}: …and the record still holds the user's text"
         );
     }
+}
+
+#[test]
+fn retained_deleted_text_survives_another_documents_conflict_and_resolution() {
+    let _guard = crate::testlock::serial();
+    let other = std::path::PathBuf::from("/notes/other.md");
+    let mem = InMemoryFs::new()
+        .with_file(doc(), DISK_FIRST)
+        .with_file(other.clone(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    mem.remove_file(&doc()).unwrap();
+    app.manual_save();
+    app.resolve_take_theirs();
+    app.resolve_take_theirs();
+    assert!(!app.document.has_active());
+    app.load_path(other.clone());
+    app.document.set_text("other unsaved text\n");
+    mem.write(&other, DISK_SECOND.as_bytes()).unwrap();
+    app.manual_save();
+    app.resolve_keep_mine();
+    assert!(!app.change_unresolved());
+    assert_eq!(crate::recovery::read_for(&doc()).unwrap().text, MINE);
+    mem.write(&doc(), DISK_FIRST.as_bytes()).unwrap();
+    app.load_path(doc());
+    assert_eq!(app.document.buffer().text(), MINE);
+    assert!(app.change_unresolved());
+    app.resolve_keep_mine();
+    assert!(crate::recovery::read_for(&doc()).is_none());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_durable_recovery_refuses_deleted_close() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::{ScriptedFailure, ScriptedFs, ScriptedOperation};
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    mem.remove_file(&doc()).unwrap();
+    app.manual_save();
+    app.resolve_take_theirs();
+    let fail = ScriptedFs::new(
+        mem.clone(),
+        ScriptedFailure {
+            operation: ScriptedOperation::Write,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "recovery unavailable",
+        },
+    );
+    let _fault = crate::fs::FsGuard::install(Arc::new(fail));
+    app.resolve_take_theirs();
+    assert!(app.document.has_active());
+    assert!(app.change_unresolved());
+    assert_eq!(app.document.buffer().text(), MINE);
+    assert!(!mem.exists(&doc()));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn restore_does_not_replace_a_creator_racing_with_publication() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::{ScriptedFailure, ScriptedFs, ScriptedOperation};
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    mem.remove_file(&doc()).unwrap();
+    app.manual_save();
+    let race = ScriptedFs::new(
+        mem.clone(),
+        ScriptedFailure {
+            operation: ScriptedOperation::Write,
+            ordinal: usize::MAX,
+            kind: std::io::ErrorKind::Other,
+            reason: "unused failure",
+        },
+    )
+    .race_create_before_no_replace(doc(), DISK_SECOND.as_bytes());
+    let _race = crate::fs::FsGuard::install(Arc::new(race));
+    app.resolve_keep_mine();
+    assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_SECOND);
+    assert_eq!(app.document.buffer().text(), MINE);
+    assert!(app.change_unresolved());
+}
+
+#[test]
+fn metadata_permission_error_is_not_deletion_even_when_the_read_reports_not_found() {
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    let _fault = crate::fs::FsGuard::install(Arc::new(UnreadableDocument {
+        inner: mem.clone(),
+        metadata_error: true,
+        read_missing: true,
+        kind: std::io::ErrorKind::PermissionDenied,
+    }));
+    app.manual_save();
+    assert_eq!(
+        app.persistence.unresolved().unwrap().disk_state,
+        persistence::ExternalDiskState::Unreadable
+    );
+    app.resolve_keep_mine();
+    app.resolve_take_theirs();
+    assert!(app.document.has_active());
+    assert_eq!(app.document.buffer().text(), MINE);
+    assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_FIRST);
+    assert!(!app.frame.notice().text().unwrap().contains("deleted"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_active_recovery_removal_keeps_the_latest_deleted_text() {
+    let _guard = crate::testlock::serial();
+    use crate::fs::{ScriptedFailure, ScriptedFs, ScriptedOperation};
+    let mem = InMemoryFs::new().with_file(doc(), DISK_FIRST);
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(doc()), "/notes", Config::empty());
+    app.document.set_text(MINE);
+    mem.remove_file(&doc()).unwrap();
+    app.manual_save();
+    let newest = "latest text edited after the conflict was recorded\n";
+    app.document.set_text(newest);
+    app.resolve_take_theirs();
+    let fail = ScriptedFs::new(
+        mem.clone(),
+        ScriptedFailure {
+            operation: ScriptedOperation::RemoveFile,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "active recovery removal refused",
+        },
+    );
+    let fault = crate::fs::FsGuard::install(Arc::new(fail));
+    app.resolve_take_theirs();
+    assert!(app.document.has_active());
+    assert!(app.change_unresolved());
+    assert_eq!(app.document.buffer().text(), newest);
+    assert_eq!(crate::recovery::read_for(&doc()).unwrap().text, newest);
+    assert!(!mem.exists(&doc()));
+    drop(fault);
+    drop(app);
+    let reopened = app_on(Some(doc()), "/notes", Config::empty());
+    assert_eq!(reopened.document.buffer().text(), newest);
+    assert!(reopened.change_unresolved());
 }

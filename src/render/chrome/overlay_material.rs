@@ -43,17 +43,13 @@ impl TextPipeline {
         self.panel_material
             .prepare(device, queue, width, height, &[card]);
 
-        // A DockedTab is part of the pane's outline, so it must carry the
-        // pane's material too. The active fill itself stays the card surface;
-        // this second, transparent scanline pass continues the same absolute
-        // canvas-y phase through the true tab bounds. The seam-overlap fill is
-        // deliberately excluded: doubling a transparent material over the
-        // card at the mouth would darken the join it is meant to erase.
+        // The opaque active tab repaints its mouth after the card material.
+        // Continue the same canvas-phase material over that replaced fill too.
         let tab = matches!(
             crate::render::effective_facet_style(),
             theme::FacetStyle::DockedTab
         )
-        .then(|| self.overlay_theme_facet_ghosts.first().copied())
+        .then_some(self.overlay_theme_underline)
         .flatten();
         self.overlay_facet_material.set_chamfer(0.0, 0.0);
         self.overlay_facet_material

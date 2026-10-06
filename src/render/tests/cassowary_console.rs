@@ -166,7 +166,9 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
             assert!(
                 !docked_label.glyphs.is_empty()
                     && docked_label.line_w <= p.overlay_geometry(w).text_w,
-                "the complete category strip has ink and fits the card"
+                "{logical_w}x{logical_h}@{dpi}: category strip width {} must fit {}",
+                docked_label.line_w,
+                p.overlay_geometry(w).text_w
             );
             // The fill deliberately OVERLAPS the pane edge rather than meeting
             // it exactly — it bridges the card's own border ring so the tab's

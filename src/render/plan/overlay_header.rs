@@ -22,13 +22,9 @@ use super::overlay_rows::OverlayRowPlanInput;
 /// the query box's OWN already-tuned symmetric breathing — untouched: only the
 /// gap's own thickness shrinks, its START position does not move, and neither
 /// `first_top` nor `card_h` reads this constant at all, so no row rhythm or
-/// card height moves. **Floored above a lower value that was tried first**:
-/// `chip_plate_floor`'s own mark-floor proves it bites by reconstructing the
-/// naive pre-fix centre and showing it draws above the lower surface's plate
-/// — that proof goes vacuous once the plate's own top (this fraction) pulls
-/// far enough ahead of the naturally-centred mark, which this module's own
-/// tests pin down between 0.35 and 0.25. This value keeps that non-vacuity
-/// intact while still buying the facet strip real, measured clearance.
+/// card height moves. The compact header hierarchy also gives the mark's
+/// natural centre clearance; `chip_plate_floor` grades its actual drawn top
+/// against the lower surface at both DPI tiers.
 /// Reverting to the historical 0.4 is one line, plus the dependent literal
 /// reconstructions in `tests/split_pane.rs` and `plan/tests.rs` (both
 /// intentionally re-derive the fraction as an independent oracle rather than

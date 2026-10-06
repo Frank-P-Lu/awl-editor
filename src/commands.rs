@@ -168,7 +168,7 @@ pub fn slug(name: &str) -> String {
         .replace(' ', "_")
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn slug_for_action(action: &Action) -> Option<String> {
     COMMANDS
         .iter()
@@ -685,6 +685,8 @@ pub struct RowGates {
     pub has_waiter: bool,
     /// Is there an unresolved external change on the current document?
     pub change_unresolved: bool,
+    /// Confirmed deletion changes the two resolution labels, preserving identity.
+    pub deleted_file: bool,
     /// Does the active document have a real on-disk path? Reveal/Copy-path
     /// need a real location — an unnamed scratch buffer has none, and the
     /// default `false` hides both rows exactly like the two gates above.
@@ -746,6 +748,20 @@ fn row_hidden_on_host(action: &Action, gates: RowGates, host_os: &str) -> bool {
 /// by `OverlayState::new_command`'s `hidden` parameter, which `refilter` reads to
 /// drop masked rows from what's SELECTABLE while leaving `corpus` itself (and
 /// every index into it that `visible_action_of` relies on) untouched.
+pub fn visible_names_for(gates: RowGates) -> Vec<String> {
+    visible()
+        .iter()
+        .map(|command| {
+            match (&command.action, gates.deleted_file) {
+                (Action::ResolveKeepMine, true) => "Save to restore",
+                (Action::ResolveTakeTheirs, true) => "Close without saving",
+                _ => command.name,
+            }
+            .to_string()
+        })
+        .collect()
+}
+
 pub fn visible_hidden_mask(gates: RowGates) -> Vec<bool> {
     visible()
         .iter()

@@ -218,3 +218,19 @@ fn the_only_copy_of_the_users_text_survives_a_round_trip_through_disk() {
     assert_eq!(back.text, manuscript);
     assert_eq!(back.path, PathBuf::from("/notes/spain.md"));
 }
+
+#[test]
+fn resolving_a_path_preserves_a_colliding_retained_owner() {
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new();
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let requested = Path::new("/notes/requested.md");
+    let unrelated = rec("/notes/unrelated.md", "unrelated manuscript\n");
+    let slot = retained_path(requested);
+    mem.create_dir_all(slot.parent().unwrap()).unwrap();
+    mem.write(&slot, encode(&unrelated).unwrap().as_bytes())
+        .unwrap();
+    clear_for(requested);
+    assert_eq!(decode(&mem.read_to_string(&slot).unwrap()), Some(unrelated));
+    assert!(read_for(requested).is_none());
+}

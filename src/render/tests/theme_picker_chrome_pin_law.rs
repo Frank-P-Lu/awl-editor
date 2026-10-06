@@ -198,7 +198,7 @@ fn preview_updates_persistent_chrome_face_while_the_picker_face_stays_pinned() {
     );
     let picker_theme = crate::render::overlay_chrome_theme();
     assert_eq!(picker_theme.font, opener.font);
-    assert_eq!(picker_theme.base_100, opener.base_100);
+    assert_eq!(picker_theme.base_100, destination.base_100);
     assert_eq!(theme::active().font, destination.font);
     assert_eq!(theme::active().base_100, destination.base_100);
 }

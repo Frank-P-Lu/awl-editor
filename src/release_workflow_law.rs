@@ -55,6 +55,12 @@ fn step<'a>(job: &'a str, name: &str) -> &'a str {
     &rest[..end]
 }
 
+fn lipo_inputs_precede_verification(mac: &str) -> bool {
+    mac.contains("lipo target/universal/awl -verify_arch arm64 x86_64")
+        && mac.contains("lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64")
+        && !mac.contains("lipo -verify_arch")
+}
+
 fn release_audit(
     workflow: &str,
     packager: &str,
@@ -102,11 +108,14 @@ fn release_audit(
     for (needle, minimum, label) in [
         ("xcrun stapler validate", 2, "staple-validation"),
         ("spctl --assess --type execute", 2, "gatekeeper"),
-        ("lipo -verify_arch arm64 x86_64", 2, "universal-binary"),
+        ("-verify_arch arm64 x86_64", 2, "universal-binary"),
     ] {
         if mac.matches(needle).count() < minimum {
             failures.push(label);
         }
+    }
+    if !lipo_inputs_precede_verification(mac) {
+        failures.push("xcode26-lipo-order");
     }
     if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-universal.dmg")
         || !mac.contains("$DMG.sha256")
@@ -216,6 +225,21 @@ fn release_audit_rejects_each_headline_regression() {
             "spctl --assess --type execute",
             "true # spctl removed",
             "gatekeeper",
+        ),
+        (
+            "lipo target/universal/awl -verify_arch arm64 x86_64",
+            "lipo -verify_arch arm64 x86_64 target/universal/awl",
+            "xcode26-lipo-order",
+        ),
+        (
+            "lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64",
+            "lipo -verify_arch arm64 x86_64 \"$MOUNT/Awl.app/Contents/MacOS/awl\"",
+            "xcode26-lipo-order",
+        ),
+        (
+            "lipo -info target/universal/awl",
+            "lipo -verify_arch arm64 x86_64 target/universal/awl",
+            "xcode26-lipo-order",
         ),
         (
             "release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg",

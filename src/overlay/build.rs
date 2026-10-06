@@ -87,7 +87,7 @@ pub fn build(input: &PickerInput<'_>) -> Option<OverlayState> {
         // `[keys]` rebinds included), so it teaches the live binding.
         PickerInput::Command(ctx) => {
             let mut ov = OverlayState::new_command(
-                crate::commands::visible_names(),
+                crate::commands::visible_names_for(ctx.row_gates),
                 crate::commands::visible_effective_bindings(
                     ctx.bindings.keys,
                     ctx.bindings.linux_keep,

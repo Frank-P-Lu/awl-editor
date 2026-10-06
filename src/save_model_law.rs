@@ -85,13 +85,13 @@ fn every_save_model_document_uses_the_live_conflict_vocabulary() {
         .next()
         .expect("the notice leads with the state it names");
     assert_eq!(
-        state, "changed elsewhere",
+        state, "This file changed outside Awl",
         "the notice's own leading phrase"
     );
 
     // The two resolutions, verified to EXIST before they are demanded of prose.
     let resolutions = [
-        ("Save your version", crate::keymap::Action::ResolveKeepMine),
+        ("Keep my version", crate::keymap::Action::ResolveKeepMine),
         ("Use disk version", crate::keymap::Action::ResolveTakeTheirs),
     ];
     for (label, action) in &resolutions {

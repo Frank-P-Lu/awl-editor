@@ -186,3 +186,12 @@ result using `capture_opts` and `capture_with`. The `focused_field` sidecar repo
 rendered text, selection, transient preedit and candidate geometry. CLI chords
 cannot synthesize physical IME events; Japanese conversion, OS candidate windows
 and live ordering still require a native session and physical input.
+
+## Native clipboard isolation
+
+Unit App construction, live-App capture, frame scheduling capture, and the
+persistence subprocess probe inject an in-memory clipboard before constructing
+App. Their ordinary actions retain the real interpreter and a working text
+clipboard, without acquiring or inspecting the host pasteboard. The live editor
+keeps the platform clipboard. Production diagnostic executables use the same
+injection seam; filesystem isolation alone does not isolate a clipboard.

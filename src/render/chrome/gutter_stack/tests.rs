@@ -254,9 +254,9 @@ fn stack_spans_bring_only_the_active_name_forward() {
             .find(|(text, _)| text.ends_with("journal/"))
             .expect("the nested row draws its location");
         if active == 1 {
-            assert_ne!(
+            assert_eq!(
                 location.1.0, forward.0,
-                "the active row's location must stay quieter than its name"
+                "the active path uses readable secondary ink over its plate"
             );
         }
     }
@@ -564,20 +564,9 @@ fn the_identity_lines_ink_is_the_same_routed_ink_an_active_stack_row_wears() {
     );
 }
 
-/// **515: AN ACTIVE GROUP HEADING NEVER PLATES, EVEN WITH ITS OWN ACTIVE
-/// FILE VISIBLE IN THE SAME WINDOW.** Superseded 507's law of the same
-/// fixture shape (`an_active_group_heading_and_its_active_file_are_both_
-/// plated`), which asserted the double-plate this item exists to remove:
-/// a screenshot caught the expanded panel drawing two purple plates for one
-/// project — the heading (current project) and the active file (current
-/// document) — reading as two selections when only one answer, "which
-/// file", owns a fill. `plate_rects`'s law above
-/// (`a_plate_marks_the_active_row_in_every_block_shape`) only ever proved
-/// "at most one" because its own fixture is File rows exclusively — the
-/// resting stack's real shape, which never draws a Group row at all; this
-/// sweeps the EXPANDED panel's real shape instead.
+/// The active root and its active document share the selected treatment.
 #[test]
-fn an_active_group_heading_never_plates_only_its_active_file_does() {
+fn active_group_heading_and_file_both_plate() {
     let files = vec![
         group_row("notes/", true),
         row("welcome.md", "", true),
@@ -595,19 +584,14 @@ fn an_active_group_heading_never_plates_only_its_active_file_does() {
     let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
     assert_eq!(
         plates.len(),
-        1,
-        "only the active FILE may plate, never its group heading too: {plates:?}"
+        2,
+        "active root and document both plate: {plates:?}"
     );
 }
 
-/// A heading that is NOT the reader's current project draws no plate either
-/// — and neither does the active project's own heading, only its active
-/// file — while sitting beside another (inactive) project's heading and file.
-/// `StackRow::active` combined with `StackRowKind::File` is the plate's
-/// whole source of truth; a Group's own `active` field still drives its ink
-/// ([`stack_spans`]) but never its fill.
+/// An inactive root and its files stay unplated beside the selected group.
 #[test]
-fn only_the_active_file_ever_plates_never_any_group_heading() {
+fn inactive_group_headings_never_plate() {
     let files = vec![
         group_row("archive/", false),
         row("old.md", "", false),
@@ -626,37 +610,31 @@ fn only_the_active_file_ever_plates_never_any_group_heading() {
     let plates = plate_rects(&layout, &plan, &synth_ink_widths(&layout, 6.0), 2.0);
     assert_eq!(
         plates.len(),
-        1,
-        "only the active file may plate: {plates:?}"
+        2,
+        "only the active root and file plate: {plates:?}"
     );
 }
 
-/// **507: AN ACTIVE HEADING WEARS THE SAME ROUTED INK AN ACTIVE FILE DOES.**
-/// Before this fix a heading's ink came from the ladder's plain `muted`
-/// default, never [`theme::selected_row_secondary_ink`] — exactly the shape
-/// this file's own tripwire names for File rows (a plate that fills at
-/// page-inverse on Wagtail swallows unrouted ink). Now that a heading plates
-/// too, it must be routed the same way.
+/// Active headings and files both resolve ink against their selection plate.
 #[test]
-fn an_active_group_heading_wears_the_same_routed_ink_as_an_active_file() {
+fn active_group_heading_uses_selected_ink_across_worlds() {
     let _g = crate::testlock::serial();
-    let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
-    let fitted = fit_rows(&files, 24);
-    let spans = stack_spans(&fitted, None);
-    let heading_ink = spans
-        .iter()
-        .find(|(text, _)| text.contains("notes/"))
-        .expect("the heading draws its own name span")
-        .1;
-    let file_ink = spans
-        .iter()
-        .find(|(text, _)| text.contains("welcome.md"))
-        .expect("the file draws its own name span")
-        .1;
-    assert_eq!(
-        heading_ink.0, file_ink.0,
-        "an active heading and an active file must share the same routed ink"
-    );
+    let _pin = theme::WorldPin::snapshot();
+    assert!(!theme::THEMES.is_empty());
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
+        let spans = stack_spans(&fit_rows(&files, 24), None);
+        let ink = |name: &str| {
+            spans
+                .iter()
+                .find(|(text, _)| text.contains(name))
+                .unwrap()
+                .1
+        };
+        assert_eq!(ink("notes/").0, active_row_ink().0, "{}", world.name);
+        assert_eq!(ink("welcome.md").0, active_row_ink().0, "{}", world.name);
+    }
 }
 
 /// The production close mark is a one-stage color-only reveal over one

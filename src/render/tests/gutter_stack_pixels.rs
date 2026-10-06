@@ -1286,3 +1286,96 @@ fn the_stack_close_mark_flips_colour_on_real_pixels_for_an_inactive_row_too() {
 }
 
 mod accent;
+
+/// The selected root must have readable glyphs and a visible selection change
+/// on every world, including one-bit palettes.
+#[test]
+fn active_group_headings_have_real_pixels_on_every_world() {
+    let _guard = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping grouped heading pixels: no wgpu adapter");
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+    let mut judged = 0;
+    let mut absent = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        p.sync_theme();
+        let mut v = stack_view(1);
+        v.gutter_files = vec![
+            StackRow {
+                leaf: "notes/".into(),
+                parent: String::new(),
+                active: true,
+                kind: crate::workingset::StackRowKind::Group { active: true },
+            },
+            StackRow {
+                leaf: "chapter.md".into(),
+                parent: String::new(),
+                active: true,
+                kind: crate::workingset::StackRowKind::File,
+            },
+            StackRow {
+                leaf: "Research/".into(),
+                parent: String::new(),
+                active: false,
+                kind: crate::workingset::StackRowKind::Group { active: false },
+            },
+            StackRow {
+                leaf: "research.md".into(),
+                parent: String::new(),
+                active: false,
+                kind: crate::workingset::StackRowKind::File,
+            },
+        ];
+        p.set_view(&v);
+        let pixels = render_frame(&device, &queue, &mut p);
+        let bands = row_bands(&p.gutter_frost_seeds(H));
+        assert_eq!(
+            bands.len(),
+            4,
+            "{}: grouped fixture must reach the margin",
+            world.name
+        );
+        let band = bands[0];
+        v.gutter_files[0].active = false;
+        v.gutter_files[0].kind = crate::workingset::StackRowKind::Group { active: false };
+        p.set_view(&v);
+        let inactive = render_frame(&device, &queue, &mut p);
+        let selected_delta = (band[1].max(0.0) as u32..((band[1] + band[3]) as u32).min(H))
+            .flat_map(|y| (0..(band[2] as u32).min(W)).map(move |x| (y * W + x) as usize))
+            .filter(|&at| dist(pixels[at], inactive[at]) > 16.0)
+            .count();
+        assert!(
+            selected_delta >= 16,
+            "{}: root selection has no visible change",
+            world.name
+        );
+        v.gutter_files[0].active = true;
+        v.gutter_files[0].kind = crate::workingset::StackRowKind::Group { active: true };
+        // Retain the same heading kind and row slot, clearing only its name.
+        // An invisible heading and its invisible close mark yield no delta.
+        v.gutter_files[0].leaf = " ".repeat(v.gutter_files[0].leaf.chars().count());
+        p.set_view(&v);
+        let blank = render_frame(&device, &queue, &mut p);
+        let mut changed = 0;
+        for y in band[1].max(0.0) as u32..((band[1] + band[3]) as u32).min(H) {
+            for x in 0..(band[2] as u32).min(W) {
+                let at = (y * W + x) as usize;
+                changed += usize::from(dist(pixels[at], blank[at]) > 16.0);
+            }
+        }
+        if changed < 16 {
+            absent.push((world.name, changed));
+        }
+        judged += 1;
+    }
+    assert_eq!(judged, theme::THEMES.len());
+    assert!(
+        absent.is_empty(),
+        "folder headings lack glyph pixels: {absent:?}"
+    );
+}

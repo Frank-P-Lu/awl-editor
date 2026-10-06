@@ -423,6 +423,7 @@ impl TextPipeline {
             overlay_spine_selected,
             overlay_lens_underline,
             overlay_facet_ghost,
+            overlay_tab_backing: overlay_quad(PLACEHOLDER_RGBA),
             overlay_cross,
             overlay_range_track,
             overlay_range_thumb,

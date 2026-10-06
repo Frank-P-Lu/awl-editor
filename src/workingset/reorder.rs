@@ -63,16 +63,6 @@ impl WorkingSet {
         if group.is_empty() {
             return 0;
         }
-        let Panel::Expanded { .. } = self.panel else {
-            let Some(at) = self.direct_row_index(row) else {
-                return last;
-            };
-            return group
-                .iter()
-                .position(|&slot| slot >= at)
-                .unwrap_or(last)
-                .min(last);
-        };
         let full = self.expanded_full();
         let Some(block_start) = full
             .iter()
@@ -82,11 +72,16 @@ impl WorkingSet {
         };
         // A row past the drawn window names no `expanded_full` position of
         // its own — clamp past the block's own end, same as any row below it.
-        let absolute = self
-            .expanded_window()
-            .get(row)
-            .and_then(DrawnRow::full_index)
-            .unwrap_or(full.len());
+        let absolute = if matches!(self.panel, Panel::Expanded { .. }) {
+            self.expanded_window()
+                .get(row)
+                .and_then(DrawnRow::full_index)
+        } else {
+            self.direct_window()
+                .get(row)
+                .and_then(|drawn| full.iter().position(|r| r == drawn))
+        }
+        .unwrap_or(full.len());
         if absolute <= block_start {
             0
         } else {

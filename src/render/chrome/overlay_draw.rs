@@ -436,7 +436,18 @@ impl TextPipeline {
                 custom_glyphs: &[],
             });
         }
-        if has_right {
+        if has_right && self.overlay_files_surface {
+            let bind_w = self.panel_bind_buffer.size().0.unwrap_or(0.0);
+            let left = self.overlay_accessory_span(geom, 0, bind_w).0;
+            areas.extend(files_accessory_areas(
+                &self.panel_bind_buffer,
+                geom,
+                plan,
+                bounds,
+                left,
+                muted,
+            ));
+        } else if has_right {
             // The chord column is shaped ALIGNED TO ITS FLOW in a text-column-wide
             // buffer, so a chord sits at the cluster end it hangs on rather than at
             // its buffer origin — and WHICH end is the lane owner's one answer.

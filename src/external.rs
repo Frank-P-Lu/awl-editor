@@ -70,14 +70,14 @@ pub fn digest(bytes: &[u8]) -> u64 {
 /// looked at its path holds `Absent`, which is the conservative reading — the
 /// first real look then reports [`Change::Appeared`] rather than nothing.
 ///
-/// `digest: None` inside `Present` means the file was there but its bytes could
-/// not be read (permissions, a device error, a race with a rename). The compare
-/// degrades to the stat for that pair and says so in its own doc; it never
-/// pretends the content matched.
+/// A missing digest cannot authorize a write, even with identical metadata.
+/// `Unavailable` distinguishes access and I/O failures from confirmed absence.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Seen {
     #[default]
     Absent,
+    /// The path could not be inspected; this is not evidence of deletion.
+    Unavailable,
     Present {
         stat: Metadata,
         digest: Option<u64>,
@@ -97,12 +97,18 @@ impl Seen {
     /// identity boundaries, never per frame.
     pub fn at(path: &Path) -> Seen {
         let fs = crate::fs::active();
-        let Ok(stat) = fs.metadata(path) else {
-            return Seen::Absent;
+        let stat = match fs.metadata(path) {
+            Ok(stat) => stat,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Seen::Absent,
+            Err(_) => return Seen::Unavailable,
         };
-        Seen::Present {
-            stat,
-            digest: fs.read(path).ok().map(|bytes| digest(&bytes)),
+        match fs.read(path) {
+            Ok(bytes) => Seen::Present {
+                stat,
+                digest: Some(digest(&bytes)),
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Seen::Absent,
+            Err(_) => Seen::Unavailable,
         }
     }
 
@@ -144,6 +150,8 @@ pub enum Change {
     Appeared,
     /// There was a file and now there is not.
     Deleted,
+    /// The current bytes cannot be established. Every write must be held.
+    Unreadable,
 }
 
 impl Change {
@@ -152,7 +160,7 @@ impl Change {
     pub fn is_change(self) -> bool {
         match self {
             Change::Unchanged => false,
-            Change::Modified | Change::Appeared | Change::Deleted => true,
+            Change::Modified | Change::Appeared | Change::Deleted | Change::Unreadable => true,
         }
     }
 }
@@ -161,45 +169,31 @@ impl Change {
 ///
 /// The `(Present, Present)` arm is the whole point. When both digests are known,
 /// **content alone decides**: equal bytes are `Unchanged` however far the stat
-/// moved, and different bytes are `Modified` however still the stat sat. Only
-/// when a digest is missing — an unreadable file at one end or the other — does
-/// this fall back to comparing the stat, and that fallback is deliberately
-/// PESSIMISTIC: an unknown digest on either side with any stat difference reads
-/// as `Modified`, because "we could not check" must never render as "safe to
-/// overwrite".
+/// moved, and different bytes are `Modified` however still the stat sat.
+/// Unknown current bytes hold every write; metadata alone never grants one.
 pub fn compare(last: &Seen, now: &Seen) -> Change {
     match (last, now) {
+        (_, Seen::Unavailable | Seen::Present { digest: None, .. }) => Change::Unreadable,
         (Seen::Absent, Seen::Absent) => Change::Unchanged,
         (Seen::Absent, Seen::Present { .. }) => Change::Appeared,
-        (Seen::Present { .. }, Seen::Absent) => Change::Deleted,
+        (Seen::Present { .. } | Seen::Unavailable, Seen::Absent) => Change::Deleted,
+        (Seen::Unavailable | Seen::Present { digest: None, .. }, Seen::Present { .. }) => {
+            Change::Modified
+        }
         (
             Seen::Present {
-                stat: ls,
-                digest: ld,
+                digest: Some(last), ..
             },
             Seen::Present {
-                stat: ns,
-                digest: nd,
+                digest: Some(now), ..
             },
-        ) => match (ld, nd) {
-            (Some(l), Some(n)) if l == n => Change::Unchanged,
-            (Some(_), Some(_)) => Change::Modified,
-            _ if stat_moved(ls, ns) => Change::Modified,
-            _ => Change::Unchanged,
-        },
-    }
-}
-
-/// Did the stat move? The pre-digest guard's own rule, kept for the one case
-/// that still needs it (an unreadable file), and never consulted when content
-/// is knowable.
-fn stat_moved(last: &Metadata, now: &Metadata) -> bool {
-    if last.modified != now.modified {
-        return true;
-    }
-    match (last.len, now.len) {
-        (Some(l), Some(n)) => l != n,
-        _ => false,
+        ) => {
+            if last == now {
+                Change::Unchanged
+            } else {
+                Change::Modified
+            }
+        }
     }
 }
 

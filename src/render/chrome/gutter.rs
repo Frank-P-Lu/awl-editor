@@ -39,10 +39,10 @@ pub(super) enum GutterLine {
 impl GutterLayout {
     /// **ONE VISIBLE OWNER OF THE PROJECT NAME.** `true` once the stack
     /// itself draws a project heading — that heading, ink-marked when it is
-    /// the current project (kept even though it draws no plate of its own),
+    /// the current project with its selected ink and plate,
     /// already states "which project" inside the block, so the separate
     /// folder line above would repeat it. The single-file
-    /// identity and a resting stack (which never emits a `Group` row at all,
+    /// identity and a one-root resting stack (which emits no `Group` row,
     /// [`crate::workingset::WorkingSet::stack_rows`]) keep this line as their
     /// one project label.
     fn project_line_visible(&self) -> bool {

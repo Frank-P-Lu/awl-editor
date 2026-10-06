@@ -389,7 +389,7 @@ impl TextPipeline {
         // too, or a mark computed against the un-relocated position would
         // disagree with where the label it marks actually renders.
         let dock_seat = self.relocated_strip_seat(geom, plan);
-        self.shape_docked_facet_strip(geom, strip_scale);
+        self.shape_docked_facet_strip(geom, strip_scale, dock_seat);
         // Record the active-lens mark from the shaped strip glyphs (line 1 of
         // `panel_buffer`, or line 0 of the relocated `docked_facet_buffer`).
         // Line-1 glyphs are byte-indexed WITHIN the strip line's own text —
@@ -545,9 +545,9 @@ impl TextPipeline {
                 theme::FacetStyle::DockedTab => {
                     let tab = [
                         min_x - chip_hpad,
-                        geom.card_y - chip_h,
+                        dock_seat?.top,
                         max_x - min_x + 2.0 * chip_hpad,
-                        chip_h,
+                        dock_seat?.height,
                     ];
                     // THE TAB'S MOUTH: the ghost ring frames the tab at its true
                     // bounds (its own bottom-edge stroke lands on the card's top
@@ -556,6 +556,16 @@ impl TextPipeline {
                     // the card's own ground color, so the active facet reads
                     // continuous with the card instead of a chip floating above it.
                     ghosts.push(tab);
+                    for (range, active) in &label_ranges {
+                        if !active && let Some((left, right, _)) = mark_span(range) {
+                            ghosts.push([
+                                left - chip_hpad,
+                                tab[1],
+                                right - left + 2.0 * chip_hpad,
+                                tab[3],
+                            ]);
+                        }
+                    }
                     let seam_overlap = ui.px(DOCKED_TAB_SEAM_OVERLAP);
                     Some([tab[0], tab[1], tab[2], tab[3] + seam_overlap])
                 }
@@ -690,11 +700,9 @@ impl TextPipeline {
             } else {
                 1.0
             };
-        let header_lh = plan
-            .header_lines()
-            .get(usize::from(self.overlay_files_surface) * 2)
-            .copied()
-            .map_or_else(|| self.overlay_lh(), |field| field.height);
+        // Folder and query are ordinary header lines. The final strip may
+        // own only a short beat when its labels dock above the card.
+        let header_lh = self.overlay_lh();
         let title_prefix = if self.overlay_files_surface {
             let fitted = self.fit_files_title_prefix(geom, name_fs, header_lh);
             self.overlay_files_fitted_title_prefix = fitted.clone();
@@ -719,9 +727,9 @@ impl TextPipeline {
             }
         };
         let folder_head = |c| {
-            chrome_attrs()
+            overlay_panel_attrs()
                 .color(c)
-                .metrics(GlyphMetrics::new(name_fs * 1.15, header_lh))
+                .metrics(GlyphMetrics::new(name_fs, header_lh))
         };
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         let separated_actions = self
@@ -729,9 +737,9 @@ impl TextPipeline {
             .then(|| self.files_action_suffix());
         if self.files_query_is_split(geom) {
             spans.push((title_prefix.as_str(), folder_head(ink)));
-            if let Some(actions) = separated_actions.as_deref() {
+            if separated_actions.is_some() {
                 spans.push(("\n", head(muted)));
-                spans.push((actions, head_chrome(ink)));
+                spans.push((" ", head(muted)));
             }
             spans.push(("\n", head(muted)));
             spans.push(("Search files: ", head(muted)));
@@ -763,7 +771,13 @@ impl TextPipeline {
         let cue_above_text = geom.cue_above.map(|n| super::edge_cue_text(true, n));
         if geom.cue_reserved {
             spans.push(("\n", mk(muted)));
-            spans.push((cue_above_text.as_deref().unwrap_or(" "), mk(muted)));
+            spans.push((
+                cue_above_text.as_deref().unwrap_or(" "),
+                mk(muted).metrics(GlyphMetrics::new(
+                    self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                    self.overlay_lh(),
+                )),
+            ));
         }
         self.push_theme_plan_spans(&mut spans, geom, &fitted, trailing, inks, vis);
         if let Some(msg) = &geom.empty {
@@ -778,7 +792,13 @@ impl TextPipeline {
         let cue_below_text = geom.cue_below.map(|n| super::edge_cue_text(false, n));
         if geom.cue_reserved {
             spans.push(("\n", mk(muted)));
-            spans.push((cue_below_text.as_deref().unwrap_or(" "), mk(muted)));
+            spans.push((
+                cue_below_text.as_deref().unwrap_or(" "),
+                mk(muted).metrics(GlyphMetrics::new(
+                    self.overlay_metrics().font_size * crate::markdown::type_scale::LABEL,
+                    self.overlay_lh(),
+                )),
+            ));
         }
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(
@@ -820,6 +840,11 @@ impl TextPipeline {
                 w = w.max(run.line_w);
             }
         }
-        w
+        if facet_strip_is_docked() {
+            // Reserve the rounded label edge so the independently shaped dock fits.
+            w.ceil() + self.metrics.ui().px(Logical(2.0))
+        } else {
+            w
+        }
     }
 }

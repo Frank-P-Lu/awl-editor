@@ -242,12 +242,8 @@ pub(super) fn close_mark_hover_ink(active: bool) -> glyphon::Color {
 
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
-/// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row is a
-/// file or the current project's heading, and every other row's name is `faint`.
-/// A row's LOCATION is `faint` throughout, quieter than the name it qualifies on
-/// the row that matters. That forward name is [`active_row_ink`]'s — a heading's
-/// too, though only a File row ever draws the fill ([`plate_rects`]) — and its
-/// whole legibility rationale lives on that owner rather than a second time here.
+/// The active file and its root heading read against their selection plates.
+/// Other names recede on the bare margin.
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
@@ -295,7 +291,12 @@ pub(super) fn stack_spans(
         out.push((format!("{lead}{CLOSE_MARK_TEXT}"), mark_ink));
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if !parent.is_empty() {
-            out.push((parent.to_string(), faint));
+            let parent_ink = if line.active {
+                name_ink
+            } else {
+                theme::muted().to_glyphon()
+            };
+            out.push((parent.to_string(), parent_ink));
         }
         out.push((leaf.to_string(), name_ink));
     }
@@ -361,32 +362,9 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// **THE PLATE MEANS THE ACTIVE FILE, AND EVERY SHAPE OF "THE ACTIVE FILE" EARNS
-/// IT.** At most ONE plate per frame, across the lone identity line, the resting
-/// stack and the expanded panel alike — never a Group heading, even the current
-/// project's own.
-///
-/// [`gutter::GutterLine::Name`] IS the active file: [`GutterLayout::lines`] draws
-/// it only when the working set has no rows to widen into, so the one file open is
-/// by construction the one being edited. It is plated HERE rather than by a second
-/// rect placed beside it — one owner of "which line is filled" — and the match
-/// below carries no wildcard arm, so a new line kind fails to compile instead of
-/// silently inheriting either answer.
-///
-/// A heading that IS the current project keeps its distinct ink ([`stack_spans`]
-/// still routes it through [`theme::selected_row_secondary_ink`]) but draws no
-/// fill: the project identity is stated once, by the gutter's own folder heading
-/// above the block (or, once the panel draws headings itself, by that ink-marked
-/// heading) — plating it too would state "you are in this project" a second time
-/// in the same column the active file's own plate already occupies, the exact
-/// double-selection a screenshot once caught (two purple plates answering two
-/// different questions, "which file" and "which project", read as two selections).
-///
-/// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and the
-/// SAME planner rows they sit on, so a plate cannot mark a different line than the
-/// one the reader is editing. Adding a line to the block (an affordance appearing,
-/// the project line vanishing) moves the glyphs and the plate through one shared
-/// index rather than two agreeing counts.
+/// Selection marks the active file and the root heading that contains it.
+/// Both use the same shaped row geometry and selected ink. Inactive roots,
+/// the separate project label and the changed notice remain unplated.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -404,7 +382,7 @@ pub(super) fn plate_rects(
                 gutter::GutterLine::Name => {}
                 gutter::GutterLine::File(at) => {
                     let file = layout.files.get(at)?;
-                    if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
+                    if !file.active {
                         return None;
                     }
                 }
@@ -423,7 +401,7 @@ pub(super) fn plate_rects(
 }
 
 impl TextPipeline {
-    /// THE ACTIVE FILE'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
+    /// The first selected plate rect `[x, y, w, h]`, off the EXACT SAME
     /// layout + planner rows [`TextPipeline::prepare_gutter`] draws
     /// `gutter_stack_plate` from ([`plate_rects`] answers for both the lone
     /// identity line and a stack row). `None` when the gutter is hidden/off.

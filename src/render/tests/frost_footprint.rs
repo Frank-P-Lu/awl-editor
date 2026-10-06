@@ -182,12 +182,12 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
         "no world enrols in the footprint frost — this law has no subject"
     );
     for world in &worlds {
+        crate::theme::set_active_by_name(world).unwrap();
         for (dpi, w, h) in [(1.0f32, 1200u32, 800u32), (2.0, 2400, 1600)] {
             let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
                 eprintln!("skipping the frost-footprint sweep: no wgpu adapter");
                 return;
             };
-            crate::theme::set_active_by_name(world).unwrap();
             p.set_dpi(dpi);
 
             // A: the picker over dense prose. B: the SAME picker over an empty
@@ -373,18 +373,7 @@ fn frosted_and_live_mean_lab(
             n += 1.0;
         }
     }
-    let to_lab = |a: [f64; 3]| {
-        let enc = |v: f64| {
-            let v = (v / n).clamp(0.0, 1.0);
-            let s = if v <= 0.003_130_8 {
-                v * 12.92
-            } else {
-                1.055 * v.powf(1.0 / 2.4) - 0.055
-            };
-            (s * 255.0).round() as u8
-        };
-        super::pixeldiff::lab([enc(a[0]), enc(a[1]), enc(a[2]), 255])
-    };
+    let to_lab = |a: [f64; 3]| super::pixeldiff::lab_from_linear(a.map(|v| v / n));
     MeanPair {
         frosted: to_lab(acc[0]),
         live: to_lab(acc[1]),
@@ -411,12 +400,12 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
     for world in enrolled_worlds() {
+        crate::theme::set_active_by_name(world).unwrap();
         for (dpi, w, h) in [(1.0f32, 1200u32, 800u32), (2.0, 2400, 1600)] {
             let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
                 eprintln!("skipping the_footprint_frost_keeps_the_pages_own_hue: no wgpu adapter");
                 return;
             };
-            crate::theme::set_active_by_name(world).unwrap();
             p.set_dpi(dpi);
 
             p.set_view(&theme_picker(DENSE));

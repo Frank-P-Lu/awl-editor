@@ -2,6 +2,15 @@
 
 > Read before touching `app/` lifecycle hooks, autosave/history, `daemon.rs`, `menu.rs`, `session.rs`, `updates.rs`, GPU fault/recovery paths, `--soak-gpu`, or the debug panel/HUD.
 
+## Linux launcher identity
+
+Live windows use the selected winit backend: X11 WM_CLASS is `awl`/`awl` and
+Wayland app_id is `dev.franklu.awl`, matching the default AppImage launcher.
+This identity is independent of document titles and the executable filename.
+The AppImage packager's custom `AWL_BUNDLE_ID` override does not change the
+binary's Wayland app_id; custom-ID launcher matching is not supported by this
+runtime contract.
+
 ## Platform text input
 
 `app/input/text_focus.rs` resolves one IME recipient: the active document, a

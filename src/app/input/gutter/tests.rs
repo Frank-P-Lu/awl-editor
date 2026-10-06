@@ -71,25 +71,26 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
         let labels = drawn_labels(&app);
         assert_eq!(
             labels,
-            vec!["index.md", "archive/log.md", "alpha.md", "journal/field.md"],
-            "the margin draws the files in stable OPEN order"
+            vec!["index.md", "alpha.md", "journal/field.md", "log.md"],
+            "the margin groups roots in first-seen order without changing stored open order"
         );
 
-        let resolved: Vec<Option<PathBuf>> = (0..labels.len())
-            .map(|row| app.gutter_stack_row_path(row))
-            .collect();
+        let resolved: Vec<Option<PathBuf>> =
+            (0..6).map(|row| app.gutter_stack_row_path(row)).collect();
         assert_eq!(
             resolved,
             vec![
+                None,
                 Some(PathBuf::from("/ws/notes/index.md")),
-                Some(PathBuf::from("/ws/archive/log.md")),
                 Some(PathBuf::from("/ws/notes/alpha.md")),
                 Some(PathBuf::from("/ws/notes/journal/field.md")),
+                None,
+                Some(PathBuf::from("/ws/archive/log.md")),
             ],
             "each drawn row resolves to its own file, in the drawn order"
         );
         assert_eq!(
-            app.gutter_stack_row_path(labels.len()),
+            app.gutter_stack_row_path(6),
             None,
             "a row past the end of the stack names nothing"
         );
@@ -205,11 +206,22 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
         let labels = drawn_labels(&app);
         assert_eq!(
             labels,
-            vec!["index.md", "archive/log.md", "alpha.md", "journal/field.md"],
-            "the compact margin includes the foreign-root file with its root label"
+            vec!["index.md", "alpha.md", "journal/field.md", "log.md"],
+            "the compact margin includes the foreign-root file beneath its own heading"
         );
 
-        for (row, label) in labels.iter().enumerate() {
+        let drawn = app
+            .document
+            .working_set()
+            .margin_rows(Path::new("/ws/notes"));
+        for (row, label) in drawn.iter().enumerate() {
+            if matches!(label.kind, crate::workingset::StackRowKind::Group { .. }) {
+                assert_eq!(app.gutter_stack_row_path(row), None);
+                assert_eq!(app.gutter_stack_row_key(row), None);
+                assert!(app.gutter_stack_row_group_root(row).is_some());
+                continue;
+            }
+            let label = format!("{}{}", label.parent, label.leaf);
             let path = app
                 .gutter_stack_row_path(row)
                 .unwrap_or_else(|| panic!("row {row} names a file"));
@@ -224,7 +236,7 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
             );
         }
         assert_eq!(
-            app.gutter_stack_row_key(labels.len()),
+            app.gutter_stack_row_key(drawn.len()),
             None,
             "a row past the end of the stack names no buffer either"
         );
@@ -257,11 +269,19 @@ fn scrolled_compact_rows_resolve_the_file_actually_drawn() {
         app.load_path(PathBuf::from("/ws/notes/f0.md"));
         app.document.working_set_mut().scroll_direct(1000);
         let labels = drawn_labels(&app);
-        assert_eq!(
-            labels,
-            ["f3.md", "f4.md", "f5.md", "f6.md", "archive/old.md"]
-        );
-        for (row, label) in labels.iter().enumerate() {
+        assert_eq!(labels, ["f3.md", "f4.md", "f5.md", "f6.md", "old.md"]);
+        let drawn = app
+            .document
+            .working_set()
+            .margin_rows(Path::new("/ws/notes"));
+        for (row, label) in drawn.iter().enumerate() {
+            if matches!(label.kind, crate::workingset::StackRowKind::Group { .. }) {
+                assert_eq!(app.gutter_stack_row_path(row), None);
+                assert_eq!(app.gutter_stack_row_key(row), None);
+                assert!(app.gutter_stack_row_group_root(row).is_some());
+                continue;
+            }
+            let label = format!("{}{}", label.parent, label.leaf);
             let path = app
                 .gutter_stack_row_path(row)
                 .expect("drawn file has a path");
@@ -270,10 +290,7 @@ fn scrolled_compact_rows_resolve_the_file_actually_drawn() {
                 label.rsplit('/').next().unwrap()
             );
         }
-        assert_eq!(
-            app.gutter_stack_row_path(crate::workingset::RESTING_FILES),
-            None
-        );
+        assert_eq!(app.gutter_stack_row_path(drawn.len()), None);
     });
 }
 
@@ -812,6 +829,44 @@ fn escape_collapses_an_open_expanded_panel() {
         assert!(
             !app.document.working_set().is_expanded(),
             "Escape must collapse the open panel"
+        );
+    });
+}
+
+#[test]
+fn compact_group_close_preserves_the_other_roots_files() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n")
+            .with_file("/ws/archive/x.md", "x\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            Config::empty(),
+        );
+        app.load_path(PathBuf::from("/ws/archive/x.md"));
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        assert!(!app.document.working_set().is_expanded());
+        let root = app
+            .gutter_stack_row_group_root(0)
+            .expect("compact heading owns its root");
+        assert_eq!(root, PathBuf::from("/ws/notes"));
+        assert_eq!(app.gutter_stack_row_key(0), None);
+        app.close_group(root);
+        assert_eq!(app.document.working_set().len(), 1);
+        assert_eq!(
+            app.document.working_set().files()[0].path.as_deref(),
+            Some(Path::new("/ws/archive/x.md"))
+        );
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/archive/x.md"))
         );
     });
 }
