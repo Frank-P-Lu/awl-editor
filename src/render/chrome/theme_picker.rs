@@ -543,12 +543,11 @@ impl TextPipeline {
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::DockedTab => {
-                    let dock = dock_seat?;
                     let tab = [
                         min_x - chip_hpad,
-                        dock.top,
+                        dock_seat?.top,
                         max_x - min_x + 2.0 * chip_hpad,
-                        dock.height,
+                        dock_seat?.height,
                     ];
                     // THE TAB'S MOUTH: the ghost ring frames the tab at its true
                     // bounds (its own bottom-edge stroke lands on the card's top
