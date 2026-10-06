@@ -1005,7 +1005,7 @@ fn a_footnote_slot_covers_its_own_shaped_ladder_mark_in_every_world() {
         let family = p.shaped_font;
         for number in FOOTNOTE_LADDER_NUMBERS {
             let slot = p.substitute_advances.footnote_slot(number);
-            let (_, width) = crate::render::spans::shape_footnote_number(
+            let (buffer, width) = crate::render::spans::shape_footnote_number(
                 &mut p.font_system,
                 metrics,
                 family,
@@ -1013,6 +1013,20 @@ fn a_footnote_slot_covers_its_own_shaped_ladder_mark_in_every_world() {
                 theme::muted().to_glyphon(),
             );
             let mark = crate::markdown::footnote_ladder_mark(number);
+            for glyph in buffer.layout_runs().flat_map(|run| run.glyphs.iter()) {
+                assert_ne!(
+                    glyph.glyph_id, 0,
+                    "{}: ladder mark {mark:?} is tofu",
+                    t.name
+                );
+                let face = p.font_system.db().face(glyph.font_id).unwrap();
+                assert!(
+                    face.families.iter().any(|(name, _)| name == SYMBOL_FAMILY),
+                    "{}: ladder mark {mark:?} must use the bundled {SYMBOL_FAMILY}, got {:?}",
+                    t.name,
+                    face.families
+                );
+            }
             assert!(
                 width > 1.0,
                 "{}: ladder mark {mark:?} (n={number}) must shape to real ink ({width}px) or \
