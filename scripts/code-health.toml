@@ -412,7 +412,7 @@ reason = "+4: this upload owner gives rail tracks their own faint per-instance c
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 1311
+lines = 1304
 # 1199 -> 1241: Files rows and Settings/Theme continuation composition share
 # the single ordered shaping stream and its byte offsets.
 # +253: Files' adaptive header, bounded path fitting, and row stream share one

@@ -1,17 +1,9 @@
 use super::overlay_folder::push_location_spans;
+use super::overlay_query_field::{FlatQuerySpans, QueryText, push_query_input_spans};
 use super::overlay_timeline::right_bind_lines;
 use super::*;
 
 const FILES_LOCATION_FIT_STEPS: usize = 6;
-
-struct FlatQuerySpans<'a> {
-    files_surface: bool,
-    title_prefix: &'a str,
-    font_size: f32,
-    line_height: f32,
-    query: &'a str,
-    placeholder: Option<&'a str>,
-}
 
 /// A fixed-size, exponentially shrinking ladder from the full location to a
 /// four-character identity floor. Besides bounding shaping to nine probes, the
@@ -727,7 +719,7 @@ impl TextPipeline {
         } else if self.overlay_files_surface {
             format!("{}: ", self.overlay_title)
         } else {
-            format!("{} › ", self.overlay_title)
+            format!("{}   ", self.overlay_title)
         }
     }
 
@@ -1032,17 +1024,18 @@ impl TextPipeline {
                 attrs
             }
         };
-        if title_prefix.is_empty() {
-            spans.push(("› ", hk(muted)));
-        } else {
-            let composed = self.overlay_composed_title_prefix(geom).is_some();
-            spans.push((title_prefix, hkc(if composed { ink } else { muted })));
-        }
-        // Ghost text occupies an empty field; typed query text replaces it immediately.
-        match (query.is_empty(), placeholder) {
-            (true, Some(placeholder)) => spans.push((placeholder, hk(muted))),
-            _ => spans.push((query, hk(ink))),
-        }
+        let composed = self.overlay_composed_title_prefix(geom).is_some();
+        push_query_input_spans(
+            spans,
+            QueryText {
+                title_prefix,
+                query,
+                placeholder,
+            },
+            hkc(if composed { ink } else { muted }),
+            hk(ink),
+            hk(muted),
+        );
     }
     fn shape_overlay_names(
         &mut self,

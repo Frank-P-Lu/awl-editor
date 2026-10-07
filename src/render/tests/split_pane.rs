@@ -65,7 +65,7 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
 /// breathing room ABOVE them and NONE below (`[card_y, text_top + line_height]`
 /// exactly) — so the query read bottom-heavy inside its own strip (Quokka's
 /// command palette, the reported specimen: the eye reads generous headroom
-/// above "commands › |" and almost none below, before the visible gap). Proven
+/// above "commands   |" and almost none below, before the visible gap). Proven
 /// NON-VACUOUS: the pre-fix offset is reconstructed inline from the historical
 /// formula (not read back from the fix) and asserted to be the bigger one.
 #[test]

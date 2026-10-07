@@ -74,7 +74,14 @@ fn a_click_at_any_drawn_caret_position_resolves_back_to_that_same_char_index() {
         );
         return;
     };
-    let queries = ["", "a", "hello world", "héllo wörld", "日本語のクエリ"];
+    let queries = [
+        "",
+        "a",
+        "hello world",
+        "héllo wörld",
+        "日本語のクエリ",
+        ": › 日本語",
+    ];
     let titles = ["", "go to"];
     let mut graded = 0usize;
     for &q in &queries {

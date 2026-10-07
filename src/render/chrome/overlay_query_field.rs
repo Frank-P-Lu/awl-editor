@@ -4,6 +4,42 @@
 use super::*;
 use crate::render::plan::PlannedHeader;
 
+pub(super) struct FlatQuerySpans<'a> {
+    pub files_surface: bool,
+    pub title_prefix: &'a str,
+    pub font_size: f32,
+    pub line_height: f32,
+    pub query: &'a str,
+    pub placeholder: Option<&'a str>,
+}
+
+pub(super) struct QueryText<'a> {
+    pub title_prefix: &'a str,
+    pub query: &'a str,
+    pub placeholder: Option<&'a str>,
+}
+
+/// One input span policy for flat and grouped palettes; labels carry orientation.
+pub(super) fn push_query_input_spans<'a, 'b>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'b>)>,
+    text: QueryText<'a>,
+    title: glyphon::Attrs<'b>,
+    value: glyphon::Attrs<'b>,
+    muted: glyphon::Attrs<'b>,
+) {
+    if !text.title_prefix.is_empty() {
+        spans.push((text.title_prefix, title));
+    }
+    if !text.query.is_empty() {
+        spans.push((text.query, value));
+    } else if let Some(placeholder) = text.placeholder.filter(|s| !s.is_empty()) {
+        spans.push((placeholder, muted));
+    } else if text.title_prefix.is_empty() {
+        // A glyph-bearing blank retains custom header metrics without visible decoration.
+        spans.push((" ", muted));
+    }
+}
+
 impl TextPipeline {
     fn overlay_query_line(&self) -> usize {
         usize::from(self.overlay_files_surface && self.overlay_files_split_header)
@@ -50,7 +86,7 @@ impl TextPipeline {
     }
 
     /// Hit-test a pointer at PHYSICAL `(px, py)` against the SUMMONED overlay's
-    /// editable QUERY-INPUT line — the `› query` filter field every flat/nav/theme
+    /// editable QUERY-INPUT line — the labeled filter field every flat/nav/theme
     /// picker draws on top. Returns `true` when the pointer sits inside the
     /// field's own PLANNED line box, within the card's x-bounds. The contextual
     /// SPELL panel has NO query line (`header_rows == 0`), so the plan carries no
@@ -87,7 +123,7 @@ impl TextPipeline {
     /// field.
     ///
     /// Walks the SAME shaped run [`Self::overlay_query_caret_box`] reads a
-    /// caret's x from, skipping the prefix (title / `› ` sigil) by byte offset
+    /// caret's x from, skipping the title prefix by byte offset
     /// so the first placeable column sits right after it, never inside it. A
     /// press at or before the first glyph's center resolves to 0; past the
     /// last glyph's center resolves to the query's own length — "round to the
@@ -103,12 +139,7 @@ impl TextPipeline {
         if !(px >= query_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
             return None;
         }
-        let title_prefix = self.overlay_title_prefix(&geom);
-        let prefix_len = if title_prefix.is_empty() {
-            "› ".len()
-        } else {
-            title_prefix.len()
-        };
+        let prefix_len = self.overlay_title_prefix(&geom).len();
         let query_len = self.overlay_query.chars().count();
         let Some(run) = self.overlay_query_run() else {
             return Some(query_len);
@@ -142,13 +173,8 @@ impl TextPipeline {
         char_idx: usize,
     ) -> f32 {
         let m = self.metrics;
-        let sigil = "› ";
         let title_prefix = self.overlay_title_prefix(geom);
-        let prefix_len = if title_prefix.is_empty() {
-            sigil.len()
-        } else {
-            title_prefix.len()
-        };
+        let prefix_len = title_prefix.len();
         let char_idx = char_idx.min(self.overlay_query.chars().count());
         let target_byte = prefix_len + field_caret_byte(&self.overlay_query, char_idx);
         let first_run = self.overlay_query_run();
@@ -165,7 +191,7 @@ impl TextPipeline {
                 .or_else(|| first_run.as_ref().map(|r| r.line_w))
                 .unwrap_or_else(|| {
                     m.char_width
-                        * (sigil.chars().count() + self.overlay_query.chars().count()) as f32
+                        * (title_prefix.chars().count() + self.overlay_query.chars().count()) as f32
                 })
     }
 
@@ -228,5 +254,47 @@ impl TextPipeline {
         let sel_h = m.caret_h * 0.8 * OVERLAY_UI_SCALE;
         let sel_cy = field.center();
         Some([start_x, sel_cy - sel_h * 0.5, end_x - start_x, sel_h])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shared_query_spans_preserve_labels_values_and_empty_field_metrics_without_decoration() {
+        let _serial = crate::testlock::serial();
+        for (prefix, query, placeholder, expected) in [
+            ("commands   ", ": › 日本語", None, "commands   : › 日本語"),
+            ("", ": › 日本語", None, ": › 日本語"),
+            (
+                "Choose theme   ",
+                "",
+                Some("Filter themes…"),
+                "Choose theme   Filter themes…",
+            ),
+            ("Search files: ", "draft", None, "Search files: draft"),
+            ("", "", Some("Paste a URL"), "Paste a URL"),
+            ("", "", None, " "),
+            ("", "", Some(""), " "),
+        ] {
+            let attrs = glyphon::Attrs::new();
+            let mut spans = Vec::new();
+            push_query_input_spans(
+                &mut spans,
+                QueryText {
+                    title_prefix: prefix,
+                    query,
+                    placeholder,
+                },
+                attrs.clone(),
+                attrs.clone(),
+                attrs,
+            );
+            assert_eq!(
+                spans.iter().map(|(text, _)| *text).collect::<String>(),
+                expected
+            );
+        }
     }
 }

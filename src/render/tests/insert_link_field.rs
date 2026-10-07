@@ -273,7 +273,7 @@ fn insert_link_placeholder_is_present_and_dimmer_than_typed_text_across_worlds()
 /// preserves rather than reinvents) and at `--capture-dpi 2` (CLAUDE.md's own
 /// tripwire: a chrome quantity tuned only at dpi 1 has shipped wrong on every
 /// Retina display before). Swept over the same world roster, both DPIs, at a
-/// canvas narrow enough that "Link destination › Paste or type a URL" cannot
+/// canvas narrow enough that "Link destination   Paste or type a URL" cannot
 /// possibly fit unclipped-and-uncllamped — this is a fit/clamp law, not a
 /// no-wrap promise.
 #[test]

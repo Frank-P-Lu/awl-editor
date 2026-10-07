@@ -1,4 +1,5 @@
 use super::overlay_clamp::window_plan;
+use super::overlay_query_field::{QueryText, push_query_input_spans};
 use super::*;
 
 mod spans;
@@ -16,9 +17,8 @@ const UNDERLINE_BASELINE_DROP: Logical = Logical(2.0);
 const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
 
 /// Stroke weight of the `FacetStyle::Chips(ChipVariant::Underline)` active-lens
-/// mark — thicker than the plain `Text` hairline so it still reads as a chip
-/// rather than a rule, but crossing the same `Logical` + `Metrics::px`
-/// boundary.
+/// mark reads as a chip rather than a rule while crossing the same
+/// `Logical` + `Metrics::px` boundary.
 const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
 
 /// How far the `DockedTab` active plate's fill overlaps the card's own top
@@ -691,7 +691,6 @@ impl TextPipeline {
         // row offsets, selection bands, and underlines cannot drift.
         let base = overlay_panel_attrs();
         let mk = |c| base.clone().color(c);
-        let sigil = "› ";
         let fitted = self.fitted_theme_rows(geom, elide);
 
         let name_fs = self.overlay_metrics().font_size
@@ -726,29 +725,30 @@ impl TextPipeline {
                 attrs
             }
         };
-        let folder_head = |c| {
-            overlay_panel_attrs()
-                .color(c)
-                .metrics(GlyphMetrics::new(name_fs, header_lh))
-        };
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
-        let separated_actions = self
-            .files_actions_are_split(geom)
-            .then(|| self.files_action_suffix());
-        if self.files_query_is_split(geom) {
-            spans.push((title_prefix.as_str(), folder_head(ink)));
-            if separated_actions.is_some() {
+        let separated_actions = self.files_actions_are_split(geom);
+        let (query_prefix, query_title) = if self.files_query_is_split(geom) {
+            spans.push((title_prefix.as_str(), head(ink)));
+            if separated_actions {
                 spans.push(("\n", head(muted)));
                 spans.push((" ", head(muted)));
             }
             spans.push(("\n", head(muted)));
-            spans.push(("Search files: ", head(muted)));
-        } else if title_prefix.is_empty() {
-            spans.push((sigil, head(muted)));
+            ("Search files: ", head(muted))
         } else {
-            spans.push((title_prefix.as_str(), head_chrome(muted)));
-        }
-        spans.push((self.overlay_query.as_str(), head(ink)));
+            (title_prefix.as_str(), head_chrome(muted))
+        };
+        push_query_input_spans(
+            &mut spans,
+            QueryText {
+                title_prefix: query_prefix,
+                query: self.overlay_query.as_str(),
+                placeholder: None,
+            },
+            query_title,
+            head(ink),
+            head(muted),
+        );
         // Strip line: active label in full ink, others muted, separators + the "\n"
         // faint. One ordered pass over `strip_s` so the spans tile the line in byte
         // order (rich-text concatenates spans in push order). The label/separator

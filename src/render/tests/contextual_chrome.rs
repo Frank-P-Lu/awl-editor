@@ -384,7 +384,7 @@ fn contextual_titles_are_modest_and_integrated_on_every_placard_world() {
                     world.name,
                 );
                 let query = p.panel_buffer.lines[0].text();
-                let prefix = format!("{} › ", kind.title());
+                let prefix = format!("{}   ", kind.title());
                 assert!(
                     query.starts_with(&prefix),
                     "{} {kind:?} width={width}: {query:?} does not start with {prefix:?}",

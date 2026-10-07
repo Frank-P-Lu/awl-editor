@@ -947,23 +947,23 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_facet
     set_title_style_test_override(None);
 }
 
-// --- THE INLINE-PREFIX SUPPRESSION: a Placard drops the "<title> › " prefix --
+// --- THE INLINE-PREFIX SUPPRESSION: a Placard drops the "<title>   " prefix --
 //
 // THE BUG (user-reported): with a Placard active, BOTH the corner wordmark AND
-// the inline "<title> › " query-line prefix fired — two titles for one picker.
+// the inline "<title>   " query-line prefix fired — two titles for one picker.
 // The fix suppresses the inline prefix under a `Placard` (the corner wordmark
-// already names the picker), falling back to the bare `› ` sigil; `InlinePrefix`
+// already names the picker), falling back to the blank metric carrier; `InlinePrefix`
 // (the default on every world) is UNCHANGED. `overlay_title_prefix` owns that
 // ONE rule for both inline sites (flat `shape_overlay_names` + faceted
 // `overlay_shape_theme`), so they cannot diverge.
 
-/// Under a forced `Placard`, the query line shows the BARE `› ` sigil — NOT a
-/// "<title> › " prefix; under the default `InlinePrefix` the "<title> › "
+/// Under a forced `Placard`, the query line shows the blank metric carrier — NOT a
+/// "<title>   " prefix; under the default `InlinePrefix` the "<title>   "
 /// prefix still leads it. Driven END-TO-END through the real shapers (flat via
 /// `overlay_shape_text`'s `shape_overlay_names`, faceted via its
 /// `overlay_shape_theme` branch, selected by `overlay_lens`); line 0 of the
 /// shaped `panel_buffer` IS the query row, so its `LayoutRun::text` (the whole
-/// logical line) is exactly the sigil/prefix here (the fixture leaves
+/// logical line) is exactly the carrier/prefix here (the fixture leaves
 /// `overlay_query` empty).
 #[test]
 fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
@@ -1017,20 +1017,20 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
     faceted.overlay_lens = vec![("All".to_string(), true), ("File".to_string(), false)];
     faceted.overlay_items = vec!["Save".into(), "Undo".into()];
 
-    // DEFAULT (InlinePrefix): the "<title> › " prefix leads the query line.
+    // DEFAULT (InlinePrefix): the "<title>   " prefix leads the query line.
     set_title_style_test_override(Some(theme::TitleStyle::InlinePrefix));
     assert_eq!(
         query_line(&mut p, &flat),
-        "commands › ",
+        "commands   ",
         "InlinePrefix keeps the inline title prefix (flat shaper)"
     );
     assert_eq!(
         query_line(&mut p, &faceted),
-        "commands › ",
+        "commands   ",
         "InlinePrefix keeps the inline title prefix (faceted shaper)"
     );
 
-    // Placard: the inline prefix is SUPPRESSED — the bare `› ` sigil instead.
+    // Placard: the inline prefix is SUPPRESSED — the blank metric carrier instead.
     set_title_style_test_override(Some(theme::TitleStyle::Placard {
         corner: theme::PlacardCorner::TL,
         scale: 2.0,
@@ -1038,13 +1038,13 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
     }));
     assert_eq!(
         query_line(&mut p, &flat),
-        "› ",
-        "a forced Placard suppresses the inline prefix (flat shaper → bare sigil)"
+        " ",
+        "a forced Placard suppresses the inline prefix (flat shaper → blank carrier)"
     );
     assert_eq!(
         query_line(&mut p, &faceted),
-        "› ",
-        "a forced Placard suppresses the inline prefix (faceted shaper → bare sigil)"
+        " ",
+        "a forced Placard suppresses the inline prefix (faceted shaper → blank carrier)"
     );
 
     set_title_style_test_override(None);
@@ -1187,10 +1187,10 @@ fn a_summoned_workspace_never_draws_a_placard_on_any_shipped_placard_world() {
 /// placard world's poster is ALWAYS one of two clean states — never a
 /// partial/clipped middle:
 ///   - WIDE cells: the wordmark SHAPES, fully ON-CANVAS, and the inline
-///     `title › ` prefix is SUPPRESSED (the poster already names the picker).
+///     `title   ` prefix is SUPPRESSED (the poster already names the picker).
 ///   - NARROWEST cells (below the card's fill-regime point): the placard FOLDS —
 ///     `overlay_shape_placard` returns `None` (ZERO placard pixels) and the
-///     inline `title › ` prefix RETURNS (the world behaves as `InlinePrefix`).
+///     inline `title   ` prefix RETURNS (the world behaves as `InlinePrefix`).
 ///     The fold reads the SAME geometry the card WIDTH fallback reads
 ///     (`overlay_card_fill_regime` over `CARD_MAX_W`), so the two can never drift and
 ///     no clipped wordmark ever survives at any width. The query row (line 0 of the
@@ -1259,8 +1259,8 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
                 "w={wpx}: below the card fill-regime the placard must FOLD (zero placard pixels)"
             );
             assert_eq!(
-                query, "commands › ",
-                "w={wpx}: folded → the inline `title › ` prefix returns (behaves as InlinePrefix)"
+                query, "commands   ",
+                "w={wpx}: folded → the inline `title   ` prefix returns (behaves as InlinePrefix)"
             );
         } else {
             saw_wide = true;
@@ -1273,8 +1273,8 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
                 y + hh
             );
             assert_eq!(
-                query, "› ",
-                "w={wpx}: the poster is drawn → the inline prefix is suppressed (bare sigil)"
+                query, " ",
+                "w={wpx}: the poster is drawn → the inline prefix is suppressed (blank carrier)"
             );
         }
     }
@@ -1377,7 +1377,7 @@ fn mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density() {
     p.set_view(&v);
 
     // Frame A: the placard silenced (InlinePrefix forced) — everything else
-    // identical. NOTE the query line also changes ("commands › " vs "› "),
+    // identical. NOTE the query line also changes ("commands   " vs " "),
     // which is why the assertion below is scoped to the wordmark's own box,
     // far from the centered card's query row.
     set_title_style_test_override(Some(theme::TitleStyle::InlinePrefix));
