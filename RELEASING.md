@@ -429,3 +429,10 @@ build, same `GLIBC_2.35` floor — in desktop integration, not a different
 toolchain or a bundled libc. The "friendly download vs. technical tarball"
 framing this row used to carry is retired: both are the same binary now,
 published together, and a system too old for one is too old for the other.
+
+Native benchmark fixture roots are resolved at runtime from the executable's
+checkout ancestors, falling back to the working directory for installed apps.
+Shipped binaries must not embed a builder checkout through a compile-time
+`CARGO_MANIFEST_DIR` string; path-remapping compiler flags cannot rewrite that
+literal. The local release helper scans both final binaries for the builder's
+home path before assembling any signed app.
