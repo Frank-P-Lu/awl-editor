@@ -45,11 +45,11 @@ impl TextPipeline {
 }
 
 /// The current directory occupies its own header line with the planned group gap.
-pub(super) fn push_location_spans<'a>(
-    spans: &mut Vec<(&'a str, glyphon::Attrs)>,
+pub(super) fn push_location_spans<'a, 'b>(
+    spans: &mut Vec<(&'a str, glyphon::Attrs<'b>)>,
     location: Option<&'a (String, f32)>,
     font_size: f32,
-    attrs: glyphon::Attrs,
+    attrs: glyphon::Attrs<'b>,
 ) {
     if let Some((location, height)) = location {
         spans.push(("\n", attrs.clone()));
