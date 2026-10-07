@@ -108,12 +108,7 @@ fn release_audit(
             failures.push(label);
         }
     }
-    if !macos::native_architecture_split_is_proved(mac, &packager) {
-        failures.push("native-architecture-split");
-    }
-    if !macos::apple_bundle_versions_are_proved(plan, mac, &packager) {
-        failures.push("apple-bundle-versions");
-    }
+    failures.extend(macos::bundle_audit(plan, mac, &packager));
     if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
         || !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg")
         || !mac.contains("$DMG.sha256")

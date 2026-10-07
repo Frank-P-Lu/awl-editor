@@ -2,6 +2,18 @@
 
 use super::scratch;
 
+/// Mac bundle contracts stay beside the architecture and version owners they audit.
+pub(super) fn bundle_audit(plan: &str, mac: &str, packager: &str) -> Vec<&'static str> {
+    let mut failures = Vec::new();
+    if !native_architecture_split_is_proved(mac, packager) {
+        failures.push("native-architecture-split");
+    }
+    if !apple_bundle_versions_are_proved(plan, mac, packager) {
+        failures.push("apple-bundle-versions");
+    }
+    failures
+}
+
 pub(super) fn apple_bundle_versions_are_proved(plan: &str, mac: &str, packager: &str) -> bool {
     let validation_precedes_plist = packager
         .find("validate_macos_versions \"$AWL_VERSION\" \"$AWL_BUILD_VERSION\"")
