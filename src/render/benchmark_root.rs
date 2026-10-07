@@ -2,7 +2,7 @@
 use std::path::{Path, PathBuf};
 
 pub(super) fn resolve() -> PathBuf {
-    let current = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let current = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     select(std::env::current_exe().ok().as_deref(), &current)
 }
 

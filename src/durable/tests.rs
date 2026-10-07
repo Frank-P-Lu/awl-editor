@@ -363,6 +363,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // `InMemoryFs` has no links, so the fixture lives on a real disk
         // under a `ScratchDir`.
         ("overlay/tests/project.rs", 1),
+        // Disposable checkout markers under ScratchDir prove runtime benchmark roots;
+        // these synthetic files are never durable user state.
+        ("render/benchmark_root.rs", 1),
         ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
         // The symbol-atlas survey's `symbol-atlas.html` write: a
         // HARNESS DELIVERABLE the caller asked to inspect on disk, the same
