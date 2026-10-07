@@ -60,11 +60,12 @@ def main() -> int:
     parser.add_argument("--seconds", type=int, default=25)
     parser.add_argument("--timeout", type=float)
     parser.add_argument("--appimage", action="store_true")
+    parser.add_argument("--local", action="store_true", help="explicit local release validation with the same isolated probe")
     args = parser.parse_args()
     if args.seconds < 25 or (args.timeout is not None and args.timeout <= 0):
         parser.error("seconds must be at least 25 and timeout must be positive")
-    if not os.environ.get("CI"):
-        parser.error("this live launch is CI-only; use the real desktop pre-release checklist locally")
+    if not os.environ.get("CI") and not args.local:
+        parser.error("use CI or explicitly select --local release validation")
     try:
         return launch(args.binary.absolute(), args.seconds, args.timeout or (2 * args.seconds + 60), args.appimage)
     except (OSError, ValueError) as error:

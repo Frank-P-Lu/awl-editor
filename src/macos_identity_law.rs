@@ -349,6 +349,8 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
         serde_json::from_slice(&json_output.stdout).expect("plutil's own JSON output must parse");
     assert_eq!(value["CFBundleShortVersionString"], "0.13.0");
     assert_eq!(value["CFBundleVersion"], "42.0.0");
+    assert_eq!(value["CFBundleIdentifier"], "dev.franklu.awl");
+    assert_eq!(value["AwlSourceCommit"].as_str().unwrap().len(), 40);
 
     let types = value
         .get("CFBundleDocumentTypes")

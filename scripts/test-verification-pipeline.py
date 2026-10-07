@@ -27,7 +27,7 @@ def jobs(text: str) -> dict[str, str]:
     }
 
 
-def wiring_errors(ci: str, release: str, extended: str) -> list[str]:
+def wiring_errors(ci: str, release: str, extended: str, verifier: str | None = None) -> list[str]:
     errors = []
     c, r, e = jobs(ci), jobs(release), jobs(extended)
     for job in ["linux", "mac", "web", "mac-live-probe"]:
@@ -72,7 +72,6 @@ def wiring_errors(ci: str, release: str, extended: str) -> list[str]:
         if "needs: [plan, extended]" not in r.get(job, ""):
             errors.append(f"release {job} no longer waits for journeys")
     for job, artifact in [
-        ("mac", '$MOUNT/Awl.app/Contents/MacOS/awl'),
         ("linux", '$UNPACK/awl-$VERSION-linux-x86_64/awl'),
         ("linux", '$PWD/dist-linux/awl-$VERSION-linux-x86_64.AppImage'),
     ]:
@@ -82,11 +81,15 @@ def wiring_errors(ci: str, release: str, extended: str) -> list[str]:
     for artifact in ["macos-arm64.dmg", "macos-x86_64.dmg"]:
         if artifact not in mac:
             errors.append(f"native Mac artifact lost: {artifact}")
+    if verifier is None:
+        verifier = (ROOT / "scripts/verify-macos-release.sh").read_text()
+    if 'scripts/verify-macos-release.sh dist-mac' not in mac:
+        errors.append("shared Mac validation owner disconnected")
     for command in [
-        'scripts/package-macos.sh --verify "$MOUNT/Awl.app" "$ARCH"',
-        'scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"',
+        'package-macos.sh" --verify "$MOUNT/Awl.app" "$ARCH"',
+        'check-macos-release-size.sh" "$DIST/$DMG" "$DIST/$APP_ZIP"',
     ]:
-        if command not in mac:
+        if command not in verifier:
             errors.append(f"native Mac package gate lost: {command}")
     if "macos-universal" in release or "lipo -create" in mac:
         errors.append("Mac release must remain two native downloads, not one universal binary")
@@ -231,7 +234,8 @@ class WorkflowWiring(unittest.TestCase):
         self.assertTrue(wiring_errors(ci, release, extended.replace("--jobs 1", "--jobs 1 --worlds Saltpan")))
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
         self.assertTrue(wiring_errors(ci, release.replace("macos-arm64.dmg", "macos-universal.dmg"), extended))
-        self.assertTrue(wiring_errors(ci, release.replace('"$MOUNT/Awl.app" "$ARCH"', '"$MOUNT/Awl.app"'), extended))
+        verifier = (ROOT / "scripts/verify-macos-release.sh").read_text()
+        self.assertTrue(wiring_errors(ci, release, extended, verifier.replace('"$MOUNT/Awl.app" "$ARCH"', '"$MOUNT/Awl.app"')))
         self.assertTrue(wiring_errors(ci.replace("uses: ./.github/actions/project-rust", "uses: dtolnay/rust-toolchain@stable"), release, extended))
 
 

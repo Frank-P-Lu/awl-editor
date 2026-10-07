@@ -61,53 +61,21 @@ fn release_audit(
     packager: &str,
     size_check: &str,
     preparer: &str,
+    verifier: &str,
 ) -> Vec<&'static str> {
     let workflow = without_comments(workflow);
     let packager = without_comments(packager);
-    let mac = job(&workflow, "mac");
+    let mac_job = job(&workflow, "mac");
+    let verifier = without_comments(verifier);
+    let combined_mac = format!("{mac_job}\n{verifier}");
+    let mac = combined_mac.as_str();
+    let staged = job(&workflow, "mac-staged");
     let plan = job(&workflow, "plan");
     let prepare = job(&workflow, "prepare-release");
     let publish = job(&workflow, "publish");
-    let signing_check = step(mac, "Check signing secrets");
     let mut failures = Vec::new();
 
-    if mac.lines().any(|line| line.starts_with("    if:")) {
-        failures.push("mac-tag-enrolment");
-    }
-    if !plan.contains("sign_macos: ${{ steps.plan.outputs.sign_macos }}")
-        || !plan.contains("echo \"sign_macos=true\"")
-        || !plan.contains("credentialed_macos_rehearsal")
-        || !plan.contains("SIGN_MACOS=false")
-    {
-        failures.push("signing-plan");
-    }
-    if !signing_check.contains("if [ \"$SIGN_MACOS\" = \"true\" ]; then")
-        || !signing_check.contains("macOS signing is required")
-        || !signing_check.contains("exit 1")
-    {
-        failures.push("missing-credentials-fail-closed");
-    }
-    for (needle, label) in [
-        (
-            "codesign --force --options runtime --timestamp",
-            "developer-id-signing",
-        ),
-        ("xcrun notarytool submit", "notarization"),
-        ("xcrun stapler staple", "staple"),
-        ("hdiutil verify", "dmg-verification"),
-    ] {
-        if !mac.contains(needle) {
-            failures.push(label);
-        }
-    }
-    for (needle, minimum, label) in [
-        ("xcrun stapler validate", 2, "staple-validation"),
-        ("spctl --assess --type execute", 2, "gatekeeper"),
-    ] {
-        if mac.matches(needle).count() < minimum {
-            failures.push(label);
-        }
-    }
+    failures.extend(macos::signing_audit(mac_job, staged, plan, mac));
     failures.extend(macos::bundle_audit(plan, mac, &packager));
     if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
         || !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg")
@@ -115,10 +83,11 @@ fn release_audit(
     {
         failures.push("versioned-mac-artifact");
     }
-    if !prepare.contains("needs: [plan, mac, linux]") {
+    if !prepare.contains("needs: [plan, mac, mac-staged, linux]") {
         failures.push("publication-depends-on-mac");
     }
-    if prepare.lines().any(|line| line.starts_with("    if:"))
+    if !prepare.contains("needs.mac-staged.result == 'success'")
+        || !prepare.contains("needs.mac.result == 'success'")
         || !prepare.contains("name: awl-linux")
         || !prepare.contains("name: awl-macos")
         || !prepare.contains("scripts/prepare-release-payload.sh")
@@ -150,7 +119,7 @@ fn release_audit(
     {
         failures.push("one-dmg-owner");
     }
-    if !mac.contains("scripts/check-macos-release-size.sh")
+    if !mac.contains("check-macos-release-size.sh")
         || !size_check.contains("MAX_BYTES=50000000")
         || !size_check.contains("[ \"$DMG_BYTES\" -ge \"$MAX_BYTES\" ]")
         || !size_check.contains("APP_ZIP_BYTES")
@@ -163,27 +132,28 @@ fn release_audit(
     failures
 }
 
-fn sources() -> (String, String, String, String) {
+fn sources() -> (String, String, String, String, String) {
     (
         read(".github/workflows/release.yml"),
         read("scripts/package-macos.sh"),
         read("scripts/check-macos-release-size.sh"),
         read("scripts/prepare-release-payload.sh"),
+        read("scripts/verify-macos-release.sh"),
     )
 }
 
 #[test]
 fn signed_macos_publication_is_fail_closed() {
     let _guard = crate::testlock::serial();
-    let (workflow, packager, size_check, preparer) = sources();
-    let failures = release_audit(&workflow, &packager, &size_check, &preparer);
+    let (workflow, packager, size_check, preparer, verifier) = sources();
+    let failures = release_audit(&workflow, &packager, &size_check, &preparer, &verifier);
     assert!(failures.is_empty(), "release workflow audit: {failures:?}");
 }
 
 #[test]
 fn release_audit_rejects_each_headline_regression() {
     let _guard = crate::testlock::serial();
-    let (workflow, packager, size_check, preparer) = sources();
+    let (workflow, packager, size_check, preparer, verifier) = sources();
     let mutations = [
         (
             concat!(
@@ -197,17 +167,13 @@ fn release_audit_rejects_each_headline_regression() {
             "missing-credentials-fail-closed",
         ),
         (
-            "needs: [plan, mac, linux]",
+            "needs: [plan, mac, mac-staged, linux]",
             "needs: [plan, linux]",
             "publication-depends-on-mac",
         ),
         (
-            "    needs: [plan, mac, linux]\n    runs-on: ubuntu-latest",
-            concat!(
-                "    needs: [plan, mac, linux]\n",
-                "    if: needs.plan.outputs.is_release == 'true'\n",
-                "    runs-on: ubuntu-latest"
-            ),
+            "needs.mac-staged.result == 'success'",
+            "needs.mac-staged.result == 'skipped'",
             "dry-run-prepares-public-payload",
         ),
         (
@@ -221,8 +187,8 @@ fn release_audit_rejects_each_headline_regression() {
             "gatekeeper",
         ),
         (
-            "scripts/package-macos.sh --verify \"$MOUNT/Awl.app\" \"$ARCH\"",
-            "scripts/package-macos.sh --verify \"$MOUNT/Awl.app\"",
+            "package-macos.sh\" --verify \"$MOUNT/Awl.app\" \"$ARCH\"",
+            "package-macos.sh\" --verify \"$MOUNT/Awl.app\"",
             "native-architecture-split",
         ),
         (
@@ -232,25 +198,46 @@ fn release_audit_rejects_each_headline_regression() {
         ),
     ];
     for (subject, replacement, expected) in mutations {
-        assert!(
-            workflow.contains(subject),
-            "mutation subject missing: {subject}"
+        let (broken_workflow, broken_verifier) = if workflow.contains(subject) {
+            (workflow.replacen(subject, replacement, 1), verifier.clone())
+        } else {
+            assert!(
+                verifier.contains(subject),
+                "mutation subject missing: {subject}"
+            );
+            (workflow.clone(), verifier.replacen(subject, replacement, 1))
+        };
+        let failures = release_audit(
+            &broken_workflow,
+            &packager,
+            &size_check,
+            &preparer,
+            &broken_verifier,
         );
-        let broken = workflow.replacen(subject, replacement, 1);
-        let failures = release_audit(&broken, &packager, &size_check, &preparer);
         assert!(
             failures.contains(&expected),
             "mutation {subject:?} did not fail as {expected:?}: {failures:?}"
         );
     }
+}
 
+#[test]
+fn release_packager_and_size_mutations_fail_closed() {
+    let _guard = crate::testlock::serial();
+    let (workflow, packager, size_check, preparer, verifier) = sources();
     let subject = "--dmg-only) DMG_ONLY=1";
     assert!(
         packager.contains(subject),
         "mutation subject missing: {subject}"
     );
     let broken_packager = packager.replacen(subject, "--dmg-copy) DMG_ONLY=1", 1);
-    let failures = release_audit(&workflow, &broken_packager, &size_check, &preparer);
+    let failures = release_audit(
+        &workflow,
+        &broken_packager,
+        &size_check,
+        &preparer,
+        &verifier,
+    );
     assert!(
         failures.contains(&"one-dmg-owner"),
         "packager mutation did not fail by owner: {failures:?}"
@@ -262,7 +249,13 @@ fn release_audit_rejects_each_headline_regression() {
         "mutation subject missing: {subject}"
     );
     let broken_packager = packager.replacen(subject, "file \"$binary\"", 1);
-    let failures = release_audit(&workflow, &broken_packager, &size_check, &preparer);
+    let failures = release_audit(
+        &workflow,
+        &broken_packager,
+        &size_check,
+        &preparer,
+        &verifier,
+    );
     assert!(
         failures.contains(&"native-architecture-split"),
         "architecture parser mutation escaped: {failures:?}"
@@ -276,7 +269,7 @@ fn release_audit_rejects_each_headline_regression() {
         ),
     ] {
         let broken = size_check.replacen(subject, replacement, 1);
-        let failures = release_audit(&workflow, &packager, &broken, &preparer);
+        let failures = release_audit(&workflow, &packager, &broken, &preparer, &verifier);
         assert!(
             failures.contains(&"public-dmg-size-boundary"),
             "size mutation {subject:?} did not fail by boundary: {failures:?}"

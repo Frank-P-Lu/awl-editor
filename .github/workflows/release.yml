@@ -33,6 +33,11 @@ on:
         type: boolean
         default: false
 
+      local_macos_rehearsal:
+        description: "Validate the locally signed staged Mac DMGs without publishing"
+        type: boolean
+        default: false
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -61,6 +66,7 @@ jobs:
       is_release: ${{ steps.plan.outputs.is_release }}
       version: ${{ steps.plan.outputs.version }}
       sign_macos: ${{ steps.plan.outputs.sign_macos }}
+      local_macos: ${{ steps.plan.outputs.local_macos }}
       # Pre-1.0 is a beta, marked prerelease on the GitHub Release — the
       # rule is "major version 0", the same discriminator a v1.0.0 launch
       # flips by construction. Computed from the tag's own version rather
@@ -84,6 +90,7 @@ jobs:
               IS_PRERELEASE=false
             fi
             {
+              echo "local_macos=true"
               echo "is_release=true"
               echo "version=$VERSION"
               echo "sign_macos=true"
@@ -97,6 +104,7 @@ jobs:
               SIGN_MACOS=false
             fi
             {
+              echo "local_macos=${{ inputs.local_macos_rehearsal == true }}"
               echo "is_release=false"
               echo "version=$VERSION"
               echo "is_prerelease=true"
@@ -113,6 +121,7 @@ jobs:
 
   mac:
     name: mac (arm64 + x86_64 .apps + .dmgs)
+    if: needs.plan.outputs.local_macos != 'true'
     needs: [plan, extended]
     runs-on: macos-latest
     timeout-minutes: 45
@@ -154,6 +163,7 @@ jobs:
       - name: Assemble architecture-specific Awl.app bundles
         env:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
+          AWL_SOURCE_COMMIT: ${{ github.sha }}
           AWL_BUILD_VERSION: ${{ github.run_number }}.0.0
         run: |
           mkdir -p dist-mac/arm64 dist-mac/x86_64
@@ -283,38 +293,8 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
           BUILD_VERSION: ${{ github.run_number }}.0.0
         run: |
-          set -euo pipefail
-          cleanup_mounts() {
-            for ARCH in arm64 x86_64; do
-              hdiutil detach "$RUNNER_TEMP/awl-dmg-mount-$ARCH" >/dev/null 2>&1 || true
-            done
-          }
-          trap cleanup_mounts EXIT
-          for ARCH in arm64 x86_64; do
-            DMG="awl-$VERSION-macos-$ARCH.dmg"
-            APP_ZIP="awl-$VERSION-macos-$ARCH.app.zip"
-            ditto -c -k --keepParent "dist-mac/$ARCH/Awl.app" "dist-mac/$APP_ZIP"
-            scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"
-            hdiutil verify "dist-mac/$DMG"
-            MOUNT="$RUNNER_TEMP/awl-dmg-mount-$ARCH"
-            mkdir -p "$MOUNT"
-            hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
-            scripts/package-macos.sh --verify "$MOUNT/Awl.app" "$ARCH"
-            SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
-            ACTUAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$MOUNT/Awl.app/Contents/Info.plist")"
-            [ "$SHORT_VERSION" = "$VERSION" ] || { echo "::error::$ARCH DMG short version is '$SHORT_VERSION', expected '$VERSION'."; exit 1; }
-            [ "$ACTUAL_BUILD_VERSION" = "$BUILD_VERSION" ] || { echo "::error::$ARCH DMG build version is '$ACTUAL_BUILD_VERSION', expected '$BUILD_VERSION'."; exit 1; }
-            if [ "$SIGN_MACOS" = "true" ]; then
-              codesign --verify --deep --strict --verbose=2 "$MOUNT/Awl.app"
-              xcrun stapler validate "$MOUNT/Awl.app"
-              spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
-            fi
-            python3 scripts/release-launch-smoke.py --binary "$MOUNT/Awl.app/Contents/MacOS/awl"
-            hdiutil detach "$MOUNT"
-            (cd dist-mac && shasum -a 256 "$DMG" > "$DMG.sha256")
-            (cd dist-mac && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
-          done
-          trap - EXIT
+          if [ "$SIGN_MACOS" = true ]; then POLICY=signed; else POLICY=unsigned; fi
+          scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" "$POLICY" ci
 
       - uses: actions/upload-artifact@v7
         with:
@@ -335,6 +315,45 @@ jobs:
         run: |
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP"/Awl-notarize-*.zip "$RUNNER_TEMP"/notary-result-*.json
           security delete-keychain "$RUNNER_TEMP/awl-signing.keychain-db" 2>/dev/null || true
+
+  mac-staged:
+    name: mac (verify locally signed downloads)
+    needs: [plan, extended]
+    if: needs.plan.outputs.local_macos == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 15
+    # GitHub draft releases require push visibility. This ephemeral token is
+    # confined to this consumer job; no Apple credentials leave the owner Mac.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Fetch exact locally signed candidate
+        id: staged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: python3 scripts/staged-macos-release.py fetch --repo "$GITHUB_REPOSITORY" --directory dist-mac --version "$VERSION"
+
+      - name: Independently validate actual staged DMGs
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+          BUILD_VERSION: ${{ steps.staged.outputs.build_version }}
+        run: scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" signed ci
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: awl-macos
+          path: |
+            dist-mac/*.dmg
+            dist-mac/*.dmg.sha256
+            dist-mac/*.app.zip
+            dist-mac/*.app.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
 
   linux:
     name: linux (release tar.gz)
@@ -496,7 +515,11 @@ jobs:
     # This job deliberately runs on manual dry runs as well as tags. It is the
     # rehearsal for the artifact download/layout/checksum work that used to be
     # hidden behind the tag-only publish condition.
-    needs: [plan, mac, linux]
+    needs: [plan, mac, mac-staged, linux]
+    if: >-
+      !cancelled() && needs.plan.result == 'success' && needs.linux.result == 'success' &&
+      ((needs.mac.result == 'success' && needs.mac-staged.result == 'skipped') ||
+       (needs.mac.result == 'skipped' && needs.mac-staged.result == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -558,8 +581,9 @@ jobs:
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
           fail_on_unmatched_files: true
           body: |
-            **macOS Apple Silicon (arm64).** Download the signed, notarized
-            Apple Silicon DMG, verify it, open it, and drag Awl to Applications:
+            **macOS Apple Silicon (arm64).** Download the Apple Silicon DMG.
+            It contains a Developer ID signed, notarized and stapled Awl app.
+            Verify the download, open it, and drag Awl to Applications:
 
             ```sh
             grep -F '  awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg' SHA256SUMS | shasum -a 256 -c -

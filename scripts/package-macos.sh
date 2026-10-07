@@ -344,6 +344,8 @@ if [ -z "$AWL_VERSION" ]; then
 fi
 AWL_BUILD_VERSION="${AWL_BUILD_VERSION:-1.0.0}"
 validate_macos_versions "$AWL_VERSION" "$AWL_BUILD_VERSION"
+AWL_SOURCE_COMMIT="${AWL_SOURCE_COMMIT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse HEAD)}"
+[[ "$AWL_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "error: invalid source commit" >&2; exit 1; }
 
 APP="$OUT_DIR/Awl.app"
 CONTENTS="$APP/Contents"
@@ -437,6 +439,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <string>${AWL_VERSION}</string>
   <key>CFBundleVersion</key>
   <string>${AWL_BUILD_VERSION}</string>
+  <key>AwlSourceCommit</key>
+  <string>${AWL_SOURCE_COMMIT}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>LSMinimumSystemVersion</key>

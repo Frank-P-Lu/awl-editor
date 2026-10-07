@@ -275,3 +275,10 @@ the intended work ran. Headless paths remain deterministic, without clock,
 animation, or randomness; live animation captures its settled state. When replay
 passes but live behavior fails, check buffer-swap caches, resize/page-drag
 invalidation, and redraw scheduling.
+
+The local Mac release path shares `scripts/verify-macos-release.sh` with hosted
+packaging. `scripts/test-local-macos-release.py` exercises staging identity, exact
+asset roster, strict size boundaries, server digests, clean-checkout refusal and
+redacted authentication failures without credentials or network access. These laws
+are enrolled in `release_workflow_law`; signing still requires a real nonpublishing
+rehearsal and independently verified mounted native downloads on the final commit.

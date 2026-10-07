@@ -2,6 +2,60 @@
 
 use super::scratch;
 
+/// Both signing sources require the same mounted-download acceptance checks.
+pub(super) fn signing_audit(
+    mac_job: &str,
+    staged: &str,
+    plan: &str,
+    mac: &str,
+) -> Vec<&'static str> {
+    let signing_check = super::step(mac, "Check signing secrets");
+    let mut failures = Vec::new();
+    if !mac_job.contains("if: needs.plan.outputs.local_macos != 'true'")
+        || !staged.contains("if: needs.plan.outputs.local_macos == 'true'")
+        || !staged.contains("scripts/staged-macos-release.py fetch")
+        || !staged.contains("scripts/verify-macos-release.sh dist-mac")
+        || !staged.contains("signed ci")
+    {
+        failures.push("mac-tag-enrolment");
+    }
+    if !plan.contains("sign_macos: ${{ steps.plan.outputs.sign_macos }}")
+        || !plan.contains("echo \"sign_macos=true\"")
+        || !plan.contains("credentialed_macos_rehearsal")
+        || !plan.contains("SIGN_MACOS=false")
+    {
+        failures.push("signing-plan");
+    }
+    if !signing_check.contains("if [ \"$SIGN_MACOS\" = \"true\" ]; then")
+        || !signing_check.contains("macOS signing is required")
+        || !signing_check.contains("exit 1")
+    {
+        failures.push("missing-credentials-fail-closed");
+    }
+    for (needle, label) in [
+        (
+            "codesign --force --options runtime --timestamp",
+            "developer-id-signing",
+        ),
+        ("xcrun notarytool submit", "notarization"),
+        ("xcrun stapler staple", "staple"),
+        ("hdiutil verify", "dmg-verification"),
+    ] {
+        if !mac.contains(needle) {
+            failures.push(label);
+        }
+    }
+    for (needle, minimum, label) in [
+        ("xcrun stapler validate", 2, "staple-validation"),
+        ("spctl --assess --type execute", 2, "gatekeeper"),
+    ] {
+        if mac.matches(needle).count() < minimum {
+            failures.push(label);
+        }
+    }
+    failures
+}
+
 /// Mac bundle contracts stay beside the architecture and version owners they audit.
 pub(super) fn bundle_audit(plan: &str, mac: &str, packager: &str) -> Vec<&'static str> {
     let mut failures = Vec::new();
@@ -42,11 +96,12 @@ pub(super) fn apple_bundle_versions_are_proved(plan: &str, mac: &str, packager: 
 fn apple_bundle_version_law_rejects_each_regression() {
     let _guard = crate::testlock::serial();
     let workflow = super::without_comments(&super::read(".github/workflows/release.yml"));
+    let verifier = super::without_comments(&super::read("scripts/verify-macos-release.sh"));
     let packager = super::without_comments(&super::read("scripts/package-macos.sh"));
     let audit = |workflow: &str, packager: &str| {
         apple_bundle_versions_are_proved(
             super::job(workflow, "plan"),
-            super::job(workflow, "mac"),
+            &format!("{}\n{}", super::job(workflow, "mac"), verifier),
             packager,
         )
     };
@@ -64,12 +119,17 @@ fn apple_bundle_version_law_rejects_each_regression() {
         ),
     ] {
         assert!(
-            workflow.contains(subject),
+            workflow.contains(subject) || verifier.contains(subject),
             "mutation subject missing: {subject}"
         );
         let broken = workflow.replacen(subject, replacement, 1);
+        let broken_mac = format!(
+            "{}\n{}",
+            super::job(&broken, "mac"),
+            verifier.replacen(subject, replacement, 1)
+        );
         assert!(
-            !audit(&broken, &packager),
+            !apple_bundle_versions_are_proved(super::job(&broken, "plan"), &broken_mac, &packager),
             "workflow mutation escaped: {subject}"
         );
     }
@@ -97,7 +157,7 @@ pub(super) fn native_architecture_split_is_proved(mac: &str, packager: &str) -> 
     for needle in [
         "target/aarch64-apple-darwin/release/awl dist-mac/arm64",
         "target/x86_64-apple-darwin/release/awl dist-mac/x86_64",
-        "scripts/package-macos.sh --verify \"$MOUNT/Awl.app\" \"$ARCH\"",
+        "package-macos.sh\" --verify \"$MOUNT/Awl.app\" \"$ARCH\"",
         "awl-$VERSION-macos-$ARCH.dmg",
     ] {
         if !mac.contains(needle) {
@@ -162,6 +222,68 @@ fn macos_packager_accepts_only_one_honestly_named_native_architecture() {
         assert!(
             !output.status.success(),
             "roster {roster:?} with expected {expected:?} must be rejected"
+        );
+    }
+}
+
+#[test]
+fn local_signing_metadata_and_staging_boundaries_are_exercised() {
+    let _guard = crate::testlock::serial();
+    let output = std::process::Command::new("python3")
+        .arg(super::root().join("scripts/test-local-macos-release.py"))
+        .output()
+        .expect("Python release metadata laws must run");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn signed_staged_source_and_identity_checks_cannot_be_removed() {
+    let _guard = crate::testlock::serial();
+    let verifier = super::read("scripts/verify-macos-release.sh");
+    let check = |text: &str| {
+        [
+            "[ \"$ACTUAL_SOURCE\" = \"$SOURCE_COMMIT\" ]",
+            "[ \"$BUNDLE_ID\" = dev.franklu.awl ]",
+            "verify-macos-signature.py\" \"$MOUNT/Awl.app\" \"$TEAM_ID\"",
+        ]
+        .iter()
+        .all(|subject| text.contains(subject))
+    };
+    assert!(check(&verifier));
+    for subject in [
+        "$ACTUAL_SOURCE",
+        "$SOURCE_COMMIT",
+        "$BUNDLE_ID",
+        "verify-macos-signature.py",
+        "$TEAM_ID",
+    ] {
+        assert!(
+            !check(&verifier.replace(subject, "removed")),
+            "escaped {subject}"
+        );
+    }
+    let workflow = super::read(".github/workflows/release.yml");
+    let staged = super::job(&workflow, "mac-staged");
+    assert!(staged.contains("contents: write"));
+    assert!(staged.contains("GH_TOKEN: ${{ github.token }}"));
+    assert!(!staged.contains("secrets."));
+    assert!(staged.contains("needs: [plan, extended]"));
+    let local = super::read("scripts/local-macos-release.py");
+    for forbidden in [
+        "store-credentials",
+        "set-key-partition-list",
+        "unlock-keychain",
+        "security import",
+        "base64",
+        "gh secret",
+    ] {
+        assert!(
+            !local.contains(forbidden),
+            "local credential mutation/export: {forbidden}"
         );
     }
 }

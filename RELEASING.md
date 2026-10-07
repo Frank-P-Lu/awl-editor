@@ -296,6 +296,44 @@ the same offer. `scripts/package-linux.sh` and `scripts/package-appimage.sh`
 both exit non-zero on any missing file in that set; `scripts/package-macos.sh`
 warns, because it must stay runnable against an older checkout.
 
+## Local Mac signing without GitHub Apple secrets
+
+Use a clean dedicated checkout of the final verified commit. Existing Developer
+ID and App Store Connect credentials stay on the owner Mac. The helper never
+imports or exports keys, changes keychain ACLs, unlocks a keychain, or creates a
+credential profile. Any OS signing prompt is answered by the credential owner.
+
+```sh
+python3 scripts/local-macos-release.py --output /absolute/new/private/output --build-version 26.0.0
+python3 scripts/staged-macos-release.py stage --repo Frank-P-Lu/awl-editor --directory /absolute/new/private/output --version 0.13.0
+gh workflow run release.yml -f dry_run=true -f local_macos_rehearsal=true
+```
+
+Choose a new positive numeric build version for each final candidate. Both thin
+native apps embed the same full source SHA before timestamped hardened-runtime
+signing. Apple's official authentication tool reads the existing API key locally;
+only the notarization archive is submitted. Accepted apps are stapled and assessed,
+then packaged and launched from the actual mounted downloads with synthetic files
+and an isolated clipboard. Each public DMG must be strictly under 50,000,000 bytes.
+
+Staging creates a private draft with a non-triggering `macos-stage-` tag, containing
+exactly two verified DMGs. It refuses existing or ambiguous staging and verifies
+GitHub's server-side digests. Do not stage at the final `v` tag: creation could
+trigger publishing before uploads finish. No signing key is uploaded to GitHub.
+
+The staged-consumer job alone receives an ephemeral `contents: write` token to
+read drafts; other build jobs remain read-only. It independently checks the exact
+staging tag ref, roster, digests, sizes, signed source SHA, bundle identifier,
+pinned Developer ID team, runtime/timestamp signature, versions, architectures,
+notarization staple, Gatekeeper assessment and both mounted-app live launches.
+The existing journey prerequisites and four-download payload checks still apply.
+
+After the nonpublishing staged rehearsal and exact-commit required CI pass, the
+explicitly authorized final `v` tag consumes those same staged DMGs. The default
+unsigned and GitHub-credentialed manual rehearsals remain available. The public
+DMGs contain signed, notarized and stapled apps; the disk-image containers are
+not themselves notarized. App ZIPs remain diagnostic workflow artifacts.
+
 ## 5. Pre-tag checklist
 
 The three verification layers are defined in [docs/verification.md](docs/verification.md#three-verification-layers).
@@ -367,7 +405,7 @@ about scope to call itself a receipt.
 | Decision | State today | Owner |
 |---|---|---|
 | Cut a public tag at all | **settled — tags are cut.** `v0.9.0`, `v0.10.0`, `v0.11.0` and `v0.12.0` are published, each Linux-only and marked prerelease. Every tag still waits on the user's explicit word, every time | the user, explicitly (CLAUDE.md §Branches) |
-| macOS artifacts | **Resolved: publish separate arm64 and x86_64 DMGs.** The workflow requires both native apps to be Developer ID signed, notarized, stapled, Gatekeeper-assessed, architecture-checked, versioned, checksummed, and each strictly under 50,000,000 bytes before publication. Their app zips remain workflow-only diagnostic artifacts. A hosted credentialed rehearsal and both actual final-DMG sizes are still owed | verify before tag |
+| macOS artifacts | **Resolved: publish separate arm64 and x86_64 DMGs.** The workflow requires both native apps to be Developer ID signed, notarized, stapled, Gatekeeper-assessed, architecture-checked, versioned, checksummed, and each strictly under 50,000,000 bytes before publication. Their app zips remain workflow-only diagnostic artifacts. A credentialed or locally staged signed rehearsal and both actual final-DMG sizes are required | verify before tag |
 | Version + prerelease flag | **resolved by item 228 for the GitHub Release; the "and the site" half of the original premise was false.** `Cargo.toml` is pre-1.0. `release.yml`'s `plan` job now computes `prerelease` from the tag's major version (`< 1` ⇒ true) and the `publish` step passes it to `softprops/action-gh-release`, so `v0.9.0` publishes correctly marked prerelease — verified against that action's own source (`INPUT_PRERELEASE == "true"`), not just its docs. `deploy-web.yml`'s `version.json` `prerelease` field is a DIFFERENT thing sharing a name: `site/check.js`'s `checkState()` (locked by `site/check.test.js`) reads it only as "no tag has ever shipped" — the page never renders a stable/beta claim at all, so there was nothing on the site for a beta tag to invert. That field stays `false` for any real tag, unchanged | settled |
 | glibc floor | **RESOLVED 2026-08-06 — the linux job builds on `ubuntu-22.04` and the floor is `GLIBC_2.35`**, reaching Debian 12, Ubuntu 22.04 LTS and RHEL 9. Measured, not reasoned: `objdump -T` finds exactly two dynsyms that could raise the floor — `pidfd_spawnp` and `pidfd_getpid`, both weak, both from Rust std's OPTIONAL pidfd fast path for reaping a child it already spawned. ⚠️ Both are **unversioned** (`w D *UND*`, no `GLIBC_*` tag), so they never appear in the version-needs list: a re-check that greps that list for anything above 2.35 finds NOTHING and reads as "this note has gone stale." It has not — grep `objdump -T` for `pidfd` itself, or `readelf --dyn-syms`, and use GNU binutils rather than the host `objdump` on a Mac. awl references no PidFd API and every `std::process::Command` in the tree blocks on `.output()`/`.wait()`, so std's fork/exec fallback costs nothing observable. Binaries built on `debian:bookworm` and `ubuntu:22.04` both cap at 2.35 and render byte-identical PNGs. ⚠️ The cache key had to move with it: `Swatinem/rust-cache` mixes `runner.os`, which is `"Linux"` for both images, so it is keyed on `ImageOS` now | settled |
 | Web download | `awl-web-dist.zip` builds on dry runs and is not attached; the site is the web distribution | settled unless a self-host story is wanted |
