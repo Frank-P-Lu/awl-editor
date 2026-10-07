@@ -377,7 +377,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         ("render/tests/symbol_atlas_gallery.rs", 1),
         // Disposable release-law fixtures write fake artifacts and checksums
         // under a ScratchDir; none is an app store or user document.
-        ("release_workflow_law.rs", 4),
+        ("release_workflow_law.rs", 5),
+        // The fake lipo and architecture roster must be real ScratchDir files
+        // for the packager subprocess to read; neither is durable app state.
+        ("release_workflow_law/macos.rs", 2),
         // The seeding boundary itself (`cli_seeds`/`data_root_seeds`/
         // `tree_seeds`) READs the real disk before the sandbox exists;
         // neither is a durable store.

@@ -102,10 +102,9 @@ fn every_kind_declares_an_accept_disposition() {
     }
 }
 
-/// THE OVERLAY-TITLES ROUND: every kind names itself with a nonempty, lowercase
-/// title (`OverlayKind::title`) — the no-wildcard law a future kind must satisfy
-/// before it compiles. Titles are also pairwise DISTINCT (so a sidecar `overlay.
-/// title` read unambiguously identifies which picker is open).
+/// Every kind has a nonempty, distinct title. Navigation picker titles stay
+/// lowercase; the persistent folder/theme headings use their explicit wording
+/// and InsertLink retains the casing of its field label.
 #[test]
 fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     use std::collections::HashSet;
@@ -113,11 +112,11 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
     for k in OverlayKind::ALL {
         let t = k.title();
         assert!(!t.is_empty(), "{k:?} has no title");
-        // Every title is a lowercase picker VERB except `InsertLink`'s, which
-        // draws as a real FIELD LABEL (`Self::draws_title_prefix`) and keeps
-        // the user-authored casing that implies.
-        if k != OverlayKind::InsertLink {
-            assert_eq!(t, t.to_lowercase(), "{k:?}'s title {t:?} must be lowercase");
+        match k {
+            OverlayKind::ProjectBrowse => assert_eq!(t, "Browse for folder"),
+            OverlayKind::Theme => assert_eq!(t, "Choose theme"),
+            OverlayKind::InsertLink => {}
+            _ => assert_eq!(t, t.to_lowercase(), "{k:?}'s title {t:?} must be lowercase"),
         }
         assert!(
             titles.insert(t),
