@@ -114,5 +114,5 @@ pub(in crate::app) fn window_title_no_document(folder_name: &str, theme_name: &s
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod root_switch_law;
