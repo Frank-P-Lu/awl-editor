@@ -435,7 +435,7 @@ impl Metrics {
 /// face and the registered monospace family (so any glyph the theme face lacks
 /// falls back to it, and the panel / fallback paths resolve here via
 /// `Family::Monospace`).
-pub static FONT_DATA: &[u8] = include_bytes!("../assets/fonts/IBMPlexMono-Light.ttf");
+pub static FONT_DATA: &[u8] = crate::font_assets::IBM_PLEX_MONO_LIGHT;
 
 pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 
@@ -519,7 +519,7 @@ pub static FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
         facepitch::Pitch::Mono,
     ),
     (
-        include_bytes!("../assets/fonts/Bitter-Regular.ttf"),
+        crate::font_assets::BITTER_REGULAR,
         facepitch::Pitch::Proportional,
     ),
     (
@@ -547,10 +547,10 @@ pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/Fraunces9pt-Bold.ttf"),
     include_bytes!("../assets/fonts/EBGaramond-Bold.ttf"),
     include_bytes!("../assets/fonts/FiraSans-Bold.ttf"),
-    include_bytes!("../assets/fonts/Bitter-Bold.ttf"),
+    crate::font_assets::BITTER_BOLD,
     include_bytes!("../assets/fonts/SourGummy-Bold.ttf"),
     // Same-family 700 companions preserve the mono grid in bold spans.
-    include_bytes!("../assets/fonts/IBMPlexMono-Bold.ttf"),
+    crate::font_assets::IBM_PLEX_MONO_BOLD,
     include_bytes!("../assets/fonts/JetBrainsMono-Bold.ttf"),
     include_bytes!("../assets/fonts/MonaspaceXenon-Bold.ttf"),
     include_bytes!("../assets/fonts/Iosevka-Bold.ttf"),
@@ -602,10 +602,10 @@ pub static FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
 ///   gallery/jp-compare eyeball-call — see the seam comment on those lists for
 ///   the follow-up (bundled-only + `resolve_cjk` simplification).
 pub static FONT_CJK_FACES: &[&[u8]] = &[
-    include_bytes!("../assets/fonts/NotoSerifJP-Regular.ttf"),
+    crate::font_assets::NOTO_SERIF_JP_REGULAR,
     // Noto Sans JP — gothic companion for the sans/mono worlds (registers as
     // "Noto Sans JP"). OFL, github.com/google/fonts/tree/main/ofl/notosansjp.
-    include_bytes!("../assets/fonts/NotoSansJP-Regular.ttf"),
+    crate::font_assets::NOTO_SANS_JP_REGULAR,
 ];
 
 /// BUNDLED per-WORLD JAPANESE VARIETY faces — the "JP face variety" round
@@ -2497,6 +2497,7 @@ pub struct TextPipeline {
     workspace_rail_buffer: GlyphBuffer,
     /// Footer-fitting scratch, separate from both final rendered columns.
     workspace_hint_measure_buffer: GlyphBuffer,
+    overlay_folder_buffer: Option<GlyphBuffer>,
     /// EVERY rail entry's rect for this frame, tagged with whether it is the
     /// ACTIVE one — recorded by the rail shaper and consumed by the shared
     /// facet-mark owner. Empty when no rail is drawn, so the marks park with the

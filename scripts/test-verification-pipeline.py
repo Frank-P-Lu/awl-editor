@@ -78,6 +78,18 @@ def wiring_errors(ci: str, release: str, extended: str) -> list[str]:
     ]:
         if f'scripts/release-launch-smoke.py --binary "{artifact}"' not in r.get(job, ""):
             errors.append(f"actual packaged launch lost: {artifact}")
+    mac = r.get("mac", "")
+    for artifact in ["macos-arm64.dmg", "macos-x86_64.dmg"]:
+        if artifact not in mac:
+            errors.append(f"native Mac artifact lost: {artifact}")
+    for command in [
+        'scripts/package-macos.sh --verify "$MOUNT/Awl.app" "$ARCH"',
+        'scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"',
+    ]:
+        if command not in mac:
+            errors.append(f"native Mac package gate lost: {command}")
+    if "macos-universal" in release or "lipo -create" in mac:
+        errors.append("Mac release must remain two native downloads, not one universal binary")
     return errors
 
 
@@ -218,6 +230,8 @@ class WorkflowWiring(unittest.TestCase):
         self.assertTrue(wiring_errors(ci, release.replace("needs: [plan, extended]", "needs: plan"), extended))
         self.assertTrue(wiring_errors(ci, release, extended.replace("--jobs 1", "--jobs 1 --worlds Saltpan")))
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
+        self.assertTrue(wiring_errors(ci, release.replace("macos-arm64.dmg", "macos-universal.dmg"), extended))
+        self.assertTrue(wiring_errors(ci, release.replace('"$MOUNT/Awl.app" "$ARCH"', '"$MOUNT/Awl.app"'), extended))
         self.assertTrue(wiring_errors(ci.replace("uses: ./.github/actions/project-rust", "uses: dtolnay/rust-toolchain@stable"), release, extended))
 
 

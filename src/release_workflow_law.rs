@@ -9,6 +9,7 @@
 
 use std::path::{Path, PathBuf};
 
+mod macos;
 mod payload;
 
 fn root() -> PathBuf {
@@ -53,12 +54,6 @@ fn step<'a>(job: &'a str, name: &str) -> &'a str {
     let rest = &job[start + start_marker.len()..];
     let end = rest.find("\n      - ").unwrap_or(rest.len());
     &rest[..end]
-}
-
-fn lipo_inputs_precede_verification(mac: &str) -> bool {
-    mac.contains("lipo target/universal/awl -verify_arch arm64 x86_64")
-        && mac.contains("lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64")
-        && !mac.contains("lipo -verify_arch")
 }
 
 fn release_audit(
@@ -108,16 +103,16 @@ fn release_audit(
     for (needle, minimum, label) in [
         ("xcrun stapler validate", 2, "staple-validation"),
         ("spctl --assess --type execute", 2, "gatekeeper"),
-        ("-verify_arch arm64 x86_64", 2, "universal-binary"),
     ] {
         if mac.matches(needle).count() < minimum {
             failures.push(label);
         }
     }
-    if !lipo_inputs_precede_verification(mac) {
-        failures.push("xcode26-lipo-order");
+    if !macos::native_architecture_split_is_proved(mac, &packager) {
+        failures.push("native-architecture-split");
     }
-    if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-universal.dmg")
+    if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
+        || !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg")
         || !mac.contains("$DMG.sha256")
     {
         failures.push("versioned-mac-artifact");
@@ -136,11 +131,12 @@ fn release_audit(
     if !publish.contains("needs: [plan, prepare-release]")
         || !publish.contains("name: awl-release-payload")
         || !publish.contains("sha256sum -c SHA256SUMS")
-        || !publish.contains("release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg")
+        || !publish.contains("release/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
+        || !publish.contains("release/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg")
     {
         failures.push("publish-checksum-attachment-parity");
     }
-    if publish.contains("macos-universal.app.zip") {
+    if publish.contains("macos-arm64.app.zip") || publish.contains("macos-x86_64.app.zip") {
         failures.push("public-app-zip");
     }
     if !publish.contains("if: needs.plan.outputs.is_release == 'true'")
@@ -227,23 +223,13 @@ fn release_audit_rejects_each_headline_regression() {
             "gatekeeper",
         ),
         (
-            "lipo target/universal/awl -verify_arch arm64 x86_64",
-            "lipo -verify_arch arm64 x86_64 target/universal/awl",
-            "xcode26-lipo-order",
+            "scripts/package-macos.sh --verify \"$MOUNT/Awl.app\" \"$ARCH\"",
+            "scripts/package-macos.sh --verify \"$MOUNT/Awl.app\"",
+            "native-architecture-split",
         ),
         (
-            "lipo \"$MOUNT/Awl.app/Contents/MacOS/awl\" -verify_arch arm64 x86_64",
-            "lipo -verify_arch arm64 x86_64 \"$MOUNT/Awl.app/Contents/MacOS/awl\"",
-            "xcode26-lipo-order",
-        ),
-        (
-            "lipo -info target/universal/awl",
-            "lipo -verify_arch arm64 x86_64 target/universal/awl",
-            "xcode26-lipo-order",
-        ),
-        (
-            "release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg",
-            "release/Awl.dmg",
+            "release/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg",
+            "release/Awl-x86_64.dmg",
             "publish-checksum-attachment-parity",
         ),
     ];
@@ -270,6 +256,18 @@ fn release_audit_rejects_each_headline_regression() {
     assert!(
         failures.contains(&"one-dmg-owner"),
         "packager mutation did not fail by owner: {failures:?}"
+    );
+
+    let subject = "lipo -archs \"$binary\"";
+    assert!(
+        packager.contains(subject),
+        "mutation subject missing: {subject}"
+    );
+    let broken_packager = packager.replacen(subject, "file \"$binary\"", 1);
+    let failures = release_audit(&workflow, &broken_packager, &size_check, &preparer);
+    assert!(
+        failures.contains(&"native-architecture-split"),
+        "architecture parser mutation escaped: {failures:?}"
     );
 
     for (subject, replacement) in [
@@ -360,19 +358,24 @@ fn dry_run_preparation_builds_the_exact_public_payload() {
     let version = "9.8.7-test";
     let tarball = format!("awl-{version}-linux-x86_64.tar.gz");
     let appimage = format!("awl-{version}-linux-x86_64.AppImage");
-    let dmg = format!("awl-{version}-macos-universal.dmg");
+    let dmg_arm64 = format!("awl-{version}-macos-arm64.dmg");
+    let dmg_x86_64 = format!("awl-{version}-macos-x86_64.dmg");
     std::fs::write(linux.join(&tarball), b"tarball").expect("write tarball");
     std::fs::write(linux.join(&appimage), b"appimage").expect("write AppImage");
-    std::fs::write(mac.join(&dmg), b"dmg").expect("write DMG");
+    std::fs::write(mac.join(&dmg_arm64), b"arm64 dmg").expect("write arm64 DMG");
+    std::fs::write(mac.join(&dmg_x86_64), b"x86_64 dmg").expect("write x86_64 DMG");
     write_checksum(&linux, &tarball);
     write_checksum(&linux, &appimage);
-    write_checksum(&mac, &dmg);
+    write_checksum(&mac, &dmg_arm64);
+    write_checksum(&mac, &dmg_x86_64);
 
     // This is intentionally larger than the public-download cap. Preparation
     // must ignore it because the app ZIP is a workflow receipt, not a release.
-    std::fs::File::create(mac.join(format!("awl-{version}-macos-universal.app.zip")))
-        .and_then(|file| file.set_len(50_000_001))
-        .expect("create diagnostic ZIP");
+    for arch in ["arm64", "x86_64"] {
+        std::fs::File::create(mac.join(format!("awl-{version}-macos-{arch}.app.zip")))
+            .and_then(|file| file.set_len(50_000_001))
+            .expect("create diagnostic ZIP");
+    }
 
     let prepared = std::process::Command::new(root().join("scripts/prepare-release-payload.sh"))
         .args([&linux, &mac, &output])
@@ -393,13 +396,14 @@ fn dry_run_preparation_builds_the_exact_public_payload() {
     let mut expected = vec![
         std::ffi::OsString::from("SHA256SUMS"),
         std::ffi::OsString::from(appimage),
-        std::ffi::OsString::from(dmg),
+        std::ffi::OsString::from(dmg_arm64),
+        std::ffi::OsString::from(dmg_x86_64),
         std::ffi::OsString::from(tarball),
     ];
     expected.sort();
     assert_eq!(
         names, expected,
-        "prepared payload must contain exactly three public downloads plus SHA256SUMS"
+        "prepared payload must contain exactly four public downloads plus SHA256SUMS"
     );
 }
 
@@ -410,7 +414,8 @@ fn public_payload_size_limit_covers_each_download_at_the_boundary() {
     let names = [
         format!("awl-{version}-linux-x86_64.tar.gz"),
         format!("awl-{version}-linux-x86_64.AppImage"),
-        format!("awl-{version}-macos-universal.dmg"),
+        format!("awl-{version}-macos-arm64.dmg"),
+        format!("awl-{version}-macos-x86_64.dmg"),
     ];
 
     // Sparse source files exercise actual filesystem byte lengths without
@@ -423,7 +428,7 @@ fn public_payload_size_limit_covers_each_download_at_the_boundary() {
             let output = dir.join("release");
             std::fs::create_dir_all(&linux).expect("create linux input");
             std::fs::create_dir_all(&mac).expect("create mac input");
-            let parents = [&linux, &linux, &mac];
+            let parents = [&linux, &linux, &mac, &mac];
             for (index, name) in names.iter().enumerate() {
                 std::fs::File::create(parents[index].join(name))
                     .and_then(|file| file.set_len(if index == large_index { bytes } else { 1 }))

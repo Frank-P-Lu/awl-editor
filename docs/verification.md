@@ -56,9 +56,9 @@ locally. Typed text, Shift chords and every pixel/state assertion are preserved.
 A finding or failed app contract fails that job; there is no new tolerated-failure
 arm. The existing full unit/integration suites are not duplicated overnight.
 
-The release workflow then validates its actual artifacts: the executable inside
-the mounted Mac DMG, the extracted Linux tarball binary, and the AppImage's real
-extract-and-run entry point each launch with synthetic isolated fixtures and
+The release workflow then validates its actual artifacts: the executables inside
+the mounted arm64 and x86_64 Mac DMGs, the extracted Linux tarball binary, and
+the AppImage's real extract-and-run entry point each launch with synthetic isolated fixtures and
 the built app's live presentation/recovery/memory verdict. The launcher is
 CI-only because it opens a window. The app's isolated `--soak-gpu` mode owns
 its synthetic state and rejects document, config and folder arguments; the helper

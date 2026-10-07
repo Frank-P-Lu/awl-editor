@@ -290,6 +290,8 @@ fn bash_parses(path: &Path) -> bool {
 #[cfg(target_os = "macos")]
 #[test]
 fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
+    use std::os::unix::fs::PermissionsExt;
+
     // `fs::write_atomic` below reaches `fs::active()`, a process-global the
     // FsGuard swaps out from under other threads.
     let _tg = crate::testlock::serial();
@@ -309,11 +311,23 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
     let fake_bin = dir.join("fake-awl");
     crate::fs::write_atomic(&fake_bin, b"#!/bin/sh\n").expect("write fake binary");
     let out_dir = dir.join("dist");
+    let tools = dir.join("tools");
+    std::fs::create_dir_all(&tools).expect("create fake tools");
+    let lipo = tools.join("lipo");
+    crate::fs::write_atomic(&lipo, b"#!/bin/sh\nprintf 'arm64\\n'\n").expect("write fake lipo");
+    std::fs::set_permissions(&lipo, std::fs::Permissions::from_mode(0o755))
+        .expect("make fake lipo executable");
+    let mut paths = vec![tools];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    let path = std::env::join_paths(paths).expect("construct test PATH");
 
     let status = std::process::Command::new(root().join("scripts/package-macos.sh"))
         .arg(&fake_bin)
         .arg(&out_dir)
         .env("AWL_SKIP_DMG", "1")
+        .env("PATH", path)
         .status()
         .expect("package-macos.sh must run");
     assert!(status.success(), "package-macos.sh must assemble cleanly");

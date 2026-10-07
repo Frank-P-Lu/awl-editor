@@ -19,7 +19,7 @@ fn folder_picker_context_paints_and_preserves_navigation_across_worlds_and_dpis(
                 p.set_size(w as f32, h as f32);
                 let mut v = view("Synthetic writing fixture\n", 0, 0);
                 v.overlay_active = true;
-                v.overlay_title = "browse for folder".into();
+                v.overlay_title = "Browse for folder".into();
                 v.overlay_folder_location =
                     Some("/workspace/Writing/long-parent-directory/manuscripts".into());
                 v.overlay_items = vec!["chapter/".into(), "research/".into()];
@@ -31,13 +31,15 @@ fn folder_picker_context_paints_and_preserves_navigation_across_worlds_and_dpis(
                 assert!(
                     p.panel_buffer.lines[0]
                         .text()
-                        .starts_with("browse for folder")
+                        .starts_with("Browse for folder")
                 );
                 assert_eq!(geom.header_rows, 2, "{} {dpi}x", world.name);
                 let location = p
-                    .panel_buffer
+                    .overlay_folder_buffer
+                    .as_ref()
+                    .unwrap()
                     .layout_runs()
-                    .find(|run| run.line_i == 1)
+                    .next()
                     .unwrap();
                 assert!(location.line_w <= geom.text_w + 0.5);
                 assert!(!location.glyphs.is_empty());

@@ -424,6 +424,12 @@ impl TextPipeline {
                 }
             }
         }
+        super::overlay_folder::push_folder_location_area(
+            &mut areas,
+            self.overlay_folder_buffer.as_ref(),
+            self.folder_location_area(geom, plan, bounds),
+            muted,
+        );
         if has_rail && let Some((left, top, bounds)) = self.workspace_rail_area(geom, width, height)
         {
             areas.push(TextArea {

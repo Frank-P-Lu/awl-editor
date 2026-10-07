@@ -1090,7 +1090,7 @@ impl TextPipeline {
             },
             inks,
         );
-        push_location_spans(&mut spans, folder_location.as_ref(), name_fs, mk(muted));
+        push_location_spans(&mut spans, folder_location, name_fs, mk(muted));
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands
         // alone (every ordinary flat query card), and only a card with NO

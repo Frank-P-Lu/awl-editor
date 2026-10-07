@@ -35,6 +35,9 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn overlay_line_glyph_box(&self, line_i: usize) -> Option<[f32; 4]> {
         let geom = self.overlay_geometry(self.window_w as u32);
+        if line_i == 1 && self.overlay_folder_location.is_some() {
+            return self.folder_location_glyph_box(&geom, &self.overlay_row_plan(&geom));
+        }
         let mut x0 = f32::INFINITY;
         let mut x1 = f32::NEG_INFINITY;
         let mut y0 = f32::INFINITY;

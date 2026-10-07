@@ -359,9 +359,9 @@ impl OverlayKind {
             // The DOOR's own card. Names the errand you are on rather than the
             // surface you left, so the title and the row you pressed read as one
             // thing.
-            OverlayKind::ProjectBrowse => "browse for folder",
+            OverlayKind::ProjectBrowse => "Browse for folder",
             OverlayKind::Browse => "browse",
-            OverlayKind::Theme => "themes",
+            OverlayKind::Theme => "Choose theme",
             OverlayKind::Caret => "caret style",
             OverlayKind::MoveDest => "move note",
             // Names the QUESTION the list answers rather than the verb that
@@ -453,7 +453,7 @@ impl OverlayKind {
     pub fn field_placeholder(self) -> Option<&'static str> {
         match self {
             OverlayKind::InsertLink => Some("Paste or type a URL"),
-            OverlayKind::Theme => Some("Search themes"),
+            OverlayKind::Theme => Some("Filter themes…"),
             OverlayKind::Settings => Some("Search settings"),
             _ => None,
         }

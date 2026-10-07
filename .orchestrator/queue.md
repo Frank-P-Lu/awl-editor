@@ -6,8 +6,13 @@
 
 ## Open build and design tasks
 
-**11 open numbered tasks:** 582, 666 and 669 await user review;
+**10 open numbered tasks:** 582 and 666 await live motion review;
 657–659 and 661–665 are queued for the remaining journeys or release proof.
+The user accepted Paperbark caret proportions (666), Japanese punctuation caret
+spacing (669), Brolga decorative list markers (588), and uniform Gumtree ornaments
+(561/618) on 2026-10-07 from current native captures at `7d2aa7c2`:
+“So the four visual decisions, I like all of them. They look good. Thank you.”
+This closes those visual decisions; physical input and live motion remain open.
 Items 674 (rounded caret and tighter top clearance), 675 (Files parent refresh
 and pointer activation) and 676 (opaque controls workspace) landed on main at
 `03f5c22f`. The frozen native, wasm runtime and eight-family profile-parity gates
@@ -20,7 +25,8 @@ Items 668 (approved Japanese dots), 672 (selected close-hover accent) and 673
 (adaptive caret plus previous-character preference) are complete on main at
 `7f554e63`, with the frozen local gate and all four exact-SHA required CI jobs
 passed. Their implementation claims are closed. Native caret captures are
-complete; user proportion judgment and live desktop motion remain owed below.
+complete; the supplied current proportions are accepted, while live desktop
+motion remains owed below.
 The latest display check still reports locked, asleep and inactive.
 The prior Kite and test-pipeline sessions completed. Kite live review remains
 below; the test-pipeline claim is closed. Previous worker claims are released.
@@ -38,15 +44,16 @@ Keep real Japanese bold; return any size tradeoff to the user.
 
 ### 582 — review the landed Kite depth and motion
 
-🔵 OWED — live motion and appearance review. The session
+🔵 OWED — live motion review. Static appearance was already accepted by the user.
+The session
 “Find the right way to run awl” completed the depth fade at `4f9fd3fb`, following
 `0d5388d6` and `5d3d4249`, with native/wasm verification, regression mutation
 proof and five native captures. Later integrated main and the test-pipeline
 candidate also passed their required gates; no verification worker is still owed.
 
-Present the preserved native captures and current bundled app. User review still
-covers density near page edges and the far core, several-minute motion comfort,
-dwell/transit/settle, pause/focus freeze and Reduce Motion in the bundled app.
+Present the current bundled app for several-minute motion comfort,
+dwell/transit/settle, pause/focus freeze and Reduce Motion. Static density near
+page edges and the far core needs no repeated approval.
 Preserve the projected tunnel geometry and shared renderer ownership. The earlier
 582 projection evidence remains in Git; there is no separate 564 task.
 
@@ -203,56 +210,21 @@ Japanese typing evidence separately from replay and unreliable injected keys (66
 
 ---
 
-### 666 — review the shorter Paperbark caret
+### 666 — finish live Paperbark caret comfort review
 
-🔵 OWED — live caret proportion judgment. The earlier shared block-padding
-reduction (`6b7efadb`, source `c907f9e2`) is superseded by the approved shared
-grapheme-ink adaptive caret (`bee5ec68`, integrated and verified at `7f554e63`).
-Matched Paperbark x/a/H/g/Å/W before/after and four-world Latin/CJK native captures
-are saved privately for review. Their automated bounds and mutation proof passed;
-they do not close the user's visual judgment or live motion review.
+🔵 OWED — live caret motion and comfort only. The user explicitly accepted the
+current Paperbark caret proportions in native captures at `7d2aa7c2` on 2026-10-07.
+The shared grapheme-ink adaptive caret (`bee5ec68`, integrated at `7f554e63`),
+rounded padding and tighter top clearance are implemented; automated ink bounds,
+rendered-pixel bounds and mutation evidence remain valid within their receipts.
 Source `codex/666-paperbark-caret` at `f548f9b8` remains a recovery reference.
 
-Review matched before/after native release captures against the user's oversized
-caret report. Check actual ink and line bounds across Paperbark and nearby serif
-worlds, zoom, 1x/2x DPI, lowercase/ascenders/descenders, spaces, empty lines and
-headings. Preserve stable row height, glyph visibility and shared metrics ownership.
-Retain the rendered-pixel bound and mutation evidence; finish visual smoke and
-ask the user to judge live proportions where the remaining choice is taste.
+Finish physical caret movement and comfort in an identified bundled release app,
+including spaces, empty lines, headings, zoom and 1x/2x DPI. Preserve stable row
+height, glyph visibility and shared metrics ownership. The accepted visual
+proportions do not establish physical keyboard/IME acceptance or live motion.
 
 ---
-
-
-### 669 — resolve the remaining CJK caret taste choice
-
-🔵 OWED — caret/sidebearing judgment. Source `codex/669-cjk-punctuation`
-at `70eb217c`, including font routing (`46be9e14`) and document-evidence
-invalidation, is already on main. Integrated native/wasm and punctuation laws
-cover those implementation fixes; no source integration remains.
-
-The earlier 15 px Paperbark kana-to-caret gap was a measured font-sidebearing
-and caret-width taste choice before the adaptive caret landed at `7f554e63`.
-Do not present that old measurement as current geometry. Review the current
-matched native Latin/CJK captures and remeasure the relevant punctuation case
-before asking whether to include leading punctuation-cell space. Preserve the
-current shared ink-hugging treatment pending judgment; the font/cache fixes and
-adaptive implementation are complete, while this visual choice remains open.
-
----
-
-## Outstanding review of landed work
-
-These are user judgments, not active implementation claims. Historical evidence
-remains in Git and preserved local galleries; Kite review is item 582 above.
-
-- **588 — list-marker taste:** `•◦▪` passed the 20-world gallery and focused Metal
-  laws; the Brolga depths are distinct, aligned, unclipped and legible. Keep the
-  current glyphs unless the user chooses a different treatment. Evidence:
-  `gallery/landed-visual-review/588-bullets/` (ignored).
-- **561 / 618 — Gumtree proportions:** reduction `760f4f43`, merged at `b3e8d2aa`,
-  measured 15.02%; snake/fish/snail ink heights are 3.41/5.84/3.87em. Native and
-  headless-App captures establish presence and legibility. Live proportion judgment
-  remains owed; per-glyph scaling requires a new user decision.
 
 Use ACCESSIBILITY.md for current acceptance and deferred work; resolved 584/626
 needs no further confirmation sitting.
@@ -306,7 +278,7 @@ The code gate above is complete; do not repeat it merely to assess this board.
 | Remaining work | Available executor evidence | What still prevents closure |
 | --- | --- | --- |
 | 657 Files; 659 Settings/Themes | Seeded headless-App/release captures can check composition, geometry, focus state and cancellation with the existing built candidate | An awake, unlocked Mac for actual browsing, chooser, focus and theme-switching journeys; human appearance judgment |
-| 582 Kite; 666 Paperbark; 669 CJK; landed list-marker/Gumtree review | Preserved actual native images are ready; current CJK punctuation geometry can be measured headlessly | User taste answers; an awake, unlocked Mac for several-minute motion comfort, pause/focus/Reduce Motion and caret movement |
+| 582 Kite; 666 Paperbark | Static appearance is accepted, including current Paperbark/CJK captures and Brolga/Gumtree visual decisions | An awake, unlocked Mac for several-minute motion comfort, pause/focus/Reduce Motion and physical caret movement |
 | 658 physical query selection; 664 keyboard ingress; 665 Japanese IME | Existing route/App laws and diagnostic instrumentation are complete; disposable fixtures can be prepared | Physical Cmd-A/Backspace and Japanese composition in the focused Files query; unlocked desktop and supported automation permissions for comparing injected versus physical delivery |
 | 661 external browser paste | Static release fixtures and bulk-insertion receipts can be inspected | Genuine external OS clipboard delivery in Chrome, Safari and Firefox on an interactive desktop; record versions and keep field/document ownership distinct |
 | 662 macOS packaging | GitHub can run a credentialed nonpublishing rehearsal and inspect universal/signature/notarization/staple/Gatekeeper, compressed sizes and checksums; this is not blocked by the local screen lock | Actual hosted credential availability/operation and final DMG results remain unverified; a real unlocked Mac must launch the mounted app |
@@ -314,9 +286,10 @@ The code gate above is complete; do not repeat it merely to assess this board.
 | 663 release cut | The checklist and final public payload can be prepared after the preceding proof | Remaining acceptance and packaging results, then the user's explicit instruction for a specific tag/release; website deployment requires its own explicit instruction |
 
 The smallest next user steps are to unlock and keep the Mac awake for one seeded
-review session, physically try Files Cmd-A/Backspace and Japanese input, and judge
-the supplied caret/CJK and remaining theme images. That same session can cover
-browser paste and motion. Linux acceptance needs a Linux desktop/operator; it
+review session and physically try Files Cmd-A/Backspace and Japanese input.
+That same session can cover browser paste and motion. The four supplied visual
+decisions are accepted; fresh captures and checks are still required for the new
+Choose theme heading and Filter themes… placeholder before closing their review. Linux acceptance needs a Linux desktop/operator; it
 cannot be substituted by this Mac's captures. No signing setup question is owed;
 verify the confirmed setup by nonpublishing rehearsal. Ask for a release instruction
 only after the final artifacts and remaining acceptance are reviewable.

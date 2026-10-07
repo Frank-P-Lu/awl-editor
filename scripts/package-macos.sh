@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# package-macos.sh — assemble Awl.app, either the ORDINARY flavor (from an
-# already-built universal `awl` binary — the release workflow's job, so it
-# can build aarch64 + x86_64 separately and cache each target) or the MAS
+# package-macos.sh — assemble Awl.app, either the ORDINARY flavor (from one
+# already-built native `awl` binary — the release workflow packages arm64 and
+# x86_64 separately) or the MAS
 # (Mac App Store / App Sandbox) flavor (`--mas`, which builds the
 # `--features mas` binary itself and bundles the sandbox entitlements
 # alongside for a human to sign against). One script, two modes — folded
@@ -11,18 +11,22 @@
 # here instead of as a second parallel script.
 #
 # Usage:
-#   scripts/package-macos.sh <path-to-universal-binary> <output-dir>
-#     Ordinary flavor: assemble (does NOT build or lipo the binary itself).
+#   scripts/package-macos.sh <path-to-native-binary> <output-dir>
+#     Ordinary flavor: assemble one arm64 or x86_64 app (does NOT build).
 #
 #   scripts/package-macos.sh --mas [output-dir]
 #     MAS flavor: builds `cargo build --release --features mas` itself
 #     (output-dir defaults to `dist`) and assembles Awl.app with
 #     `packaging/mas/entitlements.plist` copied into Resources/.
 #
-#   scripts/package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>
+#   scripts/package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg> [arch]
 #     Create a DMG from an already assembled (and possibly signed/stapled)
 #     bundle. The release workflow uses this after notarization so the DMG
-#     contains the exact app it validated.
+#     contains the exact app it validated. Optional arch is arm64 or x86_64.
+#
+#   scripts/package-macos.sh --print-arch <path-to-binary> [expected-arch]
+#     Print one accepted native architecture; reject universal, unsupported,
+#     unreadable, or mismatched binaries.
 #
 # Produces (ordinary):
 #   <output-dir>/Awl.app/Contents/{MacOS/awl, Info.plist, Resources/}
@@ -42,9 +46,9 @@
 #                       regardless of this flag)
 #
 # --reclaim / CI=true — GitHub mac-runner disk-exhaustion hardening:
-#   After the workflow's two `cargo build --release --target ...` + `lipo`
-#   steps, `target/<triple>/release/deps` (the per-arch object-file cache —
-#   several GB, dead weight once the universal binary is lipo'd) is deleted
+#   After the workflow's two `cargo build --release --target ...` steps,
+#   `target/<triple>/release/deps` (the per-arch object-file cache — several
+#   GB, dead weight once both native executables exist) is deleted
 #   before assembling/DMGing. Gated so a LOCAL run never loses incremental
 #   build state: fires only when `--reclaim` is passed explicitly OR the
 #   ambient `CI=true` (GitHub Actions sets this natively on every job) — the
@@ -82,6 +86,37 @@ if ! command -v cargo >/dev/null 2>&1; then
   export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
+# Release downloads are architecture-specific. This is the one parser for the
+# executable's real Mach-O roster: filenames and target paths are not evidence.
+# A universal input would recreate the oversized download this split replaces,
+# while accepting an arbitrary thin architecture would mislabel a public DMG.
+single_macos_arch() {
+  local binary="$1"
+  local expected="${2:-}"
+  local archs
+
+  if [ ! -f "$binary" ]; then
+    echo "error: binary not found at $binary" >&2
+    return 1
+  fi
+  if ! archs="$(lipo -archs "$binary" 2>/dev/null)"; then
+    echo "error: cannot read a Mach-O architecture from $binary" >&2
+    return 1
+  fi
+  case "$archs" in
+    arm64|x86_64) ;;
+    *)
+      echo "error: $binary has unsupported architecture roster '$archs'; expected exactly one of arm64 or x86_64" >&2
+      return 1
+      ;;
+  esac
+  if [ -n "$expected" ] && [ "$archs" != "$expected" ]; then
+    echo "error: $binary is $archs, expected $expected" >&2
+    return 1
+  fi
+  printf '%s\n' "$archs"
+}
+
 # --- THE BUNDLE-IDENTITY CONTRACT (one owner) --------------------------------
 #
 # macOS reads a live app's product identity out of the bundle, not out of the
@@ -96,9 +131,10 @@ fi
 # plist edit that merges those two contracts fails here.
 verify_bundle_identity() {
   local app="$1"
+  local expected_arch="${2:-}"
   local contents="$app/Contents"
   local plist="$contents/Info.plist"
-  local root fail=0
+  local root actual_arch fail=0
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
   if [ ! -f "$plist" ]; then
@@ -121,6 +157,8 @@ verify_bundle_identity() {
   if [ ! -x "$contents/MacOS/awl" ]; then
     echo "!! bundle identity: $contents/MacOS/awl is missing or not executable" >&2
     fail=1
+  elif ! actual_arch="$(single_macos_arch "$contents/MacOS/awl" "$expected_arch")"; then
+    fail=1
   fi
 
   # THE ICON macOS reads for the surfaces that ignore the running app's own
@@ -140,7 +178,7 @@ verify_bundle_identity() {
     echo "!! bundle identity check FAILED for $app" >&2
     return 1
   fi
-  echo "==> bundle identity OK: Awl / Awl / awl / Awl.icns  ($app)"
+  echo "==> bundle identity OK: Awl / Awl / awl / Awl.icns / $actual_arch  ($app)"
 }
 
 # One owner for DMG layout and hdiutil hardening. Both ordinary local
@@ -148,11 +186,12 @@ verify_bundle_identity() {
 create_dmg() {
   local app="$1"
   local output="$2"
+  local expected_arch="${3:-}"
   local out_dir dmg_work dmg_staging apparent_bytes dmg_size_mb
   out_dir="$(cd "$(dirname "$output")" && pwd)"
   output="$out_dir/$(basename "$output")"
 
-  verify_bundle_identity "$app"
+  verify_bundle_identity "$app" "$expected_arch"
   echo "==> creating $output"
 
   # Stage BOTH the DMG source-folder copy AND hdiutil's own scratch/temp work
@@ -191,6 +230,7 @@ MAS=0
 RECLAIM=0
 VERIFY_ONLY=0
 DMG_ONLY=0
+PRINT_ARCH_ONLY=0
 POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
@@ -198,8 +238,9 @@ for arg in "$@"; do
     --reclaim) RECLAIM=1 ;;
     --verify) VERIFY_ONLY=1 ;;
     --dmg-only) DMG_ONLY=1 ;;
+    --print-arch) PRINT_ARCH_ONLY=1 ;;
     -h|--help)
-      sed -n '2,68p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,77p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) POSITIONAL+=("$arg") ;;
@@ -207,20 +248,29 @@ for arg in "$@"; do
 done
 [ "${CI:-}" = "true" ] && RECLAIM=1
 
+if [[ "$PRINT_ARCH_ONLY" -eq 1 ]]; then
+  ARCH_BINARY="${POSITIONAL[0]:?usage: package-macos.sh --print-arch <path-to-binary> [expected-arch]}"
+  EXPECTED_ARCH="${POSITIONAL[1]:-}"
+  single_macos_arch "$ARCH_BINARY" "$EXPECTED_ARCH"
+  exit $?
+fi
+
 # `--verify <path-to-Awl.app>`: assert an ALREADY-ASSEMBLED bundle's identity
 # and exit. This is the native packaging gate — it builds nothing, so it is
 # cheap enough to run against any bundle a dev or CI job has produced.
 if [[ "$VERIFY_ONLY" -eq 1 ]]; then
-  APP_TO_VERIFY="${POSITIONAL[0]:?usage: package-macos.sh --verify <path-to-Awl.app>}"
-  verify_bundle_identity "$APP_TO_VERIFY"
+  APP_TO_VERIFY="${POSITIONAL[0]:?usage: package-macos.sh --verify <path-to-Awl.app> [arch]}"
+  EXPECTED_ARCH="${POSITIONAL[1]:-}"
+  verify_bundle_identity "$APP_TO_VERIFY" "$EXPECTED_ARCH"
   exit $?
 fi
 
 if [[ "$DMG_ONLY" -eq 1 ]]; then
-  APP_TO_PACKAGE="${POSITIONAL[0]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>}"
-  DMG_OUTPUT="${POSITIONAL[1]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg>}"
+  APP_TO_PACKAGE="${POSITIONAL[0]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg> [arch]}"
+  DMG_OUTPUT="${POSITIONAL[1]:?usage: package-macos.sh --dmg-only <path-to-Awl.app> <output.dmg> [arch]}"
+  EXPECTED_ARCH="${POSITIONAL[2]:-}"
   mkdir -p "$(dirname "$DMG_OUTPUT")"
-  create_dmg "$APP_TO_PACKAGE" "$DMG_OUTPUT"
+  create_dmg "$APP_TO_PACKAGE" "$DMG_OUTPUT" "$EXPECTED_ARCH"
   exit 0
 fi
 
@@ -233,29 +283,25 @@ if [[ "$MAS" -eq 1 ]]; then
   BIN_PATH="$ROOT/target/release/awl"
   OUT_DIR="${POSITIONAL[0]:-$ROOT/dist}"
 else
-  BIN_PATH="${POSITIONAL[0]:?usage: package-macos.sh <path-to-universal-binary> <output-dir> (or --mas [output-dir])}"
-  OUT_DIR="${POSITIONAL[1]:?usage: package-macos.sh <path-to-universal-binary> <output-dir> (or --mas [output-dir])}"
+  BIN_PATH="${POSITIONAL[0]:?usage: package-macos.sh <path-to-native-binary> <output-dir> (or --mas [output-dir])}"
+  OUT_DIR="${POSITIONAL[1]:?usage: package-macos.sh <path-to-native-binary> <output-dir> (or --mas [output-dir])}"
 fi
 
-if [ ! -f "$BIN_PATH" ]; then
-  echo "error: binary not found at $BIN_PATH" >&2
-  exit 1
-fi
+BINARY_ARCH="$(single_macos_arch "$BIN_PATH")"
 
 mkdir -p "$OUT_DIR"
 
 # --- Reclaim headroom (CI only — see the module doc's "--reclaim" note) ----
-# By the time we're assembling, `lipo` has already merged the two per-arch
-# release binaries into the universal $BIN_PATH; each `target/<triple>/
-# release/deps` directory (every dependency crate's compiled object files)
-# is dead weight from here on, and on a GitHub mac runner it's several GB of
-# headroom we want back before hdiutil ever runs.
+# By the time release assembly starts, both per-arch executables already exist;
+# each `target/<triple>/release/deps` directory (every dependency crate's
+# compiled object files) is dead weight, and on a GitHub mac runner it is
+# several GB of headroom we want back before hdiutil ever runs.
 if [[ "$MAS" -eq 0 && "$RECLAIM" -eq 1 ]]; then
   for triple in aarch64-apple-darwin x86_64-apple-darwin; do
     DEPS="$ROOT/target/$triple/release/deps"
     if [ -d "$DEPS" ]; then
       SIZE_BEFORE="$(du -sh "$DEPS" 2>/dev/null | cut -f1)"
-      echo "==> reclaim: removing $DEPS ($SIZE_BEFORE — dead post-lipo build artifacts)"
+      echo "==> reclaim: removing $DEPS ($SIZE_BEFORE — dead post-build artifacts)"
       rm -rf "$DEPS"
     fi
   done
@@ -278,7 +324,7 @@ fi
 
 APP="$OUT_DIR/Awl.app"
 CONTENTS="$APP/Contents"
-echo "==> assembling $APP  (version $AWL_VERSION, bundle id $AWL_BUNDLE_ID)$([ "$MAS" -eq 1 ] && echo '  [MAS]')"
+echo "==> assembling $APP  (version $AWL_VERSION, bundle id $AWL_BUNDLE_ID, architecture $BINARY_ARCH)$([ "$MAS" -eq 1 ] && echo '  [MAS]')"
 
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
@@ -438,7 +484,7 @@ cat >> "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
-verify_bundle_identity "$APP"
+verify_bundle_identity "$APP" "$BINARY_ARCH"
 
 echo "==> Awl.app assembled"
 
@@ -459,4 +505,4 @@ if [ "${AWL_SKIP_DMG:-0}" = "1" ]; then
   exit 0
 fi
 
-create_dmg "$APP" "$OUT_DIR/Awl.dmg"
+create_dmg "$APP" "$OUT_DIR/Awl.dmg" "$BINARY_ARCH"

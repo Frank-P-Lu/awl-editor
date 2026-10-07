@@ -40,8 +40,8 @@ fn theme_view() -> ViewState {
     v.overlay_theme_chrome = Some(crate::theme::active_index());
     v.overlay_query_field = true;
     v.overlay_query_focused = true;
-    v.overlay_query_placeholder = Some("Search themes".into());
-    v.overlay_title = "themes".into();
+    v.overlay_query_placeholder = Some("Filter themes…".into());
+    v.overlay_title = "Choose theme".into();
     v.overlay_items = crate::theme::THEMES.iter().map(|t| t.name.into()).collect();
     v.overlay_bindings = vec![String::new(); v.overlay_items.len()];
     v.overlay_selected = crate::theme::active_index();
@@ -233,7 +233,10 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
         1,
         "Themes must be one card, not detached query and list plates"
     );
-    assert_eq!(p.panel_buffer.lines[0].text(), "Themes   Search themes");
+    assert_eq!(
+        p.panel_buffer.lines[0].text(),
+        "Choose theme   Filter themes…"
+    );
     let geom = p.overlay_geometry(W);
     let plan = p.overlay_row_plan(&geom);
     let (fills, borders) = p.overlay_composition_quads(&geom, &plan);

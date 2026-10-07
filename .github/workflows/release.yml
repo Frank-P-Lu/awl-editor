@@ -1,8 +1,8 @@
 name: release
 
-# Cuts a GitHub Release. Builds three things — a macOS universal (.app +
-# .dmg), Linux downloads, and a zipped web (trunk) bundle. A tag publishes
-# the signed/notarized macOS DMG and both Linux downloads.
+# Cuts a GitHub Release. Builds three things — native arm64 and x86_64 macOS
+# apps/DMGs, Linux downloads, and a zipped web (trunk) bundle. A tag publishes
+# both signed/notarized macOS DMGs and both Linux downloads.
 #
 # Triggers:
 #   - push of a `v*` tag        -> real release, artifacts attached to the tag's GH Release
@@ -106,7 +106,7 @@ jobs:
       mode: pre-release
 
   mac:
-    name: mac (universal .app + .dmg)
+    name: mac (arm64 + x86_64 .apps + .dmgs)
     needs: [plan, extended]
     runs-on: macos-latest
     timeout-minutes: 45
@@ -137,15 +137,6 @@ jobs:
       - name: cargo build --release (x86_64-apple-darwin)
         run: scripts/with-remap.sh cargo build --release --target x86_64-apple-darwin
 
-      - name: lipo into a universal binary
-        run: |
-          mkdir -p target/universal
-          lipo -create -output target/universal/awl \
-            target/aarch64-apple-darwin/release/awl \
-            target/x86_64-apple-darwin/release/awl
-          lipo -info target/universal/awl
-          lipo target/universal/awl -verify_arch arm64 x86_64
-
       # Self-diagnostic for the "hdiutil: create failed - No space left on
       # device" class of failure (GitHub mac runners' system temp volume has
       # been observed nearly full while the workspace volume has headroom —
@@ -154,12 +145,17 @@ jobs:
       - name: Disk space before packaging
         run: df -h
 
-      - name: Assemble Awl.app (+ .dmg)
+      - name: Assemble architecture-specific Awl.app bundles
         env:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          mkdir -p dist-mac
-          AWL_SKIP_DMG=1 scripts/package-macos.sh --reclaim target/universal/awl dist-mac
+          mkdir -p dist-mac/arm64 dist-mac/x86_64
+          AWL_SKIP_DMG=1 scripts/package-macos.sh --reclaim \
+            target/aarch64-apple-darwin/release/awl dist-mac/arm64
+          AWL_SKIP_DMG=1 scripts/package-macos.sh \
+            target/x86_64-apple-darwin/release/awl dist-mac/x86_64
+          scripts/package-macos.sh --verify dist-mac/arm64/Awl.app arm64
+          scripts/package-macos.sh --verify dist-mac/x86_64/Awl.app x86_64
 
       # --- Signing + notarization: GATED on secrets existing --------------
       # Required secrets (all-or-nothing — see RELEASING.md "Apple setup"):
@@ -226,8 +222,10 @@ jobs:
             echo "::error::No 'Developer ID Application' identity found in the imported certificate."
             exit 1
           fi
-          codesign --force --options runtime --timestamp --sign "$IDENTITY" "dist-mac/Awl.app"
-          codesign --verify --deep --strict --verbose=2 "dist-mac/Awl.app"
+          for ARCH in arm64 x86_64; do
+            codesign --force --options runtime --timestamp --sign "$IDENTITY" "dist-mac/$ARCH/Awl.app"
+            codesign --verify --deep --strict --verbose=2 "dist-mac/$ARCH/Awl.app"
+          done
 
       - name: notarytool submit + staple
         if: needs.plan.outputs.sign_macos == 'true'
@@ -237,73 +235,95 @@ jobs:
           APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY_B64 }}
         run: |
           umask 077
-          trap 'rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/Awl-notarize.zip" "$RUNNER_TEMP/notary-result.json"' EXIT
+          trap 'rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP"/Awl-notarize-*.zip "$RUNNER_TEMP"/notary-result-*.json' EXIT
           echo "$APPLE_API_KEY_B64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
-          ditto -c -k --keepParent "dist-mac/Awl.app" "$RUNNER_TEMP/Awl-notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/Awl-notarize.zip" \
-            --key "$RUNNER_TEMP/AuthKey.p8" \
-            --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER" \
-            --wait --output-format json > "$RUNNER_TEMP/notary-result.json"
-          STATUS="$(plutil -extract status raw -o - "$RUNNER_TEMP/notary-result.json")"
-          if [ "$STATUS" != "Accepted" ]; then
-            echo "::error::Apple notarization status was '$STATUS', expected 'Accepted'."
-            cat "$RUNNER_TEMP/notary-result.json"
-            exit 1
-          fi
-          xcrun stapler staple "dist-mac/Awl.app"
-          xcrun stapler validate "dist-mac/Awl.app"
-          spctl --assess --type execute --verbose=4 "dist-mac/Awl.app"
+          for ARCH in arm64 x86_64; do
+            APP="dist-mac/$ARCH/Awl.app"
+            ZIP="$RUNNER_TEMP/Awl-notarize-$ARCH.zip"
+            RESULT="$RUNNER_TEMP/notary-result-$ARCH.json"
+            ditto -c -k --keepParent "$APP" "$ZIP"
+            xcrun notarytool submit "$ZIP" \
+              --key "$RUNNER_TEMP/AuthKey.p8" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait --output-format json > "$RESULT"
+            STATUS="$(plutil -extract status raw -o - "$RESULT")"
+            if [ "$STATUS" != "Accepted" ]; then
+              echo "::error::$ARCH notarization status was '$STATUS', expected 'Accepted'."
+              cat "$RESULT"
+              exit 1
+            fi
+            xcrun stapler staple "$APP"
+            xcrun stapler validate "$APP"
+            spctl --assess --type execute --verbose=4 "$APP"
+          done
 
-      - name: Create versioned Awl.dmg
+      - name: Create versioned architecture-specific DMGs
         env:
-          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+          VERSION: ${{ needs.plan.outputs.version }}
         run: |
           df -h
-          scripts/package-macos.sh --dmg-only dist-mac/Awl.app "dist-mac/$DMG"
+          for ARCH in arm64 x86_64; do
+            scripts/package-macos.sh --dmg-only \
+              "dist-mac/$ARCH/Awl.app" \
+              "dist-mac/awl-$VERSION-macos-$ARCH.dmg" \
+              "$ARCH"
+          done
 
       - name: Validate and checksum macOS artifacts
         env:
           SIGN_MACOS: ${{ needs.plan.outputs.sign_macos }}
           VERSION: ${{ needs.plan.outputs.version }}
-          DMG: awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
-          APP_ZIP: awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip
         run: |
           set -euo pipefail
-          ditto -c -k --keepParent dist-mac/Awl.app "dist-mac/$APP_ZIP"
-          scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"
-          hdiutil verify "dist-mac/$DMG"
-          MOUNT="$RUNNER_TEMP/awl-dmg-mount"
-          mkdir -p "$MOUNT"
-          trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true' EXIT
-          hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
-          scripts/package-macos.sh --verify "$MOUNT/Awl.app"
-          lipo "$MOUNT/Awl.app/Contents/MacOS/awl" -verify_arch arm64 x86_64
-          BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
-          [ "$BUNDLE_VERSION" = "$VERSION" ] || { echo "::error::DMG bundle version is '$BUNDLE_VERSION', expected '$VERSION'."; exit 1; }
-          if [ "$SIGN_MACOS" = "true" ]; then
-            codesign --verify --deep --strict --verbose=2 "$MOUNT/Awl.app"
-            xcrun stapler validate "$MOUNT/Awl.app"
-            spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
-          fi
-          python3 scripts/release-launch-smoke.py --binary "$MOUNT/Awl.app/Contents/MacOS/awl"
-          (cd dist-mac && shasum -a 256 "$DMG" > "$DMG.sha256")
-          (cd dist-mac && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
+          cleanup_mounts() {
+            for ARCH in arm64 x86_64; do
+              hdiutil detach "$RUNNER_TEMP/awl-dmg-mount-$ARCH" >/dev/null 2>&1 || true
+            done
+          }
+          trap cleanup_mounts EXIT
+          for ARCH in arm64 x86_64; do
+            DMG="awl-$VERSION-macos-$ARCH.dmg"
+            APP_ZIP="awl-$VERSION-macos-$ARCH.app.zip"
+            ditto -c -k --keepParent "dist-mac/$ARCH/Awl.app" "dist-mac/$APP_ZIP"
+            scripts/check-macos-release-size.sh "dist-mac/$DMG" "dist-mac/$APP_ZIP"
+            hdiutil verify "dist-mac/$DMG"
+            MOUNT="$RUNNER_TEMP/awl-dmg-mount-$ARCH"
+            mkdir -p "$MOUNT"
+            hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
+            scripts/package-macos.sh --verify "$MOUNT/Awl.app" "$ARCH"
+            BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
+            [ "$BUNDLE_VERSION" = "$VERSION" ] || { echo "::error::$ARCH DMG bundle version is '$BUNDLE_VERSION', expected '$VERSION'."; exit 1; }
+            if [ "$SIGN_MACOS" = "true" ]; then
+              codesign --verify --deep --strict --verbose=2 "$MOUNT/Awl.app"
+              xcrun stapler validate "$MOUNT/Awl.app"
+              spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
+            fi
+            python3 scripts/release-launch-smoke.py --binary "$MOUNT/Awl.app/Contents/MacOS/awl"
+            hdiutil detach "$MOUNT"
+            (cd dist-mac && shasum -a 256 "$DMG" > "$DMG.sha256")
+            (cd dist-mac && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
+          done
+          trap - EXIT
 
       - uses: actions/upload-artifact@v7
         with:
           name: awl-macos
           path: |
-            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
-            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg.sha256
-            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip
-            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-universal.app.zip.sha256
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg.sha256
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-arm64.app.zip
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-arm64.app.zip.sha256
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg.sha256
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.app.zip
+            dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.app.zip.sha256
           retention-days: 14
 
       - name: Remove temporary signing keychain
         if: always() && needs.plan.outputs.sign_macos == 'true'
         run: |
-          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/Awl-notarize.zip" "$RUNNER_TEMP/notary-result.json"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP"/Awl-notarize-*.zip "$RUNNER_TEMP"/notary-result-*.json
           security delete-keychain "$RUNNER_TEMP/awl-signing.keychain-db" 2>/dev/null || true
 
   linux:
@@ -528,12 +548,19 @@ jobs:
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
           fail_on_unmatched_files: true
           body: |
-            **macOS (Apple Silicon + Intel).** Download the signed, notarized
-            universal DMG, verify it, open it, and drag Awl to Applications:
+            **macOS Apple Silicon (arm64).** Download the signed, notarized
+            Apple Silicon DMG, verify it, open it, and drag Awl to Applications:
 
             ```sh
-            grep -F '  awl-${{ needs.plan.outputs.version }}-macos-universal.dmg' SHA256SUMS | shasum -a 256 -c -
-            open awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+            grep -F '  awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg' SHA256SUMS | shasum -a 256 -c -
+            open awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg
+            ```
+
+            **macOS Intel (x86_64).** Download the Intel DMG instead:
+
+            ```sh
+            grep -F '  awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg' SHA256SUMS | shasum -a 256 -c -
+            open awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg
             ```
 
             **Linux x86_64.** Choose the AppImage or tarball below. Windows
@@ -576,5 +603,6 @@ jobs:
           files: |
             release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz
             release/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
-            release/awl-${{ needs.plan.outputs.version }}-macos-universal.dmg
+            release/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg
+            release/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg
             release/SHA256SUMS

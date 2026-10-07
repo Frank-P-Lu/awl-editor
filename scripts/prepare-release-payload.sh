@@ -11,7 +11,8 @@ VERSION="${4:?usage: prepare-release-payload.sh <linux-dir> <mac-dir> <output-di
 
 TARBALL="awl-${VERSION}-linux-x86_64.tar.gz"
 APPIMAGE="awl-${VERSION}-linux-x86_64.AppImage"
-DMG="awl-${VERSION}-macos-universal.dmg"
+DMG_ARM64="awl-${VERSION}-macos-arm64.dmg"
+DMG_X86_64="awl-${VERSION}-macos-x86_64.dmg"
 
 if command -v sha256sum >/dev/null 2>&1; then
   SHA256=(sha256sum)
@@ -24,8 +25,10 @@ for pair in \
   "$LINUX_DIR/$TARBALL.sha256" \
   "$LINUX_DIR/$APPIMAGE" \
   "$LINUX_DIR/$APPIMAGE.sha256" \
-  "$MAC_DIR/$DMG" \
-  "$MAC_DIR/$DMG.sha256"; do
+  "$MAC_DIR/$DMG_ARM64" \
+  "$MAC_DIR/$DMG_ARM64.sha256" \
+  "$MAC_DIR/$DMG_X86_64" \
+  "$MAC_DIR/$DMG_X86_64.sha256"; do
   if [ ! -f "$pair" ]; then
     echo "error: expected $pair; downloaded files were:" >&2
     find "$LINUX_DIR" "$MAC_DIR" -type f -print 2>/dev/null | sed 's/^/  /' >&2
@@ -43,7 +46,11 @@ file_size() {
     stat -c%s "$1"
   fi
 }
-for public_file in "$LINUX_DIR/$TARBALL" "$LINUX_DIR/$APPIMAGE" "$MAC_DIR/$DMG"; do
+for public_file in \
+  "$LINUX_DIR/$TARBALL" \
+  "$LINUX_DIR/$APPIMAGE" \
+  "$MAC_DIR/$DMG_ARM64" \
+  "$MAC_DIR/$DMG_X86_64"; do
   public_bytes="$(file_size "$public_file")"
   echo "public download size: $public_file = $public_bytes bytes (must be under $MAX_BYTES)"
   if [ "$public_bytes" -ge "$MAX_BYTES" ]; then
@@ -53,15 +60,21 @@ for public_file in "$LINUX_DIR/$TARBALL" "$LINUX_DIR/$APPIMAGE" "$MAC_DIR/$DMG";
 done
 
 (cd "$LINUX_DIR" && "${SHA256[@]}" -c "$TARBALL.sha256" "$APPIMAGE.sha256")
-(cd "$MAC_DIR" && "${SHA256[@]}" -c "$DMG.sha256")
+(cd "$MAC_DIR" && "${SHA256[@]}" -c "$DMG_ARM64.sha256" "$DMG_X86_64.sha256")
 
 mkdir -p "$OUT_DIR"
 if find "$OUT_DIR" -mindepth 1 -print -quit | grep -q .; then
   echo "error: output directory must be empty: $OUT_DIR" >&2
   exit 1
 fi
-cp "$LINUX_DIR/$TARBALL" "$LINUX_DIR/$APPIMAGE" "$MAC_DIR/$DMG" "$OUT_DIR/"
-(cd "$OUT_DIR" && "${SHA256[@]}" "$TARBALL" "$APPIMAGE" "$DMG" > SHA256SUMS)
+cp \
+  "$LINUX_DIR/$TARBALL" \
+  "$LINUX_DIR/$APPIMAGE" \
+  "$MAC_DIR/$DMG_ARM64" \
+  "$MAC_DIR/$DMG_X86_64" \
+  "$OUT_DIR/"
+(cd "$OUT_DIR" && "${SHA256[@]}" \
+  "$TARBALL" "$APPIMAGE" "$DMG_ARM64" "$DMG_X86_64" > SHA256SUMS)
 (cd "$OUT_DIR" && "${SHA256[@]}" -c SHA256SUMS)
 
 echo "release payload ready:"

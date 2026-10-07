@@ -563,6 +563,7 @@ impl TextPipeline {
             workspace_primary_w: 0.0,
             workspace_rail_buffer: overlay_buffers.rail,
             workspace_hint_measure_buffer: overlay_buffers.hint_measure,
+            overlay_folder_buffer: None,
             workspace_rail_rows: Vec::new(),
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
