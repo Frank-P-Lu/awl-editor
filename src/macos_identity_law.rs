@@ -327,6 +327,8 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
         .arg(&fake_bin)
         .arg(&out_dir)
         .env("AWL_SKIP_DMG", "1")
+        .env("AWL_VERSION", "0.13.0")
+        .env("AWL_BUILD_VERSION", "42.0.0")
         .env("PATH", path)
         .status()
         .expect("package-macos.sh must run");
@@ -345,6 +347,8 @@ fn the_bundle_declares_its_document_types_by_structure_not_by_grep() {
     );
     let value: serde_json::Value =
         serde_json::from_slice(&json_output.stdout).expect("plutil's own JSON output must parse");
+    assert_eq!(value["CFBundleShortVersionString"], "0.13.0");
+    assert_eq!(value["CFBundleVersion"], "42.0.0");
 
     let types = value
         .get("CFBundleDocumentTypes")

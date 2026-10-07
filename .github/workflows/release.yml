@@ -68,6 +68,11 @@ jobs:
       # string it describes.
       is_prerelease: ${{ steps.plan.outputs.is_prerelease }}
     steps:
+      # Manual rehearsals use the exact checked-out package version too. Keeping
+      # a nonnumeric "dryrun" suffix out of the app's Info.plist is required by
+      # Apple's bundle-version formats; tag runs still take VERSION from the tag.
+      - uses: actions/checkout@v7
+
       - id: plan
         run: |
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
@@ -85,6 +90,7 @@ jobs:
               echo "is_prerelease=$IS_PRERELEASE"
             } >> "$GITHUB_OUTPUT"
           else
+            VERSION="$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("Cargo.toml").read_text())["package"]["version"])')"
             if [ "${{ inputs.credentialed_macos_rehearsal }}" = "true" ]; then
               SIGN_MACOS=true
             else
@@ -92,7 +98,7 @@ jobs:
             fi
             {
               echo "is_release=false"
-              echo "version=0.0.0-dryrun"
+              echo "version=$VERSION"
               echo "is_prerelease=true"
               echo "sign_macos=$SIGN_MACOS"
             } >> "$GITHUB_OUTPUT"
@@ -148,6 +154,7 @@ jobs:
       - name: Assemble architecture-specific Awl.app bundles
         env:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
+          AWL_BUILD_VERSION: ${{ github.run_number }}.0.0
         run: |
           mkdir -p dist-mac/arm64 dist-mac/x86_64
           AWL_SKIP_DMG=1 scripts/package-macos.sh --reclaim \
@@ -274,6 +281,7 @@ jobs:
         env:
           SIGN_MACOS: ${{ needs.plan.outputs.sign_macos }}
           VERSION: ${{ needs.plan.outputs.version }}
+          BUILD_VERSION: ${{ github.run_number }}.0.0
         run: |
           set -euo pipefail
           cleanup_mounts() {
@@ -292,8 +300,10 @@ jobs:
             mkdir -p "$MOUNT"
             hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "dist-mac/$DMG"
             scripts/package-macos.sh --verify "$MOUNT/Awl.app" "$ARCH"
-            BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
-            [ "$BUNDLE_VERSION" = "$VERSION" ] || { echo "::error::$ARCH DMG bundle version is '$BUNDLE_VERSION', expected '$VERSION'."; exit 1; }
+            SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$MOUNT/Awl.app/Contents/Info.plist")"
+            ACTUAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$MOUNT/Awl.app/Contents/Info.plist")"
+            [ "$SHORT_VERSION" = "$VERSION" ] || { echo "::error::$ARCH DMG short version is '$SHORT_VERSION', expected '$VERSION'."; exit 1; }
+            [ "$ACTUAL_BUILD_VERSION" = "$BUILD_VERSION" ] || { echo "::error::$ARCH DMG build version is '$ACTUAL_BUILD_VERSION', expected '$BUILD_VERSION'."; exit 1; }
             if [ "$SIGN_MACOS" = "true" ]; then
               codesign --verify --deep --strict --verbose=2 "$MOUNT/Awl.app"
               xcrun stapler validate "$MOUNT/Awl.app"

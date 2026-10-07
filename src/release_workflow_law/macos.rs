@@ -2,6 +2,85 @@
 
 use super::scratch;
 
+pub(super) fn apple_bundle_versions_are_proved(plan: &str, mac: &str, packager: &str) -> bool {
+    let validation_precedes_plist = packager
+        .find("validate_macos_versions \"$AWL_VERSION\" \"$AWL_BUILD_VERSION\"")
+        .zip(packager.find("cat > \"$CONTENTS/Info.plist\""))
+        .is_some_and(|(validation, plist)| validation < plist);
+    plan.contains("uses: actions/checkout@v7")
+        && plan.contains("tomllib.loads")
+        && plan.contains("[\"package\"][\"version\"]")
+        && !plan.contains("0.0.0-dryrun")
+        && mac.contains("AWL_BUILD_VERSION: ${{ github.run_number }}.0.0")
+        && mac.contains("BUILD_VERSION: ${{ github.run_number }}.0.0")
+        && mac.contains("Print :CFBundleShortVersionString")
+        && mac.contains("Print :CFBundleVersion")
+        && mac.contains("[ \"$SHORT_VERSION\" = \"$VERSION\" ]")
+        && mac.contains("[ \"$ACTUAL_BUILD_VERSION\" = \"$BUILD_VERSION\" ]")
+        && packager.contains("AWL_BUILD_VERSION=\"${AWL_BUILD_VERSION:-1.0.0}\"")
+        && packager.contains("validate_macos_versions() {")
+        && packager.contains("^[0-9]+\\.[0-9]+\\.[0-9]+$")
+        && packager.contains("^[1-9][0-9]{0,3}\\.[0-9]{1,2}\\.[0-9]{1,2}$")
+        && packager.contains("<string>${AWL_VERSION}</string>")
+        && packager.contains("<string>${AWL_BUILD_VERSION}</string>")
+        && validation_precedes_plist
+}
+
+#[test]
+fn apple_bundle_version_law_rejects_each_regression() {
+    let _guard = crate::testlock::serial();
+    let workflow = super::without_comments(&super::read(".github/workflows/release.yml"));
+    let packager = super::without_comments(&super::read("scripts/package-macos.sh"));
+    let audit = |workflow: &str, packager: &str| {
+        apple_bundle_versions_are_proved(
+            super::job(workflow, "plan"),
+            super::job(workflow, "mac"),
+            packager,
+        )
+    };
+    assert!(audit(&workflow, &packager));
+
+    for (subject, replacement) in [
+        ("tomllib.loads", "print_dryrun_version"),
+        (
+            "AWL_BUILD_VERSION: ${{ github.run_number }}.0.0",
+            "AWL_BUILD_VERSION: ${{ needs.plan.outputs.version }}",
+        ),
+        (
+            "[ \"$ACTUAL_BUILD_VERSION\" = \"$BUILD_VERSION\" ]",
+            "[ -n \"$ACTUAL_BUILD_VERSION\" ]",
+        ),
+    ] {
+        assert!(
+            workflow.contains(subject),
+            "mutation subject missing: {subject}"
+        );
+        let broken = workflow.replacen(subject, replacement, 1);
+        assert!(
+            !audit(&broken, &packager),
+            "workflow mutation escaped: {subject}"
+        );
+    }
+
+    for (subject, replacement) in [
+        ("^[1-9][0-9]{0,3}\\.[0-9]{1,2}\\.[0-9]{1,2}$", "^[0-9.]+$"),
+        (
+            "<string>${AWL_BUILD_VERSION}</string>",
+            "<string>${AWL_VERSION}</string>",
+        ),
+    ] {
+        assert!(
+            packager.contains(subject),
+            "mutation subject missing: {subject}"
+        );
+        let broken = packager.replacen(subject, replacement, 1);
+        assert!(
+            !audit(&workflow, &broken),
+            "packager mutation escaped: {subject}"
+        );
+    }
+}
+
 pub(super) fn native_architecture_split_is_proved(mac: &str, packager: &str) -> bool {
     for needle in [
         "target/aarch64-apple-darwin/release/awl dist-mac/arm64",

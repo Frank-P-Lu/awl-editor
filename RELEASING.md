@@ -33,6 +33,10 @@ notarization; a missing credential fails the macOS job and blocks publication.
 A default manual dry run produces unsigned arm64 and x86_64 apps and DMGs without
 publishing. An explicit credentialed rehearsal exercises both signed paths
 without a tag or GitHub Release. The steps below document setup and renewal.
+Both rehearsals use `Cargo.toml`'s numeric package version for artifact names and
+`CFBundleShortVersionString`. `CFBundleVersion` is a separate positive Apple
+build version, `${{ github.run_number }}.0.0` in the release workflow; this keeps
+both plist fields valid during the same notarization path a tag will use.
 
 **(a) Export your Developer ID Application certificate as a `.p12`:**
 
@@ -166,7 +170,7 @@ treat a missing licence file as a hard failure, not a warning.
 | Artifact | Where |
 |---|---|
 | `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `awl-<version>-macos-arm64.dmg` + `awl-<version>-macos-x86_64.dmg` + `SHA256SUMS` (covering all four) | GitHub Release (tag) |
-| same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is `0.0.0-dryrun`) |
+| same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is the checked-out `Cargo.toml` package version) |
 | versioned arm64 and x86_64 app zips + DMGs + their `.sha256`s | workflow artifact `awl-macos` (unsigned on the default dry run; both signed/notarized on tags and credentialed rehearsals; only the DMGs are public) |
 | exact four-download public layout + verified `SHA256SUMS` | workflow artifact `awl-release-payload` (dry runs and tags; only a tag hands it to GitHub Release creation) |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
@@ -314,7 +318,7 @@ across worlds") — run it before step 1.
 | 4 | `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md` | regenerated, diff reviewed, committed |
 | 5 | `gh workflow run release.yml -f dry_run=true` | three green build jobs plus green `prepare-release`; prepared artifact contains exactly the four public payloads and `SHA256SUMS`; `publish` is skipped |
 | 6 | Rerun with `-f credentialed_macos_rehearsal=true` for the first macOS release and after credential renewal or signing-workflow changes | signed macOS path passes without creating a tag or Release |
-| 7 | Download `awl-linux`, `awl-macos`, and `awl-release-payload`; verify checksums and inspect both DMGs | names are versioned; each public DMG is strictly under 50,000,000 bytes; app-zip sizes are informational because they are never public; each mounted app contains exactly the architecture named by its DMG, is signed, stapled, and Gatekeeper-accepted |
+| 7 | Download `awl-linux`, `awl-macos`, and `awl-release-payload`; verify checksums and inspect both DMGs | names and short bundle versions match `Cargo.toml`; build versions match the workflow run; each public DMG is strictly under 50,000,000 bytes; app-zip sizes are informational because they are never public; each mounted app contains exactly the architecture named by its DMG, is signed, stapled, and Gatekeeper-accepted |
 | 8 | Launch the mounted macOS app on a real user's Mac; launch both Linux forms on a real Linux desktop | each opens a window and file; Linux launcher metadata appears correctly |
 | 9 | `Cargo.toml`'s `package.version` matches the tag | `v<version>` — no stale `0.1.0` |
 | 10 | `git tag`, `git push origin <tag>` | **user's explicit word, every time** |

@@ -65,7 +65,9 @@ its synthetic state and rejects document, config and folder arguments; the helpe
 supplies only probe arguments and fresh process-data directories. This proves
 live artifact presentation/recovery, not opening a supplied document. Package
 metadata, signing policy, checksums, compression-size checks and the existing
-release authorization remain in place.
+release authorization remain in place. The mounted Mac checks compare the
+numeric marketing version with the release version and the separate positive
+Apple build version with the workflow run number before accepting either DMG.
 
 The automation is not a human journey. Before a release, finish the real desktop
 launch, native menus, physical IME/keyboard, browser clipboard and accessibility

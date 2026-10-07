@@ -42,6 +42,9 @@
 #   AWL_VERSION        CFBundleShortVersionString (default: Cargo.toml's
 #                       package.version, read via `cargo metadata` if cargo
 #                       is on PATH, else "0.0.0")
+#   AWL_BUILD_VERSION  CFBundleVersion (default: "1.0.0"). Apple permits up
+#                       to four digits in its positive first component and up
+#                       to two digits in each remaining component.
 #   AWL_SKIP_DMG=1      skip DMG creation (bundle-only; --mas never makes one
 #                       regardless of this flag)
 #
@@ -115,6 +118,24 @@ single_macos_arch() {
     return 1
   fi
   printf '%s\n' "$archs"
+}
+
+# Apple's marketing version is exactly three dot-separated integers. Its build
+# version is separate: the first component is positive and at most four digits;
+# the second and third are each at most two digits. Validate before interpolating
+# either value into Info.plist so signing/notarization never sees malformed data.
+validate_macos_versions() {
+  local short_version="$1"
+  local build_version="$2"
+
+  if [[ ! "$short_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "error: AWL_VERSION '$short_version' must be three dot-separated non-negative integers" >&2
+    return 1
+  fi
+  if [[ ! "$build_version" =~ ^[1-9][0-9]{0,3}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+    echo "error: AWL_BUILD_VERSION '$build_version' must match 1-9999.0-99.0-99" >&2
+    return 1
+  fi
 }
 
 # --- THE BUNDLE-IDENTITY CONTRACT (one owner) --------------------------------
@@ -240,7 +261,7 @@ for arg in "$@"; do
     --dmg-only) DMG_ONLY=1 ;;
     --print-arch) PRINT_ARCH_ONLY=1 ;;
     -h|--help)
-      sed -n '2,77p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,80p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) POSITIONAL+=("$arg") ;;
@@ -321,10 +342,12 @@ if [ -z "$AWL_VERSION" ]; then
   fi
   AWL_VERSION="${AWL_VERSION:-0.0.0}"
 fi
+AWL_BUILD_VERSION="${AWL_BUILD_VERSION:-1.0.0}"
+validate_macos_versions "$AWL_VERSION" "$AWL_BUILD_VERSION"
 
 APP="$OUT_DIR/Awl.app"
 CONTENTS="$APP/Contents"
-echo "==> assembling $APP  (version $AWL_VERSION, bundle id $AWL_BUNDLE_ID, architecture $BINARY_ARCH)$([ "$MAS" -eq 1 ] && echo '  [MAS]')"
+echo "==> assembling $APP  (version $AWL_VERSION, build $AWL_BUILD_VERSION, bundle id $AWL_BUNDLE_ID, architecture $BINARY_ARCH)$([ "$MAS" -eq 1 ] && echo '  [MAS]')"
 
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
@@ -413,7 +436,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key>
   <string>${AWL_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>${AWL_VERSION}</string>
+  <string>${AWL_BUILD_VERSION}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>LSMinimumSystemVersion</key>
