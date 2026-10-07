@@ -4,12 +4,24 @@ use super::*;
 
 pub(super) const LOCATION_GROUP_GAP: Rows = Rows(1.5);
 pub(super) const ACTION_GROUP_GAP: Rows = Rows(0.65);
-// Redistribute the existing path band: more air above, less below, no row lost.
+// Fit the path inside its existing band; compact cards need less leading air.
 const LOCATION_LEADING: Rows = Rows(0.5);
+const NARROW_LOCATION_LEADING: Rows = Rows(0.25);
 
 impl TextPipeline {
     fn folder_location_leading(&self, height: f32) -> f32 {
-        (self.overlay_lh() * LOCATION_LEADING.0).min((height - self.overlay_lh()).max(0.0))
+        // Short labels may shrink the card; use the shared full-width fit policy.
+        let narrow = overlay_card_fill_regime(
+            self.window_w,
+            self.overlay_card_desired_w(CARD_MAX_W),
+            self.metrics.dpi,
+        );
+        let leading = if narrow {
+            NARROW_LOCATION_LEADING
+        } else {
+            LOCATION_LEADING
+        };
+        (self.overlay_lh() * leading.0).min((height - self.overlay_lh()).max(0.0))
     }
 
     pub(super) fn fit_folder_location(

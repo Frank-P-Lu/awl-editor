@@ -44,6 +44,14 @@ fn folder_picker_context_paints_and_preserves_navigation_across_worlds_and_dpis(
                 assert!(location.line_w <= geom.text_w + 0.5);
                 assert!(!location.glyphs.is_empty());
                 let path_box = p.overlay_line_glyph_box(1).unwrap();
+                let leading = if logical_w == 360.0 { 0.25 } else { 0.5 };
+                let expected =
+                    plan.header_lines()[1].top + location.line_top + p.overlay_lh() * leading;
+                assert!(
+                    (path_box[1] - expected).abs() < 0.01,
+                    "{} {dpi}x {logical_w}: narrow path leading, wide spacing retained",
+                    world.name
+                );
                 assert!(!p.over_overlay_query(path_box[0] + 2.0, path_box[1] + path_box[3] * 0.5));
                 let row = plan.rows().first().unwrap();
                 let bounds = p.overlay_row_geometry().unwrap().rows[0];
