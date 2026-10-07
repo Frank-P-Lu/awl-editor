@@ -213,6 +213,7 @@ impl App {
             overlay_files_location: ov
                 .and_then(crate::overlay::OverlayState::files_location)
                 .unwrap_or_default(),
+            overlay_folder_location: ov.and_then(|o| o.folder_location()).map(str::to_string),
             overlay_theme_picker: ov.is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
             overlay_theme_chrome: ov.and_then(|o| o.audition.theme_original()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),

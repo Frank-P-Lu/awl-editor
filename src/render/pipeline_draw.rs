@@ -516,6 +516,7 @@ impl TextPipeline {
             overlay_retains_room: false,
             overlay_files_surface: false,
             overlay_files_location: String::new(),
+            overlay_folder_location: None,
             overlay_files_fitted_title_prefix: String::new(),
             overlay_files_split_header: false,
             overlay_files_split_actions: false,

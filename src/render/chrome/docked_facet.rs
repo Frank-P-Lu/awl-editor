@@ -10,6 +10,9 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<crate::render::plan::PlannedHeader> {
+        if self.overlay_lens.is_empty() {
+            return None;
+        }
         let strip = plan.strip_band()?;
         // The original unbilled strip owns only the spacing beat. Its
         // dedicated glyph buffer still needs a complete line above the card.
@@ -49,7 +52,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<crate::render::plan::PlannedHeader> {
-        if self.overlay_files_surface || !split_seam_active(geom) {
+        if self.overlay_lens.is_empty() || self.overlay_files_surface || !split_seam_active(geom) {
             return None;
         }
         let strip = plan.strip_band()?;

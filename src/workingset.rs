@@ -193,6 +193,21 @@ impl WorkingSet {
         at
     }
 
+    /// An explicit folder choice adopts open files beneath it. Files outside
+    /// that scope keep their own root, order, active slot, and buffer identity.
+    pub fn rescope(&mut self, root: &Path) {
+        for file in &mut self.files {
+            if file
+                .path
+                .as_deref()
+                .is_some_and(|path| crate::buffers::normalize_path(path).starts_with(root))
+            {
+                file.root = root.to_path_buf();
+            }
+        }
+        self.on_active_changed();
+    }
+
     /// Remove the file at `at`, returning it. The active slot follows the
     /// surviving neighbour rather than resetting to zero: closing row 3 of 5
     /// should leave the reader looking at row 3's replacement, not jump the

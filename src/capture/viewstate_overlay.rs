@@ -33,6 +33,11 @@ fn fold_identity(
     view.overlay_retains_room = kind.is_some_and(OverlayKind::retains_readable_room);
     (view.overlay_files_surface, view.overlay_files_location) =
         files_projection(opts.overlay.as_ref());
+    view.overlay_folder_location = opts
+        .overlay
+        .as_ref()
+        .filter(|_| kind == Some(OverlayKind::ProjectBrowse))
+        .map(|o| o.browse_dir.clone().unwrap_or_else(|| "/".to_string()));
     view.overlay_theme_picker = kind == Some(OverlayKind::Theme);
     view.overlay_query = opts
         .overlay

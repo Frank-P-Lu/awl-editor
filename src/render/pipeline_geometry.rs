@@ -413,6 +413,7 @@ impl TextPipeline {
         self.overlay_retains_room = view.overlay_retains_room;
         self.overlay_files_surface = view.overlay_files_surface;
         self.overlay_files_location = view.overlay_files_location.clone();
+        self.overlay_folder_location = view.overlay_folder_location.clone();
         self.overlay_files_fitted_title_prefix.clear();
         self.overlay_files_split_header = false;
         self.overlay_files_split_actions = false;

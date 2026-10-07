@@ -301,7 +301,9 @@ impl TextPipeline {
             || self.overlay_title.is_empty()
             || !placard_style_applies(
                 geom,
-                self.overlay_retains_room || self.overlay_files_surface,
+                self.overlay_retains_room
+                    || self.overlay_files_surface
+                    || self.overlay_folder_location.is_some(),
             )
         {
             return None;
@@ -713,7 +715,9 @@ impl TextPipeline {
     pub(super) fn overlay_raw_title_prefix(&self, geom: &OverlayGeom) -> String {
         let placard_drawn = placard_style_applies(
             geom,
-            self.overlay_retains_room || self.overlay_files_surface,
+            self.overlay_retains_room
+                || self.overlay_files_surface
+                || self.overlay_folder_location.is_some(),
         );
         if self.overlay_title.is_empty() || placard_drawn {
             String::new()
@@ -976,6 +980,15 @@ impl TextPipeline {
                 spans.push((" — ", hk_hint(muted)));
                 spans.push((destination, hk_hint(muted)));
             }
+        } else if self.overlay_folder_location.is_some() {
+            // Every key and caption shares a bundled face and baseline.
+            spans.push((
+                hint,
+                Attrs::new()
+                    .family(Family::Name("Iosevka"))
+                    .color(muted)
+                    .metrics(GlyphMetrics::new(hint_fs, hint_h)),
+            ));
         } else {
             push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
         }
@@ -1062,6 +1075,7 @@ impl TextPipeline {
         } else {
             self.overlay_raw_title_prefix(geom)
         };
+        let folder_location = self.fit_folder_location(geom, name_fs, plan);
         self.push_flat_overlay_query_spans(
             &mut spans,
             geom,
@@ -1075,6 +1089,16 @@ impl TextPipeline {
             },
             inks,
         );
+        if let Some((location, height)) = &folder_location {
+            spans.push(("\n", mk(muted)));
+            spans.push((
+                location.as_str(),
+                base.clone().color(muted).metrics(GlyphMetrics::new(
+                    name_fs * crate::markdown::type_scale::LABEL,
+                    *height,
+                )),
+            ));
+        }
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands
         // alone (every ordinary flat query card), and only a card with NO

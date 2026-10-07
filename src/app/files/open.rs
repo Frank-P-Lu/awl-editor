@@ -472,6 +472,7 @@ impl App {
         // The document autosave / scratch stash flushes on the same trigger.
         self.flush_note();
         self.autosave_flush();
+        self.document.working_set_mut().rescope(&new_root);
         self.project_location.root = new_root;
         self.resync_project_location(self.config.location_policy());
         self.sync_view(false);

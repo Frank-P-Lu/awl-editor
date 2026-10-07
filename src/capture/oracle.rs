@@ -107,6 +107,7 @@ impl OraclePipeline {
         v.overlay_scroll = overlay.scroll;
         v.overlay_window_rows = overlay.window_rows();
         v.overlay_title = overlay.title();
+        v.overlay_folder_location = overlay.folder_location().map(str::to_string);
         self.pipeline.set_size(self.width, self.height);
         self.pipeline.set_view(&v);
     }

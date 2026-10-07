@@ -2396,6 +2396,8 @@ pub struct TextPipeline {
     overlay_files_surface: bool,
     /// Mirror of `ViewState::overlay_files_location`.
     overlay_files_location: String,
+    /// Current absolute folder in the folder navigator; absent on other surfaces.
+    overlay_folder_location: Option<String>,
     /// The current frame's measured-to-fit Files header prefix. Pointer and
     /// caret geometry read this exact shaped value after preparation.
     overlay_files_fitted_title_prefix: String,

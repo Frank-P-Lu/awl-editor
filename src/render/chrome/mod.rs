@@ -402,6 +402,7 @@ pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
 // owner and the sidecar report structs.
 pub(in crate::render) mod diagonal;
 mod overlay;
+mod overlay_folder;
 mod overlay_policy;
 pub(in crate::render) use overlay_policy::*;
 mod control_marks;

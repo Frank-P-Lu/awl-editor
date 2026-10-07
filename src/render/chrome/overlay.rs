@@ -204,11 +204,22 @@ impl TextPipeline {
             }
             _ => OVERLAY_QUERY_BEAT,
         };
-        (self.overlay_lh() * beat.0).round()
+        (self.overlay_lh()
+            * if self.overlay_folder_location.is_some() {
+                super::overlay_folder::LOCATION_GROUP_GAP.0
+            } else {
+                beat.0
+            })
+        .round()
+    }
+
+    /// Consequential chooser actions form their own group below the choices.
+    fn overlay_separated_actions(&self) -> bool {
+        self.overlay_folder_location.is_some() || self.overlay_theme_picker
     }
 
     pub(in crate::render) fn overlay_hint_h(&self) -> f32 {
-        if self.overlay_files_surface {
+        if self.overlay_files_surface || self.overlay_separated_actions() {
             self.overlay_lh()
         } else {
             (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
@@ -217,7 +228,13 @@ impl TextPipeline {
 
     /// The blank separator's own (shorter still) row height.
     pub(in crate::render) fn overlay_hint_gap_h(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_HINT_GAP_ROW.0).round()
+        (self.overlay_lh()
+            * if self.overlay_separated_actions() {
+                super::overlay_folder::ACTION_GROUP_GAP.0
+            } else {
+                OVERLAY_HINT_GAP_ROW.0
+            })
+        .round()
     }
 
     /// Reclaims the dead space `hint_rows` (`overlay_hint_h`-tall) and
@@ -416,7 +433,9 @@ impl TextPipeline {
             self.overlay_chrome_inventory(n_items);
 
         let contextual = self.overlay_contextual();
-        let header_rows = usize::from(!contextual); // contextual rows need no query field
+        // Contextual rows have no query; folder navigation adds a location line.
+        let header_rows =
+            usize::from(!contextual) + usize::from(self.overlay_folder_location.is_some());
         let (header_gap, card_y, avail_px) = self.flat_card_placement(contextual, pad, margin);
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         let fit_window =

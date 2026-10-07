@@ -237,17 +237,17 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
     let geom = p.overlay_geometry(W);
     let plan = p.overlay_row_plan(&geom);
     let (fills, borders) = p.overlay_composition_quads(&geom, &plan);
-    assert_eq!(fills.len(), 3, "query field plus Switch and Cancel fills");
-    assert_eq!(borders.len(), 12, "four hairlines around each control");
+    assert_eq!(fills.len(), 1, "only the search field has a control fill");
+    assert_eq!(borders.len(), 4, "action hints have no button outlines");
     assert_eq!(
         p.overlay_range_thumb.instance_count(),
-        3,
-        "the frame must upload all three control fills"
+        1,
+        "the frame uploads the search field fill"
     );
     assert_eq!(
         p.overlay_range_track.instance_count(),
-        12,
-        "the frame must upload every control hairline"
+        4,
+        "the frame uploads only the search field hairlines"
     );
 
     let (switch, cancel) = p

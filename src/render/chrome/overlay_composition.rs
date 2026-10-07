@@ -130,11 +130,6 @@ impl TextPipeline {
             fills.push(field);
             borders.extend(rect_edges(field, self.metrics.px_physical(HAIRLINE)));
         }
-        if let Some((switch, cancel)) = self.theme_panel_action_rects(geom) {
-            fills.extend([switch, cancel]);
-            borders.extend(rect_edges(switch, self.metrics.px_physical(HAIRLINE)));
-            borders.extend(rect_edges(cancel, self.metrics.px_physical(HAIRLINE)));
-        }
         if geom.workspace
             && !self.overlay_rows_primary
             && let Some([rail_x, rail_w]) = geom.rail

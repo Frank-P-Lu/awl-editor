@@ -35,6 +35,11 @@ impl OverlayState {
         }
     }
 
+    /// The directory being listed, independent of the selected child.
+    pub(crate) fn folder_location(&self) -> Option<&str> {
+        (self.kind == OverlayKind::ProjectBrowse).then(|| self.browse_dir.as_deref().unwrap_or("/"))
+    }
+
     fn subject_errand(&self, with_subject: &str, fallback: &str) -> String {
         self.subject_name
             .as_deref()

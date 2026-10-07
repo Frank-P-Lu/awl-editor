@@ -87,10 +87,10 @@ pub struct ViewState {
     /// Complete Files destination. The renderer may elide its visible copy to
     /// fit, while state, capture, and accessibility retain this full value.
     pub overlay_files_location: String,
-    /// The open card is the Themes chooser. Unlike the broader `overlay_crisp`
-    /// class (which also includes Caret), this projection lets the renderer
-    /// apply the chooser's reviewed fixed-composition and no-frost contract
-    /// without recovering an `OverlayKind` from display strings.
+    /// Current absolute folder in the folder navigator; absent on other surfaces.
+    pub overlay_folder_location: Option<String>,
+    /// Themes' fixed composition and no-frost contract; unlike `overlay_crisp`,
+    /// this does not also include Caret.
     pub overlay_theme_picker: bool,
     /// Summon-time world whose palette and face the open Themes card retains.
     pub overlay_theme_chrome: Option<usize>,
@@ -413,6 +413,7 @@ impl ViewState {
             overlay_retains_room: false,
             overlay_files_surface: false,
             overlay_files_location: String::new(),
+            overlay_folder_location: None,
             overlay_theme_picker: false,
             overlay_theme_chrome: None,
             overlay_query: String::new(),
