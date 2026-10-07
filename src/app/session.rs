@@ -134,35 +134,33 @@ impl App {
                 .as_ref()
                 .and_then(|p| survivors.iter().find(|(sp, _)| sp == p).cloned())
         };
-        if let Some((path, pos)) = &active_path {
-            self.document
-                .restore_active(path, *pos, crate::external::Seen::at(path));
-        }
+        let mut accepted = Vec::new();
+        let mut unavailable = false;
         for (path, pos) in &survivors {
-            if active_path.as_ref().map(|(p, _)| p) == Some(path) {
-                continue; // just became the active buffer above
+            let loaded = if self.document.buffer().path() == Some(path.as_path()) {
+                true
+            } else if active_path.as_ref().map(|(p, _)| p) == Some(path) {
+                self.document.restore_active(path, *pos)
+            } else {
+                self.document.restore_background(path, *pos)
+            };
+            if loaded {
+                accepted.push(path);
+            } else {
+                unavailable = true;
             }
-            if self.document.buffer().path() == Some(path.as_path()) {
-                continue; // already this launch's CLI-argument file
-            }
-            self.document
-                .restore_background(path, *pos, crate::external::Seen::at(path));
         }
-        // THE MARGIN'S OWN ORDER, restored — every survivor gets a working-set
-        // row here, in the SESSION FILE'S OWN ORDER (`existing_buffers`
-        // preserves it), so a restart round-trips the drawn stack like every
-        // other consumer of the one order (`session_buffers`' own doc). Safe
-        // to enrol before `App::new`'s later `enrol_active`: `WorkingSet::open`
-        // on an already-open key only updates root/path in place, so that
-        // call lands on this same slot rather than disturbing the order. A
-        // CLI-argument file with no matching survivor gets a fresh slot from
-        // `enrol_active` afterward, at the end — ordinary "first open" rules.
-        for (path, _pos) in &survivors {
+        // Enrol only slots whose actual read succeeded, in the session's order.
+        // Closing into a background successor must never resurrect a failed load.
+        for path in accepted {
             let key = crate::buffers::BufferKey::path(path);
             let root = crate::workingset::root_for(path, &self.project_location.root, None);
             self.document
                 .working_set_mut()
                 .open(key, Some(path.clone()), root);
+        }
+        if unavailable {
+            self.set_sticky_notice("Some session files cannot be read — they were left unopened");
         }
     }
 }

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use ropey::Rope;
 
 mod eol;
+mod load;
 pub use eol::Eol;
 
 /// Normalize a freshly-read file string to the buffer's pure-`\n` model: strip the
@@ -266,25 +267,6 @@ pub struct Buffer {
 impl Buffer {
     pub fn scratch() -> Self {
         Self::from_rope(Rope::new(), None)
-    }
-
-    /// Load a file into a buffer. A missing file yields an empty buffer bound to
-    /// that path (so the first Cmd-S creates it), matching mg behavior.
-    ///
-    /// LINE ENDINGS (VS Code model): the file's DOMINANT ending is detected
-    /// ([`Eol::detect`]) and remembered, then every `\r\n` is normalized to `\n`
-    /// ([`normalize_eol`]) BEFORE the text enters the rope — so the buffer is
-    /// purely `\n`-based and agrees with the `\n`-only renderer by construction.
-    /// A save restores the remembered ending ([`Self::disk_bytes`]), so a CRLF
-    /// file round-trips byte-for-byte. A missing file defaults to [`Eol::Lf`].
-    pub fn from_file(path: &Path) -> Self {
-        let (rope, eol) = match crate::fs::active().read_to_string(path) {
-            Ok(s) => (Rope::from_str(&normalize_eol(&s)), Eol::detect(&s)),
-            Err(_) => (Rope::new(), Eol::Lf),
-        };
-        let mut buf = Self::from_rope(rope, Some(path.to_path_buf()));
-        buf.eol = eol;
-        buf
     }
 
     #[allow(dead_code)]

@@ -564,16 +564,16 @@ impl App {
         // through to the ordinary no-argument path below (scratch/stash
         // restore) exactly as if no file had been named at all; the refusal
         // message surfaces as a sticky notice once `app` exists, below.
-        let file_refusal = file
-            .as_ref()
-            .and_then(|p| crate::openable::classify(p).refusal_message());
-        let file = if file_refusal.is_some() { None } else { file };
-        // SESSION RESTORE (native only) reads this BEFORE `file` moves into the
-        // struct literal below — see `Self::apply_session_restore`'s doc for why
+        let startup::LaunchFile {
+            loaded,
+            refusal: file_refusal,
+        } = startup::load_launch_file(file);
+        // SESSION RESTORE (native only) remembers whether the launch file loaded
+        // before consuming it — see `Self::apply_session_restore`'s doc for why
         // a launch WITH a file argument still restores the rest of the session
         // (just never lets it override the active buffer).
         #[cfg(not(target_arch = "wasm32"))]
-        let file_arg_given = file.is_some();
+        let file_arg_given = loaded.is_some();
         // SCRATCH RESTORE: a no-argument launch resumes the persistent scratch
         // buffer from its stash (written by the autosave engine on idle/blur/
         // quit). Path stays None — still a true scratch, still markdown-first.
@@ -583,14 +583,13 @@ impl App {
         // failure backs the raw bytes up to a `.corrupt-*` sibling before
         // falling back to a blank scratch, inside the shared restore helper —
         // see `startup::scratch_buffer_from_stash`'s own doc.
-        let (buffer, scratch_baseline) = match &file {
-            Some(p) => (Buffer::from_file(p), crate::external::Seen::Absent),
-            None => startup::scratch_buffer_from_stash(),
+        let (buffer, disk_baseline, scratch_baseline) = match loaded {
+            Some((buffer, seen)) => (buffer, seen, crate::external::Seen::Absent),
+            None => {
+                let (buffer, seen) = startup::scratch_buffer_from_stash();
+                (buffer, crate::external::Seen::Absent, seen)
+            }
         };
-        let disk_baseline = file
-            .as_deref()
-            .map(crate::external::Seen::at)
-            .unwrap_or_default();
         let config = location::ConfigurationRuntime::new(config, cli_workspace, cli_default_folder);
         let project_location = location::ProjectLocation::new(root, &config.location_policy());
         let mut keys_with_web_alt = config.keys.clone();

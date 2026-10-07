@@ -194,11 +194,11 @@ impl App {
         // root-joined spelling (see `BufferKey::path`'s doc) must both be
         // recognized as "already here", or this falls through into an
         // unnecessary (if harmless, post-fix) park/take round trip.
-        let opened = self.document.open_path(
-            &path,
-            crate::external::Seen::at(&path),
-            &self.project_location.root,
-        );
+        let opened = self.document.open_path(&path, &self.project_location.root);
+        if opened == document::OpenPath::Unavailable {
+            self.set_sticky_notice("This file cannot be read — the current document is unchanged");
+            return false;
+        }
         if opened == document::OpenPath::AlreadyActive {
             return true;
         }
@@ -263,7 +263,7 @@ impl App {
             }
         }
         // `Buffer::path()` already carries this exact path — on the fresh-open
-        // arm from `Buffer::from_file(&path)`, on the registry-hit arm from
+        // arm from the fallible file loader, on the registry-hit arm from
         // the entry's own remembered path (it was parked under a key derived
         // from that same path) — so there is no separate `App.file` mirror to
         // write here any more (`Buffer::path()` is the sole source).
@@ -481,15 +481,11 @@ impl App {
     }
 
     pub(in crate::app) fn new_document(&mut self) {
-        let _ = crate::fs::active().create_dir_all(&self.project_location.root);
         self.start_fresh_document();
     }
 
     pub(in crate::app) fn new_document_at(&mut self, rel: &str) {
         let destination = crate::index::resolve(&self.project_location.root, rel);
-        let _ = crate::fs::active().create_dir_all(&destination);
-        self.document.start_fresh_document(destination);
-        self.sync_view(true);
-        self.request_frame();
+        self.start_fresh_document_at(destination);
     }
 }

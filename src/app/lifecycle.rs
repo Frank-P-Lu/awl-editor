@@ -364,21 +364,7 @@ impl ApplicationHandler<AwlEvent> for App {
     /// Also the daemon's clean-shutdown door: flush every outstanding `--wait`
     /// connection + unlink the socket special file (native only).
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.flush_note();
-        self.autosave_flush();
-        // THE UNRESOLVED CHANGE'S LAST WRITE. `autosave_flush` above refreshes
-        // the record whenever the engine would have written the file, but it
-        // short-circuits on a version it has already acknowledged — so this
-        // makes the guarantee unconditional at the one moment it stops being
-        // repeatable. The window close button reaches here without passing the
-        // Quit deferral, which is exactly why the record cannot depend on it.
-        if let Some(path) = self.persistence.unresolved().map(|u| u.path.clone()) {
-            self.write_recovery_record(&path);
-        }
-        // SESSION RESTORE: the final safety net, mirroring the autosave flush
-        // right above it (native only; kill-switch gated inside).
-        #[cfg(not(target_arch = "wasm32"))]
-        self.session_flush();
+        self.flush_documents_for_shutdown();
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
         #[cfg(not(target_arch = "wasm32"))]

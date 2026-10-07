@@ -381,3 +381,37 @@ fn ordinary_replay_open_settings_never_materializes_an_absent_config() {
         "ordinary replay owns no authority to create config.toml"
     );
 }
+
+#[test]
+fn replay_open_settings_failed_decode_preserves_departing_text_and_identity() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let path = std::path::Path::new("/cfg/config.toml");
+    let mem = InMemoryFs::new();
+    crate::fs::with_fs(std::sync::Arc::new(mem.clone()), || {
+        for bytes in [&[0xe9, 0xe9][..], &[0xe2, 0x82][..], b"text\0binary"] {
+            mem.write(path, bytes).unwrap();
+            let mut config = Config::empty();
+            config.path = path.into();
+            let mut buffer = Buffer::from_str("keep my text");
+            let root = PathBuf::from("/probe");
+            let mut km =
+                crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+            let mut session = ReplaySession::new(
+                ReplayPolicy::ordinary(),
+                &mut buffer,
+                &[],
+                &root,
+                None,
+                &config,
+                None,
+                &mut km,
+            );
+            assert!(session.interpret_headless_effect(&actions::Effect::Buffer(
+                actions::BufferEffect::OpenSettings
+            )));
+            assert_eq!(session.buffer().text(), "keep my text");
+            assert_eq!(session.buffer().path(), None);
+            assert_eq!(mem.read(path).unwrap(), bytes);
+        }
+    });
+}

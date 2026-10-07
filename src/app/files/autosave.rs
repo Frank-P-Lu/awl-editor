@@ -421,8 +421,6 @@ impl App {
         let (change, seen) = crate::external::look(&path, &self.document.scratch_baseline());
         if change.is_change() {
             self.set_sticky_notice(SCRATCH_CHANGED_NOTICE);
-            self.document
-                .record_scratch_saved(version, self.document.scratch_baseline());
             return false;
         }
         let _ = seen;

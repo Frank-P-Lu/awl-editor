@@ -164,27 +164,12 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
         "fixture must exercise spell cache"
     );
 
-    assert_eq!(
-        session.open_path(&b, crate::external::Seen::Absent, Path::new("/")),
-        OpenPath::Fresh
-    );
-    assert_eq!(
-        session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
-        OpenPath::Reactivated
-    );
+    assert_eq!(session.open_path(&b, Path::new("/")), OpenPath::Fresh);
+    assert_eq!(session.open_path(&a, Path::new("/")), OpenPath::Reactivated);
     assert_eq!(session.test_active().extra, expected, "A -> B -> A");
-    assert_eq!(
-        session.open_path(&b, crate::external::Seen::Absent, Path::new("/")),
-        OpenPath::Reactivated
-    );
-    assert_eq!(
-        session.open_path(&c, crate::external::Seen::Absent, Path::new("/")),
-        OpenPath::Fresh
-    );
-    assert_eq!(
-        session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
-        OpenPath::Reactivated
-    );
+    assert_eq!(session.open_path(&b, Path::new("/")), OpenPath::Reactivated);
+    assert_eq!(session.open_path(&c, Path::new("/")), OpenPath::Fresh);
+    assert_eq!(session.open_path(&a, Path::new("/")), OpenPath::Reactivated);
     assert_eq!(session.test_active().extra, expected, "A -> B -> C -> A");
 }
 
@@ -308,7 +293,7 @@ fn every_active_replacement_route_parks_the_outgoing_text_byte_for_byte() {
 
             match route {
                 ReplacementRoute::OpenPath => {
-                    session.open_path(&target, crate::external::Seen::Absent, &root);
+                    session.open_path(&target, &root);
                 }
                 ReplacementRoute::NewDocument => session.start_fresh_document(root.clone()),
                 ReplacementRoute::ScratchRestore => session.open_scratch(
@@ -317,7 +302,7 @@ fn every_active_replacement_route_parks_the_outgoing_text_byte_for_byte() {
                     root.clone(),
                 ),
                 ReplacementRoute::ActivateExisting => {
-                    session.open_path(&target, crate::external::Seen::Absent, &root);
+                    session.open_path(&target, &root);
                     assert!(session.activate_key(&outgoing));
                     session.set_text("arriving edit");
                     assert!(session.activate_key(&crate::buffers::BufferKey::path(&target)));

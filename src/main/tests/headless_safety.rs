@@ -234,3 +234,30 @@ fn headless_capture_door_refuses_binary_and_never_lets_save_truncate_it() {
         );
     });
 }
+
+#[test]
+fn replay_goto_failed_decode_preserves_departing_text_and_identity() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let path = std::path::Path::new("/probe/unreadable.md");
+    let mem = InMemoryFs::new();
+    crate::fs::with_fs(std::sync::Arc::new(mem.clone()), || {
+        for bytes in [&[0xe9, 0xe9][..], &[0xe2, 0x82][..], b"text\0binary"] {
+            mem.write(path, bytes).unwrap();
+            let mut buffer = Buffer::from_str("keep my text");
+            let keys = keyspec::parse_keys("s-o RET").unwrap();
+            let result = replay_keys(
+                &mut buffer,
+                &keys,
+                &["unreadable.md".into()],
+                std::path::Path::new("/probe"),
+                None,
+                &Config::empty(),
+                None,
+            );
+            assert_eq!(buffer.text(), "keep my text");
+            assert_eq!(buffer.path(), None);
+            assert_eq!(result.buffers_open, 1);
+            assert_eq!(mem.read(path).unwrap(), bytes);
+        }
+    });
+}

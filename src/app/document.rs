@@ -50,6 +50,7 @@ pub(in crate::app) enum OpenPath {
     AlreadyActive,
     Reactivated,
     Fresh,
+    Unavailable,
 }
 
 pub(in crate::app) struct DocumentSession {
@@ -244,12 +245,7 @@ impl DocumentSession {
         true
     }
 
-    pub(in crate::app) fn open_path(
-        &mut self,
-        path: &Path,
-        disk_baseline: crate::external::Seen,
-        active_root: &Path,
-    ) -> OpenPath {
+    pub(in crate::app) fn open_path(&mut self, path: &Path, active_root: &Path) -> OpenPath {
         let key = crate::buffers::BufferKey::path(path);
         if self
             .active
@@ -259,6 +255,14 @@ impl DocumentSession {
         {
             return OpenPath::AlreadyActive;
         }
+        let fresh = if self.registry.get(&key).is_some() {
+            None
+        } else {
+            match Buffer::open_file(path) {
+                Ok(loaded) => Some(loaded),
+                Err(_) => return OpenPath::Unavailable,
+            }
+        };
         // The working set is updated on the SAME transition as the registry, so
         // the drawn order and the parked buffers cannot disagree. `root_for`
         // decides ownership from the file rather than the moment — see its doc
@@ -278,7 +282,7 @@ impl DocumentSession {
         if self.activate(&key) {
             return OpenPath::Reactivated;
         }
-        let buffer = Buffer::from_file(path);
+        let (buffer, disk_baseline) = fresh.expect("fresh path was loaded before parking");
         let version = buffer.version();
         self.active = Some(crate::buffers::Entry {
             buffer,
@@ -301,8 +305,8 @@ impl DocumentSession {
     /// would reconstruct a document that never existed on either side. A clean
     /// buffer had nothing on that timeline the user could want back anyway.
     ///
-    /// Returns `false` for a path-less buffer, which has no file to reload from.
-    pub(in crate::app) fn reload_active_from_disk(&mut self, seen: crate::external::Seen) -> bool {
+    /// Returns `false` for a path-less buffer or failed read; the old slot stays intact.
+    pub(in crate::app) fn reload_active_from_disk(&mut self) -> bool {
         let Some(path) = self
             .active
             .as_ref()
@@ -319,7 +323,9 @@ impl DocumentSession {
             .buffer
             .char_to_line_col(active.buffer.cursor_char());
         let scroll = active.extra.scroll;
-        let mut buffer = Buffer::from_file(&path);
+        let Ok((mut buffer, seen)) = Buffer::load_file(&path) else {
+            return false;
+        };
         // Both are clamped by the buffer, so a file that shrank leaves the
         // caret at the new end rather than past it.
         let idx = buffer.line_col_to_char(line, col);

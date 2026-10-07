@@ -58,9 +58,10 @@ impl DocumentSession {
         &mut self,
         path: &Path,
         pos: crate::session::BufferPos,
-        seen: crate::external::Seen,
-    ) {
-        let mut buffer = Buffer::from_file(path);
+    ) -> bool {
+        let Ok((mut buffer, seen)) = Buffer::load_file(path) else {
+            return false;
+        };
         apply_restored_pos(&mut buffer, pos);
         let version = buffer.version();
         self.active = Some(crate::buffers::Entry {
@@ -76,15 +77,17 @@ impl DocumentSession {
                 ..Default::default()
             },
         });
+        true
     }
 
     pub(in crate::app) fn restore_background(
         &mut self,
         path: &Path,
         pos: crate::session::BufferPos,
-        seen: crate::external::Seen,
-    ) {
-        let mut buffer = Buffer::from_file(path);
+    ) -> bool {
+        let Ok((mut buffer, seen)) = Buffer::load_file(path) else {
+            return false;
+        };
         apply_restored_pos(&mut buffer, pos);
         let version = buffer.version();
         let extra = BufferExtra {
@@ -101,6 +104,7 @@ impl DocumentSession {
             crate::buffers::BufferKey::path(path),
             crate::buffers::Entry { buffer, extra },
         );
+        true
     }
 }
 

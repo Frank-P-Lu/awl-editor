@@ -1258,3 +1258,102 @@ fn failed_active_recovery_removal_keeps_the_latest_deleted_text() {
     assert_eq!(reopened.document.buffer().text(), newest);
     assert!(reopened.change_unresolved());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_reads_preserve_clean_text_and_skip_unreadable_launch_and_session_slots() {
+    let _guard = crate::testlock::serial();
+    for kind in [
+        std::io::ErrorKind::PermissionDenied,
+        std::io::ErrorKind::Other,
+        std::io::ErrorKind::NotFound,
+    ] {
+        let good = Path::new("/probe/good.md");
+        let mem = InMemoryFs::new()
+            .with_file(doc(), DISK_FIRST)
+            .with_file(good, "good\n");
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let config = || Config {
+            session_restore: Some(false),
+            ..Config::empty()
+        };
+        let mut clean = app_on(Some(doc()), "/probe", config());
+        let baseline = clean.document.disk_baseline();
+        let _fault = crate::fs::FsGuard::install(Arc::new(UnreadableDocument {
+            inner: mem.clone(),
+            metadata_error: false,
+            read_missing: false,
+            kind,
+        }));
+        clean.on_focus_gained();
+        assert_eq!(clean.document.buffer().text(), DISK_FIRST);
+        assert_eq!(clean.document.disk_baseline(), baseline);
+        assert!(clean.change_unresolved());
+        clean.document.set_text(MINE);
+        clean.autosave_flush();
+        assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_FIRST);
+        let launch = app_on(Some(doc()), "/probe", config());
+        assert_eq!(launch.document.buffer().path(), None);
+        assert!(
+            launch
+                .frame
+                .notice()
+                .text()
+                .unwrap()
+                .contains("cannot be read")
+        );
+        let mut existing = app_on(Some(good.into()), "/probe", config());
+        existing.document.set_text(MINE);
+        assert!(!existing.load_path(doc()));
+        assert_eq!(existing.document.buffer().path(), Some(good));
+        assert_eq!(existing.document.buffer().text(), MINE);
+        for background in [false, true] {
+            let state = crate::session::SessionState {
+                active: Some(if background { good.into() } else { doc() }),
+                buffers: vec![
+                    (good.into(), Default::default()),
+                    (doc(), Default::default()),
+                ],
+                ..Default::default()
+            };
+            crate::session::save(&crate::session::session_path(), &state).unwrap();
+            let mut restored = app_on(
+                None,
+                "/probe",
+                Config {
+                    session_restore: Some(true),
+                    ..Config::empty()
+                },
+            );
+            assert!(
+                !restored
+                    .document
+                    .working_set()
+                    .files()
+                    .iter()
+                    .any(|f| f.path == Some(doc()))
+            );
+            assert!(
+                restored
+                    .frame
+                    .notice()
+                    .text()
+                    .unwrap()
+                    .contains("left unopened")
+            );
+            if background {
+                restored.close_active_buffer();
+            }
+            assert!(
+                !restored.document.has_active()
+                    || restored.document.buffer().path() != Some(doc().as_path())
+            );
+            assert_eq!(mem.read_to_string(&doc()).unwrap(), DISK_FIRST);
+        }
+        drop(_fault);
+        clean.on_focus_gained();
+        clean.resolve_take_theirs();
+        assert!(!clean.change_unresolved());
+        assert_eq!(clean.document.buffer().text(), DISK_FIRST);
+    }
+}

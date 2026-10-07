@@ -1,18 +1,10 @@
 //! src/openable.rs — the ONE CAPABILITY OWNER: "is this path openable
 //! as awl-editable TEXT?"
 //!
-//! Every door that can turn a user-named path into the ACTIVE buffer — a
-//! picker Enter (Browse/Goto, `App::load_path`), a CLI/OS-open launch
-//! argument (`App::new`), and the single-instance daemon's `open` handoff
-//! (`App::handle_daemon_event`, itself routed through `App::load_path`) —
-//! asks THIS module the same question before touching `Buffer::from_file`, so
-//! a binary file can never slip into the rope. Before this module existed,
-//! `Buffer::from_file` swallowed a decode failure and returned an EMPTY
-//! buffer STILL BOUND to that path (`fs.rs`'s `read_to_string` errors on
-//! invalid UTF-8, and the `Err` arm there falls back to `Rope::new()`) — so
-//! opening a PNG silently produced a phantom empty document that a later
-//! Cmd-S would happily use to TRUNCATE the real file to nothing. [`classify`]
-//! closes that hole at the door, before any buffer/root state changes.
+//! Classification provides the calm refusal label at explicit open doors.
+//! [`read_text`] validates the actual bytes a loader installs, including reloads
+//! and session restore, so a classification/load race cannot bypass this policy.
+//! Read/decode errors must never become an empty document bound to that file.
 //!
 //! NOT an extension allow-list: a recognized prose/code extension
 //! (`.rs`/`.md`/`.env`/…) is always openable, but so is an EXTENSIONLESS or
@@ -28,10 +20,9 @@ use std::path::Path;
 /// The verdict [`classify`] returns for a path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Openable {
-    /// Decodable text — or the path is missing/unreadable, in which case
-    /// there is nothing to refuse (mirrors `Buffer::from_file`'s own
-    /// missing-file leniency: a not-yet-created path is always "openable",
-    /// it just starts empty).
+    /// Decodable text, or a path whose bytes cannot be inspected here.
+    /// The fallible actual load still distinguishes a new file from a read
+    /// failure; this preflight verdict never authorizes a path-bound fallback.
     Text,
     /// NOT decodable text — a binary/unsupported file. `label` is the
     /// concise TYPE word for the calm refusal message ([`Openable::refusal_message`]):
@@ -85,17 +76,29 @@ pub(crate) fn looks_like_text(bytes: &[u8]) -> bool {
     !bytes.contains(&0) && std::str::from_utf8(bytes).is_ok()
 }
 
+/// Decode the same bytes that the consumer installs; preflight classification
+/// alone cannot protect a file changed between classification and loading.
+pub(crate) fn read_text(path: &Path) -> std::io::Result<String> {
+    let bytes = crate::fs::active().read(path)?;
+    if !looks_like_text(&bytes) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "not editable text",
+        ));
+    }
+    String::from_utf8(bytes)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+}
+
 /// THE decision every door asks before it lets `path` become (or stay) the
 /// active document: openable text, or refused? Routes through the same
 /// [`crate::fs::FileSystem`] seam every other read uses (native disk in
 /// production, `InMemoryFs`/`WebFs` under test/wasm/the scenario sandbox), so
 /// this never touches the real disk from a headless test.
 ///
-/// A MISSING or UNREADABLE path is [`Openable::Text`] — there is nothing to
-/// refuse; the caller's existing missing-file handling (an empty buffer bound
-/// to the path, ready for its first Cmd-S — mirroring mg) is unaffected. An
-/// EMPTY file is `Text` too (zero bytes disqualify nothing). Otherwise the
-/// full byte content decides via [`looks_like_text`].
+/// Missing or uninspectable paths defer to the fallible actual load. Explicit
+/// opens may create a missing file; unreadable existing files stay unopened.
+/// An empty file is supported text.
 ///
 /// Deliberately reads the WHOLE file at the actual acceptance gate: opening a
 /// `Text` verdict was always going to read it anyway — see
@@ -109,6 +112,13 @@ pub fn classify(path: &Path) -> Openable {
         },
         Err(_) => Openable::Text,
     }
+}
+
+/// Only confirmed absence permits an explicit open to start a new file.
+pub(crate) fn is_missing(path: &Path) -> bool {
+    crate::fs::active()
+        .metadata(path)
+        .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
 }
 
 #[cfg(test)]

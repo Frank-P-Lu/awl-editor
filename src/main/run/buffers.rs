@@ -28,10 +28,18 @@ impl ReplaySession<'_> {
             return;
         }
 
+        let fresh = if self.registry.get(&new_key).is_some() {
+            None
+        } else {
+            match Buffer::open_file(&path) {
+                Ok((buffer, _)) => Some(buffer),
+                Err(_) => return,
+            }
+        };
         self.park_active_buffer();
         *self.buffer = match self.registry.take(&new_key) {
             Some(entry) => entry.buffer,
-            None => Buffer::from_file(&path),
+            None => fresh.expect("loaded before parking"),
         };
         crate::page::set_measure(self.config.measure_for(self.buffer.page_class()));
     }

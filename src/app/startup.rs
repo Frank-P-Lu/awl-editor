@@ -13,16 +13,59 @@ pub(super) fn keymap(
 /// before falling back to a blank scratch, identically either way.
 pub(super) fn scratch_buffer_from_stash() -> (crate::buffer::Buffer, crate::external::Seen) {
     let stash = crate::fs::scratch_stash_path();
-    let buffer = match crate::fs::active().read_to_string(&stash) {
+    let mut unavailable = false;
+    let buffer = match crate::openable::read_text(&stash) {
         Ok(s) if !s.is_empty() => crate::buffer::Buffer::from_str(&s),
         Ok(_) => crate::buffer::Buffer::scratch(), // present but empty: nothing to preserve
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => crate::buffer::Buffer::scratch(),
+        Err(e)
+            if e.kind() == std::io::ErrorKind::NotFound && crate::openable::is_missing(&stash) =>
+        {
+            crate::buffer::Buffer::scratch()
+        }
         Err(_) => {
+            unavailable = true;
             if let Ok(raw) = crate::fs::active().read(&stash) {
                 crate::durable::preserve_corrupt(&stash, &raw);
             }
             crate::buffer::Buffer::scratch()
         }
     };
-    (buffer, crate::external::Seen::at(&stash))
+    let baseline = if unavailable {
+        crate::external::Seen::Unavailable
+    } else {
+        crate::external::Seen::at(&stash)
+    };
+    (buffer, baseline)
+}
+
+/// A preflight refusal names unsupported types; the actual load remains fallible
+/// so a later decode/access failure cannot become an empty path-bound document.
+pub(super) struct LaunchFile {
+    pub(super) loaded: Option<(crate::buffer::Buffer, crate::external::Seen)>,
+    pub(super) refusal: Option<String>,
+}
+
+pub(super) fn load_launch_file(file: Option<std::path::PathBuf>) -> LaunchFile {
+    let Some(path) = file else {
+        return LaunchFile {
+            loaded: None,
+            refusal: None,
+        };
+    };
+    if let Some(message) = crate::openable::classify(&path).refusal_message() {
+        return LaunchFile {
+            loaded: None,
+            refusal: Some(message),
+        };
+    }
+    match crate::buffer::Buffer::open_file(&path) {
+        Ok(loaded) => LaunchFile {
+            loaded: Some(loaded),
+            refusal: None,
+        },
+        Err(_) => LaunchFile {
+            loaded: None,
+            refusal: Some("This file cannot be read — opening scratch instead".into()),
+        },
+    }
 }

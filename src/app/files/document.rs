@@ -5,6 +5,27 @@ use crate::app::*;
 impl App {
     /// Park the current buffer and activate an unnamed document in the current folder.
     pub(super) fn start_fresh_document(&mut self) {
+        self.start_fresh_document_at(self.project_location.root.clone());
+    }
+
+    /// Both fresh-document doors share the leave boundary and activation work.
+    pub(super) fn start_fresh_document_at(&mut self, destination: PathBuf) {
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        self.flush_note();
+        self.autosave_flush();
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        if self.is_document_dirty() {
+            self.set_sticky_notice(
+                "Changes are still unsaved — save before starting another document",
+            );
+            self.request_frame();
+            return;
+        }
+        let _ = crate::fs::active().create_dir_all(&destination);
         // WRITING STREAKS: sample the LEAVING buffer's word-delta before it is
         // replaced by the fresh document (the anchor is reset below), so words
         // written in it are recorded before the swap (native only; gated inside).
@@ -15,8 +36,7 @@ impl App {
         // PARK the buffer we are leaving (registered under its own identity if
         // it has one) exactly like `load_path`, so a later C-x b / reopen finds
         // it live rather than re-reading disk.
-        self.document
-            .start_fresh_document(self.project_location.root.clone());
+        self.document.start_fresh_document(destination);
         self.workspace_state.close_search();
         self.input.clear_preedit();
         self.persistence
@@ -76,5 +96,26 @@ impl App {
         self.document.set_shift_selecting(false);
         self.sync_view(true);
         self.request_frame();
+    }
+}
+
+impl App {
+    /// The event-loop shutdown owner, shared with persistence regressions.
+    pub(in crate::app) fn flush_documents_for_shutdown(&mut self) {
+        self.flush_note();
+        self.autosave_flush();
+        // THE UNRESOLVED CHANGE'S LAST WRITE. `autosave_flush` above refreshes
+        // the record whenever the engine would have written the file, but it
+        // short-circuits on a version it has already acknowledged — so this
+        // makes the guarantee unconditional at the one moment it stops being
+        // repeatable. The window close button reaches here without passing the
+        // Quit deferral, which is exactly why the record cannot depend on it.
+        if let Some(path) = self.persistence.unresolved().map(|u| u.path.clone()) {
+            self.write_recovery_record(&path);
+        }
+        // SESSION RESTORE: the final safety net, mirroring the autosave flush
+        // right above it (native only; kill-switch gated inside).
+        #[cfg(not(target_arch = "wasm32"))]
+        self.session_flush();
     }
 }

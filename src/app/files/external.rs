@@ -57,7 +57,7 @@ fn read_disk(path: &Path) -> (persistence::ExternalDiskState, Option<String>) {
     {
         return (ExternalDiskState::Unreadable, None);
     }
-    match fs.read_to_string(path) {
+    match crate::openable::read_text(path) {
         Ok(text) => (ExternalDiskState::Modified, Some(text)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             (ExternalDiskState::Deleted, None)
@@ -132,7 +132,7 @@ impl App {
                     self.latch_unresolved(path, disk_state, theirs);
                     WritePermission::Held
                 } else {
-                    if self.reload_clean_document(seen) {
+                    if self.reload_clean_document() {
                         WritePermission::Reloaded
                     } else {
                         let (disk_state, theirs) = read_disk(&path);
@@ -176,8 +176,8 @@ impl App {
     /// lines just changed length; line/column at least lands on the same
     /// sentence. Both are clamped by the buffer, so a file that shrank does not
     /// leave the caret past the end.
-    fn reload_clean_document(&mut self, seen: crate::external::Seen) -> bool {
-        if self.document.reload_active_from_disk(seen) {
+    fn reload_clean_document(&mut self) -> bool {
+        if self.document.reload_active_from_disk() {
             self.set_toast_notice("reloaded — changed elsewhere");
             self.sync_page_measure();
             self.update_title();
@@ -234,10 +234,23 @@ impl App {
     /// open, autosave keeps doing its job, it just writes to the record instead
     /// of to the user's file. That is what makes "Esc and keep editing" safe.
     pub(in crate::app) fn write_recovery_record(&self, path: &Path) {
+        if !self.active_file_is(path) {
+            return;
+        }
         crate::recovery::write(&crate::recovery::Record {
             path: path.to_path_buf(),
             text: self.document.buffer().text(),
         });
+    }
+
+    fn active_file_is(&self, path: &Path) -> bool {
+        self.document.active_key() == Some(crate::buffers::BufferKey::path(path))
+    }
+
+    fn active_unresolved(&self) -> Option<&persistence::UnresolvedChange> {
+        self.persistence
+            .unresolved()
+            .filter(|held| self.active_file_is(&held.path))
     }
 
     /// **REVIEW THE CHANGE** — summon the conflict workspace over the latched
@@ -280,7 +293,7 @@ impl App {
     /// overwritten — the user consented to replacing one version, not any
     /// version.
     pub(in crate::app) fn resolve_keep_mine(&mut self) {
-        let Some(unresolved) = self.persistence.unresolved().cloned() else {
+        let Some(unresolved) = self.active_unresolved().cloned() else {
             return;
         };
         let path = unresolved.path.clone();
@@ -345,7 +358,7 @@ impl App {
     /// A DELETED file has no version to take, and this declines rather than
     /// replacing a manuscript with nothing.
     pub(in crate::app) fn resolve_take_theirs(&mut self) {
-        let Some(unresolved) = self.persistence.unresolved().cloned() else {
+        let Some(unresolved) = self.active_unresolved().cloned() else {
             return;
         };
         let path = unresolved.path.clone();

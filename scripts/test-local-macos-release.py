@@ -95,6 +95,50 @@ class StagedMetadata(unittest.TestCase):
                 stage.verify_files(release, directory)
 
 
+    def test_stage_creates_direct_nonpublishing_ref_before_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            release = copy.deepcopy(self.release)
+            artifacts = []
+            for asset in release['assets']:
+                path = directory / asset['name']
+                path.write_bytes(b'synthetic dmg')
+                asset.update(size=path.stat().st_size, digest=stage.digest(path))
+                artifacts.append({'file': path.name, 'sha256': asset['digest'][7:]})
+            manifest = dict(source_commit=self.commit, version=self.version, build_version='26.0.0',
+                            signed=True, notarized=True, verified=True, artifacts=artifacts)
+            (directory / 'local-macos-manifest.json').write_text(__import__('json').dumps(manifest))
+            calls = []
+            def fake_gh(*args, **kwargs):
+                calls.append(args)
+                return '[[]]' if '--paginate' in args else ''
+            with mock.patch.object(stage.subprocess, 'run'), mock.patch.object(stage, 'api', return_value=[]), mock.patch.object(stage, 'candidate', return_value=(release, '26.0.0')), mock.patch.object(stage, 'gh', side_effect=fake_gh):
+                stage.stage('owner/repo', directory, self.version, self.commit)
+            mutations = [args for args in calls if '--method' in args or args[:2] == ('release', 'create')]
+            self.assertEqual(mutations[0][:4], ('api', '--method', 'POST', 'repos/owner/repo/git/refs'))
+            self.assertIn('ref=refs/tags/' + release['tag_name'], mutations[0])
+            self.assertIn('sha=' + self.commit, mutations[0])
+            self.assertEqual(mutations[1][:3], ('release', 'create', release['tag_name']))
+            self.assertIn('--draft', mutations[1])
+
+    def test_fetch_emits_payload_checksums_only_after_validating_downloads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp) / 'downloads'
+            release = copy.deepcopy(self.release)
+            data = b'synthetic download'
+            for asset in release['assets']:
+                asset.update(id=123, size=len(data), digest='sha256:' + __import__('hashlib').sha256(data).hexdigest())
+            with mock.patch.object(stage, 'candidate', return_value=(release, '26.0.0')), mock.patch.object(stage, 'gh', return_value=data), mock.patch.dict(stage.os.environ, {}, clear=True):
+                stage.fetch('owner/repo', directory, self.version, self.commit)
+            for asset in release['assets']:
+                expected = asset['digest'][7:] + '  ' + asset['name'] + '\n'
+                self.assertEqual((directory / (asset['name'] + '.sha256')).read_text(), expected)
+            broken = Path(tmp) / 'broken'
+            with mock.patch.object(stage, 'candidate', return_value=(release, '26.0.0')), mock.patch.object(stage, 'gh', return_value=b'wrong'), self.assertRaises(ValueError):
+                stage.fetch('owner/repo', broken, self.version, self.commit)
+            self.assertFalse(list(broken.glob('*.sha256')))
+
+
 class SignatureMetadata(unittest.TestCase):
     def test_codesign_actual_field_shape_and_each_security_axis(self):
         team = '2UPFLUAXMH'

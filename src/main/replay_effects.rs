@@ -116,8 +116,9 @@ impl<'a> ReplaySession<'a> {
                 // stays absence: replay never materializes a default config.
                 if !self.config.path.as_os_str().is_empty()
                     && crate::fs::active().exists(&self.config.path)
+                    && let Ok((buffer, _)) = Buffer::load_file(&self.config.path)
                 {
-                    *self.buffer = Buffer::from_file(&self.config.path);
+                    *self.buffer = buffer;
                 }
             }
         }

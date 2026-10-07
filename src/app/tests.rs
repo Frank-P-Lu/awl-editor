@@ -85,3 +85,9 @@ mod workspace;
 mod workspace_back;
 
 use common::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod failed_load;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod fresh_document_safety;

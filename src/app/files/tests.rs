@@ -264,7 +264,9 @@ fn naming_reserves_a_missing_path_owned_by_an_open_buffer_before_writing() {
         assert_eq!(claimed, crate::buffers::BufferKey::path(&claimed_path));
         assert!(!memory.exists(&claimed_path));
 
-        app.new_document();
+        // Construct the missing-path reservation at its document-state seam.
+        // The App's user-facing New Document door saves the departing draft.
+        app.document.start_fresh_document(root.clone());
         app.document.set_text("Title");
         app.manual_save();
 

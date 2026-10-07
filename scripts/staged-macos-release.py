@@ -88,6 +88,8 @@ def stage(repo, directory, version, commit):
         record = next(a for a in manifest['artifacts'] if a['file'] == path.name)
         if path.is_symlink() or not 0 < path.stat().st_size < 50_000_000 or digest(path) != 'sha256:' + record['sha256']:
             raise ValueError('local DMG changed since signing verification')
+    # A draft release does not create its tag; the consumer requires a direct ref.
+    gh('api', '--method', 'POST', f'repos/{repo}/git/refs', '-f', f'ref=refs/tags/{tag}', '-f', f'sha={commit}')
     gh('release', 'create', tag, '--repo', repo, '--target', commit, '--draft', '--prerelease',
        '--title', f'Private macOS staging for {version}', '--notes',
        'Verified native DMGs staged for nonpublishing rehearsal. Signing credentials remain on the owner Mac.', *paths)
@@ -106,6 +108,11 @@ def fetch(repo, directory, version, commit):
                   f'repos/{repo}/releases/assets/{asset["id"]}', binary=True)
         (directory / asset['name']).write_bytes(data)
     verify_files(release, directory)
+    # The payload assembler consumes checksum sidecars from either Mac producer.
+    # Generate them only after the downloaded bytes match server size and digest.
+    for asset in release['assets']:
+        (directory / (asset['name'] + '.sha256')).write_text(
+            asset['digest'].removeprefix('sha256:') + '  ' + asset['name'] + '\n')
     # Only validated public metadata enters workflow outputs.
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
