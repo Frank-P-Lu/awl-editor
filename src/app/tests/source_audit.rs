@@ -156,6 +156,10 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // halves of that, so the fake has to stay the caller's.
         // Auto/Explicit CJK persistence inspects config.toml in the caller-owned fake.
         ("app/files/tests.rs", 26),
+        // The root-switch law constructs inside a seeded fs::with_fs closure,
+        // with restore/autosave disabled, to inspect unchanged disk bytes.
+        // The private empty filesystem in new_hermetic would hide that fixture.
+        ("app/files/root_switch_law.rs", 1),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's

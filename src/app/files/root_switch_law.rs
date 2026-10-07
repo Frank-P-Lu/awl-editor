@@ -22,6 +22,7 @@ fn explicit_parent_child_switch_preserves_open_buffers_and_replaces_inside_roots
                     session_restore: Some(false),
                     ..Config::empty()
                 };
+                // Keep the seeded caller-owned memory FS through construction and switching.
                 let mut app = App::new(
                     Some(PathBuf::from(opener)),
                     PathBuf::from("/workspace"),
