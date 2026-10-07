@@ -412,8 +412,15 @@ fn parked_fresh_close_refuses_instead_of_overwriting_the_scratch_fallback() {
     app.new_document();
     app.document.set_text("first irreplaceable draft");
     let first = app.document.active_key().expect("first fresh key");
-    app.new_document();
+    // Construct the unsaved parked slot at its document-state seam: the App's
+    // New Document door refuses to leave this draft while autosave is disabled.
+    app.document.start_fresh_document(dir.to_path_buf());
     app.document.set_text("second draft");
+    assert_eq!(
+        app.document.parked_text(&first).as_deref(),
+        Some("first irreplaceable draft"),
+        "the close fixture must contain the unsaved parked slot"
+    );
 
     assert_eq!(app.close_buffer(first.clone()), CloseOutcome::Refused);
     assert_eq!(
@@ -422,6 +429,7 @@ fn parked_fresh_close_refuses_instead_of_overwriting_the_scratch_fallback() {
         "the refused close keeps the only copy under its Fresh key"
     );
     assert!(app.document.close_facts(&first).is_some());
+    assert_eq!(app.document.buffer().text(), "second draft");
 }
 
 /// Cmd-N followed immediately by close is the zero-content cell: there are no
