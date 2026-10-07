@@ -17,7 +17,7 @@ pub(crate) enum ThemePanelAction {
 
 impl TextPipeline {
     fn composed_query_field(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> Option<[f32; 4]> {
-        if !self.overlay_theme_picker && !(geom.workspace && !self.overlay_rows_primary) {
+        if self.overlay_theme_picker || !geom.workspace || self.overlay_rows_primary {
             return None;
         }
         let field = plan.query_band()?;

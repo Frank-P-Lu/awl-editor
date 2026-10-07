@@ -2,7 +2,7 @@
 
 use super::*;
 
-pub(super) const LOCATION_GROUP_GAP: Rows = Rows(1.0);
+pub(super) const LOCATION_GROUP_GAP: Rows = Rows(1.5);
 pub(super) const ACTION_GROUP_GAP: Rows = Rows(0.65);
 
 impl TextPipeline {

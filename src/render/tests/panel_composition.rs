@@ -237,18 +237,27 @@ fn themes_is_one_surface_with_a_field_and_two_clickable_footer_actions() {
     let geom = p.overlay_geometry(W);
     let plan = p.overlay_row_plan(&geom);
     let (fills, borders) = p.overlay_composition_quads(&geom, &plan);
-    assert_eq!(fills.len(), 1, "only the search field has a control fill");
-    assert_eq!(borders.len(), 4, "action hints have no button outlines");
+    assert!(fills.is_empty(), "Theme search and actions are unboxed");
+    assert!(
+        borders.is_empty(),
+        "Theme fields retain input cues without outlines"
+    );
     assert_eq!(
         p.overlay_range_thumb.instance_count(),
-        1,
-        "the frame uploads the search field fill"
+        0,
+        "the frame uploads no search field fill"
     );
     assert_eq!(
         p.overlay_range_track.instance_count(),
-        4,
-        "the frame uploads only the search field hairlines"
+        0,
+        "the frame uploads no search field hairlines"
     );
+
+    let field = plan.query_band().unwrap();
+    let input_x = p.overlay_query_input_x(&geom, &plan);
+    let field_y = field.top + field.height * 0.5;
+    assert!(p.over_overlay_query(input_x + 2.0, field_y));
+    assert_eq!(p.overlay_query_char_at(input_x + 2.0, field_y), Some(0));
 
     let (switch, cancel) = p
         .theme_panel_action_report()
