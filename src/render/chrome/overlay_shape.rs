@@ -1,3 +1,4 @@
+use super::overlay_folder::push_location_spans;
 use super::overlay_timeline::right_bind_lines;
 use super::*;
 
@@ -1089,16 +1090,7 @@ impl TextPipeline {
             },
             inks,
         );
-        if let Some((location, height)) = &folder_location {
-            spans.push(("\n", mk(muted)));
-            spans.push((
-                location.as_str(),
-                base.clone().color(muted).metrics(GlyphMetrics::new(
-                    name_fs * crate::markdown::type_scale::LABEL,
-                    *height,
-                )),
-            ));
-        }
+        push_location_spans(&mut spans, folder_location.as_ref(), name_fs, mk(muted));
         // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
         // mechanism — it rides the beat's existing line when one stands
         // alone (every ordinary flat query card), and only a card with NO
