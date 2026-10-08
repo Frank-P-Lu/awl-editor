@@ -310,3 +310,14 @@ Use ACCESSIBILITY.md and RELEASING.md for scope. No new tag is authorized.
 
 Signing/notarisation setup is complete; it is not an open setup task. Every new
 tag/release still requires the user's explicit instruction per `RELEASING.md`.
+
+## CI failure repair (isolated branch)
+
+🔵 CLAIMED — codex-ci-repair owns `codex/ci-probe-resource-repair` from
+`8ee6d0219d4b73440d752b8fee82aa6ee887a695`. Restore the AT-SPI document,
+state and focus oracles and repair bounded interface readiness. Measure repeated
+geometry-only GPU uploads before choosing a minimal resource-lifetime fix.
+Independent review, focused red controls and the normal frozen combined gate
+precede an explicitly authorized branch push for ordinary CI verification.
+The user requested isolation: preserve main, the signed artifacts and `v0.13.0`;
+no public release/tag mutation or release workflow retry belongs to this claim.
