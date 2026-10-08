@@ -4,10 +4,13 @@ import importlib.util
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+
+sys.dont_write_bytecode = True
 
 spec = importlib.util.spec_from_file_location(
     "diagnostic", Path(__file__).with_name("ci-upload-lifetime-diagnostic.py"))
