@@ -23,6 +23,14 @@ atspi = types.SimpleNamespace(
     TextGranularity=types.SimpleNamespace(LINE="line"),
     init=lambda: 0,
     get_desktop=lambda _: object(),
+    Text=types.SimpleNamespace(
+        get_character_count=lambda node: node.get_character_count(),
+        get_text=lambda node, start, end: node.read_text(start, end),
+        get_caret_offset=lambda node: node.get_caret_offset(),
+        get_n_selections=lambda node: node.get_n_selections(),
+        get_selection=lambda node, index: node.read_selection(index),
+        get_string_at_offset=lambda node, offset, granularity: node.get_string_at_offset(offset, granularity),
+    ),
 )
 gi = types.ModuleType("gi")
 gi.require_version = lambda *args: None
@@ -62,10 +70,11 @@ class Document:
             raise InterfaceUnavailable("Text interface not registered")
         return len("".join(probe.EXPECTED_RUN_TEXT))
 
-    def get_text_iface(self):
-        raise InterfaceUnavailable("Fallback Text interface not registered")
+    def get_text(self):
+        # GI Accessible's zero-argument interface accessor shadows Text.get_text.
+        return self
 
-    def get_text(self, start, end):
+    def read_text(self, start, end):
         return "wrong" if self.fault == "text" else "".join(probe.EXPECTED_RUN_TEXT)
 
     def get_child_count(self):
@@ -86,9 +95,13 @@ class Document:
     def get_n_selections(self):
         return 1
 
-    def get_selection(self, index):
+    def get_selection(self):
+        return self
+
+    def read_selection(self, index):
         assert index == 0
-        return (1, 2) if self.fault == "selection" else (0, 1)
+        start, end = (1, 2) if self.fault == "selection" else (0, 1)
+        return types.SimpleNamespace(start_offset=start, end_offset=end)
 
 
 class ProbeLaws(unittest.TestCase):
@@ -153,11 +166,17 @@ class ProbeLaws(unittest.TestCase):
         good = Document()
         self.assertGreater(self.run_probe(good, replacements=[InterfaceUnavailable("node registering"), good, good, good]), 0)
 
-    def test_both_text_interfaces_can_register_late(self):
+    def test_text_interface_can_register_late(self):
         self.assertGreater(self.run_probe(Document(delayed=True)), 0)
 
     def test_permanently_unavailable_interfaces_fail_at_deadline(self):
-        self.assertEqual(self.run_probe(Document("interface"), "Fallback Text interface"), 10.0)
+        self.assertEqual(self.run_probe(Document("interface"), "Text interface not registered"), 10.0)
+
+    def test_tuple_and_range_selection_bindings_have_the_same_offsets(self):
+        document = Document()
+        self.assertEqual(probe.selection_of(document), (1, (0, 1)))
+        with patch.object(document, "read_selection", return_value=(0, 1)):
+            self.assertEqual(probe.selection_of(document), (1, (0, 1)))
 
     def test_early_process_exit_is_not_a_readiness_timeout(self):
         proc = types.SimpleNamespace(returncode=17, poll=lambda: 17)

@@ -291,33 +291,19 @@ def find_role(node, role, depth=0):
 
 
 def text_of(node) -> str:
-    """The run's text, across whichever GI Text-interface shape is live."""
-    try:
-        count = node.get_character_count()
-        return node.get_text(0, count)
-    except (AttributeError, GLib.Error):
-        pass
-    iface = node.get_text_iface()
-    count = iface.get_character_count()
-    return iface.get_text(0, count)
+    """Use Text explicitly: Accessible.get_text is a different, zero-argument API."""
+    count = Atspi.Text.get_character_count(node)
+    return Atspi.Text.get_text(node, 0, count)
 
 
 def caret_offset_of(node) -> int:
-    try:
-        return node.get_caret_offset()
-    except (AttributeError, GLib.Error):
-        return node.get_text_iface().get_caret_offset()
+    return Atspi.Text.get_caret_offset(node)
 
 
 def selection_of(node):
-    """(n_selections, (start, end) | None) across whichever GI shape is live."""
-    try:
-        n = node.get_n_selections()
-        rng = node.get_selection(0) if n > 0 else None
-    except (AttributeError, GLib.Error):
-        iface = node.get_text_iface()
-        n = iface.get_n_selections()
-        rng = iface.get_selection(0) if n > 0 else None
+    """Read text selection, avoiding Accessible.get_selection's interface accessor."""
+    n = Atspi.Text.get_n_selections(node)
+    rng = Atspi.Text.get_selection(node, 0) if n > 0 else None
     if rng is None:
         return n, None
     if isinstance(rng, tuple):
@@ -487,8 +473,8 @@ def main() -> None:
         offset = 0
         for i, want in enumerate(EXPECTED_RUN_TEXT):
             try:
-                got = document.get_string_at_offset(
-                    offset, Atspi.TextGranularity.LINE
+                got = Atspi.Text.get_string_at_offset(
+                    document, offset, Atspi.TextGranularity.LINE
                 ).content
             except (AttributeError, GLib.Error) as exc:
                 fail(
