@@ -596,7 +596,7 @@ jobs:
           rustc --version | tee evidence/compiler.txt
           sysctl hw.model hw.memsize | tee evidence/host.txt
           system_profiler SPDisplaysDataType >> evidence/host.txt
-          cargo test --lib --no-run --message-format=json > evidence/build.jsonl
+          cargo test --bin awl --no-run --message-format=json > evidence/build.jsonl
       - name: Two exact laws in bounded fresh processes
         timeout-minutes: 5
         working-directory: source

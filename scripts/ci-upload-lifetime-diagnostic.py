@@ -29,11 +29,12 @@ def test_binary(metadata: Path) -> str:
         value = json.loads(line)
         if (value.get("reason") == "compiler-artifact"
                 and value.get("profile", {}).get("test")
-                and "lib" in value.get("target", {}).get("kind", [])
+                and value.get("target", {}).get("name") == "awl"
+                and "bin" in value.get("target", {}).get("kind", [])
                 and value.get("executable")):
             binaries.add(value["executable"])
     if len(binaries) != 1:
-        raise RuntimeError(f"expected one compiled library test executable, got {binaries}")
+        raise RuntimeError(f"expected one compiled awl binary test executable, got {binaries}")
     return binaries.pop()
 
 
@@ -57,6 +58,15 @@ def stop_group(proc: subprocess.Popen) -> None:
         proc.wait(timeout=10)
     except subprocess.TimeoutExpired:
         pass
+
+
+def finished_process(proc: subprocess.Popen) -> tuple[int, int] | None:
+    pid, status, usage = os.wait4(proc.pid, os.WNOHANG)
+    if not pid:
+        return None
+    proc.returncode = os.waitstatus_to_exitcode(status)
+    peak = int(usage.ru_maxrss / 1024) if sys.platform == "darwin" else int(usage.ru_maxrss)
+    return proc.returncode, peak
 
 
 def process_rss(pid: int) -> int:
@@ -87,6 +97,7 @@ def run_law(binary: str, name: str, marker: str, destination: Path,
     samples = []
     timed_out = False
     exit_code = None
+    kernel_peak = None
     with destination.open("w") as log:
         proc = subprocess.Popen(
             [binary, name, "--exact", "--nocapture", "--test-threads=1"],
@@ -103,7 +114,11 @@ def run_law(binary: str, name: str, marker: str, destination: Path,
         reader = threading.Thread(target=read_output, daemon=True)
         reader.start()
         try:
-            while proc.poll() is None:
+            while True:
+                finished = finished_process(proc)
+                if finished is not None:
+                    exit_code, kernel_peak = finished
+                    break
                 elapsed = time.monotonic() - started
                 try:
                     rss = process_rss(proc.pid)
@@ -144,7 +159,9 @@ def run_law(binary: str, name: str, marker: str, destination: Path,
         "measurement_lines": [line for line in output.splitlines() if marker in line],
         "rss_scope": "test-process tree; excludes GPU driver/kernel memory",
         "rss_samples": samples, "sampled_peak_rss_kib": max(positive, default=None),
-        "rss_measurement_available": bool(positive),
+        "kernel_peak_rss_kib": kernel_peak,
+        "kernel_peak_rss_scope": "test process only; includes transient peaks missed by sampling",
+        "rss_measurement_available": bool(positive) or bool(kernel_peak),
         "first_positive_rss_kib": positive[0] if positive else None,
         "last_positive_rss_kib": positive[-1] if positive else None,
     }

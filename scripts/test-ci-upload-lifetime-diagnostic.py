@@ -20,13 +20,13 @@ NAME, MARKER = next(iter(diag.LAWS.items()))
 
 
 class Diagnostic(unittest.TestCase):
-    def test_metadata_selects_only_real_library_test_executable(self):
+    def test_metadata_selects_only_awl_binary_test_executable(self):
         with tempfile.TemporaryDirectory() as temp:
             p = Path(temp) / "build.jsonl"
             p.write_text(json.dumps({"reason": "compiler-artifact", "profile": {"test": True},
-                                    "target": {"kind": ["lib"]}, "executable": "/test"}) + "\n")
+                                    "target": {"name": "awl", "kind": ["bin"]}, "executable": "/test"}) + "\n")
             self.assertEqual(diag.test_binary(p), "/test")
-            p.write_text(p.read_text().replace('"lib"', '"bin"'))
+            p.write_text(p.read_text().replace('"bin"', '"lib"'))
             with self.assertRaises(RuntimeError):
                 diag.test_binary(p)
 
@@ -48,8 +48,22 @@ class Diagnostic(unittest.TestCase):
             result = diag.run_law(str(binary), NAME, MARKER, folder / "law.log", budget=3)
             self.assertTrue(result["passed_with_gpu_measurement"])
             self.assertGreater(result["sampled_peak_rss_kib"], 0)
+            self.assertGreater(result["kernel_peak_rss_kib"], 0)
             self.assertIn(MARKER, (folder / "law.log").read_text())
             self.assertTrue((folder / "law.json").exists())
+
+    def test_kernel_peak_witnesses_fast_law_missed_by_sampling(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            binary = folder / "fixture"
+            binary.write_text(f'#!/usr/bin/env python3\nprint({"test " + NAME + " ... " + MARKER!r}, flush=True)\nprint("1 passed; 0 failed; 0 ignored", flush=True)\n')
+            binary.chmod(0o755)
+            with patch.object(diag, "process_rss", return_value=0):
+                result = diag.run_law(str(binary), NAME, MARKER, folder / "law.log")
+            self.assertTrue(result["passed_with_gpu_measurement"])
+            self.assertIsNone(result["sampled_peak_rss_kib"])
+            self.assertGreater(result["kernel_peak_rss_kib"], 0)
+            self.assertTrue(result["rss_measurement_available"])
 
     def test_timeout_kills_process_group_and_is_failure(self):
         with tempfile.TemporaryDirectory() as temp:
