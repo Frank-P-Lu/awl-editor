@@ -5,13 +5,19 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      upload_lifetime_diagnostic:
+        description: Run only two upload-lifetime laws with process RSS sampling
+        type: boolean
+        default: false
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}${{ inputs.upload_lifetime_diagnostic && '-upload-lifetime' || '' }}
   cancel-in-progress: true
 
 jobs:
   linux:
+    if: ${{ !inputs.upload_lifetime_diagnostic }}
     name: linux (build + test)
     runs-on: ubuntu-latest
     # ‼ THIS CEILING COVERS A COLD CACHE. THE NUMBER IT REPLACED DID NOT, AND
@@ -204,6 +210,7 @@ jobs:
   # in src/app/frame/accessibility/tests.rs. If accesskit ever stops filtering
   # Role::TextRun, that law goes red and this comment is what explains why.
   atspi:
+    if: ${{ !inputs.upload_lifetime_diagnostic }}
     name: "atspi (AT-SPI2 bridge liveness) — allowed failure"
     runs-on: ubuntu-latest
     # BACKSTOP only: `continue-on-error` tolerates a job that FAILS, not
@@ -303,6 +310,7 @@ jobs:
         run: scripts/ci-atspi-budget.sh target/debug/awl 180
 
   web:
+    if: ${{ !inputs.upload_lifetime_diagnostic }}
     name: web (wasm build + smoke)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -390,6 +398,7 @@ jobs:
   # invocation is "targeted tests", never "full native suite" — that
   # authorization still comes only from a developer's own local run.
   mac:
+    if: ${{ !inputs.upload_lifetime_diagnostic }}
     name: mac (build + test, minus render::tests)
     runs-on: macos-latest
     # Both conventions filtered to ~95% of the suite measured at 110 s each
@@ -458,6 +467,7 @@ jobs:
   # actions/runner-images#13882, the same mode the old unsplit job fought at
   # job-minute 53-62), which no in-process watchdog can survive.
   mac-render-tests:
+    if: ${{ !inputs.upload_lifetime_diagnostic }}
     name: "mac (render::tests) — tolerated failure"
     runs-on: macos-latest
     timeout-minutes: 90
@@ -527,7 +537,7 @@ jobs:
   mac-live-probe:
     name: mac live-probe (free mac-VM tier — gating)
     runs-on: macos-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.upload_lifetime_diagnostic
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -551,3 +561,51 @@ jobs:
       # report for humans.
       - name: live-probe (does the mac VM present frames?)
         run: scripts/ci-live-probe.sh 25
+
+  upload-lifetime-diagnostic:
+    if: github.event_name == 'workflow_dispatch' && inputs.upload_lifetime_diagnostic
+    name: mac isolated upload-lifetime laws + RSS
+    runs-on: macos-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      CARGO_BUILD_JOBS: 2
+      RUST_TEST_THREADS: 1
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check out frozen measured source
+        uses: actions/checkout@v7
+        with:
+          ref: c1584e36c6c4566a0c69e065a96bd344638a01d9
+          path: source
+      - uses: ./.github/actions/project-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source -> target
+          cache-on-failure: true
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+      - name: Compile test executable without running tests
+        timeout-minutes: 20
+        working-directory: source
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD | tee evidence/source-commit.txt
+          rustc --version | tee evidence/compiler.txt
+          sysctl hw.model hw.memsize | tee evidence/host.txt
+          system_profiler SPDisplaysDataType >> evidence/host.txt
+          cargo test --lib --no-run --message-format=json > evidence/build.jsonl
+      - name: Two exact laws in bounded fresh processes
+        timeout-minutes: 5
+        working-directory: source
+        run: python3 ../scripts/ci-upload-lifetime-diagnostic.py evidence/build.jsonl evidence
+      - name: Preserve synthetic diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mac-upload-lifetime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: source/evidence
+          if-no-files-found: error
+          retention-days: 7

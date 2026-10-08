@@ -87,6 +87,7 @@ scripts/test-native-gate.sh
 scripts/test-preflight.sh
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-verification-pipeline.py
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-ci-atspi-probe.py
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-ci-upload-lifetime-diagnostic.py
 # scripts/verify_cache.py's reuse-invalidation, failure, cancellation,
 # concurrency, and unrecognised-input laws, entirely against a throwaway
 # fixture repo and fake commands (never the real cargo tests it is meant to
