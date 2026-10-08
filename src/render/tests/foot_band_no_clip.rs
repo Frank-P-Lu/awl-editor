@@ -99,6 +99,10 @@ use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "geometry_upload_law.rs"]
+mod upload_lifetime;
+
 // EVERY ITEM BELOW IS NATIVE-ONLY, not just the two tests. The whole file hangs
 // off `set_keybindings_tips`, the discoverability ledger's own native-only door
 // (`chrome/hud.rs`), so a helper left ungated is a wasm build error rather than
@@ -224,6 +228,9 @@ fn card_fit(
     p.set_keybindings_tips(tips);
     p.set_view(&v);
     p.prepare(device, queue, cw, ch).unwrap();
+    // This geometry-only path never draws a frame to submit its staged uploads.
+    // Complete them before preparing another cell on the retained pipeline.
+    upload_lifetime::drain(device, queue);
     let geom = p.overlay_geometry(cw);
     let plan = p.overlay_row_plan(&geom);
     let band = p.overlay_footer_content_px(&geom, plan.content_rows());

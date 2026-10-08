@@ -325,6 +325,44 @@ def selection_of(node):
     return n, (rng.start_offset, rng.end_offset)
 
 
+def await_document(app, proc, read, timeout, description):
+    """Retry async registration; unexpected errors and expired oracles fail closed."""
+    deadline = time.monotonic() + timeout
+    last = "not ready"
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            fail(f"awl exited early with code {proc.returncode} while waiting for {description}")
+        try:
+            document = find_role(app, Atspi.Role.ENTRY)
+            if document is not None:
+                if read(document):
+                    return document
+                last = "document present, required value not ready"
+        except (AttributeError, GLib.Error) as exc:
+            last = str(exc)
+        time.sleep(POLL_S)
+    fail(f"{description} unavailable after {timeout}s ({last})")
+
+
+def document_ready(app, proc):
+    document = await_document(
+        app, proc, lambda node: True, DOCUMENT_TIMEOUT_S, "ROLE_ENTRY document"
+    )
+    require_editable_multiline(document)
+    return await_document(
+        app, proc, lambda node: node.get_state_set().contains(Atspi.StateType.FOCUSED),
+        FOCUS_TIMEOUT_S, "document FOCUSED state"
+    )
+
+
+def require_editable_multiline(document):
+    states = document.get_state_set()
+    for state, name in [(Atspi.StateType.EDITABLE, "EDITABLE"),
+                        (Atspi.StateType.MULTI_LINE, "MULTI_LINE")]:
+        if not states.contains(state):
+            fail(f"document lacks required {name} state")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         fail("usage: ci-atspi-probe.py <path-to-awl-binary>")
@@ -394,6 +432,8 @@ def main() -> None:
                 "registered with the accessibility bus"
             )
 
+        document = document_ready(app, proc)
+
         # No ROLE_FRAME lookup here — see the module docstring: awl's tree has
         # no accesskit::Role::Window anywhere, so no AT-SPI Frame exists at
         # any depth, confirmed structurally, not by timing. The document is
@@ -422,20 +462,13 @@ def main() -> None:
         # unix registers interfaces through an async channel to its own thread,
         # so the text can lag the document node's appearance.
         want_text = "".join(EXPECTED_RUN_TEXT)
-        deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
-        got_text = text_of(document)
-        while got_text != want_text and time.time() < deadline:
-            time.sleep(POLL_S)
-            document = find_role(app, Atspi.Role.ENTRY) or document
-            got_text = text_of(document)
-        if got_text != want_text:
-            fail(
-                f"document text is {got_text!r}, expected {want_text!r} after "
-                f"waiting {RUN_CHILDREN_TIMEOUT_S}s with the handle re-fetched "
-                "fresh each retry — the document's text did not cross the "
-                "AT-SPI bridge intact"
-            )
+        document = await_document(
+            app, proc, lambda node: (text_of(node) == want_text
+                                   and node.get_state_set().contains(Atspi.StateType.FOCUSED)),
+            RUN_CHILDREN_TIMEOUT_S, "matching document text across the AT-SPI bridge"
+        )
 
+        require_editable_multiline(document)
         child_count = document.get_child_count()
         if child_count != 0:
             fail(
@@ -516,7 +549,7 @@ def main() -> None:
 
         print(
             "ATSPI-PROBE PASS: awl registered with the AT-SPI2 bus; the "
-            f"editable multiline document (focused), its {run_count} stable "
+            f"editable multiline document (focused), its {len(EXPECTED_RUN_TEXT)} stable "
             "line runs with matching text, and a live keyboard-driven "
             "selection all crossed the bridge intact."
         )
