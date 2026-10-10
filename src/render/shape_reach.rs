@@ -212,6 +212,10 @@ impl TextPipeline {
         if new_font != self.shaped_font || theme_recolor {
             self.theme_font_adopt(new_font, new_theme, reach);
             self.restyle_all_lines();
+            // View sync can precede a theme restyle. Re-anchor only after the
+            // new glyph advances and wrapped rows exist; changing the room is
+            // not a cursor move to animate from the old face's coordinates.
+            self.settle_caret();
         }
     }
 
@@ -295,6 +299,7 @@ impl TextPipeline {
         self.restyle_all_lines();
         let t2 = Instant::now();
         let _ = self.row_geom.total_height(&self.buffer, &self.metrics);
+        self.settle_caret();
         let t3 = Instant::now();
         let mut phases = SwitchPhases::default();
         phases.record(SwitchPhase::Font, ms(t1 - t0));
