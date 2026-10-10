@@ -878,6 +878,76 @@ fn list_marker_dim() {
     assert!(has(&s, 0, 2, MdKind::ListMarker), "marker dim: {s:?}");
 }
 
+#[test]
+fn list_continuations_follow_parser_item_ownership_and_exclude_siblings_code_and_markers() {
+    let doc = concat!(
+        "- parent\n",
+        "  parent continuation\n",
+        "  - nested sibling\n",
+        "    nested continuation\n",
+        "\n",
+        "        literal indented code\n",
+        "\n",
+        "outside sibling\n",
+    );
+    let (_, continuations) = spans_with_list_continuations(doc);
+    assert_eq!(
+        continuations
+            .iter()
+            .map(|item| (item.line, item.source_indent, item.marker_col))
+            .collect::<Vec<_>>(),
+        [(1, 2, 0), (3, 4, 2)],
+        "only parser-owned prose paragraphs inherit their nearest list rail: {continuations:?}"
+    );
+}
+
+#[test]
+fn inline_only_list_paragraphs_inherit_the_parser_owned_rail() {
+    let doc = concat!(
+        "- parent\n",
+        "  <br>\n",
+        "\n",
+        "  [^n]\n",
+        "\n",
+        "[^n]: note\n",
+    );
+    let (_, continuations) = spans_with_list_continuations(doc);
+    assert_eq!(
+        continuations
+            .iter()
+            .map(|item| (item.line, item.source_indent, item.marker_col))
+            .collect::<Vec<_>>(),
+        [(1, 2, 0), (3, 2, 0)],
+        "inline HTML and footnote-reference-only paragraphs share their item rail"
+    );
+}
+
+#[test]
+fn lazy_list_prose_uses_parser_owner_while_ordered_and_other_blocks_are_barriers() {
+    let lazy_and_ordered = concat!(
+        "- parent\n",
+        "lazy continuation\n",
+        "  1. ordered child\n",
+        "     ordered continuation\n",
+    );
+    let (_, continuations) = spans_with_list_continuations(lazy_and_ordered);
+    assert_eq!(
+        continuations
+            .iter()
+            .map(|item| (item.line, item.source_indent, item.marker_col))
+            .collect::<Vec<_>>(),
+        [(1, 0, 0)],
+        "lazy prose inherits the unordered rail; nearest ordered owner blocks fallback"
+    );
+
+    let other_blocks = "- parent\n  > quoted block\n\n  # nested heading\n";
+    let (_, continuations) = spans_with_list_continuations(other_blocks);
+    assert!(
+        continuations.is_empty(),
+        "blockquote/heading content inside an item is not a prose continuation: {continuations:?}"
+    );
+}
+
 /// THE NESTED-LIST MIS-HIGHLIGHT FIX: a nested item's `ListMarker` span covers its
 /// WHOLE prefix — indent + marker + space — not just the marker, mirroring the
 /// shared [`list_item`] scanner's own `0..content` shape. Before the fix, pulldown's

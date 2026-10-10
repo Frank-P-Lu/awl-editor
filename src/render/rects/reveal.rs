@@ -18,7 +18,7 @@ impl TextPipeline {
     /// The byte extent of every line the ACTIVE SELECTION touches — computed
     /// ONCE by a caller that is about to ask [`Self::line_is_revealed`] about
     /// several lines, since deriving it per line re-walks the rope.
-    pub(super) fn selection_touch(&self) -> Option<std::ops::Range<usize>> {
+    pub(in crate::render) fn selection_touch(&self) -> Option<std::ops::Range<usize>> {
         selection_touch_bytes(
             self.selection,
             |li| self.line_doc_byte_start(li),
@@ -39,7 +39,7 @@ impl TextPipeline {
     /// each answer "is this thematic break showing its raw source", and a
     /// widening applied to one alone leaves a revealed `---` line drawing its
     /// markup with the nit under it suppressed.
-    pub(super) fn line_is_revealed(
+    pub(in crate::render) fn line_is_revealed(
         &self,
         li: usize,
         selection_touch: Option<&std::ops::Range<usize>>,

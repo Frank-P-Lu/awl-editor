@@ -91,6 +91,21 @@ def wiring_errors(ci: str, release: str, extended: str, verifier: str | None = N
     ]:
         if command not in verifier:
             errors.append(f"native Mac package gate lost: {command}")
+    for name in ("mac", "mac-staged"):
+        body = r.get(name, "")
+        for command in (
+            'RECEIPTS="$(mktemp -d "$RUNNER_TEMP/awl-mac-verification.XXXXXX")"',
+            'ci "$RECEIPTS"',
+            'python3 scripts/macos-verification-receipt.py check',
+            '--receipt-dir "$RECEIPTS" --dist dist-mac --version "$VERSION"',
+            '--build-version "$BUILD_VERSION" --source "$(git rev-parse HEAD)"',
+            '--launch ci',
+        ):
+            if command not in body:
+                errors.append(f"fresh Mac completion consumer lost in {name}: {command}")
+        if 'macos-verification-receipt.py check' in body and 'scripts/verify-macos-release.sh' in body:
+            if body.index('macos-verification-receipt.py check') < body.index('scripts/verify-macos-release.sh'):
+                errors.append(f"Mac receipt checked before producer in {name}")
     if "macos-universal" in release or "lipo -create" in mac:
         errors.append("Mac release must remain two native downloads, not one universal binary")
     return errors
@@ -234,6 +249,23 @@ class WorkflowWiring(unittest.TestCase):
         self.assertTrue(wiring_errors(ci, release, extended.replace("--jobs 1", "--jobs 1 --worlds Saltpan")))
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
         self.assertTrue(wiring_errors(ci, release.replace("macos-arm64.dmg", "macos-universal.dmg"), extended))
+        for lost in (
+            'RECEIPTS="$(mktemp -d "$RUNNER_TEMP/awl-mac-verification.XXXXXX")"',
+            'ci "$RECEIPTS"',
+            'python3 scripts/macos-verification-receipt.py check',
+            '--build-version "$BUILD_VERSION" --source "$(git rev-parse HEAD)"',
+        ):
+            # Both independent native Mac producer routes must retain the guard.
+            for job in ("mac", "mac-staged"):
+                header = f"\n  {job}:\n"
+                start = release.index(header)
+                next_job = re.search(r"\n  [a-z][a-z0-9-]*:\n", release[start + len(header):])
+                end = start + len(header) + next_job.start() if next_job else len(release)
+                body = release[start:end]
+                self.assertIn(lost, body)
+                bad = release[:start] + body.replace(lost, "true") + release[end:]
+                self.assertNotEqual(bad, release)
+                self.assertTrue(wiring_errors(ci, bad, extended))
         verifier = (ROOT / "scripts/verify-macos-release.sh").read_text()
         self.assertTrue(wiring_errors(ci, release, extended, verifier.replace('"$MOUNT/Awl.app" "$ARCH"', '"$MOUNT/Awl.app"')))
         self.assertTrue(wiring_errors(ci.replace("uses: ./.github/actions/project-rust", "uses: dtolnay/rust-toolchain@stable"), release, extended))

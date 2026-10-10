@@ -274,6 +274,7 @@ pub(super) fn settled_viewstate(
     }
     vstate.selection = opts.selection;
     vstate.preedit = opts.preedit.clone().unwrap_or_default();
+    vstate.preedit_cursor = opts.preedit_cursor;
     vstate.search_matches = search_matches;
     vstate.search_current = search_current;
     vstate.search_query = opts.search.clone().unwrap_or_default();

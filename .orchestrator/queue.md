@@ -6,8 +6,9 @@
 
 ## Open build and design tasks
 
-**10 open numbered tasks:** 582 and 666 await live motion review;
-657–659 and 661–665 are queued for the remaining journeys or release proof.
+**13 open numbered tasks:** 677–679 await memory evidence, the authorized bullet-layout
+candidate, and nested-code candidate integration; 582 and 666 await live motion
+review; 657–659 and 661–665 retain their remaining journey or release obligations.
 The user accepted Paperbark caret proportions (666), Japanese punctuation caret
 spacing (669), Brolga decorative list markers (588), and uniform Gumtree ornaments
 (561/618) on 2026-10-07 from current native captures at `7d2aa7c2`:
@@ -41,6 +42,160 @@ does not close a physical-input, hardware, release or taste obligation.
 under 50,000,000 bytes, measured after compression. This covers macOS DMG/app zip
 and Linux AppImage/tarball. Browser deployment and source archives are separate.
 Keep real Japanese bold; return any size tradeoff to the user.
+
+### 677 — investigate long-duration desktop memory growth
+
+🔵 OWED — cap-stop diagnosis and long-duration evidence. Isolated source
+`codex/677-memory-soak` at `e44d39c6` adds RSS/physical-footprint/Metal checkpoints,
+first/last-decile change and late-run slope; nine soak laws and the targeted fast
+slice passed. No growth cause or week-long fix is established.
+
+After execution transport recovery on 2026-10-08, the prior supervisor was
+absent with no rendered attempt recorded. Retained tool session 74149 now owns
+restored supervisor PID 54082, retaining the original cutoff. Before the final
+bullet gate ended it waited for the locked local display and serialized resource
+gate, with no rendered baseline or soak interval. Its resumed attempt is below. Attempts are 24 hours with a
+1.5 GiB RSS/footprint cap and a zero-presents stop. The original 48-hour supervisor
+deadline remains 2026-10-10 01:51:14 UTC; restarts do not extend it. Caffeinate runs
+only during an owned attempt. Exact binary/source and the stop procedure remain
+under that worktree's `target/queue-677-memory-soak/e44d39c6`; retain these assets
+and the active supervisor. The synthetic workload is separate from hosted GPU
+failures. Local-thread follow-up scheduling is still owed: the automation service
+rejected this delegated thread as non-local.
+Root released only its owned `gate.pause` after terminal bullet full verification.
+Supervisor 54082 started attempt 1 with owned app PID 71519 at 10:16:36 UTC.
+The first baseline below precedes the material cap-stop recorded afterward.
+At elapsed 61.746 seconds: 3,561 presents, RSS 232,996,864 bytes, physical
+footprint 119,800,912 bytes and Metal allocation 12,402,688 bytes. This is an
+early rendered baseline; warm-cache stabilization and long-duration growth
+remain unestablished. Original cutoff is unchanged. Live logs:
+`target/queue-677-memory-soak/e44d39c6/attempt-1.app.log` and monitor CSV.
+
+Read-only observer PID 72984 / tool session 39114 now preserves hourly JSON
+checkpoints and separate per-attempt trends until the same original cutoff.
+It never starts, restarts, signals or stops the existing supervisor/app.
+Five observer laws passed, including warm-up versus continuing growth and final
+artifact generation at the cutoff. Observer/report directory:
+`local evidence: memory-monitor-677`.
+Final local outputs will be `final-cutoff.json` and `final-cutoff-report.txt`
+at the cutoff, or first execution after wake if the host sleeps. Thread
+notification remains blocked: a heartbeat requested from this delegated thread
+was rejected as non-local, even targeting its source thread. The parent local
+thread must retrieve and deliver the final interpretation; no cron workaround
+or new Linux job was started.
+
+Material cap-stop finding, 2026-10-08: attempt 1 stopped at 10:49:45 UTC
+after 33m09s. External RSS rose 469,778,432 → 9,569,239,040 bytes in 30s;
+supervisor SIGTERM and child exit 143 are preserved. No restart or cap increase.
+Historical kernel logs independently warn of possible IOGPUResource leakage
+for PID 71519: 400,000 at 10:49:17.753 → 1,200,000 at 10:49:41.971. Native
+TextInputUIMacHelper cursor-update logs simultaneously accelerate 60/s → 1740/s
+after a native interaction/state transition. This is a corroborated native
+resource surge, not an established allocating call path or week-long reproduction.
+App footprint/Metal values predate the surge; observer app-checkpoint peaks
+exclude external RSS, so final interpretation must include the CSV/kernel evidence.
+Cumulative swapins/out are 0; historical pressure/competing load remains unknown.
+Separate diagnosis/report and original evidence checksums:
+`local evidence: memory-analysis-677-cap-stop`.
+Observer 72984 remains alive; supervisor 54082 and app 71519 have exited. Original
+cutoff retained. Proposed next step is a separately assessed ≤35min synthetic
+run with 1s external telemetry, lower/equal cap and rapid-growth stop, native
+transition traces and safe bounded allocation capture. No new run launched.
+
+🔵 BLOCKED — codex-memory-diagnostic (codex), branch
+`codex/677-memory-spike-diagnostic`, clean at preserved e44d39c6. Authorized
+single ≤35min passive synthetic diagnostic has NOT launched. Required worker
+preflight session18145 exited1: free15,993,393,152bytes versus required
+25,769,803,776bytes. Own empty-worktree sweep reclaimed0; no original/sibling
+artifacts removed. Need≥9.1GiB additional free space through existing cleanup
+ownership before builds; no floor bypass. Passive safeguard APIs inspected,
+variant unimplemented/unverified because admission stopped before formatting
+or compilation. Original active-window binary cannot substitute safely.
+Planned512MiB cap is lower than original1.5GiB;1s RSS/footprint and independent
+rapid-growth stop; nonactivating/background/pass-through window; retain24h
+stimulus pacing to avoid planned faults within35min. No automatic stress retry.
+Prelaunch receipt and assessment:
+`local evidence: memory-diagnostic-677-preflight`.
+Original evidence hashes, source, limits and cutoff remain unchanged; observer
+72984 remains independent. No new app/Linux job, merge/push/release or security
+change. Resume source and safeguard verification only after resource admission.
+
+---
+
+### 678 — review bullet markers in every world
+
+🔵 OWED — integration approval. Branch `codex/678-theme-bullet-review` is frozen
+clean at `93946586bc54370ba1c30c84fc31bf2c8ea69e65`, independently reviewed
+without findings and registered awaiting-review. Authorized direction is
+implemented: fourteen ordinary worlds; distinctive Gumtree, Quokka, Mangrove,
+Brolga, Firetail and Paperbark. Quokka/Paperbark scale 0.72; shared measured
+clearance, optical baseline seating, nested body starts and hanging wraps.
+
+Required `scripts/verify.sh full` ended with exit 0 in root session 3048 on the
+unchanged SHA. Native receipt: health 311 seconds, 5,365 unit tests in six shards,
+both Mac/Linux input conventions, full-menu arm and 18 integration targets.
+All 16 WebAssembly runtime tests and all eight debug/release profile-parity
+families passed. Log: `target/queue-678-full-93946586/verify.log`.
+
+Prior gates are retained: e9218a59/session94889 failed six native tests;
+716d8b59/session40590 failed a 101-column assertion message before test suites.
+Bounded repairs fixed concealed prefix source-column hit mapping, stale theme
+and Awl Marks role oracles, and cached font metrics bypassing the document's
+IBM Plex Mono Light weight-300 resolver. The default weight could select a
+proportional system fallback. Font binary/cmap is unchanged; 21 live list-role
+glyphs and retained legacy glyphs are explicit metadata. Compiled mapping and
+weight omission mutations failed; restored positives passed. Targeted 25/25,
+mono 2/2 and extraction 4/4 laws passed. Cohesive metrics extraction clears the
+500-line ceiling without new health exceptions; final assertion wrap changes
+no behavior. No generated vendor targets or release artifacts are tracked.
+
+All forty after captures were refreshed on actual Mac Metal at 1x/2x using
+clean aadabcd4 binary SHA256 `0b2c194e…`. Subsequent extraction/message wrap is
+behavior-identical. Only Tawny changed; other 38 PNGs are byte-identical.
+Independent sidecars: 656 continuation starts, zero failures, max 0.04959 logical
+px. Tawny depth gap is 12/12/12 px and ordinary/task body difference 0.024 px.
+Twenty labeled pairs, contact sheet and notes are confirmed in Library under
+existing IDs, with all receipt xattrs applied. Contact version 1:
+`libfile_6c337b8dc2e08191b62dab75e0d57f44` /
+`file_0000000084548206bbb37d70abe7e3b7`.
+Notes version 3 (all screenshot IDs, final gate and rendered memory baseline):
+`libfile_0f19be178f488191824b278a0e782cb4` /
+`file_00000000d07c8206ab843160ed0cbda2`.
+Root receipt: `bullet-layout-678/checks/final-93946586-verification-receipt.md`
+in the delegated workspace. Prior captures and failed receipts remain preserved.
+
+Actual Linux OS/GPU candidate pixels remain unverified; Linux input conventions
+on the Mac do not establish that parity. Existing pure-RTL native hit mapping
+is preserved. Scrolling scope is closed without further native-feel changes.
+Paperbark caret approval, code-block candidate and separate release/resource
+ownership are preserved. Memory resumed at its original cutoff. No merge,
+push, tag, publication, security-setting or work-computer action occurred.
+
+---
+
+### 679 — preserve list ownership when inserting fenced code
+
+🔵 OWED — integration approval. Verified frozen
+candidate `codex/679-list-code-insertion` at `fb6566fd` emits parser-checked fences
+inside list items, preserves forward/reversed selection, source bytes and one-step
+undo, and safely refuses ambiguous contexts. Independent review found no remaining
+issues, including parity review of the source-health-only refactor.
+
+The targeted fast workflow passed Clippy/source audits, 11 audit laws and 108
+formatting laws. Compiled mutation restoring column-zero wrapping failed the
+headline list-preservation law; restored source passed again. Quoted/tabbed/lazy
+list contexts, exact no-separator empty tasks and invalid fences are named
+lossless refusals. Two full-gate attempts stopped in source health: ordinary lint
+repairs and cohesive extraction cleared those findings; the orchestrator lowered
+the formatter mark from 367 to its actual 337 lines. Full composed verification
+passed clean `fb6566fd57a36d0c22c5f4271762723f96aca417`: native all-targets receipt
+covers both conventions, full menu-bar arm, 5,370 unit tests across six shards and
+18 integration targets; all 16 wasm runtime tests passed; debug/release sidecars
+match for all eight action families. Retained gate session 81209 ended with rc=0.
+Source and logs remain preserved for review. No merge, push, tag or publication
+was performed.
+
+---
 
 ### 582 — review the landed Kite depth and motion
 

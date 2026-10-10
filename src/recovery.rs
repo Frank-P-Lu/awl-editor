@@ -83,17 +83,21 @@ pub fn decode(raw: &str) -> Option<Record> {
     })
 }
 
-/// WRITE THE RECORD, atomically, replacing whatever was there. Best-effort by
-/// signature: the caller is always in the middle of something more important
-/// (a save being held, a quit in progress) and a failed record must never
-/// escalate into a failed anything-else. The `bool` is for the laws that need to
-/// assert the write happened.
+/// Preserve the record atomically, replacing different durable bytes only on
+/// success. An exact persisted record needs no redundant publication. Callers
+/// must not treat a failed write as preservation of current text or permission
+/// to discard it. Recovery never saves the original file.
 pub fn write(record: &Record) -> bool {
     let Some(body) = encode(record) else {
         return false;
     };
     let path = record_path();
     let fs = crate::fs::active();
+    // Exact persisted bytes already preserve this path and manuscript. An old
+    // or unreadable record never handles a newer edit or a failed write.
+    if fs.read_to_string(&path).ok().as_deref() == Some(body.as_str()) {
+        return true;
+    }
     if let Some(parent) = path.parent() {
         let _ = fs.create_dir_all(parent);
     }

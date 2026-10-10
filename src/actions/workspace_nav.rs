@@ -139,6 +139,7 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
         // the focus hand-off are one gesture, never "type, then wonder why
         // nothing moved".
         Action::InsertChar(_)
+        | Action::InsertText(_)
         | Action::PasteText(_)
         | Action::DeleteBackward
         | Action::DeleteWordBackward => {
@@ -196,6 +197,7 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
                     Some(Effect::None)
                 }
                 Action::InsertChar(_)
+                | Action::InsertText(_)
                 | Action::PasteText(_)
                 | Action::DeleteBackward
                 | Action::DeleteWordBackward => {
@@ -213,6 +215,7 @@ fn settings_workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<
                 Some(Effect::None)
             }
             Action::InsertChar(_)
+            | Action::InsertText(_)
             | Action::PasteText(_)
             | Action::DeleteBackward
             | Action::DeleteWordBackward => {

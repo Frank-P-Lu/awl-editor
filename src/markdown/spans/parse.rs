@@ -1,8 +1,9 @@
 //! The markdown parser: pulldown-cmark events → `MdKind` spans in
 //! document byte coordinates.
 
-use super::detect::{setext_break_range, strike_engaged};
+use super::detect::{list_item, setext_break_range, strike_engaged};
 use super::kind::MdKind;
+use super::list::ListContinuation;
 use super::markers::{
     push_bare_url_spans, push_delim, push_heading_markers, push_highlight_spans, push_inline_code,
     push_link_markers, push_list_marker, push_quote_markers, push_smart_punct_spans,
@@ -13,99 +14,12 @@ use crate::markdown::inline_images_on;
 use crate::markdown::tables::push_table_markup;
 use std::ops::Range;
 
-/// One EMPHASIS-FAMILY inline construct — the three whose delimiters sit at
-/// both ends of pulldown's own range and whose content is ordinary prose.
-///
-/// ONE table, read by the render walk ([`spans`], which dims the delimiters)
-/// and by [`emphasis_content_spans`] (which reports what those delimiters
-/// enclose), so the two can never disagree about where a construct's content
-/// starts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Emphasis {
-    Strong,
-    Em,
-    Strike,
-}
+mod emphasis;
+mod list_continuations;
 
-impl Emphasis {
-    /// Bytes of delimiter at EACH end of the construct's own range.
-    const fn delim(self) -> usize {
-        match self {
-            Emphasis::Em => 1,
-            Emphasis::Strong | Emphasis::Strike => 2,
-        }
-    }
-
-    const fn conceal(self) -> ConcealKind {
-        match self {
-            Emphasis::Strong | Emphasis::Em => ConcealKind::Emphasis,
-            Emphasis::Strike => ConcealKind::Strikethrough,
-        }
-    }
-
-    /// What the construct MEANS over its content, in the same `MdKind`
-    /// vocabulary the render walk speaks.
-    const fn content_kind(self) -> MdKind {
-        match self {
-            Emphasis::Strong => MdKind::Bold,
-            Emphasis::Em => MdKind::Italic,
-            Emphasis::Strike => MdKind::Strikethrough,
-        }
-    }
-
-    fn push_delim(self, out: &mut Vec<(Range<usize>, MdKind)>, range: &Range<usize>) {
-        push_delim(out, range, self.delim(), self.conceal());
-    }
-
-    /// The construct's CONTENT extent inside its own delimiters — `None` when
-    /// the range cannot hold both delimiters and a byte between them.
-    fn content_range(self, range: &Range<usize>) -> Option<Range<usize>> {
-        let d = self.delim();
-        (range.end.saturating_sub(range.start) > 2 * d).then(|| range.start + d..range.end - d)
-    }
-}
-
-/// The CONTENT byte extent of every emphasis-family construct the real parser
-/// reports, whether or not a prose `Event::Text` survives inside it.
-///
-/// [`spans`] answers what a byte WEARS, and a byte can only wear what a Text
-/// event carried. Two shapes defeat that: a payload that is entirely a code
-/// span (`` **`y`** ``) emits `Event::Code` and no `Event::Text` at all, so it
-/// carries no `Bold` span while being unambiguously bold; and a bolded word
-/// inside a link, heading, quote or checked task wears that context's own kind
-/// instead, because [`inline_kind`] ranks the context above emphasis. The
-/// formatting toggles need the STRUCTURAL question — which construct COVERS
-/// these bytes — which survives both.
-///
-/// Shares this module's own `strike_engaged` gate (so a single-tilde `~x~` is
-/// inert here exactly as it is in the render), the [`Emphasis`] table's
-/// delimiter widths, and `PARSE_OPTIONS`, so the two walks read one grammar.
-pub fn emphasis_content_spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
-    use pulldown_cmark::{Event, Parser, Tag};
-
-    let (body, offset) = match crate::frontmatter::detect(text) {
-        Some(fm) => (&text[fm.range.end..], fm.range.end),
-        None => (text, 0),
-    };
-    let mut out = Vec::new();
-    for (ev, range) in Parser::new_ext(body, crate::markdown::PARSE_OPTIONS).into_offset_iter() {
-        let construct = match ev {
-            Event::Start(Tag::Strong) => Emphasis::Strong,
-            Event::Start(Tag::Emphasis) => Emphasis::Em,
-            Event::Start(Tag::Strikethrough) if strike_engaged(&body[range.clone()]) => {
-                Emphasis::Strike
-            }
-            _ => continue,
-        };
-        if let Some(inner) = construct.content_range(&range) {
-            out.push((
-                inner.start + offset..inner.end + offset,
-                construct.content_kind(),
-            ));
-        }
-    }
-    out
-}
+use emphasis::Emphasis;
+pub use emphasis::emphasis_content_spans;
+use list_continuations::ListContinuationCollector;
 
 /// Parse `text` into styling spans in DOCUMENT byte coordinates. Spans may
 /// overlap by DESIGN: a link/code-block first pushes a whole-range `Markup`
@@ -117,20 +31,34 @@ pub fn emphasis_content_spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
 /// what pulldown parses, with every span offset by the block's byte length. No
 /// (or malformed) frontmatter parses byte-identically to before.
 pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
+    spans_with_list_continuations(text).0
+}
+
+/// Parse styling spans and parser-owned source continuation lines in one event
+/// walk. Keeping the structural list ranges beside the ordinary span fold
+/// avoids a second whole-document Markdown parse in the renderer.
+pub(crate) fn spans_with_list_continuations(
+    doc_text: &str,
+) -> (Vec<(Range<usize>, MdKind)>, Vec<ListContinuation>) {
     use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag, TagEnd};
 
     let mut out: Vec<(Range<usize>, MdKind)> = Vec::new();
-    let (text, body_offset) = match crate::frontmatter::detect(text) {
+    let (text, body_offset) = match crate::frontmatter::detect(doc_text) {
         Some(fm) => {
             out.push((
                 0..fm.range.end,
                 MdKind::ConcealMarkup(ConcealKind::Frontmatter),
             ));
-            (&text[fm.range.end..], fm.range.end)
+            (&doc_text[fm.range.end..], fm.range.end)
         }
-        None => (text, 0),
+        None => (doc_text, 0),
     };
     let mut body: Vec<(Range<usize>, MdKind)> = Vec::new();
+    let line_offset = doc_text[..body_offset]
+        .bytes()
+        .filter(|byte| *byte == b'\n')
+        .count();
+    let mut continuation_collector = ListContinuationCollector::new(text, body_offset, line_offset);
     // Nesting depth / context flags. Headings don't nest, so a single level is
     // enough; the emphasis/quote/link/code contexts use counters so a nested
     // construct restores the outer context on close.
@@ -140,6 +68,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     let mut quote = 0u32;
     let mut link = 0u32;
     let mut code_block = 0u32;
+    let mut table = 0u32;
     // STRIKETHROUGH nesting. `strike` counts only ENGAGED (exactly-two-tilde)
     // spans; pulldown also parses single-tilde `~x~` with the option on, which
     // awl deliberately keeps INERT (the `==` exactly-two precedent — the format
@@ -191,6 +120,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     // file. Every live Markdown/export consumer shares `PARSE_OPTIONS`.
     let events = super::footnotes::events_and_spans(&mut body, text);
     for (ev, range) in events {
+        continuation_collector.on_event(&ev, &range);
         match ev {
             Event::Start(tag) => match tag {
                 Tag::Heading { level, .. } => {
@@ -306,7 +236,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                 // whole `|---|` separator row) up-front from the table's byte range —
                 // pulldown emits no event for either. Rendered as styled SOURCE, never
                 // a drawn grid (awl is a source editor).
-                Tag::Table(_) => push_table_markup(&mut body, text, &range),
+                Tag::Table(_) => {
+                    table += 1;
+                    push_table_markup(&mut body, text, &range);
+                }
                 Tag::TableHead => in_table_head = true,
                 // A HEADER cell's content (between the header row's pipes) gets the
                 // `TableHeader` tag — a no-op full-ink transform (see `md_attrs`), so
@@ -347,6 +280,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                 TagEnd::Link => link = link.saturating_sub(1),
                 TagEnd::Image => image = image.saturating_sub(1),
                 TagEnd::Item => task_done = false,
+                TagEnd::Table => table = table.saturating_sub(1),
                 TagEnd::TableHead => in_table_head = false,
                 _ => {}
             },
@@ -420,7 +354,9 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     push_smart_punct_spans(&mut body, text, &range);
                 }
             }
-            Event::Code(_) => push_inline_code(&mut body, text, &range),
+            Event::Code(_) => {
+                push_inline_code(&mut body, text, &range);
+            }
             _ => {}
         }
     }
@@ -431,7 +367,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
         body.into_iter()
             .map(|(r, k)| (r.start + body_offset..r.end + body_offset, k)),
     );
-    out
+    (out, continuation_collector.finish())
 }
 
 /// Pick the content style for a Text event from the active context, in priority

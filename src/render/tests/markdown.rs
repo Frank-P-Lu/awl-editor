@@ -322,7 +322,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     // to the level-1 glyph (was a two-level wrap pre-item-15).
     let text = "- top\n  * mid\n    + deep\n      - deeper\n";
 
-    // Tawny → chestnut / seedling / butterfly,
+    // Tawny → ordinary bullet / white bullet / small square,
     // cycling every THREE levels. CARET OFF every list line (on the trailing
     // blank line 4): each bullet draws its depth glyph and its raw marker is
     // concealed (transparent ink).
@@ -331,7 +331,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     p.set_view(&off);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['\u{1F330}', '\u{1F331}', '\u{1F98B}', '\u{1F330}'],
+        vec!['\u{2022}', '\u{25E6}', '\u{25AA}', '\u{2022}'],
         "depth 0/1/2/3 cycles Tawny's approved triple regardless of the -,*,+ typed: {:?}",
         p.bullet_glyphs()
     );
@@ -350,7 +350,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     p.set_view(&on);
     assert_eq!(
         p.bullet_glyphs(),
-        vec!['\u{1F330}', '\u{1F98B}', '\u{1F330}'],
+        vec!['\u{2022}', '\u{25AA}', '\u{2022}'],
         "caret on the depth-1 bullet suppresses only its glyph: {:?}",
         p.bullet_glyphs()
     );
@@ -608,128 +608,6 @@ fn every_legacy_line_ornament_drops_its_mark_on_selection_touch() {
     }
 }
 
-/// The hollow star's paint-only correction is a fixed body-em value, applied
-/// in every world that assigns it and at both representative display scales.
-/// The surrounding task rows prove that this is not a general marker drop;
-/// nested reveal states prove it remains an ornament-only treatment.
-const HOLLOW_STAR: char = '\u{2606}';
-const HOLLOW_STAR_DROP_EM: f32 = 0.05;
-const HOLLOW_STAR_BULLET_DOC: &str = concat!(
-    "- add chinese\n- [ ] neighboring task\n  - cloud depth\n",
-    "    - comet depth\n      - nested star\n      - [x] nested task\n\n",
-);
-
-fn is_task_mark(mark: &crate::render::rects::ListMark) -> bool {
-    matches!(mark.kind, crate::render::rects::ListLineKind::Task(_))
-}
-
-fn assert_hollow_star_paint_and_task_seats(p: &TextPipeline, world: &theme::Theme, dpi: f32) {
-    let marks = p.list_marks();
-    let expected_drop = p.metrics.font_size * HOLLOW_STAR_DROP_EM;
-    let stars: Vec<_> = marks
-        .iter()
-        .filter(|mark| mark.glyph == HOLLOW_STAR)
-        .collect();
-    assert_eq!(
-        stars.len(),
-        2,
-        "{} at {dpi}x: both star depths paint",
-        world.name
-    );
-    for mark in stars {
-        assert!(
-            ((mark.paint_top - mark.top) - expected_drop).abs() < 0.001,
-            "{} at {dpi}x: U+2606 must drop by the approved {HOLLOW_STAR_DROP_EM}em \\
-             paint-only correction (got {})",
-            world.name,
-            mark.paint_top - mark.top
-        );
-    }
-    for mark in marks.iter().filter(|mark| is_task_mark(mark)) {
-        assert_eq!(
-            mark.paint_top, mark.top,
-            "{} at {dpi}x: task checkbox must keep its structural seat",
-            world.name
-        );
-    }
-}
-
-fn assert_hollow_star_reveal_state(p: &mut TextPipeline, world: &theme::Theme, dpi: f32) {
-    let mut caret = view(HOLLOW_STAR_BULLET_DOC, 0, 0);
-    caret.is_markdown = true;
-    p.set_view(&caret);
-    let caret_marks = p.list_marks();
-    assert_eq!(
-        caret_marks
-            .iter()
-            .filter(|mark| mark.glyph == HOLLOW_STAR)
-            .count(),
-        1,
-        "{} at {dpi}x: caret reveal must remove only its star ornament",
-        world.name
-    );
-
-    let mut selected = view(HOLLOW_STAR_BULLET_DOC, 6, 0);
-    selected.is_markdown = true;
-    selected.selection = Some(((4, 0), (4, 14)));
-    p.set_view(&selected);
-    let selected_marks = p.list_marks();
-    for (state, marks) in [("caret", &caret_marks), ("selection", &selected_marks)] {
-        assert_eq!(
-            marks.iter().filter(|mark| is_task_mark(mark)).count(),
-            2,
-            "{} at {dpi}x: {state} reveal must not remove neighboring task markers",
-            world.name
-        );
-    }
-    assert_eq!(
-        selected_marks
-            .iter()
-            .filter(|mark| mark.glyph == HOLLOW_STAR)
-            .count(),
-        1,
-        "{} at {dpi}x: selection reveal must remove only its nested star ornament",
-        world.name
-    );
-}
-
-#[test]
-fn hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals() {
-    let _g = crate::testlock::serial();
-    let _world = crate::theme::WorldPin::snapshot();
-    let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping hollow_star_bullet_drop_is_font_relative_paint_only_and_reveals: \
-             no wgpu adapter"
-        );
-        return;
-    };
-    let star_worlds: Vec<_> = theme::THEMES
-        .iter()
-        .enumerate()
-        .filter(|(_, world)| world.bullets.0 == HOLLOW_STAR)
-        .collect();
-    assert!(
-        !star_worlds.is_empty(),
-        "the law needs at least one live U+2606 bullet assignment"
-    );
-
-    for dpi in [1.0_f32, 2.0] {
-        p.set_dpi(dpi);
-        for &(world_index, world) in &star_worlds {
-            theme::set_active(world_index);
-            p.sync_theme();
-            let mut off = view(HOLLOW_STAR_BULLET_DOC, 6, 0);
-            off.is_markdown = true;
-            p.set_view(&off);
-            assert_hollow_star_paint_and_task_seats(&p, world, dpi);
-            assert_hollow_star_reveal_state(&mut p, world, dpi);
-        }
-    }
-    theme::set_active(theme::DEFAULT_THEME);
-    p.set_dpi(1.0);
-}
-
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
 /// [`theme::Theme::bullets`] triple (drawn in its ornament face). The bullet
 /// vocabulary is deliberately disjoint from `---`/`***`/`___` dividers and
@@ -751,11 +629,11 @@ fn bullet_glyphs_swap_per_world() {
     // (line 3).
     let text = "- top\n  - sub\n    - deep\n";
     let cases = [
-        ("Tawny", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
-        ("Bombora", ('\u{2693}', '\u{26F5}', '\u{2638}')),
+        ("Tawny", theme::BULLETS_PLAIN),
+        ("Bombora", theme::BULLETS_PLAIN),
         ("Gumtree", ('\u{1F426}', '\u{1F98B}', '\u{1F343}')),
-        ("Bilby", ('\u{2606}', '\u{2601}', '\u{2604}')),
-        ("Mopoke", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Mangrove", ('\u{2693}', '\u{26F5}', '\u{2638}')),
+        ("Brolga", ('\u{273E}', '\u{2742}', '\u{273A}')),
     ];
     for (world, (g0, g1, g2)) in cases {
         theme::set_active_by_name(world).unwrap();
@@ -1023,18 +901,12 @@ fn bare_url_ellipsis_slot_fits_the_real_glyph_in_every_world() {
 /// tier. Compares each world's OWN geometry against its OWN NATURAL (unwidened)
 /// space advance — shaped fresh on a plain, non-list paragraph line of the SAME
 /// world/font, so this never compares across worlds' unrelated font metrics.
-/// Spaces never kern with themselves, so the natural 4-space width is exactly
-/// `2 ×` the natural 2-space width — the ground truth `add_list_indent_span`
-/// scales BOTH by the SAME per-world factor.
-///
-/// Tawny (PLAIN tier, `list_indent_scale == 1.0`) lands its depth-1/2 bullets
-/// EXACTLY at the natural 2-/4-space x — byte-identical to the pre-item-15
-/// renderer (the early-out in `add_list_indent_span` never even adds a span at
-/// this tier). Bilby (WIDE tier, `1.5`) lands each 1.5× farther right. Both:
-/// depth 0 sits at column 0 (nothing to widen at zero indent), and the
-/// depth-0→1 STEP equals the depth-1→2 step — proving the growth is LINEAR in
-/// depth, a free consequence of scaling the whole run by one constant factor
-/// rather than a per-depth special case.
+/// The first visible glyph's shaped x is the independent natural two-space
+/// boundary; the ground truth `ListLayoutMetrics::hanging_inset` scales it by
+/// each world's authored tier. The
+/// marker's own ink-aware seat may carry a subpixel optical offset, so the law
+/// compares consecutive depth steps rather than reintroducing a column-zero
+/// paint origin beside the shared marker-slot owner.
 #[test]
 fn list_indent_widens_only_on_wide_tier_worlds_and_grows_linearly_with_depth() {
     let _t = crate::testlock::serial();
@@ -1054,58 +926,82 @@ fn list_indent_widens_only_on_wide_tier_worlds_and_grows_linearly_with_depth() {
     // prose and shapes in the world's ordinary body font, the same face the
     // list line's own leading spaces shape in.
     let plain_text = "  b\n";
-
-    for world in ["Tawny", "Bilby"] {
-        theme::set_active_by_name(world).unwrap();
+    for world in theme::THEMES.iter() {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
         let scale = theme::active().list_indent_scale;
-
         let mut pv = view(plain_text, 0, 0);
         pv.is_markdown = true;
         p.set_view(&pv);
-        let natural_2sp = p.line_glyph_xs(0)[2];
-        let natural_4sp = 2.0 * natural_2sp; // spaces never kern with themselves
-
+        let (natural_2sp, body_face) = {
+            let run = p
+                .buffer
+                .layout_runs()
+                .find(|run| run.line_i == 0)
+                .expect("plain leading-space sentinel row shaped");
+            let body = run
+                .glyphs
+                .iter()
+                .find(|glyph| glyph.start == 2)
+                .expect("plain visible sentinel follows two source spaces");
+            let face = p
+                .font_system
+                .db()
+                .face(body.font_id)
+                .expect("resolved body face remains registered")
+                .families
+                .first()
+                .map(|(name, _)| name.clone())
+                .unwrap_or_default();
+            (body.x, face)
+        };
+        let natural_4sp = 2.0 * natural_2sp;
+        let plain_body = p.shaped_font;
         let mut lv = view(list_text, 3, 0);
         lv.is_markdown = true;
         p.set_view(&lv);
-        let marks = p.bullet_marks();
+        let marks = p.list_marks();
         assert_eq!(
             marks.len(),
             3,
-            "{world}: three nested bullets place: {marks:?}"
+            "{}: three nested bullets place: {marks:?}",
+            world.name
         );
-        let text_left = p.text_left();
-        let depth0_x = marks[0].1 - text_left;
-        let depth1_x = marks[1].1 - text_left;
-        let depth2_x = marks[2].1 - text_left;
-
-        assert_eq!(
-            depth0_x, 0.0,
-            "{world}: depth 0 sits at the marker column (nothing to widen)"
+        let depth0_x = p.buffer.lines[0].hanging_inset();
+        let depth1_x = p.buffer.lines[1].hanging_inset();
+        let depth2_x = p.buffer.lines[2].hanging_inset();
+        assert!(
+            (depth1_x - depth0_x - scale * natural_2sp).abs() < 1.0,
+            "{}: depth-0→1 hanging-rail step must equal scale({scale}) × its natural \
+             2-space x ({natural_2sp}) = {}; insets={depth0_x}/{depth1_x}/{depth2_x}, \
+             steps={}/{} plain_body={plain_body} resolved_body={body_face:?} list_body={} \
+             active_body={} font_size={}",
+            world.name,
+            scale * natural_2sp,
+            depth1_x - depth0_x,
+            depth2_x - depth1_x,
+            p.shaped_font,
+            theme::active().font,
+            p.metrics.font_size,
         );
         assert!(
-            (depth1_x - scale * natural_2sp).abs() < 1.0,
-            "{world}: depth-1 bullet ({depth1_x}) must land at scale({scale}) × its natural \
-             2-space x ({natural_2sp}) = {}",
-            scale * natural_2sp
-        );
-        assert!(
-            (depth2_x - scale * natural_4sp).abs() < 1.0,
-            "{world}: depth-2 bullet ({depth2_x}) must land at scale({scale}) × its natural \
+            (depth2_x - depth0_x - scale * natural_4sp).abs() < 1.0,
+            "{}: depth-0→2 hanging-rail step must equal scale({scale}) × its natural \
              4-space x ({natural_4sp}) = {}",
+            world.name,
             scale * natural_4sp
         );
-
         // LINEAR IN DEPTH: the depth-0→1 step equals the depth-1→2 step (each
         // level adds exactly the same two more space characters).
         let step1 = depth1_x - depth0_x;
         let step2 = depth2_x - depth1_x;
         assert!(
             (step1 - step2).abs() < 1.0,
-            "{world}: the per-level step must stay constant (linear growth): step1={step1} step2={step2}"
+            "{}: the per-level step must stay constant (linear growth): \
+             step1={step1} step2={step2}",
+            world.name
         );
     }
-
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
@@ -1114,10 +1010,9 @@ fn list_indent_widens_only_on_wide_tier_worlds_and_grows_linearly_with_depth() {
 /// retired per-line O(li) `line_glyph_xs` walk (an O(doc) `layout_runs` walk from
 /// doc start, per bullet — O(visible_bullets × scroll) each frame, breaking the
 /// O(visible) law its sibling `rule_marks` honours by reading cached row geometry).
-/// Every visible marker measures its normalized body gap through the BATCHED,
-/// memo-safe `visual_rows_for_lines`, never a per-line `visual_rows` (which would
-/// clobber the single-slot cursor-line row memo). Placement stays byte-identical
-/// to the retired `line_glyph_xs`-based x.
+/// Every visible marker reads its retained first visual row without clobbering
+/// the single-slot cursor-line row memo. Placement shares the normalized slot's
+/// right edge with the first prose boundary.
 /// Mirrors `range_rects_selection_is_visible_bounded_and_memo_safe`.
 #[test]
 fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
@@ -1131,31 +1026,32 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
         return;
     };
 
-    // PART A — PLACEMENT UNCHANGED. A small doc mixing an UNINDENTED bullet and
-    // an INDENTED one (indent 2), caret on the trailing blank line so every
-    // bullet is placed. Each mark's x
-    // must equal the retired `line_glyph_xs(li)[indent]`-based x, byte-for-byte.
+    // PART A — SHARED PLACEMENT. A small doc mixing an UNINDENTED bullet and an
+    // INDENTED one (indent 2), caret on the trailing blank line so every bullet
+    // is placed. Each measured marker slot ends at its first prose boundary.
     let mut small = view("- a\n  - b\n- c\n\n", 3, 0);
     small.is_markdown = true;
     p.set_view(&small);
     let text_left = p.text_left();
-    let marks = p.bullet_marks(); // ascending line order: lines 0, 1, 2
+    let marks = p.list_marks(); // ascending line order: lines 0, 1, 2
     assert_eq!(marks.len(), 3, "all three bullets placed: {marks:?}");
-    let expect = |li: usize, indent: usize| -> f32 {
-        text_left + p.line_glyph_xs(li).get(indent).copied().unwrap_or(0.0)
-    };
-    for (mark, (li, indent)) in marks.iter().zip([(0, 0), (1, 2), (2, 0)]) {
-        let want = expect(li, indent);
+    for (mark, (li, body_col)) in marks.iter().zip([(0, 2), (1, 4), (2, 2)]) {
+        let want = text_left + p.visual_rows(li)[0].xs[body_col];
         assert!(
-            (mark.1 - want).abs() < 0.01,
-            "bullet x on line {li} (indent {indent}) changed: {} vs {want}",
-            mark.1
+            (mark.left + mark.slot_width - want).abs() < 0.01,
+            "line {li}: marker slot must end at first prose x: {} + {} vs {want}",
+            mark.left,
+            mark.slot_width
+        );
+        assert_eq!(
+            mark.paint_width, mark.slot_width,
+            "line {li}: paint and layout share a slot"
         );
     }
     // Sanity: the indented bullet really sits right of the unindented ones (so the
     // batched path is exercised on a genuinely offset marker, not a vacuous 0).
     assert!(
-        marks[1].1 > marks[0].1 + 0.5,
+        marks[1].left > marks[0].left + 0.5,
         "the indented bullet's marker must sit right of column 0: {marks:?}"
     );
 

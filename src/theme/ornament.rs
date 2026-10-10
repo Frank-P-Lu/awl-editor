@@ -346,36 +346,11 @@ pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
 /// to remain legible. The pixel fit and contrast laws decide between them.
 pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 
-/// Paperbark's fine pencil/scissors/envelope strokes need a middle fitting tier:
-/// larger than the narrow register, smaller than the ordinary ornament tier.
-pub const BULLET_SCALE_PAPER_TOOL: f32 = 0.45;
-
-/// Paint-only optical drops for list-bullet glyphs whose drawn ink does not
-/// read centred in the ordinary list row. The keyed table is deliberately
-/// separate from marker layout: its values move only the ornament paint, never
-/// the retained source-prefix slot, body start, row height, or hit geometry.
-const BULLET_OPTICAL_DROPS_EM: &[(char, f32)] = &[
-    // The hollow star's generous upper points make its mathematically centred
-    // outline read high beside lowercase prose.
-    ('\u{2606}', 0.05),
-];
-
-/// Resolve a glyph's list-bullet optical paint drop in device pixels.
-///
-/// This is the one glyph-keyed owner for the correction. The body font size
-/// keeps the authored em value stable through document zoom and display DPI;
-/// all marker structure remains at its ordinary row seat.
-pub const fn bullet_optical_drop(ch: char, body_font_size: f32) -> f32 {
-    let mut i = 0;
-    while i < BULLET_OPTICAL_DROPS_EM.len() {
-        let (candidate, em) = BULLET_OPTICAL_DROPS_EM[i];
-        if candidate == ch {
-            return body_font_size * em;
-        }
-        i += 1;
-    }
-    0.0
-}
+/// SALIENT bullet scale — low-ink drawings that remained illegible at the
+/// ordinary ornament tier. The shared measured prose gap now gives these marks
+/// room to grow without consuming body clearance; Quokka's tavern drawings and
+/// Paperbark's fine paper tools use this tier.
+pub const BULLET_SCALE_SALIENT: f32 = 0.72;
 
 /// Optical correction for U+2638 beside the anchor and sailboat. It changes
 /// only the shaped glyph size inside the existing marker slot; list indentation

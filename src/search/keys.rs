@@ -39,9 +39,7 @@ pub fn intercept(
         .unwrap_or(false);
 
     match logical {
-        Key::Character(s) => {
-            intercept_character(search, buffer, s.chars().next()?, mods, editing_replacement)
-        }
+        Key::Character(s) => intercept_character(search, buffer, s, mods),
         Key::Named(named) => intercept_named(search, buffer, *named, mods, editing_replacement),
         _ => None,
     }
@@ -130,10 +128,10 @@ pub fn intercept_action(search: &mut Option<SearchState>, buffer: &mut Buffer, a
 fn intercept_character(
     search: &mut Option<SearchState>,
     buffer: &mut Buffer,
-    c: char,
+    text: &str,
     mods: ModifiersState,
-    editing_replacement: bool,
 ) -> Option<RecoilDir> {
+    let c = text.chars().next()?;
     let ctrl = mods.contains(ModifiersState::CONTROL);
     let alt = mods.contains(ModifiersState::ALT);
     let sup = mods.contains(ModifiersState::SUPER);
@@ -219,7 +217,9 @@ fn intercept_character(
     } else if !c.is_control() {
         // Self-insert into the FOCUSED field. The replacement is not
         // searched, so typing it never moves a match; query edits do.
-        edit_char(search, buffer, c, editing_replacement);
+        if let Some(st) = search.as_mut() {
+            commit_text(st, buffer, text);
+        }
     }
     None
 }

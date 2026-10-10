@@ -4,7 +4,7 @@ use super::*;
 
 /// Extra tracking on the normalized monospace separator, measured in ems. The
 /// result carries the complete Nishiki checked drawing plus a clear body gap.
-const LIST_MARKER_GAP_TRACKING: f32 = 0.5;
+pub(in crate::render) const LIST_MARKER_GAP_TRACKING: f32 = 0.75;
 
 pub(in crate::render) fn add_bullet_conceal_span(
     al: &mut glyphon::cosmic_text::AttrsList,
@@ -19,19 +19,13 @@ pub(in crate::render) fn add_bullet_conceal_span(
     else {
         return;
     };
-    // Collapse the authored marker, then turn its existing separator byte into
-    // one normalized preview gap. `-`, `*`, `+`, and task syntax therefore
-    // share geometry without adding bytes or changing revealed source layout.
+    // Collapse the complete authored prefix. The paragraph's measured hanging
+    // inset now owns both the marker rail and the prose gap on every visual row.
     let hidden = base
         .clone()
         .metrics(GlyphMetrics::new(CONCEAL_ZERO_WIDTH_FONT_SIZE, row_lh))
         .color(RULE_CONCEAL_COLOR);
-    al.add_span(item.marker_col..item.marker_col + 1, &hidden);
-    let spacer = base
-        .clone()
-        .family(Family::Name(crate::theme::active().mono))
-        .letter_spacing(LIST_MARKER_GAP_TRACKING);
-    al.add_span(item.marker_col + 1..item.marker_col + 2, &spacer);
+    al.add_span(item.marker_col..item.marker_col + 2, &hidden);
 }
 
 /// Collapse a parsed task marker's `[ ] ` / `[x] ` source while the shared

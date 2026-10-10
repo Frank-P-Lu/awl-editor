@@ -94,6 +94,11 @@ fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.rename_edit_push(*c),
+        Action::InsertText(text) => {
+            for c in text.chars() {
+                overlay.rename_edit_push(c);
+            }
+        }
         Action::PasteText(text) => overlay.rename_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.rename_edit_pop(),
         Action::DeleteWordBackward => overlay.rename_edit_pop_word(),
@@ -130,6 +135,11 @@ fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.link_edit_push(*c),
+        Action::InsertText(text) => {
+            for c in text.chars() {
+                overlay.link_edit_push(c);
+            }
+        }
         Action::PasteText(text) => overlay.link_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.link_edit_pop(),
         Action::DeleteWordBackward => overlay.link_edit_pop_word(),
@@ -160,6 +170,11 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.keep_edit_push(*c),
+        Action::InsertText(text) => {
+            for c in text.chars() {
+                overlay.keep_edit_push(c);
+            }
+        }
         Action::PasteText(text) => overlay.keep_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.keep_edit_pop(),
         Action::DeleteWordBackward => overlay.keep_edit_pop_word(),
@@ -204,6 +219,11 @@ fn table_dims_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.table_dims_push(*c),
+        Action::InsertText(text) => {
+            for c in text.chars() {
+                overlay.table_dims_push(c);
+            }
+        }
         Action::PasteText(text) => overlay.table_dims_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.table_dims_pop(),
         Action::NextLine => overlay.table_dims_row_delta(1),
@@ -235,6 +255,11 @@ fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
     let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.value_edit_push(*c),
+        Action::InsertText(text) => {
+            for c in text.chars() {
+                overlay.value_edit_push(c);
+            }
+        }
         Action::PasteText(text) => overlay.value_edit_insert(&crate::textbox::single_line(text)),
         Action::DeleteBackward => overlay.value_edit_pop(),
         Action::DeleteWordBackward => overlay.value_edit_pop_word(),
@@ -311,6 +336,13 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             let text = crate::textbox::single_line(text);
             let card = ctx.journey.card_mut().unwrap();
             if card.push_text(&text) {
+                preview_move(card);
+            }
+            Effect::None
+        }
+        Action::InsertText(text) => {
+            let card = ctx.journey.card_mut().unwrap();
+            if card.push_text(text) {
                 preview_move(card);
             }
             Effect::None

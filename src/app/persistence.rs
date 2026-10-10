@@ -71,12 +71,6 @@ pub(in crate::app) struct PersistenceRuntime {
     /// recovery record" ([`crate::recovery`]) a structural fact instead of a
     /// convention.
     unresolved: Option<UnresolvedChange>,
-    /// Has the user already been sent back to the conflict once by trying to
-    /// quit? A second Quit proceeds. Refusing forever would trap someone whose
-    /// only way out is a resolution they may not want to make yet — and it is
-    /// unnecessary, because the recovery record has already made quitting
-    /// lossless by the time this is consulted.
-    quit_deferred_once: bool,
 }
 
 #[derive(Default)]
@@ -252,27 +246,12 @@ impl PersistenceRuntime {
     /// why a second is unreachable rather than merely rare.
     pub(in crate::app) fn set_unresolved(&mut self, change: UnresolvedChange) {
         self.unresolved = Some(change);
-        self.quit_deferred_once = false;
     }
 
     /// RESOLVED — the only way out, taken by both resolutions and by nothing
     /// else. Returns what was latched so the caller can act on it.
     pub(in crate::app) fn take_unresolved(&mut self) -> Option<UnresolvedChange> {
-        self.quit_deferred_once = false;
         self.unresolved.take()
-    }
-
-    /// Should a Quit be sent back to the conflict? True exactly once per
-    /// latched conflict: the first attempt is deferred so the user is told,
-    /// every attempt after it proceeds. Consuming the flag here — rather than
-    /// asking and clearing at the call site — is what keeps "exactly once"
-    /// from depending on the caller remembering to clear it.
-    pub(in crate::app) fn defer_quit_for_conflict(&mut self) -> bool {
-        if self.unresolved.is_none() || self.quit_deferred_once {
-            return false;
-        }
-        self.quit_deferred_once = true;
-        true
     }
 
     // ─── THE TITLE DIRTY-STATE CACHE ─────────────────────────────────────

@@ -15,6 +15,17 @@ pub struct RichListItem {
     pub task: Option<bool>,
 }
 
+/// A parser-confirmed prose continuation line inside a list item. The line has
+/// no marker of its own, but rich preview seats it on its owning item's prose
+/// rail. Source indentation remains visible while that line is revealed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ListContinuation {
+    pub line: usize,
+    pub line_doc_start: usize,
+    pub source_indent: usize,
+    pub marker_col: usize,
+}
+
 /// Classify an unordered list row for rich preview through one shared owner.
 /// Concealment and ornament painting both call this function, so either both
 /// replace the source marker or neither does.

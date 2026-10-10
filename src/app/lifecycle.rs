@@ -298,6 +298,11 @@ impl ApplicationHandler<AwlEvent> for App {
             self.frame
                 .process_accessibility_window_event(&window, &event);
         }
+        // Closing must preserve documents even before a GPU becomes available.
+        if matches!(&event, WindowEvent::CloseRequested) {
+            self.request_document_exit(event_loop);
+            return;
+        }
         // WASM: install the GPU the async init parked in the shared slot (its
         // trailing `request_redraw` is what delivered us here). The first frame
         // after init lands here with `gpu` still `None` but the slot full.
@@ -322,7 +327,7 @@ impl ApplicationHandler<AwlEvent> for App {
             return;
         }
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => unreachable!("close handled before GPU readiness"),
             WindowEvent::Focused(true) => self.on_focus_gained(),
             WindowEvent::Focused(false) => self.on_focus_lost(),
             WindowEvent::Occluded(occluded) => self.on_occluded(occluded),

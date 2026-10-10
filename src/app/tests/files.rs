@@ -772,6 +772,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
 
 #[test]
 fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
+    let _guard = crate::testlock::serial();
     use crate::fs::{FileSystem, InMemoryFs};
     let p = PathBuf::from("/notes/draft.md");
     let mem = InMemoryFs::new().with_file(&p, "disk v1\n");
@@ -802,12 +803,15 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
         crate::debug::autosave_state(app.config.autosave_on(), app.frame.notice().active(), None),
         crate::debug::AutosaveState::Held
     );
-    // The version is marked handled so the idle timer doesn't spin; the NEXT
-    // edit re-arms the engine (and the notice would recur calmly).
-    assert_eq!(
+    // Durable recovery handles the manuscript without saving the original.
+    assert_ne!(
         app.document.doc_saved_version(),
         Some(app.document.buffer().version())
     );
+    assert!(app.is_document_dirty());
+    let key = app.document.active_key().unwrap();
+    assert!(app.document.close_facts(&key).unwrap().unsaved);
+    assert_eq!(crate::recovery::read_for(&p).unwrap().text, "mine\n");
 }
 
 #[test]

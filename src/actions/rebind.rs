@@ -90,6 +90,17 @@ pub(super) fn keybindings_intercept(ctx: &mut ActionCtx, action: &Action) -> Opt
                     Some(finalize_capture(ov, false))
                 }
             }
+            Action::InsertText(text) => {
+                if text
+                    .chars()
+                    .next()
+                    .is_some_and(|c| ov.capture_record(c.to_string()))
+                {
+                    Some(finalize_capture(ov, false))
+                } else {
+                    Some(Effect::None)
+                }
+            }
             Action::InsertChar(c) => {
                 if ov.capture_record(c.to_string()) {
                     Some(finalize_capture(ov, false))

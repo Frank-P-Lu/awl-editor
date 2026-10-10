@@ -22,8 +22,9 @@ pub use detect::{
 #[cfg(test)]
 pub(super) use detect::{bare_url_ranges, smart_punct_ranges, smart_punct_runs};
 pub use kind::{BreakKind, MdKind, break_kind};
-pub use list::{RichListItem, rich_unordered_list_item};
+pub use list::{ListContinuation, RichListItem, rich_unordered_list_item};
 pub use markers::equals_runs;
 #[cfg(test)]
 pub(super) use markers::push_highlight_spans;
+pub(crate) use parse::spans_with_list_continuations;
 pub use parse::{emphasis_content_spans, spans};

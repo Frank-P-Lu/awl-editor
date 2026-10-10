@@ -250,6 +250,7 @@ impl TextPipeline {
         let strike_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let link_underline_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let punct = SubstituteAdvances::shape(&mut font_system, metrics, theme::active().font);
+        let list_layout = text::ListLayoutState::new(&mut font_system, metrics);
         let mut me = Self {
             font_system,
             swash_cache: SwashCache::new(),
@@ -338,6 +339,7 @@ impl TextPipeline {
             scroll: ScrollPos::default(),
             metrics,
             substitute_advances: punct,
+            list_layout,
             format,
             dpi: 1.0,
             window_w: crate::capture::CANVAS_WIDTH as f32,
@@ -348,6 +350,8 @@ impl TextPipeline {
             fold_chevron_turn: std::collections::HashMap::new(),
             hover_line: None,
             preedit: String::new(),
+            preedit_cursor: None,
+            preedit_start_col: 0,
             field_input: None,
             field_caret_rect: None,
             misspelled: Vec::new(),

@@ -28,12 +28,23 @@ impl App {
         if !matches!(target, TextTarget::Document(_)) {
             view.preedit.clear();
         }
+        view.preedit_cursor = if view.preedit.is_empty() {
+            None
+        } else {
+            self.document_preedit_cursor()
+        };
         if matches!(target, TextTarget::None) {
             view.overlay_query_focused = false;
         }
         if let Some(input) = self.field_input_projection() {
             view.apply_field_input(input);
         }
+    }
+
+    pub(in crate::app) fn document_preedit_cursor(&self) -> Option<usize> {
+        (!self.input.preedit().is_empty()
+            && matches!(self.focused_text_target(), TextTarget::Document(_)))
+        .then_some(self.input.keyboard.preedit_cursor)
     }
 
     pub(in crate::app) fn field_input_projection(&self) -> Option<crate::render::FieldInput> {

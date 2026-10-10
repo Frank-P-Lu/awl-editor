@@ -173,7 +173,7 @@ impl TextPipeline {
         let shape_h = self.full_shape_height();
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
-        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        self.shape_document();
         // The tail's rows are new geometry: the row table built from the truncated
         // runs (and every cache keyed on its generation) has to rebuild.
         self.row_geom.invalidate();

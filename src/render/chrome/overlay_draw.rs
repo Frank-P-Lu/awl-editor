@@ -112,6 +112,30 @@ impl TextPipeline {
         Ok(())
     }
 
+    pub(in crate::render) fn park_placard(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<()> {
+        self.placard_stipple
+            .prepare(device, queue, width, height, &[]);
+        self.placard_material
+            .prepare(device, queue, width, height, &[]);
+        self.placard_renderer
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                Vec::<TextArea>::new(),
+                &mut self.swash_cache,
+            )
+            .map_err(|e| anyhow::anyhow!("glyphon placard park failed: {e:?}"))
+    }
+
     /// PARK every overlay pipeline empty for a frame with NO active overlay —
     /// the park-when-off discipline `prepare_hud` / `park_preview_text` already
     /// follow, applied to the summoned card. Without this the overlay TEXT
@@ -176,29 +200,11 @@ impl TextPipeline {
         // the card, so a closed picker carries no stale outline or material
         // quads into the next frame.
         self.park_overlay_facets(device, queue, width, height);
-        // The stipple placard: parked (zero instances) — the frame after a
-        // stipple-world overlay closes carries zero stale wordmark pixels.
-        self.placard_stipple
-            .prepare(device, queue, width, height, &[]);
-        self.placard_material
-            .prepare(device, queue, width, height, &[]);
+        self.park_placard(device, queue, width, height)?;
         // The rotated location cue parks too, so the frame after a
         // `RotatedRail` world's overlay closes (or a lens change drops it)
         // carries no stale vertical run.
         self.rotated_label_pipeline.clear();
-        // The Bars behind-the-bars placard pass: parked (no areas) so a closed
-        // picker carries no stale wordmark into the next frame.
-        self.placard_renderer
-            .prepare(
-                device,
-                queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                &self.viewport,
-                Vec::<TextArea>::new(),
-                &mut self.swash_cache,
-            )
-            .map_err(|e| anyhow::anyhow!("glyphon placard park failed: {e:?}"))?;
         self.panel_caret.prepare_empty();
         self.panel_query_selection
             .prepare(device, queue, width, height, &[]);

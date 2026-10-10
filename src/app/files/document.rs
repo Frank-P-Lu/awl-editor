@@ -104,12 +104,9 @@ impl App {
     pub(in crate::app) fn flush_documents_for_shutdown(&mut self) {
         self.flush_note();
         self.autosave_flush();
-        // THE UNRESOLVED CHANGE'S LAST WRITE. `autosave_flush` above refreshes
-        // the record whenever the engine would have written the file, but it
-        // short-circuits on a version it has already acknowledged — so this
-        // makes the guarantee unconditional at the one moment it stops being
-        // repeatable. The window close button reaches here without passing the
-        // Quit deferral, which is exactly why the record cannot depend on it.
+        // Repeat recovery at the final callback. Normal exit was already gated
+        // before the event loop committed to leaving; this remains best effort
+        // for other lifecycle shutdown paths.
         if let Some(path) = self.persistence.unresolved().map(|u| u.path.clone()) {
             self.write_recovery_record(&path);
         }

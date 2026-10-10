@@ -2,6 +2,7 @@
 
 use super::*;
 
+mod code_block;
 mod footnotes;
 mod inline;
 pub(super) use footnotes::apply_insert_footnote;
@@ -28,28 +29,42 @@ pub(super) enum BlockKind {
 /// Run a BLOCK toggle over the caret line / selection and apply it as one undoable
 /// edit. A markdown-only command (a `.rs`/`.txt` buffer is left untouched — block
 /// markup would corrupt code), and a calm no-op when the transform changes nothing.
-pub(super) fn apply_block_format(ctx: &mut ActionCtx, kind: BlockKind) {
+const NO_VALID_LIST_CODE_BLOCK: &str = "code block can't stay inside this list";
+
+pub(super) fn apply_block_format(ctx: &mut ActionCtx, kind: BlockKind) -> Effect {
     if !ctx.buffer.is_markdown() {
-        return;
+        return Effect::None;
     }
     let text = ctx.buffer.text();
     let anchor = ctx.buffer.anchor_char();
     let cursor = ctx.buffer.cursor_char();
-    let r = block_toggle(kind, &text, anchor, cursor);
-    ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
+    match block_toggle(kind, &text, anchor, cursor) {
+        BlockToggle::Edit(r) => {
+            ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
+            Effect::None
+        }
+        BlockToggle::NoValidListCodeBlock => {
+            Effect::Notice(NoticeEffect::Sticky(NO_VALID_LIST_CODE_BLOCK.to_string()))
+        }
+    }
+}
+
+enum BlockToggle {
+    Edit(FormatResult),
+    NoValidListCodeBlock,
 }
 
 // --- Shared line helpers ----------------------------------------------------
 
-fn split_lines(text: &str) -> Vec<String> {
+pub(super) fn split_lines(text: &str) -> Vec<String> {
     text.split('\n').map(str::to_string).collect()
 }
 
-fn line_start_char(lines: &[String], l: usize) -> usize {
+pub(super) fn line_start_char(lines: &[String], l: usize) -> usize {
     lines[..l].iter().map(|s| s.chars().count() + 1).sum()
 }
 
-fn char_to_line_col(lines: &[String], idx: usize) -> (usize, usize) {
+pub(super) fn char_to_line_col(lines: &[String], idx: usize) -> (usize, usize) {
     let mut acc = 0;
     for (l, line) in lines.iter().enumerate() {
         let len = line.chars().count();
@@ -121,11 +136,7 @@ fn present_prefix_len(kind: BlockKind, line: &[char], ind: usize) -> Option<usiz
     }
 }
 
-fn is_fence(line: &str) -> bool {
-    crate::markdown::is_fence_line(line)
-}
-
-fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usize) -> FormatResult {
+fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usize) -> BlockToggle {
     let lines = split_lines(text);
     let (s, e, has_sel) = sel_range(anchor, cursor);
     let (first, _) = char_to_line_col(&lines, s);
@@ -135,7 +146,7 @@ fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usiz
     }
 
     if kind == BlockKind::CodeBlock {
-        return code_block_toggle(&lines, first, last, has_sel);
+        return code_block::toggle(text, anchor, cursor, first, last, has_sel);
     }
 
     let chars: Vec<Vec<char>> = lines.iter().map(|s| s.chars().collect()).collect();
@@ -187,11 +198,11 @@ fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usiz
         let new_col = remap_col(col, delta, at);
         (None, line_start_char(&new_lines, first) + new_col)
     };
-    FormatResult {
+    BlockToggle::Edit(FormatResult {
         text: new_text,
         anchor,
         cursor,
-    }
+    })
 }
 
 fn remap_col(col: usize, delta: i64, at: usize) -> usize {
@@ -208,47 +219,6 @@ fn remap_col(col: usize, delta: i64, at: usize) -> usize {
         }
     } else {
         col
-    }
-}
-
-fn code_block_toggle(lines: &[String], first: usize, last: usize, _has_sel: bool) -> FormatResult {
-    let already = last > first && is_fence(&lines[first]) && is_fence(&lines[last]);
-    if already {
-        let mut new_lines: Vec<String> = Vec::with_capacity(lines.len() - 2);
-        new_lines.extend_from_slice(&lines[..first]);
-        new_lines.extend_from_slice(&lines[first + 1..last]);
-        new_lines.extend_from_slice(&lines[last + 1..]);
-        let inner = last - first - 1; // body line count
-        let new_text = new_lines.join("\n");
-        let (anchor, cursor) = if inner > 0 {
-            let a = line_start_char(&new_lines, first);
-            let body_last = first + inner - 1;
-            let c = line_start_char(&new_lines, body_last) + new_lines[body_last].chars().count();
-            (Some(a), c)
-        } else {
-            (None, line_start_char(&new_lines, first))
-        };
-        FormatResult {
-            text: new_text,
-            anchor,
-            cursor,
-        }
-    } else {
-        let mut new_lines: Vec<String> = Vec::with_capacity(lines.len() + 2);
-        new_lines.extend_from_slice(&lines[..first]);
-        new_lines.push("```".to_string());
-        new_lines.extend_from_slice(&lines[first..=last]);
-        new_lines.push("```".to_string());
-        new_lines.extend_from_slice(&lines[last + 1..]);
-        let new_text = new_lines.join("\n");
-        let close = last + 2; // index of the closing fence in new_lines
-        let a = line_start_char(&new_lines, first);
-        let c = line_start_char(&new_lines, close) + new_lines[close].chars().count();
-        FormatResult {
-            text: new_text,
-            anchor: Some(a),
-            cursor: c,
-        }
     }
 }
 

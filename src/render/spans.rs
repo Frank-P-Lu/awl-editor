@@ -25,11 +25,12 @@ pub(super) use colors::*;
 // only warns on today; naming it explicitly here sidesteps that entirely.
 pub(crate) use conceal::wysiwyg_reveals;
 pub(super) use conceal::{
-    IMAGE_MAX_VIEWPORT_FRAC, SubstituteAdvances, add_bullet_conceal_span, add_list_indent_span,
-    add_rule_conceal_span, add_task_conceal_span, add_wysiwyg_conceal_spans, cell_inline_attrs,
-    image_line_has_other_content, is_bare_url_tail, line_has_code_span, line_has_image_span,
-    line_has_rule_span, selection_touch_bytes, selection_touches, shape_footnote_number,
-    shape_smart_punct_glyph, smart_punct_kind_for, smart_punct_metrics,
+    IMAGE_MAX_VIEWPORT_FRAC, ListIndentSpanCtx, ListLayoutMetrics, SubstituteAdvances,
+    add_bullet_conceal_span, add_list_indent_span, add_rule_conceal_span, add_task_conceal_span,
+    add_wysiwyg_conceal_spans, cell_inline_attrs, image_line_has_other_content, is_bare_url_tail,
+    line_has_code_span, line_has_image_span, line_has_rule_span, selection_touch_bytes,
+    selection_touches, shape_footnote_number, shape_smart_punct_glyph, smart_punct_kind_for,
+    smart_punct_metrics,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) use conceal::{IMAGE_MISSING_ROW_LINES, image_display_size};

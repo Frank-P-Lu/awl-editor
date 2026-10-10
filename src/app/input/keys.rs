@@ -506,7 +506,7 @@ impl App {
         // past every filter (lone-modifier/IME/preedit/search/capture), so it
         // counts real presses only; config-gated + native-only inside.
         #[cfg(not(target_arch = "wasm32"))]
-        self.stats_note_keystroke(matches!(action, Action::InsertChar(_)));
+        self.stats_note_keystroke(action.is_typing());
         self.sync_whichkey_prefix();
         // HELD stats HUD: remember the trigger key AND the modifiers held at
         // summon, so its RELEASE dismisses the HUD — either the key lifting

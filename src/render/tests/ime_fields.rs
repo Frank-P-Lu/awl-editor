@@ -164,3 +164,44 @@ fn files_ime_and_controls_survive_the_native_minimum_window_height() {
         }
     }
 }
+
+#[test]
+fn document_preedit_cursor_moves_without_reshape_or_underline_drift() {
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping document IME geometry: no wgpu adapter");
+        return;
+    }
+    let _g = crate::testlock::serial();
+    for dpi in [1.0, 2.0] {
+        for width in [640.0, 1200.0] {
+            let (_, _, mut p) = headless_dqp(width * dpi, 800.0 * dpi).unwrap();
+            p.set_dpi(dpi);
+            for preedit in ["abc", "にほん", "a\u{301}b"] {
+                let mut v = view("prefix suffix", 0, 7);
+                v.preedit = preedit.into();
+                p.set_view(&v);
+                let shaped = p.shaped_key.clone();
+                let reshapes = p.reshape_count;
+                let underline = p.preedit_rects();
+                assert!(!underline.is_empty());
+                assert!(underline.iter().any(|r| r[2] > 1.0));
+                let n = preedit.chars().count();
+                for offset in [0, 1, n, n + 20] {
+                    v.preedit_cursor = Some(offset);
+                    p.set_view(&v);
+                    assert_eq!(p.cursor_col, 7 + offset.min(n));
+                    assert_eq!(p.shaped_key, shaped);
+                    assert_eq!(p.reshape_count, reshapes);
+                    assert_eq!(p.preedit_rects(), underline, "{preedit} at {offset}");
+                }
+                v.preedit_cursor = None;
+                p.set_view(&v);
+                assert_eq!(p.cursor_col, 7 + n);
+                v.preedit.clear();
+                p.set_view(&v);
+                assert_eq!(p.cursor_col, 7);
+                assert!(p.preedit_rects().is_empty());
+            }
+        }
+    }
+}

@@ -1,7 +1,10 @@
 use super::*;
 
 fn blk(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usize) -> FormatResult {
-    block_toggle(kind, text, anchor, cursor)
+    match block_toggle(kind, text, anchor, cursor) {
+        BlockToggle::Edit(result) => result,
+        BlockToggle::NoValidListCodeBlock => panic!("unexpected list-code refusal"),
+    }
 }
 
 #[test]

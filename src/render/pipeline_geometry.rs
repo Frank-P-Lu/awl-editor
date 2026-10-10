@@ -205,7 +205,7 @@ impl TextPipeline {
     /// Apply the editor view snapshot: text, cursor, scroll, zoom, selection,
     /// preedit. When a preedit (IME composition) is active it is spliced into the
     /// shaped text at the cursor so it renders with real glyphs; the caret is then
-    /// placed at the preedit's end and an underline is drawn beneath it.
+    /// placed at its projected scalar offset and the full run is underlined.
     pub fn set_view(&mut self, view: &ViewState) {
         // The diagonal cluster is measured from the current overlay's shaped
         // labels and controls. A new view invalidates that measurement before
@@ -363,6 +363,7 @@ impl TextPipeline {
         self.folded_headings = view.folded_headings.clone();
         self.doc_source = view.doc_source.clone();
         self.preedit = view.preedit.clone();
+        self.preedit_cursor = view.preedit_cursor;
         self.field_input = view.field_input.clone();
         self.field_caret_rect = None;
         // Mirror the spell list ONLY when it actually changed (a rescan landing),
@@ -570,7 +571,7 @@ impl TextPipeline {
         let wrap_w = self.text_wrap_width();
         self.buffer
             .set_size(&mut self.font_system, Some(wrap_w), Some(shape_h));
-        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        self.shape_document();
         // A CHANGED wrap size re-laid the document's runs, so every row-geometry
         // cache (row tops/heights/total, the cursor-line VisualRow memo) is stale.
         // This is the LIVE window-resize / page-mode-toggle / page-width seam: the

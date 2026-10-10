@@ -1,4 +1,5 @@
 use super::*;
+use crate::theme::{BULLET_SCALE_PLAIN, BULLETS_PLAIN};
 
 pub const CASSOWARY: Theme = Theme {
     name: "Cassowary",
@@ -33,9 +34,8 @@ pub const CASSOWARY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.162, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Lightning / electric arrow / asterisk: the approved sharp-depth sequence.
-    bullets: ('\u{2607}', '\u{2301}', '\u{2733}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),

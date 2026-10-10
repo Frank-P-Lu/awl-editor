@@ -294,7 +294,13 @@ jobs:
           BUILD_VERSION: ${{ github.run_number }}.0.0
         run: |
           if [ "$SIGN_MACOS" = true ]; then POLICY=signed; else POLICY=unsigned; fi
-          scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" "$POLICY" ci
+          RECEIPTS="$(mktemp -d "$RUNNER_TEMP/awl-mac-verification.XXXXXX")"
+          trap 'rm -rf "$RECEIPTS"' EXIT
+          scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" "$POLICY" ci "$RECEIPTS"
+          python3 scripts/macos-verification-receipt.py check \
+            --receipt-dir "$RECEIPTS" --dist dist-mac --version "$VERSION" \
+            --build-version "$BUILD_VERSION" --source "$(git rev-parse HEAD)" \
+            --signing "$POLICY" --launch ci
 
       - uses: actions/upload-artifact@v7
         with:
@@ -342,7 +348,14 @@ jobs:
         env:
           VERSION: ${{ needs.plan.outputs.version }}
           BUILD_VERSION: ${{ steps.staged.outputs.build_version }}
-        run: scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" signed ci
+        run: |
+          RECEIPTS="$(mktemp -d "$RUNNER_TEMP/awl-mac-verification.XXXXXX")"
+          trap 'rm -rf "$RECEIPTS"' EXIT
+          scripts/verify-macos-release.sh dist-mac "$VERSION" "$BUILD_VERSION" signed ci "$RECEIPTS"
+          python3 scripts/macos-verification-receipt.py check \
+            --receipt-dir "$RECEIPTS" --dist dist-mac --version "$VERSION" \
+            --build-version "$BUILD_VERSION" --source "$(git rev-parse HEAD)" \
+            --signing signed --launch ci
 
       - uses: actions/upload-artifact@v7
         with:

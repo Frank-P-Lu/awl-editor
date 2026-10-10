@@ -30,7 +30,7 @@ pub(super) fn impact_for(action: &Action, version_before: u64, ctx: &ActionCtx) 
         return None; // nothing changed -> not a successful edit (no flinch)
     }
     match action {
-        Action::InsertChar(_) => Some(Effect::TypeImpact),
+        typing if typing.is_typing() => Some(Effect::TypeImpact),
         Action::DeleteBackward
         | Action::DeleteForward
         | Action::DeleteWordBackward

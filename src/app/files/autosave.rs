@@ -364,10 +364,13 @@ impl App {
             // own text; there is nothing of the user's left to write.
             WritePermission::Reloaded => return,
             WritePermission::Held => {
-                self.write_recovery_record(&path);
-                // Mark the version handled so the idle timer doesn't spin on the
-                // same content; the next edit re-arms (and the record refreshes).
-                self.document.acknowledge_document_version(version);
+                if !self.write_recovery_record(&path) {
+                    self.set_sticky_notice(
+                        "Recovery could not be saved — changes remain in editor",
+                    );
+                }
+                // Recovery preserves a manuscript; it does not save the original.
+                // Keep its unsaved version truthful for every leave/close gate.
                 return;
             }
         }

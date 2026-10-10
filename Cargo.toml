@@ -62,6 +62,11 @@ opt-level = 3
 [profile.test]
 opt-level = 1
 
+[patch.crates-io]
+# Local, default-inert extension over cosmic-text 0.18.2: one per-paragraph
+# hanging inset consumed by markdown list layout. See vendor/cosmic-text/PATCH.md.
+cosmic-text = { path = "vendor/cosmic-text" }
+
 # The health gate owns this deliberately small extension to Clippy's defaults.
 # These lints catch real mistakes here without prescribing a style or forcing
 # architecture-scale rewrites of existing dispatch and capture seams.

@@ -270,7 +270,10 @@ Reserved Font Name. No editable design sources have been found or claimed.
 [`AwlMarks.roster.tsv`](./AwlMarks.roster.tsv) is the one adoption roster. It
 contains the deduplicated 135-codepoint union: the existing chrome and divider
 marks, the six-mark traditional reference ladder (`* † ‡ § ‖ ¶`, including
-U+2016), the 41-glyph list-bullet vocabulary, and the shared two task-marker glyphs.
+U+2016), the 21-glyph live list-bullet vocabulary, and the shared two task-marker
+glyphs. Another 23 formerly used list glyphs carry the `retained-cmap` role: they
+remain in the adopted 135-codepoint cmap for binary compatibility but are not
+claimed by a live renderer consumer.
 The generator verifies the
 recorded upstream hash before reading it, subsets the cmap to that roster
 exactly, keeps the private family name **Awl Marks**, normalises OS/2 weight 500

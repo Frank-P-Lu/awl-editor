@@ -34,5 +34,6 @@ mod quick_notes;
 mod script_roundtrip;
 mod sentence_boundary;
 mod syntax_lang;
+mod typing_text;
 mod undo_redo;
 mod word_delete_boundary;

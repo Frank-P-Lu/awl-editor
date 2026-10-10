@@ -420,13 +420,7 @@ impl App {
             ));
         }
 
-        // Quit routes back through an unresolved external change once; see
-        // `defer_quit_once_for_conflict`.
-        let quit = (quit || nested_quit) && !self.defer_quit_once_for_conflict();
-        if quit {
-            exit.exit();
-        }
-        quit
+        (quit || nested_quit) && self.request_document_exit(exit)
     }
 
     fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) {

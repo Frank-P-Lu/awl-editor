@@ -187,13 +187,13 @@ fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 
 fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     match action {
-        Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
-        Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
-        Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
-        Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
-        Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
+        Action::ToggleBlockquote => return Some(apply_block_format(ctx, BlockKind::Blockquote)),
+        Action::ToggleBulletList => return Some(apply_block_format(ctx, BlockKind::Bullet)),
+        Action::ToggleNumberedList => return Some(apply_block_format(ctx, BlockKind::Numbered)),
+        Action::ToggleTaskList => return Some(apply_block_format(ctx, BlockKind::Task)),
+        Action::ToggleHeading => return Some(apply_block_format(ctx, BlockKind::Heading)),
         Action::HeadingCycle => format::apply_heading_cycle(ctx),
-        Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
+        Action::ToggleCodeBlock => return Some(apply_block_format(ctx, BlockKind::CodeBlock)),
         Action::Bold
         | Action::Italic
         | Action::InlineCode
@@ -221,6 +221,7 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::BufferStart => ctx.buffer.buffer_start(),
         Action::BufferEnd => ctx.buffer.buffer_end(),
         Action::InsertChar(c) => ctx.buffer.insert_char(*c),
+        Action::InsertText(text) => ctx.buffer.insert_chars(text),
         Action::Newline => {
             if !table_newline(ctx) && !smart_newline(ctx) {
                 ctx.buffer.insert_newline();

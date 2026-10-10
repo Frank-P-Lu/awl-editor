@@ -620,6 +620,7 @@ macro_rules! classify_delete_flinch {
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
+            | Action::InsertText(_)
             | Action::Newline
             | Action::AcceptAlternate
             | Action::InsertTab
@@ -856,6 +857,7 @@ macro_rules! assert_action_roster {
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
+            | Action::InsertText(_)
             | Action::Newline
             | Action::AcceptAlternate
             | Action::InsertTab
@@ -1001,6 +1003,7 @@ fn editor_action_roster() -> Vec<Action> {
         Action::BufferStart,
         Action::BufferEnd,
         Action::InsertChar('x'),
+        Action::InsertText("日本語".into()),
         Action::Newline,
         Action::AcceptAlternate,
         Action::InsertTab,
@@ -1338,6 +1341,7 @@ macro_rules! classify_smoke_command {
         // doc); `OpenCommandPalette` is a real catalog command now and moved
         // OUT of this group, above.
         Action::InsertChar(_)
+            | Action::InsertText(_)
         | Action::Newline
         | Action::AcceptAlternate
         | Action::InsertTab

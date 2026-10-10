@@ -367,6 +367,319 @@ fn code_block_toggle_through_apply_transition_wraps_and_undoes() {
     assert_eq!(b.text(), "let x = 1;\n", "one Cmd-Z reverts the fence");
 }
 
+/// HEADLINE REGRESSION LAW: code-block insertion on a list item keeps the
+/// authored marker as parsed list syntax and puts only the item body inside the
+/// parser-owned fenced block. The action rides the real `apply_transition` +
+/// `Buffer::apply_format` seam, so selection placement and undo are covered too.
+#[test]
+fn code_block_inside_a_bullet_keeps_list_ownership_content_selection_and_undo() {
+    let _g = crate::testlock::serial();
+    let original = "- item\n";
+    let original_cursor = 4;
+    let mut b = drive_format(original, None, original_cursor, &Action::ToggleCodeBlock);
+    assert_eq!(b.text(), "- ```\n  item\n  ```\n");
+    assert_eq!(
+        b.selection_range(),
+        Some((0, b.text().chars().count() - 1)),
+        "the established block-format convention selects the emitted block"
+    );
+    let spans = crate::markdown::spans(&b.text());
+    assert!(
+        spans
+            .iter()
+            .any(|(range, kind)| *range == (0..2) && *kind == crate::markdown::MdKind::ListMarker),
+        "the real parser still owns the bullet: {spans:?}"
+    );
+    assert!(
+        spans
+            .iter()
+            .any(|(_, kind)| *kind == crate::markdown::MdKind::Code { inline: false }),
+        "the real parser owns the item body as block code: {spans:?}"
+    );
+
+    b.undo();
+    assert_eq!(b.text().as_bytes(), original.as_bytes());
+    assert_eq!(b.cursor_char(), original_cursor, "undo restores the caret");
+    assert_eq!(
+        b.selection_range(),
+        None,
+        "undo clears the applied selection"
+    );
+}
+
+#[test]
+fn list_code_blocks_cover_nested_ordered_task_and_unicode_items() {
+    let _g = crate::testlock::serial();
+    let cases = [
+        (
+            "- parent\n  - child\n",
+            15,
+            "- parent\n  - ```\n    child\n    ```\n",
+            false,
+        ),
+        ("10. 日本語\n", 6, "10. ```\n    日本語\n    ```\n", false),
+        ("- [x] todo\n", 8, "- [x] \n  ```\n  todo\n  ```\n", true),
+    ];
+    for (source, cursor, expected, task) in cases {
+        let mut b = drive_format(source, None, cursor, &Action::ToggleCodeBlock);
+        assert_eq!(b.text(), expected, "source={source:?}");
+        let spans = crate::markdown::spans(&b.text());
+        assert!(
+            spans
+                .iter()
+                .any(|(_, kind)| *kind == crate::markdown::MdKind::ListMarker),
+            "list marker stays parsed for {source:?}: {spans:?}"
+        );
+        assert!(
+            spans
+                .iter()
+                .any(|(_, kind)| *kind == crate::markdown::MdKind::Code { inline: false }),
+            "body becomes parsed block code for {source:?}: {spans:?}"
+        );
+        assert_eq!(
+            spans
+                .iter()
+                .any(|(_, kind)| matches!(kind, crate::markdown::MdKind::Task(true))),
+            task,
+            "checked task ownership for {source:?}: {spans:?}"
+        );
+        b.undo();
+        assert_eq!(b.text().as_bytes(), source.as_bytes(), "source={source:?}");
+    }
+}
+
+#[test]
+fn list_code_block_toggle_round_trips_continuations_siblings_and_long_fences() {
+    let _g = crate::testlock::serial();
+    let cases = [
+        (
+            "- lead\n  continuation\n",
+            Some(9),
+            20,
+            "- lead\n  ```\n  continuation\n  ```\n",
+        ),
+        (
+            "- one\n- two\n",
+            Some(0),
+            11,
+            "- ```\n  one\n  ```\n- ```\n  two\n  ```\n",
+        ),
+        (
+            "- say ``` here\n",
+            None,
+            6,
+            "- ````\n  say ``` here\n  ````\n",
+        ),
+    ];
+    for (source, anchor, cursor, expected) in cases {
+        let b = drive_format(source, anchor, cursor, &Action::ToggleCodeBlock);
+        assert_eq!(b.text(), expected, "source={source:?}");
+        let (start, end) = b.selection_range().expect("formatted block is selected");
+        let re = drive_format(&b.text(), Some(start), end, &Action::ToggleCodeBlock);
+        assert_eq!(re.text().as_bytes(), source.as_bytes(), "source={source:?}");
+    }
+}
+
+#[test]
+fn reversed_list_selection_stays_reversed_across_wrap_and_unwrap() {
+    let _g = crate::testlock::serial();
+    let source = "- one\n- two\n";
+    let end = source.chars().count() - 1;
+    let wrapped = drive_format(source, Some(end), 0, &Action::ToggleCodeBlock);
+    assert!(
+        wrapped.anchor_char().unwrap() > wrapped.cursor_char(),
+        "the selected block keeps its direction"
+    );
+    let restored = drive_format(
+        &wrapped.text(),
+        wrapped.anchor_char(),
+        wrapped.cursor_char(),
+        &Action::ToggleCodeBlock,
+    );
+    assert_eq!(restored.text(), source);
+    assert!(restored.anchor_char().unwrap() > restored.cursor_char());
+}
+
+#[test]
+fn tabbed_list_code_block_is_a_named_refusal_without_an_edit() {
+    let _g = crate::testlock::serial();
+    let source = "-\titem\n";
+    let (b, effect) = drive_format_effect(source, None, 3, &Action::ToggleCodeBlock);
+    assert_eq!(b.text(), source);
+    assert!(!b.can_undo());
+    assert_eq!(
+        effect,
+        Effect::Notice(NoticeEffect::Sticky(
+            "code block can't stay inside this list".to_string()
+        ))
+    );
+}
+
+#[test]
+fn empty_list_owned_fences_unwrap_without_panicking() {
+    let _g = crate::testlock::serial();
+    let cases = [
+        ("- ```\n  ```\n", "- \n"),
+        ("- [x] \n  ```\n  ```\n", "- [x] \n"),
+    ];
+    for (source, expected) in cases {
+        let b = drive_format(
+            source,
+            Some(0),
+            source.chars().count() - 1,
+            &Action::ToggleCodeBlock,
+        );
+        assert_eq!(b.text(), expected, "source={source:?}");
+    }
+}
+
+#[test]
+fn sibling_list_items_separated_by_a_blank_toggle_back_exactly() {
+    let _g = crate::testlock::serial();
+    let source = "- one\n\n- two\n";
+    let wrapped = drive_format(
+        source,
+        Some(0),
+        source.chars().count() - 1,
+        &Action::ToggleCodeBlock,
+    );
+    assert_eq!(
+        wrapped.text(),
+        "- ```\n  one\n\n  ```\n- ```\n  two\n  ```\n"
+    );
+    let (start, end) = wrapped.selection_range().unwrap();
+    let restored = drive_format(&wrapped.text(), Some(start), end, &Action::ToggleCodeBlock);
+    assert_eq!(restored.text().as_bytes(), source.as_bytes());
+}
+
+#[test]
+fn empty_task_items_keep_task_ownership_and_round_trip_exact_separator_bytes() {
+    let _g = crate::testlock::serial();
+    let source = "- [x] \n";
+    let mut wrapped = drive_format(source, None, 3, &Action::ToggleCodeBlock);
+    assert_eq!(wrapped.text(), "- [x] \n  ```\n  \n  ```\n");
+    assert!(
+        crate::markdown::spans(&wrapped.text())
+            .iter()
+            .any(|(_, kind)| matches!(kind, crate::markdown::MdKind::Task(true))),
+        "the checkbox remains parser-owned"
+    );
+    let (start, end) = wrapped.selection_range().unwrap();
+    let restored = drive_format(&wrapped.text(), Some(start), end, &Action::ToggleCodeBlock);
+    assert_eq!(restored.text().as_bytes(), source.as_bytes());
+    wrapped.undo();
+    assert_eq!(wrapped.text().as_bytes(), source.as_bytes());
+
+    let no_separator = "- [x]\n";
+    let (refused, effect) = drive_format_effect(no_separator, None, 3, &Action::ToggleCodeBlock);
+    assert_eq!(refused.text().as_bytes(), no_separator.as_bytes());
+    assert!(!refused.can_undo());
+    assert!(matches!(effect, Effect::Notice(NoticeEffect::Sticky(_))));
+}
+
+#[test]
+fn authored_two_space_task_fence_preserves_its_separator_and_body() {
+    let _g = crate::testlock::serial();
+    let source = "- [x]  \n  ```\n  text\n  ```\n";
+    let b = drive_format(
+        source,
+        Some(0),
+        source.chars().count() - 1,
+        &Action::ToggleCodeBlock,
+    );
+    assert_eq!(b.text(), "- [x]  text\n");
+    assert!(
+        crate::markdown::spans(&b.text())
+            .iter()
+            .any(|(_, kind)| matches!(kind, crate::markdown::MdKind::Task(true)))
+    );
+}
+
+#[test]
+fn unterminated_or_mismatched_fences_never_delete_payload() {
+    let _g = crate::testlock::serial();
+    for source in ["- ```\n  alpha\n  omega\n", "```\nalpha\n~~~\n"] {
+        let (b, effect) = drive_format_effect(
+            source,
+            Some(0),
+            source.chars().count() - 1,
+            &Action::ToggleCodeBlock,
+        );
+        assert_eq!(b.text().as_bytes(), source.as_bytes(), "source={source:?}");
+        assert!(!b.can_undo(), "a refusal records no edit: {source:?}");
+        assert_eq!(
+            effect,
+            Effect::Notice(NoticeEffect::Sticky(
+                "code block can't stay inside this list".to_string()
+            ))
+        );
+    }
+}
+
+#[test]
+fn quoted_and_lazy_list_contexts_are_named_lossless_refusals() {
+    let _g = crate::testlock::serial();
+    for (source, cursor) in [("> - item\n", 5), ("- lead\ncontinuation\n", 10)] {
+        let (b, effect) = drive_format_effect(source, None, cursor, &Action::ToggleCodeBlock);
+        assert_eq!(b.text().as_bytes(), source.as_bytes(), "source={source:?}");
+        assert_eq!(b.cursor_char(), cursor);
+        assert!(!b.can_undo());
+        assert_eq!(
+            effect,
+            Effect::Notice(NoticeEffect::Sticky(
+                "code block can't stay inside this list".to_string()
+            ))
+        );
+    }
+}
+
+#[test]
+fn over_indented_fence_like_payload_is_never_deleted_as_a_closer() {
+    let _g = crate::testlock::serial();
+    for source in ["```\nalpha\n    ```\n", "- ```\n  alpha\n      ```\n"] {
+        let (b, effect) = drive_format_effect(
+            source,
+            Some(0),
+            source.chars().count() - 1,
+            &Action::ToggleCodeBlock,
+        );
+        assert_eq!(b.text().as_bytes(), source.as_bytes(), "source={source:?}");
+        assert!(!b.can_undo());
+        assert!(matches!(effect, Effect::Notice(NoticeEffect::Sticky(_))));
+    }
+}
+
+#[test]
+fn mixed_plain_list_plain_selection_round_trips_exactly() {
+    let _g = crate::testlock::serial();
+    let source = "intro\n\n- item\n\noutro\n";
+    let wrapped = drive_format(
+        source,
+        Some(0),
+        source.chars().count() - 1,
+        &Action::ToggleCodeBlock,
+    );
+    let (start, end) = wrapped.selection_range().unwrap();
+    let restored = drive_format(&wrapped.text(), Some(start), end, &Action::ToggleCodeBlock);
+    assert_eq!(restored.text().as_bytes(), source.as_bytes());
+}
+
+#[test]
+fn empty_buffer_and_blank_selection_still_insert_one_undoable_fence() {
+    let _g = crate::testlock::serial();
+    for (source, anchor, cursor, expected) in [
+        ("", None, 0, "```\n\n```"),
+        ("\n", Some(0), 1, "```\n\n```\n"),
+    ] {
+        let mut b = drive_format(source, anchor, cursor, &Action::ToggleCodeBlock);
+        assert_eq!(b.text(), expected, "source={source:?}");
+        assert_eq!(b.selection_range(), Some((0, 8)));
+        b.undo();
+        assert_eq!(b.text().as_bytes(), source.as_bytes());
+        assert_eq!(b.cursor_char(), cursor);
+    }
+}
+
 /// THE REGRESSION LAW: the popover's Code button does not own a
 /// private edit path — `PopoverButton::action()` is the SAME catalog Action
 /// the keyboard/palette route fires (law-tested,

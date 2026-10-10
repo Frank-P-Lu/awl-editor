@@ -22,12 +22,9 @@ pub struct ViewState {
     pub text: String,
     pub cursor_line: usize,
     pub cursor_col: usize,
-    /// The caret's wrap AFFINITY (see [`crate::caret::Affinity`]): which visual row
-    /// the caret RENDERS on when `cursor_col` lands exactly on a shared soft-wrap
-    /// boundary. `Upstream` (set by a visual line-END motion) renders on the UPPER
-    /// row's trailing edge; `Downstream` (the default) on the lower row's leading
-    /// edge. Read ONLY by the caret's own placement (`caret_affinity`), so every
-    /// other overlay is unaffected.
+    /// At a shared soft-wrap boundary, visual line-end motion sets Upstream
+    /// (upper row's trailing edge); default Downstream uses the lower leading edge.
+    /// Only caret placement reads affinity; other overlays are unaffected.
     pub caret_affinity: crate::caret::Affinity,
     pub scroll: ScrollPos,
     pub zoom: f32,
@@ -35,6 +32,8 @@ pub struct ViewState {
     /// `None` when there is no selection. line0/col0 is the earlier endpoint.
     pub selection: Option<((usize, usize), (usize, usize))>,
     pub preedit: String,
+    /// Scalar offset within preedit; None preserves end placement.
+    pub preedit_cursor: Option<usize>,
     pub field_input: Option<FieldInput>,
     pub misspelled: Vec<crate::spell::Misspelling>,
     pub is_edit_move: bool,
@@ -391,6 +390,7 @@ impl ViewState {
             zoom: crate::range::ZOOM.default,
             selection: None,
             preedit: String::new(),
+            preedit_cursor: None,
             field_input: None,
             misspelled: Vec::new(),
             is_edit_move: false,

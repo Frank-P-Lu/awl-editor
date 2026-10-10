@@ -17,6 +17,7 @@ impl ViewState {
     /// Both live frames and App captures consume the same focused-field snapshot.
     pub(crate) fn apply_field_input(&mut self, input: FieldInput) {
         self.preedit.clear();
+        self.preedit_cursor = None;
         match input.field {
             TextField::PickerQuery
             | TextField::Rename

@@ -454,8 +454,8 @@ fn at_least_six_distinct_faces() {
 
 /// Mopoke's body face is the warm slab Bitter
 /// (shared with Magpie — precedented face-sharing, no new asset) and its
-/// nested-bullet triple is the approved cloud/star/comet set, distinct from
-/// Mopoke's Moonfaces dividers and rounded task marker. This pins the data off any GPU; the
+/// nested bullets use the ordinary shared triple, distinct from Mopoke's
+/// Moonfaces dividers and rounded task marker. This pins the data off any GPU; the
 /// render laws
 /// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`
 /// (they resolve) and `..::bullet_glyph_never_touches_the_following_text_in_any_world`
@@ -472,8 +472,8 @@ fn mopoke_body_face_is_bitter_with_the_bullet_triple() {
     );
     assert_eq!(
         MOPOKE.bullets,
-        ('\u{2606}', '\u{2601}', '\u{2604}'),
-        "Mopoke's approved bullet triple is white star / cloud / comet"
+        ('\u{2022}', '\u{25E6}', '\u{25AA}'),
+        "Mopoke uses the approved ordinary bullet / white bullet / small square triple"
     );
     // Face-sharing is precedented, never a new asset: Magpie draws in Bitter too.
     assert_eq!(

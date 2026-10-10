@@ -8,11 +8,13 @@ mod bare_url;
 mod cell;
 mod footnotes;
 mod list;
+mod list_metrics;
 mod smart_punct;
 mod substitutes;
 pub(in crate::render) use bare_url::is_bare_url_tail;
 pub(in crate::render) use cell::cell_inline_attrs;
 pub(in crate::render) use list::{add_bullet_conceal_span, add_task_conceal_span};
+pub(in crate::render) use list_metrics::ListLayoutMetrics;
 pub(in crate::render) use smart_punct::{shape_smart_punct_glyph, smart_punct_kind_for};
 pub(in crate::render) use substitutes::{
     SubstituteAdvances, shape_footnote_number, smart_punct_metrics,
@@ -101,28 +103,61 @@ pub(in crate::render) fn add_rule_conceal_span(
     }
 }
 
+pub(in crate::render) struct ListIndentSpanCtx<'a> {
+    pub(in crate::render) base: &'a Attrs<'static>,
+    pub(in crate::render) base_font_size: f32,
+    pub(in crate::render) row_lh: f32,
+    pub(in crate::render) hanging_preview: bool,
+    pub(in crate::render) md_spans: &'a [(std::ops::Range<usize>, crate::markdown::MdKind)],
+    pub(in crate::render) list_continuations: &'a [crate::markdown::ListContinuation],
+}
+
 pub(in crate::render) fn add_list_indent_span(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
-    base: &Attrs<'static>,
-    base_font_size: f32,
-    row_lh: f32,
+    line_doc_start: usize,
+    ctx: ListIndentSpanCtx<'_>,
 ) {
-    let Some(it) = crate::markdown::list_item(line_text) else {
-        return;
+    // Use the same parser-owned enrollment as marker concealment, painting and
+    // hanging layout. A list-shaped line inside a code block must retain its
+    // literal indentation and can never receive only one piece of list layout.
+    let rich =
+        crate::markdown::rich_unordered_list_item(line_text, line_doc_start, ctx.md_spans.iter());
+    let continuation = ctx
+        .list_continuations
+        .binary_search_by_key(&line_doc_start, |item| item.line_doc_start)
+        .ok()
+        .map(|index| ctx.list_continuations[index]);
+    let (source_indent, marker_col) = match (rich, continuation) {
+        (Some(item), _) => (item.marker_col, item.marker_col),
+        (None, Some(item)) => (item.source_indent, item.marker_col),
+        (None, None) => return,
     };
-    if it.indent == 0 {
-        return; // depth 0: no indent run to widen, byte-identical
+    if ctx.hanging_preview {
+        if source_indent > 0 {
+            let hidden = ctx
+                .base
+                .clone()
+                .metrics(GlyphMetrics::new(CONCEAL_ZERO_WIDTH_FONT_SIZE, ctx.row_lh));
+            al.add_span(0..source_indent, &hidden);
+        }
+        return;
+    }
+    // A revealed continuation paragraph shows its literal source indentation.
+    // Only an explicit marker line participates in the world's editing-time
+    // list-indent widening.
+    if rich.is_none() || marker_col == 0 {
+        return;
     }
     let list_indent_scale = crate::theme::active().list_indent_scale;
     if (list_indent_scale - 1.0).abs() < 1e-3 {
         return; // the PLAIN tier leaves the renderer byte-identical
     }
-    let wide = base.clone().metrics(GlyphMetrics::new(
-        base_font_size * list_indent_scale,
-        row_lh,
+    let wide = ctx.base.clone().metrics(GlyphMetrics::new(
+        ctx.base_font_size * list_indent_scale,
+        ctx.row_lh,
     ));
-    al.add_span(0..it.indent, &wide);
+    al.add_span(0..marker_col, &wide);
 }
 
 /// The document BYTE RANGE covering EVERY LINE the active selection TOUCHES —

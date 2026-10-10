@@ -291,38 +291,62 @@ def find_role(node, role, depth=0):
 
 
 def text_of(node) -> str:
-    """The run's text, across whichever GI Text-interface shape is live."""
-    try:
-        count = node.get_character_count()
-        return node.get_text(0, count)
-    except (AttributeError, GLib.Error):
-        pass
-    iface = node.get_text_iface()
-    count = iface.get_character_count()
-    return iface.get_text(0, count)
+    """Use Text explicitly: Accessible.get_text is a different, zero-argument API."""
+    count = Atspi.Text.get_character_count(node)
+    return Atspi.Text.get_text(node, 0, count)
 
 
 def caret_offset_of(node) -> int:
-    try:
-        return node.get_caret_offset()
-    except (AttributeError, GLib.Error):
-        return node.get_text_iface().get_caret_offset()
+    return Atspi.Text.get_caret_offset(node)
 
 
 def selection_of(node):
-    """(n_selections, (start, end) | None) across whichever GI shape is live."""
-    try:
-        n = node.get_n_selections()
-        rng = node.get_selection(0) if n > 0 else None
-    except (AttributeError, GLib.Error):
-        iface = node.get_text_iface()
-        n = iface.get_n_selections()
-        rng = iface.get_selection(0) if n > 0 else None
+    """Read text selection, avoiding Accessible.get_selection's interface accessor."""
+    n = Atspi.Text.get_n_selections(node)
+    rng = Atspi.Text.get_selection(node, 0) if n > 0 else None
     if rng is None:
         return n, None
     if isinstance(rng, tuple):
         return n, rng
     return n, (rng.start_offset, rng.end_offset)
+
+
+def await_document(app, proc, read, timeout, description):
+    """Retry async registration; unexpected errors and expired oracles fail closed."""
+    deadline = time.monotonic() + timeout
+    last = "not ready"
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            fail(f"awl exited early with code {proc.returncode} while waiting for {description}")
+        try:
+            document = find_role(app, Atspi.Role.ENTRY)
+            if document is not None:
+                if read(document):
+                    return document
+                last = "document present, required value not ready"
+        except (AttributeError, GLib.Error) as exc:
+            last = str(exc)
+        time.sleep(POLL_S)
+    fail(f"{description} unavailable after {timeout}s ({last})")
+
+
+def document_ready(app, proc):
+    document = await_document(
+        app, proc, lambda node: True, DOCUMENT_TIMEOUT_S, "ROLE_ENTRY document"
+    )
+    require_editable_multiline(document)
+    return await_document(
+        app, proc, lambda node: node.get_state_set().contains(Atspi.StateType.FOCUSED),
+        FOCUS_TIMEOUT_S, "document FOCUSED state"
+    )
+
+
+def require_editable_multiline(document):
+    states = document.get_state_set()
+    for state, name in [(Atspi.StateType.EDITABLE, "EDITABLE"),
+                        (Atspi.StateType.MULTI_LINE, "MULTI_LINE")]:
+        if not states.contains(state):
+            fail(f"document lacks required {name} state")
 
 
 def main() -> None:
@@ -394,6 +418,8 @@ def main() -> None:
                 "registered with the accessibility bus"
             )
 
+        document = document_ready(app, proc)
+
         # No ROLE_FRAME lookup here — see the module docstring: awl's tree has
         # no accesskit::Role::Window anywhere, so no AT-SPI Frame exists at
         # any depth, confirmed structurally, not by timing. The document is
@@ -422,20 +448,13 @@ def main() -> None:
         # unix registers interfaces through an async channel to its own thread,
         # so the text can lag the document node's appearance.
         want_text = "".join(EXPECTED_RUN_TEXT)
-        deadline = time.time() + RUN_CHILDREN_TIMEOUT_S
-        got_text = text_of(document)
-        while got_text != want_text and time.time() < deadline:
-            time.sleep(POLL_S)
-            document = find_role(app, Atspi.Role.ENTRY) or document
-            got_text = text_of(document)
-        if got_text != want_text:
-            fail(
-                f"document text is {got_text!r}, expected {want_text!r} after "
-                f"waiting {RUN_CHILDREN_TIMEOUT_S}s with the handle re-fetched "
-                "fresh each retry — the document's text did not cross the "
-                "AT-SPI bridge intact"
-            )
+        document = await_document(
+            app, proc, lambda node: (text_of(node) == want_text
+                                   and node.get_state_set().contains(Atspi.StateType.FOCUSED)),
+            RUN_CHILDREN_TIMEOUT_S, "matching document text across the AT-SPI bridge"
+        )
 
+        require_editable_multiline(document)
         child_count = document.get_child_count()
         if child_count != 0:
             fail(
@@ -454,8 +473,8 @@ def main() -> None:
         offset = 0
         for i, want in enumerate(EXPECTED_RUN_TEXT):
             try:
-                got = document.get_string_at_offset(
-                    offset, Atspi.TextGranularity.LINE
+                got = Atspi.Text.get_string_at_offset(
+                    document, offset, Atspi.TextGranularity.LINE
                 ).content
             except (AttributeError, GLib.Error) as exc:
                 fail(
@@ -516,7 +535,7 @@ def main() -> None:
 
         print(
             "ATSPI-PROBE PASS: awl registered with the AT-SPI2 bus; the "
-            f"editable multiline document (focused), its {run_count} stable "
+            f"editable multiline document (focused), its {len(EXPECTED_RUN_TEXT)} stable "
             "line runs with matching text, and a live keyboard-driven "
             "selection all crossed the bridge intact."
         )

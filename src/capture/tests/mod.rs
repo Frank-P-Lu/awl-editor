@@ -25,6 +25,7 @@ mod frames;
 mod goto_line_jump;
 mod han_evidence;
 mod i18n_fixtures;
+mod ime_document;
 mod layout_oracle;
 mod metric_scale;
 mod panel_geometry;

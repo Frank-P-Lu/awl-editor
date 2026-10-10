@@ -193,36 +193,27 @@ fn every_gated_door_is_refused_while_the_change_is_unresolved() {
     }
 }
 
-/// QUIT routes back through resolution ONCE, then proceeds — and the record is
-/// on disk either way, so the second Quit is not a loss.
+/// Every request must freshly preserve the active unresolved manuscript.
 #[test]
-fn quit_is_deferred_once_and_never_traps() {
+fn quit_requires_current_recovery_on_every_request() {
+    let _guard = crate::testlock::serial();
     let (mut app, _mem, _fs) = conflicted();
-    app.manual_save();
-    assert!(app.change_unresolved());
-
-    let first = app
-        .press_spec_headless(quit_chord())
-        .expect("the quit chord parses");
-    assert!(!first, "the first Quit is sent back to the conflict");
-    assert_eq!(
-        app.frame.notice().text(),
-        Some(crate::app::CHANGED_ELSEWHERE_NOTICE)
-    );
-    assert_eq!(
-        crate::recovery::read().map(|r| r.text),
-        Some(MINE.to_string()),
-        "the deferred Quit wrote the record before refusing"
-    );
-
-    let second = app
-        .press_spec_headless(quit_chord())
-        .expect("the quit chord parses");
-    assert!(
-        second,
-        "a second Quit proceeds — refusing forever would trap someone whose only \
-         way out is a decision they are not ready to make"
-    );
+    for text in [
+        MINE,
+        "newer conflict manuscript\n",
+        "latest conflict manuscript\n",
+    ] {
+        app.document.set_text(text);
+        let quit = app
+            .press_spec_headless(quit_chord())
+            .expect("the quit chord parses");
+        assert!(quit, "a current durable recovery permits exit");
+        assert_eq!(crate::recovery::read().unwrap().text, text);
+        assert!(
+            app.is_document_dirty(),
+            "recovery does not save the original file"
+        );
+    }
 }
 
 /// Quit's chord in the convention this run is driving. Spelled out rather than

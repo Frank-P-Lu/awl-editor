@@ -86,6 +86,7 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
         "reference-537",
         "list-bullet",
         "task-marker",
+        "retained-cmap",
     ] {
         assert!(
             !role_codepoints(role).is_empty(),
@@ -96,6 +97,11 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
         role_codepoints("reference-537"),
         BTreeSet::from([0x002A, 0x00A7, 0x00B6, 0x2016, 0x2020, 0x2021]),
         "the traditional * † ‡ § ‖ ¶ reference ladder is enrolled exactly"
+    );
+    assert_eq!(
+        role_codepoints("retained-cmap").len(),
+        23,
+        "retired list glyphs remain cmap-compatible without claiming a live role"
     );
     for mark in roster {
         assert!(
@@ -113,6 +119,7 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
                         | "reference-537"
                         | "list-bullet"
                         | "task-marker"
+                        | "retained-cmap"
                 )),
             "U+{:04X} has an unknown role: {:?}",
             mark.codepoint,
@@ -346,7 +353,7 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
         .flat_map(|world| [world.bullets.0, world.bullets.1, world.bullets.2])
         .map(|ch| ch as u32)
         .collect();
-    assert_eq!(bullet_role.len(), 41, "the approved bullet union is exact");
+    assert_eq!(bullet_role.len(), 21, "the approved bullet union is exact");
     assert_eq!(
         consumed_bullets, bullet_role,
         "the live bullet consumers and list-bullet roster role must match both ways"

@@ -8,7 +8,11 @@ use super::*;
 use std::sync::Mutex;
 
 mod acquire;
+mod completion;
 mod present;
+
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use completion::tests::metal::assert_healthy_upload_completion;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GpuFaultKind {
@@ -508,20 +512,22 @@ impl Gpu {
         let t0 = debug.then(Instant::now);
         if let Err(e) = self.pipeline.prepare(&self.device, &self.queue, w, h) {
             eprintln!("prepare error: {e}");
-            return PreparedFrame {
-                outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed),
-                activities: PreparedActivities::parked(),
-            };
+            return self.finish_unpresented(
+                GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed),
+                PreparedActivities::parked(),
+                completion::SurfaceFollowup::None,
+            );
         }
         let activities = PreparedActivities::from_post_prepare(
             self.pipeline
                 .active_activities(travelling_ground.unwrap_or(false)),
         );
         if let Some(fault) = self.take_faults().into_iter().next() {
-            return PreparedFrame {
-                outcome: GpuFrameOutcome::Fault(fault),
+            return self.finish_unpresented(
+                GpuFrameOutcome::Fault(fault),
                 activities,
-            };
+                completion::SurfaceFollowup::None,
+            );
         }
         // Prepare's span ends here; the acquire wait below is its own span.
         let prepare_ms = t0.map(|t| t.elapsed().as_secs_f32() * 1000.0);
@@ -537,46 +543,44 @@ impl Gpu {
         let frame = match acquired {
             wgpu::CurrentSurfaceTexture::Success(f) => f,
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                return PreparedFrame {
-                    outcome: GpuFrameOutcome::Skipped(
-                        if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
-                            GpuFrameSkip::Timeout
-                        } else {
-                            GpuFrameSkip::Occluded
-                        },
-                    ),
-                    activities,
+                let skip = if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
+                    GpuFrameSkip::Timeout
+                } else {
+                    GpuFrameSkip::Occluded
                 };
+                return self.finish_unpresented(
+                    GpuFrameOutcome::Skipped(skip),
+                    activities,
+                    completion::SurfaceFollowup::None,
+                );
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
-                acquire::reconfigure_after_discard(acquired, || {
-                    self.surface.configure(&self.device, &self.config);
+                // Discard BEFORE submit: submit can report loss, which makes a
+                // still-owned swapchain texture's later discard invalid.
+                return acquire::reconfigure_after_discard(acquired, || {
+                    self.finish_unpresented(
+                        GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured),
+                        activities,
+                        completion::SurfaceFollowup::Reconfigure,
+                    )
                 });
-                return PreparedFrame {
-                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured),
-                    activities,
-                };
             }
             wgpu::CurrentSurfaceTexture::Lost => {
-                if let Err(fault) = self.recover_surface() {
-                    return PreparedFrame {
-                        outcome: GpuFrameOutcome::Fault(fault),
-                        activities,
-                    };
-                }
-                return PreparedFrame {
-                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated),
+                return self.finish_unpresented(
+                    GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated),
                     activities,
-                };
+                    completion::SurfaceFollowup::Recreate,
+                );
             }
             wgpu::CurrentSurfaceTexture::Validation => {
-                return PreparedFrame {
-                    outcome: GpuFrameOutcome::Fault(GpuFault {
+                return self.finish_unpresented(
+                    GpuFrameOutcome::Fault(GpuFault {
                         kind: GpuFaultKind::Validation,
                         message: "surface validation error".into(),
                     }),
                     activities,
-                };
+                    completion::SurfaceFollowup::None,
+                );
             }
         };
         self.present_acquired(frame, debug, t0, prepare_ms, activities)

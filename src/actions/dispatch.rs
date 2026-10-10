@@ -44,6 +44,7 @@ macro_rules! classify_action_family {
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
+            | Action::InsertText(_)
             | Action::Newline
             | Action::AcceptAlternate
             | Action::InsertTab

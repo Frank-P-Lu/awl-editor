@@ -63,6 +63,15 @@ impl DocumentSession {
             .map(|active| crate::buffers::BufferKey::of(&active.buffer))
     }
 
+    /// Snapshot every owned entry for a preservation decision without borrowing
+    /// the registry across a filesystem operation or changing the active slot.
+    pub(in crate::app) fn open_entry_keys(&self) -> Vec<crate::buffers::BufferKey> {
+        self.active_key()
+            .into_iter()
+            .chain(self.registry.keys().cloned())
+            .collect()
+    }
+
     /// The facts for `key`, whether it is the active entry or a parked one.
     ///
     /// Answering for BOTH is what lets the removal owner have one shape: the

@@ -233,14 +233,14 @@ impl App {
     /// autosave engine would have written the file — so while a conflict is
     /// open, autosave keeps doing its job, it just writes to the record instead
     /// of to the user's file. That is what makes "Esc and keep editing" safe.
-    pub(in crate::app) fn write_recovery_record(&self, path: &Path) {
+    pub(in crate::app) fn write_recovery_record(&self, path: &Path) -> bool {
         if !self.active_file_is(path) {
-            return;
+            return false;
         }
         crate::recovery::write(&crate::recovery::Record {
             path: path.to_path_buf(),
             text: self.document.buffer().text(),
-        });
+        })
     }
 
     fn active_file_is(&self, path: &Path) -> bool {
@@ -408,28 +408,6 @@ impl App {
                     | Some(DELETED_ELSEWHERE_NOTICE)
                     | Some(UNREADABLE_NOTICE)
             )
-    }
-
-    /// QUIT ROUTES BACK THROUGH RESOLUTION — once. The first attempt is
-    /// deferred so the conflict is seen; every attempt after it proceeds,
-    /// because by then the recovery record has already made quitting lossless,
-    /// and refusing forever would trap someone whose only way out is a decision
-    /// they are not ready to make. Returns whether the quit was deferred.
-    pub(in crate::app) fn defer_quit_once_for_conflict(&mut self) -> bool {
-        if !self.persistence.defer_quit_for_conflict() {
-            return false;
-        }
-        self.set_sticky_notice(self.external_change_notice());
-        if let Some(path) = self
-            .document
-            .buffer_opt()
-            .and_then(|buffer| buffer.path())
-            .map(|p| p.to_path_buf())
-        {
-            self.write_recovery_record(&path);
-        }
-        self.request_frame();
-        true
     }
 
     /// RELAUNCH RECOVERY at startup: if the one record belongs to the document

@@ -1,10 +1,11 @@
 use super::*;
 
-/// [`TextPipeline::parse_doc_spans`]'s pair: the markdown spans and the
-/// syntax-highlight spans parsed from one document text.
+/// [`TextPipeline::parse_doc_spans`]'s styling spans plus parser-owned list
+/// continuation paragraphs, parsed from one document text.
 type DocSpans = (
     Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
+    Vec<crate::markdown::ListContinuation>,
 );
 
 /// Exact CPU stages inside one document-text synchronization. Populated only
@@ -42,7 +43,10 @@ mod change;
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
+mod list_layout;
 use change::{ChangedLines, TextChange};
+pub(super) use list_layout::ListLayoutState;
+use list_layout::parsed_list_ownership;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
@@ -417,7 +421,7 @@ impl TextPipeline {
         let shape_h = self.full_shape_height();
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
-        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        self.shape_document();
         if let Some(start) = shape_at {
             self.last_text_sync_phases.shape_ms = start.elapsed().as_secs_f64() * 1000.0;
         }
@@ -453,7 +457,7 @@ impl TextPipeline {
         let shape_h = self.full_shape_height();
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
-        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        self.shape_document();
         self.row_geom.invalidate();
         self.shaped_key = Some(text.to_string());
     }
@@ -479,16 +483,16 @@ impl TextPipeline {
     /// the render stays byte-identical. Computed from the shaped text (preedit-spliced
     /// and all), so the span byte offsets line up with the buffer lines.
     fn parse_doc_spans(&self, text: &str) -> DocSpans {
-        let md_spans = if self.md_enabled {
-            crate::markdown::spans(text)
+        let (md_spans, list_continuations) = if self.md_enabled {
+            crate::markdown::spans_with_list_continuations(text)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         let syn_spans = match self.syn_lang {
             Some(lang) => crate::syntax::spans(lang, text),
             None => Vec::new(),
         };
-        (md_spans, syn_spans)
+        (md_spans, syn_spans, list_continuations)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -883,6 +887,13 @@ impl TextPipeline {
         // `selection_touch_bytes`'s own doc comment for why this is the ONE
         // owner every reveal decision below reads (now including
         // `compute_image_layout`'s inline-image reveal).
+        let old_line_texts: Vec<_> = self.buffer.lines.iter().map(|line| line.text()).collect();
+        let old_list_ownership = parsed_list_ownership(
+            &old_line_texts,
+            &self.md_spans,
+            &self.list_layout.continuations,
+        );
+        let old_line_count = old_line_texts.len();
         let changed_lines = ChangedLines::new(text, cursor_line, self.selection);
         let lines_ms = profile_elapsed_ms(lines_at);
         let new_lines = &changed_lines.lines;
@@ -909,7 +920,8 @@ impl TextPipeline {
             self.owner_scan.evidence_scan_lines.set(evidence_scanned);
         }
         let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
-        let (md_spans, syn_spans) = self.parse_doc_spans(text);
+        let (md_spans, syn_spans, list_continuations) = self.parse_doc_spans(text);
+        let new_list_ownership = parsed_list_ownership(new_lines, &md_spans, &list_continuations);
         let spans_ms = profile_elapsed_ms(spans_at);
         if self.text_sync_profile {
             // WITNESS, not a cache-hit counter: `parse_doc_spans` is not
@@ -951,6 +963,7 @@ impl TextPipeline {
             base_line_height: base_lh,
             md: self.md_enabled,
             md_spans: &md_spans,
+            list_continuations: &list_continuations,
             syn_spans: &syn_spans,
             doc_lang,
             cjk_evidence: self.han_evidence,
@@ -970,13 +983,20 @@ impl TextPipeline {
                 image_force.get(li).copied().flatten(),
             )
         };
-        let change = self.classify_text_change(
+        let mut change = self.classify_text_change(
             new_lines,
             &old_image_heights,
             &image_heights,
             &old_image_force,
             &image_force,
             (old_doc_lang, old_han_evidence),
+        );
+        self.reconcile_retained_list_ownership(
+            &old_list_ownership,
+            &new_list_ownership,
+            &mut change,
+            old_line_count,
+            new_lines.len(),
         );
         // Splice the changed band into the glyphon line vector. The unchanged
         // prefix lines (0..prefix) and suffix lines (old_end..old_len) keep their
@@ -1005,6 +1025,7 @@ impl TextPipeline {
         };
         self.last_outline_current = self.outline_current();
         self.md_spans = md_spans;
+        self.list_layout.continuations = list_continuations;
         self.syn_spans = syn_spans;
         self.image_heights = image_heights;
 
@@ -1075,6 +1096,7 @@ impl TextPipeline {
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md_spans = std::mem::take(&mut self.md_spans);
+        let list_continuations = std::mem::take(&mut self.list_layout.continuations);
         let syn_spans = std::mem::take(&mut self.syn_spans);
         let image_heights = std::mem::take(&mut self.image_heights);
         // Same "reuse the last reshape's table" treatment as
@@ -1100,6 +1122,7 @@ impl TextPipeline {
             base_line_height: base_lh,
             md: self.md_enabled,
             md_spans: &md_spans,
+            list_continuations: &list_continuations,
             syn_spans: &syn_spans,
             doc_lang,
             cjk_evidence: self.han_evidence,
@@ -1126,11 +1149,12 @@ impl TextPipeline {
             start += tlen + 1;
         }
         self.md_spans = md_spans;
+        self.list_layout.continuations = list_continuations;
         self.syn_spans = syn_spans;
         self.image_heights = image_heights;
         self.image_force = image_force;
         self.row_geom.invalidate();
-        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        self.shape_document();
         self.buffer.set_redraw(true);
     }
 
@@ -1189,10 +1213,31 @@ impl TextPipeline {
             crate::script::effective_cjk_priority(self.han_evidence, &self.cjk_priority);
         let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md_spans = std::mem::take(&mut self.md_spans);
+        let list_continuations = std::mem::take(&mut self.list_layout.continuations);
         let syn_spans = std::mem::take(&mut self.syn_spans);
         let mut image_heights = std::mem::take(&mut self.image_heights);
         let mut image_force = std::mem::take(&mut self.image_force);
         let wrap = self.text_wrap_width();
+        // A lazy continuation has no source-indent attrs to toggle. Reconcile
+        // only when its actual inset disagrees with the current reveal state;
+        // unrelated cursor moves retain the shaped document unchanged.
+        let lazy_list_layout_changed = list_continuations.iter().any(|continuation| {
+            if continuation.source_indent != 0 {
+                return false;
+            }
+            let preview = self.md_enabled
+                && !self.line_is_revealed(continuation.line, selection_touch.as_ref());
+            let desired = if preview {
+                self.list_layout
+                    .preview_inset(continuation.marker_col, wrap)
+            } else {
+                0.0
+            };
+            self.buffer
+                .lines
+                .get(continuation.line)
+                .is_some_and(|line| (line.hanging_inset() - desired).abs() > f32::EPSILON)
+        });
         let base_font_size = self.metrics.font_size;
         let line_attrs_ctx = LineAttrsCtx {
             base: &attrs,
@@ -1200,6 +1245,7 @@ impl TextPipeline {
             base_line_height: base_lh,
             md: self.md_enabled,
             md_spans: &md_spans,
+            list_continuations: &list_continuations,
             syn_spans: &syn_spans,
             doc_lang,
             cjk_evidence: self.han_evidence,
@@ -1218,6 +1264,9 @@ impl TextPipeline {
             });
             let is_bullet = crate::markdown::list_item(self.buffer.lines[li].text())
                 .is_some_and(|it| !it.ordered);
+            let is_list_continuation = list_continuations
+                .binary_search_by_key(&start, |item| item.line_doc_start)
+                .is_ok();
             let is_concealable = md_spans.iter().any(|(r, k)| {
                 matches!(k, crate::markdown::MdKind::ConcealMarkup(_))
                     && r.start < start + tlen + 1
@@ -1238,7 +1287,7 @@ impl TextPipeline {
                     &mut image_force,
                 );
             }
-            if (is_rule || is_bullet || is_concealable)
+            if (is_rule || is_bullet || is_list_continuation || is_concealable)
                 && let Some(line) = self.buffer.lines.get_mut(li)
             {
                 let al = build_line_attrs(
@@ -1254,10 +1303,11 @@ impl TextPipeline {
             start += tlen + 1;
         }
         self.md_spans = md_spans;
+        self.list_layout.continuations = list_continuations;
         self.syn_spans = syn_spans;
         self.image_heights = image_heights;
         self.image_force = image_force;
-        if changed {
+        if changed || lazy_list_layout_changed {
             // WYSIWYG v1.1: a reveal/conceal toggle can now change actual GLYPH
             // GEOMETRY, not just color (the zero-width metrics override — see
             // `add_wysiwyg_conceal_spans`), so the row-geometry memo
@@ -1269,7 +1319,7 @@ impl TextPipeline {
             // Before this round every toggle here was COLOR-only, so the stale
             // memo was harmless; it is not anymore.
             self.row_geom.invalidate();
-            self.buffer.shape_until_scroll(&mut self.font_system, false);
+            self.shape_document();
             self.buffer.set_redraw(true);
         }
     }
@@ -1293,13 +1343,14 @@ impl TextPipeline {
 
     /// Splice the active preedit (if any) into `text`, then RESHAPE ONLY IF the
     /// composed string differs from what is already shaped (or `force` is set for a
-    /// zoom change). Advances the effective cursor column to the preedit's end
+    /// zoom change). Advances the effective cursor to the projected preedit offset
     /// either way (a no-reshape cursor move still needs the caret placed correctly).
     ///
     /// The composed-string compare is the lever that makes every non-typing event
     /// free: a cursor move / scroll / selection change produces the SAME composed
     /// text, so `set_text` (and the whole shaping path) is skipped entirely.
     pub(super) fn shape_with_preedit(&mut self, text: &str, force: bool) {
+        self.preedit_start_col = self.cursor_col;
         if self.preedit.is_empty() {
             // COMMON PATH (every non-composing frame): the composed text IS `text`
             // verbatim, so compare the shaped key against `text` DIRECTLY — no
@@ -1320,7 +1371,10 @@ impl TextPipeline {
             self.set_text(&composed);
             self.shaped_key = Some(composed);
         }
-        self.cursor_col += preedit_chars;
+        self.cursor_col += self
+            .preedit_cursor
+            .unwrap_or(preedit_chars)
+            .min(preedit_chars);
     }
 
     /// Re-wrap the document buffer to the live [`Self::text_wrap_width`] if it has
@@ -1335,7 +1389,7 @@ impl TextPipeline {
             let shape_h = self.full_shape_height();
             self.buffer
                 .set_size(&mut self.font_system, Some(want), Some(shape_h));
-            self.buffer.shape_until_scroll(&mut self.font_system, false);
+            self.shape_document();
             self.row_geom.invalidate();
             // TABLES: a width-only drift (page-mode toggle / measure edit /
             // page-width drag) never bumps `reshape_count` on its own, so

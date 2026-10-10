@@ -15,8 +15,9 @@ use super::model::{
     ToastAnchor, TwoColour, WashOverride,
 };
 use super::ornament::{
-    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PAPER_TOOL, LIST_INDENT_SCALE_PLAIN,
-    LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI, ORNAMENT_SCALE_ORNATE, Ornaments,
+    BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLET_SCALE_SALIENT, BULLETS_PLAIN,
+    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_NISHIKI, ORNAMENT_SCALE_ORNATE,
+    Ornaments,
 };
 mod cassowary;
 pub use cassowary::CASSOWARY;
@@ -107,9 +108,8 @@ pub const POTOROO: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.016, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Chestnut / seedling / butterfly: the approved living-depth sequence.
-    bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -155,9 +155,8 @@ pub const BILBY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.515, // equalized upward from tier 1.8 (theme::tests::ornament)
-    // Star / cloud / comet: the approved sky-depth sequence.
-    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -205,9 +204,8 @@ pub const SALTPAN: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
-    // Triangle / diamond / circle: the approved geometric-depth sequence.
-    bullets: ('\u{25B3}', '\u{25C7}', '\u{25CB}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -261,7 +259,7 @@ pub const QUOKKA: Theme = Theme {
     ornament_scale: 2.542, // equalized upward from tier 1.5 (theme::tests::ornament)
     // Wine / coffee / swords: the approved tavern-depth sequence.
     bullets: ('\u{1F377}', '\u{2615}', '\u{2694}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullet_scale: BULLET_SCALE_SALIENT,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -318,9 +316,8 @@ pub const BOMBORA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 1.897, // equalized upward from tier 1.8 (theme::tests::ornament)
-    // Anchor / sailboat / optically enlarged wheel: the approved nautical sequence.
-    bullets: ('\u{2693}', '\u{26F5}', '\u{2638}'),
-    bullet_scale: BULLET_SCALE_GARAMOND,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Night"),
@@ -365,9 +362,8 @@ pub const MULGA: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.557, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Roman numerals I / II / III: the approved stroke-depth sequence.
-    bullets: ('\u{2160}', '\u{2161}', '\u{2162}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: None,
@@ -413,9 +409,8 @@ pub const TAWNY: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.83, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Chestnut / seedling / butterfly: the approved living-depth sequence.
-    bullets: ('\u{1F330}', '\u{1F331}', '\u{1F98B}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,
@@ -461,9 +456,8 @@ pub const MOPOKE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.328, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Star / cloud / comet: the approved sky-depth sequence.
-    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -511,9 +505,8 @@ pub const BOWERBIRD: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.181, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Star / cloud / comet: the approved sky-depth sequence.
-    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -557,9 +550,8 @@ pub const CURRAWONG: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.359, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Bishop / king / rook: the approved chess-depth sequence.
-    bullets: ('\u{2657}', '\u{2654}', '\u{2656}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Night"),
@@ -682,9 +674,8 @@ pub const GALAH: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.721, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Dice one / two / three: the approved numbered-depth sequence.
-    bullets: ('\u{2680}', '\u{2681}', '\u{2682}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dawn"),
@@ -742,9 +733,8 @@ pub const MAGPIE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.751, // equalized upward from tier 2.2 (theme::tests::ornament)
-    // Reference mark / electric arrow / therefore: the approved print sequence.
-    bullets: ('\u{203B}', '\u{2301}', '\u{2234}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -855,9 +845,8 @@ pub const WAGTAIL: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 3.221, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Flat / natural / sharp: the approved notation-depth sequence.
-    bullets: ('\u{266D}', '\u{266E}', '\u{266F}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: Some("Dusk"),
@@ -1020,7 +1009,7 @@ pub const PAPERBARK: Theme = Theme {
     ornament_scale: 2.719, // equalized upward from tier 1.8 (theme::tests::ornament)
     // Pencil / scissors / envelope: the approved paper-tools sequence.
     bullets: ('\u{270E}', '\u{2701}', '\u{2709}'),
-    bullet_scale: BULLET_SCALE_PAPER_TOOL,
+    bullet_scale: BULLET_SCALE_SALIENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -1139,9 +1128,8 @@ pub const KITE: Theme = Theme {
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_NISHIKI,
     ornament_scale: 2.544, // equalized upward from tier 1.5 (theme::tests::ornament)
-    // Star / cloud / comet: the approved sky-depth sequence.
-    bullets: ('\u{2606}', '\u{2601}', '\u{2604}'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullets: BULLETS_PLAIN,
+    bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     tags: ThemeTags {
         time: None,

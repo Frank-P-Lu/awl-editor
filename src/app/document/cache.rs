@@ -198,10 +198,6 @@ impl DocumentSession {
         active.extra.caret_synced_version = version;
     }
 
-    pub(in crate::app) fn acknowledge_document_version(&mut self, version: u64) {
-        self.active_entry_mut().extra.doc_saved_version = Some(version);
-    }
-
     pub(in crate::app) fn record_scratch_saved(
         &mut self,
         version: u64,

@@ -272,6 +272,12 @@ impl TextPipeline {
     pub(in crate::render) fn refresh_substitute_advances(&mut self) {
         self.substitute_advances =
             SubstituteAdvances::shape(&mut self.font_system, self.metrics, self.shaped_font);
+        self.list_layout.metrics = ListLayoutMetrics::shape(
+            &mut self.font_system,
+            self.metrics,
+            self.shaped_font,
+            theme::active().mono,
+        );
     }
 }
 

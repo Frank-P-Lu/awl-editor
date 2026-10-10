@@ -1354,5 +1354,8 @@ pub fn run(
 
 #[cfg(test)]
 mod clock_law;
+#[cfg(all(test, target_os = "macos"))]
+pub(crate) use gpu::assert_healthy_upload_completion;
+
 #[cfg(test)]
 mod tests;

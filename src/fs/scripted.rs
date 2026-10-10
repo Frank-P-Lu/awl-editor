@@ -39,6 +39,7 @@ pub(crate) struct ScriptedFailure {
 pub(crate) struct ScriptedFs {
     inner: InMemoryFs,
     failure: ScriptedFailure,
+    repeat_failure: bool,
     counts: Arc<std::sync::Mutex<std::collections::BTreeMap<ScriptedOperation, usize>>>,
     trace: Arc<std::sync::Mutex<Vec<String>>>,
     race_target: RaceTarget,
@@ -54,6 +55,7 @@ impl ScriptedFs {
         Self {
             inner,
             failure,
+            repeat_failure: false,
             counts: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             trace: Arc::new(std::sync::Mutex::new(Vec::new())),
             race_target: Arc::new(std::sync::Mutex::new(None)),
@@ -83,6 +85,12 @@ impl ScriptedFs {
         self
     }
 
+    /// Keep refusing the selected operation after its first failing ordinal.
+    pub(crate) fn repeating(mut self) -> Self {
+        self.repeat_failure = true;
+        self
+    }
+
     fn mutation(&self, operation: ScriptedOperation, detail: String) -> io::Result<()> {
         let ordinal = {
             let mut counts = self.counts.lock().unwrap();
@@ -94,7 +102,10 @@ impl ScriptedFs {
             .lock()
             .unwrap()
             .push(format!("{}#{ordinal} {detail}", operation.name()));
-        if operation == self.failure.operation && ordinal == self.failure.ordinal {
+        if operation == self.failure.operation
+            && (ordinal == self.failure.ordinal
+                || (self.repeat_failure && ordinal > self.failure.ordinal))
+        {
             return Err(io::Error::new(
                 self.failure.kind,
                 format!(

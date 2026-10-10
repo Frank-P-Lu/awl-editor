@@ -243,12 +243,30 @@ impl TextPipeline {
             let above_first = first_run && want_top < run.line_top;
             let in_band = want_top >= run.line_top && want_top < run.line_top + run.line_height;
             if above_first || in_band {
-                return (run.line_i, self.col_in_run(&run, target_x));
+                let col = self
+                    .concealed_list_prefix_hit_col(
+                        run.line_i,
+                        run.glyphs.first().is_none_or(|glyph| glyph.start == 0),
+                        !run.rtl,
+                        target_x,
+                    )
+                    .unwrap_or_else(|| self.col_in_run(&run, target_x));
+                return (run.line_i, col);
             }
             first_run = false;
         }
         match self.buffer.layout_runs().last() {
-            Some(run) => (run.line_i, self.col_in_run(&run, target_x)),
+            Some(run) => {
+                let col = self
+                    .concealed_list_prefix_hit_col(
+                        run.line_i,
+                        run.glyphs.first().is_none_or(|glyph| glyph.start == 0),
+                        !run.rtl,
+                        target_x,
+                    )
+                    .unwrap_or_else(|| self.col_in_run(&run, target_x));
+                (run.line_i, col)
+            }
             None => (0, 0),
         }
     }

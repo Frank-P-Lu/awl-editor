@@ -22,7 +22,7 @@ pub(super) fn intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
         }
         Action::InsertTab => ctx.journey.card_mut()?.files_focus_step(1),
         Action::Outdent => ctx.journey.card_mut()?.files_focus_step(-1),
-        Action::InsertChar(_) | Action::PasteText(_) => {
+        Action::InsertChar(_) | Action::InsertText(_) | Action::PasteText(_) => {
             ctx.journey.card_mut()?.files_focus = FilesFocus::Query;
             return None;
         }

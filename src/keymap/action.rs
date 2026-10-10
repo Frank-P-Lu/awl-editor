@@ -17,6 +17,8 @@ pub enum Action {
     BufferStart,
     BufferEnd,
     InsertChar(char),
+    /// Complete text from one admitted ordinary character key.
+    InsertText(String),
     Newline,
     /// SHIFT-HELD ACCEPT (`⇧↵`) — the deliberate, footer-taught
     /// "yes, really" (restores a History row; bare `Enter` no longer does).
@@ -416,11 +418,17 @@ impl Action {
         )
     }
 
+    /// Ordinary text keys retain typing feedback and keystroke accounting.
+    pub fn is_typing(&self) -> bool {
+        matches!(self, Action::InsertChar(_) | Action::InsertText(_))
+    }
+
     /// True when this action mutates buffer content and records undo history.
     pub fn is_edit(&self) -> bool {
         matches!(
             self,
             Action::InsertChar(_)
+                | Action::InsertText(_)
                 | Action::Newline
                 | Action::AcceptAlternate
                 | Action::InsertTab

@@ -68,10 +68,15 @@ impl App {
                 match owner {
                     TextTarget::None => {}
                     TextTarget::Document(_) => {
-                        // The document keeps its normal typing/undo door.
-                        for c in text.chars() {
-                            if !self.write_document_text(TextDoor::Ime, TextEdit::Char(c)) {
-                                return;
+                        if self.document.buffer().has_selection() {
+                            // A selected composition is one sealed replacement.
+                            self.write_document_text(TextDoor::Ime, TextEdit::Insert(&text));
+                        } else {
+                            // Unselected composition keeps normal typing groups.
+                            for c in text.chars() {
+                                if !self.write_document_text(TextDoor::Ime, TextEdit::Char(c)) {
+                                    return;
+                                }
                             }
                         }
                     }

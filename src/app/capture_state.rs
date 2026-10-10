@@ -83,6 +83,7 @@ impl App {
         opts.field_input = self.field_input_projection();
         opts.preedit = matches!(self.focused_text_target(), input::TextTarget::Document(_))
             .then(|| self.input.preedit().to_string());
+        opts.preedit_cursor = self.document_preedit_cursor();
         // The which-key panel is drawn by the harness's offscreen pipeline from
         // `opts`, but ANNOUNCED from the App's own scheduling state. Fed from
         // the one gate (`whichkey_panel_rows`) so the PNG and the `semantic`

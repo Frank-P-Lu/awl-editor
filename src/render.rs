@@ -1850,6 +1850,7 @@ pub struct TextPipeline {
     scroll: ScrollPos,
     metrics: Metrics,
     substitute_advances: SubstituteAdvances,
+    list_layout: text::ListLayoutState,
     /// The swap-chain/capture target format, from construction — kept so a
     /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`) can build
     /// with the same format every other pipeline here was built with.
@@ -1884,6 +1885,8 @@ pub struct TextPipeline {
     fold_chevron_turn: std::collections::HashMap<usize, f32>,
     hover_line: Option<usize>,
     preedit: String,
+    preedit_cursor: Option<usize>,
+    preedit_start_col: usize,
     field_input: Option<FieldInput>,
     field_caret_rect: Option<[f32; 4]>,
     misspelled: Vec<Misspelling>,

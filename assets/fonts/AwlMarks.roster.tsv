@@ -3,6 +3,7 @@
 # upstream_sha256=ca8782436f7dd82fc9fd93d28c9ec38c0c4ac0044f601a51451f0d648ac52809
 # upstream_version=4.0.5
 # derived_family=Awl Marks
+# retained-cmap preserves an adopted codepoint without claiming a live renderer role.
 codepoint	name	roles	source_range
 U+002A	ASTERISK	reference-537	Basic Latin U+0000-U+007F
 U+00A7	SECTION SIGN	chrome,symbol-span,reference-537	Latin-1 Supplement U+0080-U+00FF
@@ -10,33 +11,33 @@ U+00B6	PILCROW SIGN	reference-537	Latin-1 Supplement U+0080-U+00FF
 U+2016	DOUBLE VERTICAL LINE	reference-537	General Punctuation U+2000-U+206F
 U+2020	DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
 U+2021	DOUBLE DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
-U+2022	BULLET	chrome	General Punctuation U+2000-U+206F
-U+203B	REFERENCE MARK	list-bullet	General Punctuation U+2000-U+206F
+U+2022	BULLET	chrome,list-bullet	General Punctuation U+2000-U+206F
+U+203B	REFERENCE MARK	retained-cmap	General Punctuation U+2000-U+206F
 U+2042	ASTERISM	chrome,symbol-span,ornament-536	General Punctuation U+2000-U+206F
 U+2051	TWO ASTERISKS ALIGNED VERTICALLY	ornament-536	General Punctuation U+2000-U+206F
-U+2160	ROMAN NUMERAL ONE	list-bullet	Number Forms U+2150-U+218F
-U+2161	ROMAN NUMERAL TWO	list-bullet	Number Forms U+2150-U+218F
-U+2162	ROMAN NUMERAL THREE	list-bullet	Number Forms U+2150-U+218F
+U+2160	ROMAN NUMERAL ONE	retained-cmap	Number Forms U+2150-U+218F
+U+2161	ROMAN NUMERAL TWO	retained-cmap	Number Forms U+2150-U+218F
+U+2162	ROMAN NUMERAL THREE	retained-cmap	Number Forms U+2150-U+218F
 U+21B5	DOWNWARDS ARROW WITH CORNER LEFTWARDS	chrome,symbol-span	Arrows U+2190-U+21FF
 U+21E5	RIGHTWARDS ARROW TO BAR	chrome,symbol-span	Arrows U+2190-U+21FF
 U+21E7	UPWARDS WHITE ARROW	chrome,symbol-span	Arrows U+2190-U+21FF
-U+2234	THEREFORE	list-bullet	Mathematical Operators U+2200-U+22FF
-U+2301	ELECTRIC ARROW	list-bullet	Miscellaneous Technical U+2300-U+23FF
+U+2234	THEREFORE	retained-cmap	Mathematical Operators U+2200-U+22FF
+U+2301	ELECTRIC ARROW	retained-cmap	Miscellaneous Technical U+2300-U+23FF
 U+2303	UP ARROWHEAD	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2318	PLACE OF INTEREST SIGN	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+2325	OPTION KEY	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
 U+232B	ERASE TO THE LEFT	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
-U+25AA	BLACK SMALL SQUARE	chrome	Geometric Shapes U+25A0-U+25FF
-U+25B3	WHITE UP-POINTING TRIANGLE	list-bullet	Geometric Shapes U+25A0-U+25FF
+U+25AA	BLACK SMALL SQUARE	chrome,list-bullet	Geometric Shapes U+25A0-U+25FF
+U+25B3	WHITE UP-POINTING TRIANGLE	retained-cmap	Geometric Shapes U+25A0-U+25FF
 U+25C6	BLACK DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
-U+25C7	WHITE DIAMOND	list-bullet	Geometric Shapes U+25A0-U+25FF
+U+25C7	WHITE DIAMOND	retained-cmap	Geometric Shapes U+25A0-U+25FF
 U+25C8	WHITE DIAMOND CONTAINING BLACK SMALL DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
-U+25CB	WHITE CIRCLE	list-bullet	Geometric Shapes U+25A0-U+25FF
-U+25E6	WHITE BULLET	chrome	Geometric Shapes U+25A0-U+25FF
+U+25CB	WHITE CIRCLE	retained-cmap	Geometric Shapes U+25A0-U+25FF
+U+25E6	WHITE BULLET	chrome,list-bullet	Geometric Shapes U+25A0-U+25FF
 U+2600	BLACK SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
-U+2601	CLOUD	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2601	CLOUD	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
 U+2604	COMET	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+2606	WHITE STAR	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2606	WHITE STAR	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
 U+2607	LIGHTNING	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2610	BALLOT BOX	task-marker	Miscellaneous Symbols U+2600-U+26FF
 U+2615	HOT BEVERAGE	list-bullet	Miscellaneous Symbols U+2600-U+26FF
@@ -44,10 +45,10 @@ U+2618	SHAMROCK	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2619	REVERSED ROTATED FLORAL HEART BULLET	chrome,symbol-span,ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2638	WHEEL OF DHARMA	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+263C	WHITE SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
-U+2654	WHITE CHESS KING	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2654	WHITE CHESS KING	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
 U+2655	WHITE CHESS QUEEN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
-U+2656	WHITE CHESS ROOK	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+2657	WHITE CHESS BISHOP	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+2656	WHITE CHESS ROOK	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+2657	WHITE CHESS BISHOP	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
 U+2658	WHITE CHESS KNIGHT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2659	WHITE CHESS PAWN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2660	BLACK SPADE SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
@@ -56,12 +57,12 @@ U+2665	BLACK HEART SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+2669	QUARTER NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+266A	EIGHTH NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
 U+266C	BEAMED SIXTEENTH NOTES	ornament-536	Miscellaneous Symbols U+2600-U+26FF
-U+266D	MUSIC FLAT SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+266E	MUSIC NATURAL SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+266F	MUSIC SHARP SIGN	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+2680	DIE FACE-1	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+2681	DIE FACE-2	list-bullet	Miscellaneous Symbols U+2600-U+26FF
-U+2682	DIE FACE-3	list-bullet	Miscellaneous Symbols U+2600-U+26FF
+U+266D	MUSIC FLAT SIGN	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+266E	MUSIC NATURAL SIGN	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+266F	MUSIC SHARP SIGN	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+2680	DIE FACE-1	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+2681	DIE FACE-2	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
+U+2682	DIE FACE-3	retained-cmap	Miscellaneous Symbols U+2600-U+26FF
 U+2693	ANCHOR	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+2694	CROSSED SWORDS	list-bullet	Miscellaneous Symbols U+2600-U+26FF
 U+26F5	SAILBOAT	list-bullet	Miscellaneous Symbols U+2600-U+26FF
@@ -72,7 +73,7 @@ U+2726	BLACK FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2727	WHITE FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2728	SPARKLES	ornament-536	Dingbats U+2700-U+27BF
 U+2731	HEAVY ASTERISK	ornament-536	Dingbats U+2700-U+27BF
-U+2733	EIGHT SPOKED ASTERISK	list-bullet	Dingbats U+2700-U+27BF
+U+2733	EIGHT SPOKED ASTERISK	retained-cmap	Dingbats U+2700-U+27BF
 U+2734	EIGHT POINTED BLACK STAR	chrome	Dingbats U+2700-U+27BF
 U+2736	SIX POINTED BLACK STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
 U+2737	EIGHT POINTED RECTILINEAR BLACK STAR	chrome	Dingbats U+2700-U+27BF
@@ -114,8 +115,8 @@ U+1F31D	FULL MOON WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U
 U+1F31E	SUN WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F31F	GLOWING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F320	SHOOTING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
-U+1F330	CHESTNUT	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
-U+1F331	SEEDLING	list-bullet	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F330	CHESTNUT	retained-cmap	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F331	SEEDLING	retained-cmap	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F337	TULIP	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F338	CHERRY BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
 U+1F33C	BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF

@@ -225,6 +225,11 @@ impl<T> BufferRegistry<T> {
         self.entries.iter().any(|slot| slot.key == *key)
     }
 
+    /// Every parked identity, independent of presentation order.
+    pub(crate) fn keys(&self) -> impl Iterator<Item = &BufferKey> {
+        self.entries.iter().map(|slot| &slot.key)
+    }
+
     /// Test oracle for route laws that must prove a backgrounded identity is
     /// still paired with its exact user text, not merely count registry slots.
     #[cfg(test)]

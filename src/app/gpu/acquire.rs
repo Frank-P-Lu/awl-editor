@@ -2,9 +2,9 @@
 
 /// `Suboptimal` still owns a surface texture. Its destructor must run while the
 /// old swapchain is configured; reconfiguring first invalidates its discard path.
-pub(super) fn reconfigure_after_discard<T>(acquired: T, configure: impl FnOnce()) {
+pub(super) fn reconfigure_after_discard<T, R>(acquired: T, configure: impl FnOnce() -> R) -> R {
     drop(acquired);
-    configure();
+    configure()
 }
 
 #[cfg(test)]

@@ -2,20 +2,34 @@
 # Validate the actual native downloads; hosted and local signing share this owner.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST="${1:?usage: verify-macos-release.sh <dist> <version> <build-version> <signed|unsigned> <ci|local>}"
+DIST="${1:?usage: verify-macos-release.sh <dist> <version> <build-version> <signed|unsigned> <ci|local> [fresh-receipt-dir]}"
 VERSION="${2:?missing version}"
 BUILD_VERSION="${3:?missing build version}"
 SIGNING="${4:?missing signing policy}"
 LAUNCH="${5:?missing launch context}"
+RECEIPT_DIR="${6:-}"
 case "$SIGNING" in signed|unsigned) ;; *) echo 'error: invalid signing policy' >&2; exit 1 ;; esac
 case "$LAUNCH" in ci|local) ;; *) echo 'error: invalid launch context' >&2; exit 1 ;; esac
+if [ -n "$RECEIPT_DIR" ]; then
+  python3 "$ROOT/scripts/macos-verification-receipt.py" init --receipt-dir "$RECEIPT_DIR"
+fi
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 TEAM_ID="$(cat "$ROOT/assets/macos/release-team-id.txt")"
 SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/awl-mac-release-check.XXXXXX")"
 MOUNT=""
+COMPLETED_ARCHES=""
 cleanup() {
+  local result=$?
+  trap - EXIT
   if [ -n "$MOUNT" ]; then hdiutil detach "$MOUNT" >/dev/null 2>&1 || true; fi
-  rm -rf "$SCRATCH"
+  if ! rm -rf "$SCRATCH"; then result=1; fi
+  # Bash 3.2 can enter EXIT with status zero after a nounset expansion failure.
+  # Only this invocation's completed checks authorize a successful exit.
+  if [ "$result" -eq 0 ] && [ "$COMPLETED_ARCHES" != " arm64 x86_64" ]; then
+    echo 'error: Mac release verification did not complete both architectures' >&2
+    result=1
+  fi
+  exit "$result"
 }
 trap cleanup EXIT
 for ARCH in arm64 x86_64; do
@@ -41,13 +55,22 @@ for ARCH in arm64 x86_64; do
     xcrun stapler validate "$MOUNT/Awl.app"
     spctl --assess --type execute --verbose=4 "$MOUNT/Awl.app"
   fi
-  launch_args=()
-  if [ "$LAUNCH" = local ]; then launch_args+=(--local); fi
-  python3 "$ROOT/scripts/release-launch-smoke.py" --binary "$MOUNT/Awl.app/Contents/MacOS/awl" "${launch_args[@]}"
+  if [ "$LAUNCH" = local ]; then
+    python3 "$ROOT/scripts/release-launch-smoke.py" --binary "$MOUNT/Awl.app/Contents/MacOS/awl" --local
+  else
+    python3 "$ROOT/scripts/release-launch-smoke.py" --binary "$MOUNT/Awl.app/Contents/MacOS/awl"
+  fi
   ditto -c -k --keepParent "$MOUNT/Awl.app" "$DIST/$APP_ZIP"
   "$ROOT/scripts/check-macos-release-size.sh" "$DIST/$DMG" "$DIST/$APP_ZIP"
   hdiutil detach "$MOUNT"
   MOUNT=""
   (cd "$DIST" && shasum -a 256 "$DMG" > "$DMG.sha256")
   (cd "$DIST" && shasum -a 256 "$APP_ZIP" > "$APP_ZIP.sha256")
+  if [ -n "$RECEIPT_DIR" ]; then
+    python3 "$ROOT/scripts/macos-verification-receipt.py" write \
+      --receipt-dir "$RECEIPT_DIR" --dist "$DIST" --version "$VERSION" \
+      --build-version "$BUILD_VERSION" --source "$SOURCE_COMMIT" \
+      --signing "$SIGNING" --launch "$LAUNCH" --arch "$ARCH"
+  fi
+  COMPLETED_ARCHES="$COMPLETED_ARCHES $ARCH"
 done

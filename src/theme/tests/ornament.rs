@@ -134,20 +134,23 @@ fn assert_bullet_pair_law(t: &Theme) {
     assert!(
         [
             BULLET_SCALE_GARAMOND,
-            BULLET_SCALE_PAPER_TOOL,
             BULLET_SCALE_ORNAMENT,
-            BULLET_SCALE_PLAIN
+            BULLET_SCALE_PLAIN,
+            BULLET_SCALE_SALIENT,
         ]
         .contains(&t.bullet_scale),
         "{}: bullet scale {} is outside the measured fitting tiers",
         t.name,
         t.bullet_scale
     );
-    let is_paper_tool_set = t.bullets == ('\u{270E}', '\u{2701}', '\u{2709}');
+    let is_low_ink_set = matches!(
+        t.bullets,
+        ('\u{1F377}', '\u{2615}', '\u{2694}') | ('\u{270E}', '\u{2701}', '\u{2709}')
+    );
     assert_eq!(
-        t.bullet_scale == BULLET_SCALE_PAPER_TOOL,
-        is_paper_tool_set,
-        "{}: the paper-tool fitting tier belongs exactly to its approved glyph set",
+        t.bullet_scale == BULLET_SCALE_SALIENT,
+        is_low_ink_set,
+        "{}: the salient fitting tier belongs exactly to the two low-ink glyph sets",
         t.name
     );
 
@@ -226,27 +229,32 @@ fn every_world_has_a_bullet_pair() {
             && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
         "ornament bullets shape smaller than the plain body-size bullets"
     );
+    assert!(
+        BULLET_SCALE_ORNAMENT < std::hint::black_box(BULLET_SCALE_SALIENT)
+            && BULLET_SCALE_SALIENT < BULLET_SCALE_PLAIN,
+        "low-ink drawings grow above the ornament tier but remain below body size"
+    );
     let expected = [
-        ("Tawny", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
-        ("Mopoke", ('\u{2606}', '\u{2601}', '\u{2604}')),
-        ("Currawong", ('\u{2657}', '\u{2654}', '\u{2656}')),
-        ("Potoroo", ('\u{1F330}', '\u{1F331}', '\u{1F98B}')),
+        ("Tawny", BULLETS_PLAIN),
+        ("Mopoke", BULLETS_PLAIN),
+        ("Currawong", BULLETS_PLAIN),
+        ("Potoroo", BULLETS_PLAIN),
         ("Gumtree", ('\u{1F426}', '\u{1F98B}', '\u{1F343}')),
-        ("Bilby", ('\u{2606}', '\u{2601}', '\u{2604}')),
-        ("Saltpan", ('\u{25B3}', '\u{25C7}', '\u{25CB}')),
+        ("Bilby", BULLETS_PLAIN),
+        ("Saltpan", BULLETS_PLAIN),
         ("Quokka", ('\u{1F377}', '\u{2615}', '\u{2694}')),
-        ("Bombora", ('\u{2693}', '\u{26F5}', '\u{2638}')),
-        ("Bowerbird", ('\u{2606}', '\u{2601}', '\u{2604}')),
-        ("Mulga", ('\u{2160}', '\u{2161}', '\u{2162}')),
+        ("Bombora", BULLETS_PLAIN),
+        ("Bowerbird", BULLETS_PLAIN),
+        ("Mulga", BULLETS_PLAIN),
         ("Mangrove", ('\u{2693}', '\u{26F5}', '\u{2638}')),
-        ("Galah", ('\u{2680}', '\u{2681}', '\u{2682}')),
-        ("Magpie", ('\u{203B}', '\u{2301}', '\u{2234}')),
+        ("Galah", BULLETS_PLAIN),
+        ("Magpie", BULLETS_PLAIN),
         ("Brolga", ('\u{273E}', '\u{2742}', '\u{273A}')),
-        ("Wagtail", ('\u{266D}', '\u{266E}', '\u{266F}')),
+        ("Wagtail", BULLETS_PLAIN),
         ("Firetail", ('\u{2604}', '\u{2607}', '\u{2739}')),
-        ("Cassowary", ('\u{2607}', '\u{2301}', '\u{2733}')),
+        ("Cassowary", BULLETS_PLAIN),
         ("Paperbark", ('\u{270E}', '\u{2701}', '\u{2709}')),
-        ("Kite", ('\u{2606}', '\u{2601}', '\u{2604}')),
+        ("Kite", BULLETS_PLAIN),
     ];
     assert_eq!(THEMES.len(), expected.len(), "every live world is enrolled");
     assert_eq!(TASK_MARKERS, ['\u{2610}', '\u{1F5F9}']);
@@ -255,10 +263,26 @@ fn every_world_has_a_bullet_pair() {
         assert_eq!(t.bullets, bullets, "{name}: approved bullet triple drifted");
         assert_bullet_pair_law(t);
     }
-    assert_eq!(MULGA.bullet_for_depth(0), '\u{2160}');
-    assert_eq!(MULGA.bullet_for_depth(1), '\u{2161}');
-    assert_eq!(MULGA.bullet_for_depth(2), '\u{2162}');
-    assert_eq!(MULGA.bullet_for_depth(3), '\u{2160}');
+    assert_eq!(
+        THEMES
+            .iter()
+            .filter(|theme| theme.bullets == BULLETS_PLAIN)
+            .count(),
+        14,
+        "fourteen worlds use the ordinary hierarchy"
+    );
+    assert_eq!(
+        THEMES
+            .iter()
+            .filter(|theme| theme.bullets != BULLETS_PLAIN)
+            .count(),
+        6,
+        "six worlds retain earned distinctive vocabularies"
+    );
+    assert_eq!(MULGA.bullet_for_depth(0), BULLETS_PLAIN.0);
+    assert_eq!(MULGA.bullet_for_depth(1), BULLETS_PLAIN.1);
+    assert_eq!(MULGA.bullet_for_depth(2), BULLETS_PLAIN.2);
+    assert_eq!(MULGA.bullet_for_depth(3), BULLETS_PLAIN.0);
 
     let gumtree_divider: String = GUMTREE.ornaments.dash.chars().collect();
     assert_eq!(gumtree_divider, "\u{F591}\u{F592}\u{F592}\u{F593}");

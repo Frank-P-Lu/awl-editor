@@ -10,7 +10,10 @@ mod ranges;
 pub(super) use ranges::intersecting_rows;
 mod list_marks;
 use list_marks::ListLine;
-pub(in crate::render) use list_marks::{ListLineKind, ListMark};
+#[cfg(test)]
+pub(in crate::render) use list_marks::ListLineKind;
+pub(in crate::render) use list_marks::ListMark;
+pub(in crate::render) use list_marks::parsed_list_lines;
 mod retained_line_splice;
 use retained_line_splice::splice_retained_line_band;
 
@@ -59,6 +62,7 @@ pub(super) enum QuoteSide {
 /// it. Dropped implicitly on the next reshape (the version key no longer matches).
 pub(super) struct OrnamentCache {
     version: std::cell::Cell<Option<u64>>,
+    list_version: std::cell::Cell<Option<u64>>,
     rule_lines: std::cell::RefCell<Vec<usize>>,
     list_lines: std::cell::RefCell<Vec<ListLine>>,
     table_blocks: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
@@ -88,6 +92,7 @@ impl OrnamentCache {
     pub(super) fn new() -> Self {
         Self {
             version: std::cell::Cell::new(None),
+            list_version: std::cell::Cell::new(None),
             rule_lines: std::cell::RefCell::new(Vec::new()),
             list_lines: std::cell::RefCell::new(Vec::new()),
             table_blocks: std::cell::RefCell::new(Vec::new()),
@@ -656,7 +661,7 @@ impl TextPipeline {
                 .set(self.md_spans.len() as u64);
         }
         let mut rules = Vec::new();
-        let mut list_lines = Vec::new();
+        self.ensure_list_lines();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
         let mut quotes: Vec<(usize, usize)> = Vec::new();
         let mut prev_quote = false;
@@ -767,20 +772,9 @@ impl TextPipeline {
             {
                 rules.push(li);
             }
-            if let Some(item) =
-                crate::markdown::rich_unordered_list_item(text, start, active.iter().copied())
-            {
-                list_lines.push(ListLine {
-                    line: li,
-                    marker_col: item.marker_col,
-                    depth: item.depth,
-                    kind: item.task.map_or(ListLineKind::Bullet, ListLineKind::Task),
-                });
-            }
             start = end + 1;
         }
         *self.ornament_cache.rule_lines.borrow_mut() = rules;
-        *self.ornament_cache.list_lines.borrow_mut() = list_lines;
         *self.ornament_cache.table_blocks.borrow_mut() = tables;
         *self.ornament_cache.quote_right_edges.borrow_mut() = quotes
             .iter()
@@ -1982,8 +1976,8 @@ impl TextPipeline {
 
     /// Underline rectangle(s) for an active IME preedit, in the SAME `[x,y,w,h]`
     /// pixel form as selection rects (they share the translucent-quad pipeline).
-    /// The preedit occupies `[start_col, cursor_col)` on the cursor line (it was
-    /// spliced in there and the caret advanced to its end); the underline is a
+    /// The preedit occupies the full run at its insertion column, independent
+    /// of the projected caret within the composition; the underline is a
     /// thin bar beneath those real shaped glyphs so composing CJK/kana reads as
     /// provisional. Empty when no composition is active.
     pub(super) fn preedit_rects(&self) -> Vec<[f32; 4]> {
@@ -1992,11 +1986,10 @@ impl TextPipeline {
             return Vec::new();
         }
         let line = self.cursor_line;
-        let end_col = self.cursor_col;
-        let start_col = end_col.saturating_sub(n);
+        let start_col = self.preedit_start_col;
+        let end_col = start_col + n;
         // Place on the wrap-aware visual row that owns the preedit's start column
-        // (using that row's own x boundaries), matching the caret which sits at
-        // the preedit's end.
+        // (using that row's own x boundaries), independently of the caret.
         let rows = self.visual_rows(line);
         let row = pick_row(&rows, start_col);
         let char_count = row.xs.len().saturating_sub(1);

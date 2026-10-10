@@ -11,21 +11,33 @@ impl Buffer {
     // --- Editing ----------------------------------------------------------
 
     pub fn insert_char(&mut self, c: char) {
+        self.insert_chars(c.encode_utf8(&mut [0; 4]));
+    }
+
+    /// Admitted typing is literal text. A selection is one replacement; an
+    /// unselected run keeps the existing per-scalar whitespace undo boundaries.
+    pub fn insert_chars(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
         self.clear_kill_flag();
         self.goal_col = None;
         let before = self.cursor;
-        // An active selection is replaced by the typed character: the deletion +
-        // insertion form ONE atomic edit (one undo restores the original text).
         if let Some((start, end)) = self.selection_range() {
             self.anchor = None;
-            let mut s = String::new();
-            s.push(c);
-            self.apply_edit(start, end - start, &s, before, start + 1);
+            self.apply_edit(
+                start,
+                end - start,
+                text,
+                before,
+                start + text.chars().count(),
+            );
         } else {
             self.anchor = None;
-            let mut s = String::new();
-            s.push(c);
-            self.apply_edit(self.cursor, 0, &s, before, before + 1);
+            for c in text.chars() {
+                let before = self.cursor;
+                self.apply_edit(before, 0, c.encode_utf8(&mut [0; 4]), before, before + 1);
+            }
         }
     }
 

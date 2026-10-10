@@ -100,6 +100,7 @@ struct ListMarkerGlyph {
     glyph: char,
     scale_bits: u32,
     slot_width_bits: u32,
+    baseline_offset_bits: u32,
     ink: [u8; 4],
     buffer: GlyphBuffer,
     offset: [f32; 2],
@@ -111,6 +112,10 @@ struct ListMarkers {
 }
 
 impl ListMarkers {
+    /// Marker-to-prose clearance in body ems. The prefix spacer reserves the
+    /// room; tight raster bounds spend it from the prose edge leftward.
+    const PROSE_GAP_EM: f32 = 0.4;
+
     fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
         let marks = if pipeline.md_enabled {
             pipeline.list_marks()
@@ -124,6 +129,7 @@ impl ListMarkers {
                 mark.glyph,
                 mark.scale.to_bits(),
                 mark.slot_width.to_bits(),
+                (mark.baseline - mark.top).to_bits(),
                 mark.ink,
             );
             if !distinct.contains(&key) {
@@ -132,7 +138,7 @@ impl ListMarkers {
         }
         let glyphs = distinct
             .into_iter()
-            .map(|(ch, scale_bits, width_bits, ink)| {
+            .map(|(ch, scale_bits, width_bits, baseline_offset_bits, ink)| {
                 let scale = f32::from_bits(scale_bits);
                 let width = f32::from_bits(width_bits);
                 let color = glyphon::Color::rgba(ink[0], ink[1], ink[2], ink[3]);
@@ -153,6 +159,14 @@ impl ListMarkers {
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
                 let glyphs = crate::rotated_label::ink::buffer_key(&buffer);
+                let body_ascent_em =
+                    crate::render::facepitch::vertical_em_metrics(pipeline.shaped_font).0;
+                let body_typical_height = metrics.font_size
+                    * body_ascent_em
+                    * crate::render::facepitch::typical_letter_ratio(pipeline.shaped_font);
+                let baseline_offset = f32::from_bits(baseline_offset_bits);
+                let target_ink_right = width - metrics.font_size * Self::PROSE_GAP_EM;
+                let target_ink_center_y = baseline_offset - body_typical_height * 0.5;
                 let offset = pipeline
                     .glyph_ink_cache
                     .bounds(
@@ -161,16 +175,16 @@ impl ListMarkers {
                         &glyphs,
                     )
                     .map_or([0.0, 0.0], |ink| {
-                        crate::rotated_label::geometry::centered_origin(
-                            ink,
-                            [width * 0.5, metrics.line_height * 0.5],
-                            [1.0, 0.0],
-                        )
+                        [
+                            target_ink_right - (ink[0] + ink[2]),
+                            target_ink_center_y - (ink[1] + ink[3] * 0.5),
+                        ]
                     });
                 ListMarkerGlyph {
                     glyph: ch,
                     scale_bits,
                     slot_width_bits: width_bits,
+                    baseline_offset_bits,
                     ink,
                     buffer,
                     offset,
@@ -194,13 +208,14 @@ impl ListMarkers {
                 glyph.glyph == ch
                     && glyph.scale_bits == marker.scale.to_bits()
                     && glyph.slot_width_bits == marker.slot_width.to_bits()
+                    && glyph.baseline_offset_bits == (marker.baseline - marker.top).to_bits()
                     && glyph.ink == marker.ink
             })
             .expect("list-marker glyph was deduped in");
         areas.push(TextArea {
             buffer: &glyph.buffer,
             left: marker.left + glyph.offset[0],
-            top: marker.paint_top + glyph.offset[1],
+            top: marker.top + glyph.offset[1],
             scale: 1.0,
             bounds,
             default_color: glyphon::Color::rgba(

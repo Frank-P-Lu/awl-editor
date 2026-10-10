@@ -29,7 +29,11 @@ mod history;
 #[cfg(not(target_arch = "wasm32"))]
 mod ime_capture;
 #[cfg(not(target_arch = "wasm32"))]
+mod ime_document;
+#[cfg(not(target_arch = "wasm32"))]
 mod ime_fields;
+#[cfg(not(target_arch = "wasm32"))]
+mod ime_selected_commit;
 /// THE INSERTION-DOOR CENSUS: every production path that edits the focused
 /// buffer's text is enrolled at one seam, declares what gates it, and is named
 /// where it says it lives. Roster and mechanism: `app/input/text_door.rs`.
@@ -38,6 +42,8 @@ mod ime_fields;
 /// that differs per platform is a worse thing to be than absent.
 #[cfg(not(target_arch = "wasm32"))]
 mod insertion_census;
+#[cfg(not(target_arch = "wasm32"))]
+mod integrated_input_quit;
 mod lifecycle;
 /// THE LIVE-`App` EVENT→PRESENT TRACE ASSERTION: the picker-navigation
 /// chain read back off the flight recorder's own lines. Native-only — the
@@ -45,11 +51,15 @@ mod lifecycle;
 #[cfg(not(target_arch = "wasm32"))]
 mod nav_trace;
 mod openable;
+#[cfg(not(target_arch = "wasm32"))]
+mod ordinary_key_text;
 /// The owner-derived durable-write failure matrix.  Precise filesystem faults
 /// stay at tier 1; real-process-only crash and scale arms live in the paired
 /// integration test.
 #[cfg(not(target_arch = "wasm32"))]
 mod persistence_faults;
+#[cfg(not(target_arch = "wasm32"))]
+mod quit_safety;
 /// TIER 2: A READING SURFACE ACCEPTS NO TEXT. The insertion doors that bypass
 /// `App::apply` — the IME commit, the two assistive document writes — have no
 /// chord vocabulary on any capture door, so this is the purest reachable seam.

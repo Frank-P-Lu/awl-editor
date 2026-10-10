@@ -160,6 +160,8 @@ mod hybrid_band_snap;
 mod images;
 mod ime_fields;
 mod insert_link_field;
+#[cfg(not(target_arch = "wasm32"))]
+mod integrated_editing;
 /// Reads font metadata through native-only `ttf_parser` test tooling.
 #[cfg(not(target_arch = "wasm32"))]
 mod japanese_bold_assets;
@@ -205,6 +207,8 @@ mod overlay_query_hit_law;
 mod overlay_rail_thirds_law;
 mod overlay_rhythm;
 mod overlay_right_hug_law;
+#[cfg(not(target_arch = "wasm32"))]
+mod overlay_search_parking;
 mod page_frame;
 /// The drawn page IS the authored `base_100`, over the whole roster at 1×/2× —
 /// the PIXEL half of the clear colour's transfer function
@@ -273,6 +277,8 @@ mod settings_row_reach_law;
 /// wasn't worth adding — naga, not a string scan.
 #[cfg(not(target_arch = "wasm32"))]
 mod shader_const_law;
+#[cfg(target_os = "macos")]
+mod skipped_presentation_upload_law;
 /// Smart-punctuation conceal: the painted en-dash/em-dash/ellipsis substitute,
 /// its byte-identical on-caret reveal, the row_geom reshape it forces, and the
 /// reserved slot's fit across the whole world roster.

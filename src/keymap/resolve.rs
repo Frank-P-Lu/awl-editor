@@ -303,7 +303,11 @@ impl KeymapState {
         }
 
         if !c.is_control() {
-            Action::InsertChar(c)
+            if s.chars().nth(1).is_some() {
+                Action::InsertText(s.to_owned())
+            } else {
+                Action::InsertChar(c)
+            }
         } else {
             Action::Ignore
         }

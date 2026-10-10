@@ -104,6 +104,7 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
     pub(in crate::render) base_line_height: f32,
     pub(in crate::render) md: bool,
     pub(in crate::render) md_spans: &'a [(std::ops::Range<usize>, crate::markdown::MdKind)],
+    pub(in crate::render) list_continuations: &'a [crate::markdown::ListContinuation],
     pub(in crate::render) syn_spans: &'a [(std::ops::Range<usize>, crate::syntax::SynKind)],
     pub(in crate::render) doc_lang: Option<crate::frontmatter::Lang>,
     pub(in crate::render) cjk_evidence: Option<crate::frontmatter::Lang>,
@@ -274,6 +275,18 @@ pub(in crate::render) fn build_line_attrs(
         Some(ctx.substitute_advances),
         heading_level,
     );
-    add_list_indent_span(&mut al, line_text, &lb, ctx.base_font_size, row_lh);
+    add_list_indent_span(
+        &mut al,
+        line_text,
+        line_doc_start,
+        ListIndentSpanCtx {
+            base: &lb,
+            base_font_size: ctx.base_font_size,
+            row_lh,
+            hanging_preview: conceal_off_cursor && !line_selected,
+            md_spans: ctx.md_spans,
+            list_continuations: ctx.list_continuations,
+        },
+    );
     al
 }

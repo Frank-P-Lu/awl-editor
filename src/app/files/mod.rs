@@ -45,6 +45,7 @@ mod drop;
 mod export;
 mod external;
 mod open;
+mod quit;
 mod range_settings;
 mod rebind;
 mod settings;

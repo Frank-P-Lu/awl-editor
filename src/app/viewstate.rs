@@ -175,6 +175,7 @@ impl App {
             zoom: self.frame.zoom(),
             selection: self.document.buffer().selection_line_col(),
             preedit: self.input.preedit().to_owned(),
+            preedit_cursor: None,
             field_input: None,
             misspelled,
             is_edit_move,

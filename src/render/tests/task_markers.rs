@@ -31,6 +31,23 @@ const DOC: &str = concat!(
     "anchor\n",
 );
 const MIXED_LIST_DOC: &str = crate::embedded_docs::LIST_MARKERS_FIXTURE_MD;
+const HANGING_LIST_DOC: &str = concat!(
+    "- top-level ordinary marker with a deliberately long sentence that must wrap ",
+    "and align every continuation with the first body glyph\n",
+    "  Authored continuation paragraph with a deliberately long sentence that must ",
+    "also wrap and share the owning item's first prose rail\n",
+    "- [ ] top-level open task with a deliberately long sentence that must wrap and ",
+    "align every continuation with the first body glyph\n",
+    "  - nested ordinary marker with a deliberately long sentence that must wrap and ",
+    "align every continuation with the first body glyph\n",
+    "  - [x] nested checked task with a deliberately long sentence that must wrap and ",
+    "align every continuation with the first body glyph\n",
+    "    - deep ordinary marker with a deliberately long sentence that must wrap and ",
+    "align every continuation with the first body glyph\n",
+    "    - [ ] deep open task with a deliberately long sentence that must wrap and ",
+    "align every continuation with the first body glyph\n",
+    "anchor\n",
+);
 
 fn assert_mixed_list_geometry(p: &mut TextPipeline, world: &crate::theme::Theme, dpi: f32) {
     p.set_view(&view_md(
@@ -39,7 +56,14 @@ fn assert_mixed_list_geometry(p: &mut TextPipeline, world: &crate::theme::Theme,
         0,
     ));
 
+    p.visible_row_gathers.set(0);
     let marks = p.list_marks();
+    assert_eq!(
+        p.visible_row_gathers.get(),
+        0,
+        "{} dpi {dpi}: list marks use retained local rows, not a full-frame row gather",
+        world.name
+    );
     assert_eq!(
         marks.len(),
         10,
@@ -109,6 +133,94 @@ fn assert_mixed_list_geometry(p: &mut TextPipeline, world: &crate::theme::Theme,
     );
 }
 
+fn assert_wrapped_item_geometry(
+    p: &mut TextPipeline,
+    world: &crate::theme::Theme,
+    dpi: f32,
+    line_i: usize,
+) {
+    let line_text = HANGING_LIST_DOC.lines().nth(line_i).unwrap();
+    let item = crate::markdown::list_item(line_text).expect("fixture list item");
+    let body_col = item.content
+        + usize::from(
+            line_text[item.content..].starts_with("[ ] ")
+                || line_text[item.content..].starts_with("[x] "),
+        ) * 4;
+    let rows = p.visual_rows(line_i);
+    assert!(
+        rows.len() > 1,
+        "{} dpi {dpi} line {line_i}: fixture must genuinely wrap",
+        world.name
+    );
+    let body_x = rows[0].xs[body_col];
+    for (row_i, row) in rows.iter().enumerate().skip(1) {
+        let continuation_x = row.xs[row.start_col];
+        assert!(
+            (continuation_x - body_x).abs() < 0.51,
+            concat!("{} dpi {} line {} row {}: ", "body {} != continuation {}"),
+            world.name,
+            dpi,
+            line_i,
+            row_i,
+            body_x,
+            continuation_x
+        );
+
+        let visible_col = (row.start_col..row.end_col)
+            .find(|col| row.xs[col + 1] - row.xs[*col] > 0.51)
+            .expect("continuation has a visible glyph");
+        let next_col = visible_col + 1;
+        let visible_x = row.xs[visible_col];
+        let next_x = row.xs[next_col];
+        let px = p.text_left() + visible_x + (next_x - visible_x) * 0.25;
+        let py = p.doc_top() + row.line_top + row.line_height * 0.5;
+        let (hit_line, hit_col) = p.hit_test_scroll(px, py, crate::render::ScrollPos::default());
+        assert_eq!(hit_line, line_i, "pointer stays on continuation paragraph");
+        assert!(
+            (visible_col..=next_col).contains(&hit_col),
+            concat!(
+                "{} dpi {} line {} row {}: ",
+                "pointer col {}, expected {}..={}"
+            ),
+            world.name,
+            dpi,
+            line_i,
+            row_i,
+            hit_col,
+            visible_col,
+            next_col,
+        );
+        let caret_x = p.col_x_and_advance(line_i, hit_col).0;
+        assert!(
+            (caret_x - row.xs[hit_col]).abs() < 0.51,
+            "{} dpi {dpi} line {line_i} row {row_i}: caret {caret_x} != row {}",
+            world.name,
+            row.xs[hit_col]
+        );
+
+        let rects = p.range_rects((line_i, visible_col), (line_i, next_col));
+        let rect = rects
+            .iter()
+            .find(|rect| rect[1] <= py && py <= rect[1] + rect[3])
+            .unwrap_or_else(|| {
+                panic!(
+                    concat!(
+                        "{} dpi {} line {} row {}: ",
+                        "range {}..{} has no rect at y={}; {:?}"
+                    ),
+                    world.name, dpi, line_i, row_i, visible_col, next_col, py, rects
+                )
+            });
+        assert!(
+            (rect[0] - (p.text_left() + continuation_x)).abs() < 0.51,
+            "{} dpi {dpi} line {line_i} row {row_i}: range x {} != continuation x {}",
+            world.name,
+            rect[0],
+            p.text_left() + continuation_x
+        );
+    }
+}
+
 #[test]
 fn mixed_list_markers_share_one_preview_slot_and_body_start() {
     let _g = crate::testlock::serial();
@@ -119,6 +231,192 @@ fn mixed_list_markers_share_one_preview_slot_and_body_start() {
     crate::markdown::set_wysiwyg_on(true);
     let world = crate::theme::active();
     assert_mixed_list_geometry(&mut p, &world, 1.0);
+}
+
+/// The first prose glyph and every continuation row share one measured inset,
+/// including nested bullets and tasks. The same row x-grid must answer pointer,
+/// caret and range geometry; a paint-only translation would fail at least one
+/// of these assertions.
+#[test]
+fn hanging_list_rows_share_body_pointer_caret_and_range_geometry() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping hanging list geometry law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    crate::page::set_page_on(true);
+    let entry_world = crate::theme::active().name;
+
+    for &dpi in &[1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        // Tall enough that range geometry's production visible-band cull keeps
+        // all six deliberately wrapped paragraphs in this coordinate audit.
+        p.set_size(520.0 * dpi, 1_600.0 * dpi);
+        for world in crate::theme::THEMES.iter() {
+            crate::theme::set_active_by_name(world.name).unwrap();
+            p.sync_theme();
+            p.set_view(&view_md(HANGING_LIST_DOC, 7, 0));
+
+            for line_i in [0usize, 2, 3, 4, 5, 6] {
+                assert_wrapped_item_geometry(&mut p, world, dpi, line_i);
+            }
+
+            let parent_body_x = p.visual_rows(0)[0].xs[2];
+            let continuation_rows = p.visual_rows(1);
+            assert!(
+                continuation_rows.len() > 1,
+                "{} dpi {dpi}: authored continuation fixture must genuinely wrap",
+                world.name
+            );
+            for (row_i, row) in continuation_rows.iter().enumerate() {
+                let col = if row_i == 0 { 2 } else { row.start_col };
+                assert!(
+                    (row.xs[col] - parent_body_x).abs() < 0.51,
+                    concat!(
+                        "{} dpi {}: authored continuation row {} x={} ",
+                        "!= parent body {}"
+                    ),
+                    world.name,
+                    dpi,
+                    row_i,
+                    row.xs[col],
+                    parent_body_x
+                );
+            }
+            assert_eq!(
+                p.buffer.lines[1].text(),
+                HANGING_LIST_DOC.lines().nth(1).unwrap(),
+                "layout must never mutate authored continuation bytes"
+            );
+        }
+    }
+    crate::theme::set_active_by_name(entry_world).unwrap();
+}
+
+#[test]
+fn list_shaped_code_keeps_literal_indent_and_never_gets_a_hanging_inset() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping list-shaped code ownership law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    let text = "```text\n  - literal code\n```\nanchor\n";
+    p.set_view(&view_md(text, 3, 0));
+    assert!(
+        p.list_marks().is_empty(),
+        "code lookalike is not a rich list item"
+    );
+    assert_eq!(p.buffer.lines[1].hanging_inset(), 0.0);
+    let xs = p.line_glyph_xs(1);
+    assert!(
+        xs[2] - xs[0] > p.metrics.char_width,
+        "literal code indentation must keep its visible advance: {xs:?}"
+    );
+}
+
+#[test]
+fn retained_list_line_loses_conceal_and_inset_when_an_inserted_fence_owns_it() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping retained list ownership law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    p.set_view(&view_md("  - item\nanchor\n", 1, 0));
+    assert!(p.buffer.lines[0].hanging_inset() > 0.0);
+    assert!(p.visual_rows(0)[0].xs[4] - p.visual_rows(0)[0].xs[0] < 0.51);
+
+    let fenced = "```\n  - item\nanchor\n";
+    p.set_view(&view_md(fenced, 2, 0));
+    assert!(p.list_marks().is_empty());
+    assert_eq!(p.buffer.lines[1].text(), "  - item");
+    assert_eq!(p.buffer.lines[1].hanging_inset(), 0.0);
+    let xs = p.line_glyph_xs(1);
+    assert!(
+        xs[4] - xs[0] > p.metrics.char_width * 2.5,
+        "fenced literal keeps its source indent and marker advances: {xs:?}"
+    );
+}
+
+#[test]
+fn authored_list_continuation_reveals_for_caret_and_either_selection_direction() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping authored continuation reveal law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    p.set_size(520.0, 1_200.0);
+
+    let hidden = view_md(HANGING_LIST_DOC, 7, 0);
+    p.set_view(&hidden);
+    assert!(p.buffer.lines[1].hanging_inset() > 0.0);
+    assert!(
+        p.visual_rows(1)[0].xs[2] - p.visual_rows(1)[0].xs[0] < 0.51,
+        "preview collapses only the parser-owned source indentation"
+    );
+
+    let mut caret = view_md(HANGING_LIST_DOC, 1, 3);
+    p.set_view(&caret);
+    assert_eq!(p.buffer.lines[1].hanging_inset(), 0.0);
+    assert!(p.visual_rows(1)[0].xs[2] - p.visual_rows(1)[0].xs[0] > 1.0);
+
+    for selection in [Some(((1, 3), (1, 8))), Some(((1, 8), (1, 3)))] {
+        caret.cursor_line = 7;
+        caret.cursor_col = 0;
+        caret.selection = selection;
+        p.set_view(&caret);
+        assert_eq!(
+            p.buffer.lines[1].hanging_inset(),
+            0.0,
+            "either selection direction reveals raw continuation layout"
+        );
+        assert!(p.visual_rows(1)[0].xs[2] - p.visual_rows(1)[0].xs[0] > 1.0);
+    }
+
+    p.set_view(&hidden);
+    assert!(p.buffer.lines[1].hanging_inset() > 0.0);
+    assert_eq!(
+        p.buffer.lines[1].text(),
+        HANGING_LIST_DOC.lines().nth(1).unwrap(),
+        "reveal/reconceal leaves source bytes unchanged"
+    );
+}
+
+#[test]
+fn lazy_list_continuation_reconciles_inset_for_caret_and_either_selection_direction() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping lazy continuation reveal law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    let text = "- parent\nlazy continuation\nafter\n";
+    let hidden = view_md(text, 2, 0);
+    p.set_view(&hidden);
+    assert!(p.buffer.lines[1].hanging_inset() > 0.0);
+
+    let mut reveal = view_md(text, 1, 3);
+    p.set_view(&reveal);
+    assert_eq!(p.buffer.lines[1].hanging_inset(), 0.0);
+
+    for selection in [Some(((1, 0), (1, 4))), Some(((1, 4), (1, 0)))] {
+        reveal.cursor_line = 2;
+        reveal.cursor_col = 0;
+        reveal.selection = selection;
+        p.set_view(&reveal);
+        assert_eq!(
+            p.buffer.lines[1].hanging_inset(),
+            0.0,
+            "either selection direction reveals a zero-indent continuation"
+        );
+    }
+
+    p.set_view(&hidden);
+    assert!(p.buffer.lines[1].hanging_inset() > 0.0);
+    assert_eq!(p.buffer.lines[1].text(), "lazy continuation");
 }
 
 fn isolated_marker_masks(
@@ -255,7 +553,11 @@ fn task_body_positions(
         let xs = p.line_glyph_xs(line);
         let marker_x = p.text_left() + xs[marker_col];
         let body_x = p.text_left() + xs[body_col];
-        assert!((mark.left - marker_x).abs() < 0.01);
+        assert!(
+            (marker_x - body_x).abs() < 0.51,
+            "{} dpi {dpi} line {line}: concealed source prefix collapses onto the body rail",
+            world.name
+        );
         assert!(
             (xs[marker_col + 5] - xs[marker_col + 2]).abs() < 0.51,
             "{} dpi {dpi} line {line}: checkbox bytes collapse to zero advance",
@@ -368,18 +670,9 @@ fn assert_marker_seating(
         body_xs[3],
     ];
     for ((mark, mask), body_x) in marks.iter().zip(masks).zip(body_by_mark) {
-        let marker_left = mask.iter().map(|(x, _)| *x).min().unwrap();
         let marker_right = mask.iter().map(|(x, _)| *x).max().unwrap();
         let marker_top = mask.iter().map(|(_, y)| *y).min().unwrap();
         let marker_bottom = mask.iter().map(|(_, y)| *y).max().unwrap();
-        let marker_center_x = (marker_left + marker_right) as f32 * 0.5;
-        assert!(
-            (marker_center_x - mark.slot_width * 0.5).abs() <= mark.slot_width * 0.40,
-            "{} dpi {dpi}: {:?} ink centered: {marker_left}..{marker_right} in {}",
-            world.name,
-            mark.kind,
-            mark.slot_width
-        );
         let row_y0 = mark.top.floor() as i32;
         let row_y1 = (mark.top + p.metrics.line_height).ceil() as i32;
         let (body_top, body_bottom) = ink_row_bounds(
@@ -398,10 +691,33 @@ fn assert_marker_seating(
         let marker_center_y = row_y0 as f32 + (marker_top + marker_bottom) as f32 * 0.5;
         let body_center_y = (body_top + body_bottom) as f32 * 0.5;
         assert!(
-            (marker_center_y - body_center_y).abs() <= p.metrics.line_height * 0.30,
+            (marker_center_y - body_center_y).abs() <= p.metrics.line_height * 0.20,
             "{} dpi {dpi}: {:?} vertical seat: marker={marker_center_y} body={body_center_y}",
             world.name,
             mark.kind
+        );
+        let body_ink = first_ink_column(
+            frame,
+            target.width,
+            target.height,
+            [
+                body_x.floor() as i32,
+                row_y0,
+                (body_x + 120.0 * dpi) as i32,
+                row_y1,
+            ],
+            world.base_100.rgba_bytes(),
+        )
+        .expect("list body paints real ink");
+        let marker_ink_right = mark.left.floor() as i32 + marker_right;
+        let gap = body_ink - marker_ink_right - 1;
+        assert!(
+            gap as f32 >= p.metrics.font_size * 0.30,
+            "{} dpi {dpi}: {:?} marker-to-prose gap {gap}px is below 0.30em ({:.1}px); \
+             marker right={marker_ink_right}, body ink={body_ink}",
+            world.name,
+            mark.kind,
+            p.metrics.font_size * 0.30,
         );
     }
 }
@@ -451,6 +767,24 @@ fn every_world_and_dpi_paints_distinct_task_state_clear_of_the_body() {
         }
     }
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}
+
+fn hit_row(p: &TextPipeline, line: usize, row_index: usize, x: f32) -> (usize, usize) {
+    let row = &p.visual_rows(line)[row_index];
+    let py = p.doc_top() + row.line_top + row.line_height * 0.5;
+    p.hit_test_scroll(x, py, crate::render::ScrollPos::default())
+}
+
+fn assert_raw_task_prefix_hits(p: &TextPipeline, line: usize, reveal: &str) {
+    let raw = p.line_glyph_xs(line);
+    for col in 0..6 {
+        let px = p.text_left() + raw[col] + (raw[col + 1] - raw[col]) * 0.25;
+        assert_eq!(
+            hit_row(p, line, 0, px),
+            (line, col),
+            "{reveal} returns task-prefix hit testing to raw source column {col}"
+        );
+    }
 }
 
 #[test]
@@ -506,22 +840,60 @@ fn task_conceal_collapses_its_separator_and_hit_tests_to_source_columns() {
         "invalid `[]` remains visible rather than joining task conceal: {invalid:?}"
     );
 
-    let body_x = p.text_left() + p.line_glyph_xs(0)[6];
-    let py = p.doc_top() + p.metrics.line_height * 0.5;
-    let mut cols = BTreeSet::new();
-    let mut px = p.text_left() - 2.0;
-    while px <= body_x {
-        let (line, col) = p.hit_test_scroll(px, py, crate::render::ScrollPos::default());
-        assert_eq!(line, 0, "task-prefix click must stay on its own row");
-        assert!(col <= DOC.lines().next().unwrap().chars().count());
-        cols.insert(col);
-        px += 0.5;
+    let list_lines = p.list_lines_snapshot();
+    let marks = p.list_marks();
+    for (line, expected) in [
+        (0usize, [0usize, 0, 3, 6]),
+        (3usize, [0usize, 0, 1, 2]),
+        (6usize, [0usize, 2, 5, 8]),
+    ] {
+        let item_index = list_lines
+            .iter()
+            .position(|item| item.line == line)
+            .expect("fixture list line enrolled");
+        let mark = marks[item_index];
+        let points = [
+            p.text_left(),
+            mark.left,
+            mark.left + mark.slot_width * 0.5,
+            mark.left + mark.slot_width,
+        ];
+        for (point, want) in points.into_iter().zip(expected) {
+            assert_eq!(
+                hit_row(&p, line, 0, point),
+                (line, want),
+                "line {line}: preview indent/marker/body edge owns source column {want}"
+            );
+        }
     }
-    assert!(
-        cols.len() > 1 && cols.iter().all(|col| *col <= 6),
-        "task-prefix clicks map to valid source-prefix columns: {cols:?}"
+    let wrapped = p.visual_rows(6);
+    assert!(wrapped.len() > 1, "nested task fixture genuinely wraps");
+    let second = &wrapped[1];
+    let nested_index = list_lines
+        .iter()
+        .position(|item| item.line == 6)
+        .expect("wrapped task enrolled");
+    let nested_mark = marks[nested_index];
+    let second_py = p.doc_top() + second.line_top + second.line_height * 0.5;
+    assert_eq!(
+        p.hit_test_scroll(
+            nested_mark.left + nested_mark.slot_width * 0.5,
+            second_py,
+            crate::render::ScrollPos::default(),
+        ),
+        (6, second.start_col),
+        "the marker rail belongs only to row one; the same x on row two maps to its wrapped start"
     );
+}
 
+#[test]
+fn task_prefix_hits_return_to_raw_source_for_caret_and_selection_reveal() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping raw task-prefix hit-test law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
     p.set_view(&view_md(DOC, 0, 0));
     let revealed = p.line_glyph_xs(0);
     assert!(
@@ -538,6 +910,7 @@ fn task_conceal_collapses_its_separator_and_hit_tests_to_source_columns() {
             "caret reveal restores raw task byte {byte}"
         );
     }
+    assert_raw_task_prefix_hits(&p, 0, "caret reveal");
 
     let mut selected = view_md(DOC, 8, 0);
     selected.selection = Some(((1, 0), (1, 18)));
@@ -557,6 +930,89 @@ fn task_conceal_collapses_its_separator_and_hit_tests_to_source_columns() {
             "selection reveal restores raw task byte {byte}"
         );
     }
+    assert_raw_task_prefix_hits(&p, 1, "forward-selection reveal");
+
+    selected.selection = Some(((1, 6), (1, 0)));
+    p.set_view(&selected);
+    assert_eq!(
+        p.buffer.lines[1].hanging_inset(),
+        0.0,
+        "reverse selection also reveals raw task geometry"
+    );
+    assert_raw_task_prefix_hits(&p, 1, "reverse-selection reveal");
+}
+
+#[test]
+fn list_prefix_hit_mapping_preserves_rtl_and_mixed_script_rows() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping bidi list-prefix hit-test law: no wgpu adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    p.sync_theme();
+    const BIDI_DOC: &str = "  - שלום עולם\n- English שלום\nanchor\n";
+    p.set_view(&view_md(BIDI_DOC, 2, 0));
+    let rtl_row = &p.visual_rows(0)[0];
+    let rtl_body_x = rtl_row.xs[4];
+    let (prose_x, prose_col, guard_x, guard_col) = {
+        let run = p
+            .buffer
+            .layout_runs()
+            .find(|run| run.line_i == 0)
+            .expect("RTL list row shaped");
+        assert!(run.rtl, "Hebrew list paragraph exercises the RTL fallback");
+        let (prose_x, prose_col) = run
+            .glyphs
+            .iter()
+            .filter(|glyph| glyph.start >= 4 && glyph.w > 1.0)
+            .map(|glyph| glyph.x + glyph.w * 0.5)
+            .map(|target_x| (target_x, p.col_in_run(&run, target_x)))
+            .next()
+            .expect("RTL prose exposes a visible shaped glyph after its list prefix");
+        let (guard_x, guard_col) = (0..=16)
+            .map(|step| rtl_body_x.max(0.0) * step as f32 / 16.0)
+            .find_map(|target_x| {
+                let native = p.col_in_run(&run, target_x);
+                let forced = p.concealed_list_prefix_hit_col(0, true, true, target_x);
+                (forced.is_some() && forced != Some(native)).then_some((target_x, native))
+            })
+            .expect("forcing LTR projection across RTL changes a native prefix-rail hit");
+        (prose_x, prose_col, guard_x, guard_col)
+    };
+    assert_eq!(
+        p.concealed_list_prefix_hit_col(0, true, false, guard_x),
+        None,
+        "RTL paragraphs explicitly decline the LTR prefix projection"
+    );
+    let rtl_py = p.doc_top() + rtl_row.line_top + rtl_row.line_height * 0.5;
+    for (target_x, expected, label) in [
+        (prose_x, prose_col, "visible prose"),
+        (guard_x, guard_col, "prefix rail"),
+    ] {
+        assert_eq!(
+            p.hit_test_scroll(
+                p.text_left() + target_x,
+                rtl_py,
+                crate::render::ScrollPos::default(),
+            ),
+            (0, expected),
+            "RTL list {label} retains native shaped hit testing"
+        );
+    }
+
+    let mixed_index = p
+        .list_lines_snapshot()
+        .iter()
+        .position(|item| item.line == 1)
+        .expect("mixed-script LTR row enrolled");
+    let mixed_mark = p.list_marks()[mixed_index];
+    assert_eq!(
+        hit_row(&p, 1, 0, mixed_mark.left + mixed_mark.slot_width * 0.5,),
+        (1, 1),
+        "mixed-script LTR list marker keeps normalized prefix mapping"
+    );
 }
 
 #[test]

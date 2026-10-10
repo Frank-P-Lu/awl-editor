@@ -1212,6 +1212,10 @@ impl TextPipeline {
         if self.overlay_active {
             self.prepare_overlay(device, queue, width, height)?;
         } else if self.search_active {
+            // Full frost can still draw overlay-owned batches while Find is up.
+            // Park those owners without clearing the shared Find text and caret.
+            self.park_placard(device, queue, width, height)?;
+            self.park_asset_preview(device, queue, width, height)?;
             self.prepare_panel(device, queue, width, height)?;
             self.overlay_rows.prepare(device, queue, width, height, &[]);
             self.overlay_bars.prepare(device, queue, width, height, &[]);
