@@ -38,32 +38,6 @@ budget="${3:-1500}"
 
 echo "ci-wedge-budget convention=${convention} filter=${filter} budget_seconds=${budget}"
 
-env "AWL_CONVENTION_FORCE=${convention}" cargo test "$filter" &
-test_pid=$!
-
-( sleep "$budget"; kill -9 "$test_pid" 2>/dev/null ) &
-watchdog_pid=$!
-
-wait "$test_pid"
-status=$?
-
-kill "$watchdog_pid" 2>/dev/null
-wait "$watchdog_pid" 2>/dev/null
-
-if (( status == 0 )); then
-  echo "ci-wedge-budget convention=${convention} status=0 — the wedge did NOT hang."
-  echo "Do not read this as the wedge fixed until it stays green."
-  exit 0
-fi
-
-# 137 is SIGKILL: the watchdog fired, which is the hang. Anything else is an
-# ordinary test failure. Both are reported as a FAILED step so that the job's
-# `continue-on-error` can tolerate them; neither may cancel the workflow.
-if (( status == 137 )); then
-  echo "ci-wedge-budget convention=${convention} status=137 — HUNG past ${budget}s."
-  echo "This is the wedge signature. The job is allowed to fail; the workflow is not cancelled."
-else
-  echo "ci-wedge-budget convention=${convention} status=${status} — failed without hanging."
-  echo "A wedge job that FAILS rather than hangs is NOT the wedge signature; check it."
-fi
-exit "$status"
+# Exec keeps cancellation at one owner; Cargo and its descendants get their own
+# session. Cleanup runs even when Cargo exits before the test child does.
+exec python3 -B "$(dirname "$0")/ci-wedge-process.py" "$convention" "$filter" "$budget"
