@@ -28,12 +28,30 @@ if mode == 'pass': sys.exit(0)
 if mode == 'kill': os.kill(os.getpid(), signal.SIGKILL)
 child=subprocess.Popen([sys.executable,'-c',"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 (root/'child').write_text(str(child.pid))
-if mode == 'early': sys.exit(0)
+if mode in ('early', 'survive'): sys.exit(0)
 while True: time.sleep(.1)
 ''')
             cargo.chmod(0o755)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'], LAW_ROOT=raw, LAW_MODE=mode)
-            proc = subprocess.Popen(['bash', str(SCRIPT), 'mac', 'render::tests::', '0.7'], env=env, start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            command = ['bash', str(SCRIPT), 'mac', 'render::tests::', '0.7']
+            if mode == 'survive':
+                harness = root / 'survive.py'
+                harness.write_text("""import importlib.util, json, os, signal, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+record=Path(sys.argv[2]);calls=[]
+def retain_group(pgid,sig):
+    # Fault injection: the real group remains alive through TERM and KILL.
+    calls.append([pgid,sig])
+    record.write_text(json.dumps(calls))
+owner.os.killpg=retain_group
+sys.argv=['owner','mac','render::tests::','0.7']
+status,_=owner.main()
+sys.exit(status)
+""")
+                command = ['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(root/'signals')]
+            proc = subprocess.Popen(command, env=env, start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             child = None
             try:
                 if mode not in ('pass','fail','kill'):
@@ -46,7 +64,16 @@ while True: time.sleep(.1)
                 if child:
                     # Zombies are terminal: no executing child survives the wrapper.
                     state=subprocess.run(['ps','-o','stat=','-p',str(child)], capture_output=True,text=True).stdout.strip()
-                    self.assertTrue(not state or state.startswith('Z'), f'descendant {child} still executing ({state}): {output}')
+                    if mode == 'survive':
+                        import json
+                        calls = json.loads((root/'signals').read_text())
+                        self.assertEqual([call[1] for call in calls], [signal.SIGTERM, signal.SIGKILL])
+                        self.assertEqual(calls[0][0], calls[1][0])
+                        cargo = subprocess.run(['ps','-o','stat=','-p',str(calls[0][0])], capture_output=True,text=True).stdout.strip()
+                        self.assertFalse(cargo, 'Cargo itself must already be reaped')
+                        self.assertTrue(state and not state.startswith('Z'), 'real descendant must survive both grace periods')
+                    else:
+                        self.assertTrue(not state or state.startswith('Z'), f'descendant {child} still executing ({state}): {output}')
                 return proc.returncode, output
             finally:
                 if child:
@@ -61,6 +88,11 @@ while True: time.sleep(.1)
         status, output=self.run_case('hang')
         self.assertEqual(status,137)
         self.assertIn('HUNG past',output)
+
+    def test_reaped_cargo_cannot_hide_a_group_surviving_both_graces(self):
+        status, output = self.run_case('survive')
+        self.assertNotEqual(status, 0, output)
+        self.assertIn('cleanup incomplete: executing descendants remain', output)
 
     def test_cargo_exit_cannot_leave_a_test_descendant(self):
         self.assertEqual(self.run_case('early')[0],0)

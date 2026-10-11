@@ -41,6 +41,10 @@ def stop_group(proc):
                 return
             time.sleep(0.02)
     proc.wait(timeout=3)
+    if executing_group(proc.pid):
+        raise RuntimeError(
+            f"cleanup incomplete: executing descendants remain in process group {proc.pid}"
+        )
 
 
 def main():
