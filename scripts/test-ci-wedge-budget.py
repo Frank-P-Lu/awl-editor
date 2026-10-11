@@ -4,9 +4,12 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
+
+sys.dont_write_bytecode = True
 
 SCRIPT = Path(__file__).resolve().parent / 'ci-wedge-budget.sh'
 
@@ -64,6 +67,48 @@ while True: time.sleep(.1)
 
     def test_caller_termination_cleans_descendants(self):
         self.assertEqual(self.run_case('hang',cancel=True)[0],143)
+
+    def test_cancellation_during_spawn_retains_process_ownership(self):
+        with tempfile.TemporaryDirectory(prefix='awl-wedge-spawn-law-') as raw:
+            root = Path(raw)
+            harness = root / 'spawn.py'
+            harness.write_text("""import importlib.util, os, signal, subprocess, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+real=subprocess.Popen
+pid_file=Path(sys.argv[2])
+def spawn(*args,**kwargs):
+    child=real([sys.executable,'-c','import time; time.sleep(60)'],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    pid_file.write_text(str(child.pid))
+    owner.subprocess.Popen=real
+    # Deliver cancellation after creation, before Popen returns to its owner.
+    os.kill(os.getpid(),signal.SIGTERM)
+    return child
+owner.subprocess.Popen=spawn
+sys.argv=['owner','mac','render::tests::','2']
+status,_=owner.main()
+sys.exit(status)
+""")
+            pid_file = root / 'pid'
+            proc = subprocess.Popen(['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(pid_file)], start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            child = None
+            try:
+                output, _ = proc.communicate(timeout=8)
+                self.assertTrue(pid_file.exists(), output)
+                child = int(pid_file.read_text())
+                state = subprocess.run(['ps','-o','stat=','-p',str(child)], capture_output=True,text=True).stdout.strip()
+                self.assertTrue(not state or state.startswith('Z'), f'spawned process {child} escaped cancellation ({state})')
+                self.assertEqual(proc.returncode,143,output)
+            finally:
+                if child is None and pid_file.exists(): child=int(pid_file.read_text())
+                if child:
+                    try: os.killpg(child,signal.SIGKILL)
+                    except ProcessLookupError: pass
+                try: os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError: pass
+                proc.wait(timeout=3)
+                proc.stdout.close()
 
     def test_sigkill_before_deadline_is_not_a_watchdog_timeout(self):
         status, output = self.run_case('kill')

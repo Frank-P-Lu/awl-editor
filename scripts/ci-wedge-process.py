@@ -7,20 +7,37 @@ import sys
 import time
 
 
+def executing_group(pgid):
+    # A zombie is terminal. Darwin can reject signal-zero probes after the
+    # last child is reaped; process state identifies actual remaining work.
+    rows = subprocess.check_output(['ps', '-axo', 'pgid=,stat='],
+                                   text=True, timeout=2).splitlines()
+    return any(int(row.split()[0]) == pgid
+               and not row.split()[1].startswith('Z')
+               for row in rows if len(row.split()) == 2)
+
+
 def stop_group(proc):
     # Cargo may have exited while its test executable is still running. The
     # session belongs to this launch, so cleanup does not depend on parent life.
     for sig, grace in ((signal.SIGTERM, 1.0), (signal.SIGKILL, 1.0)):
+        if not executing_group(proc.pid):
+            break
         try:
             os.killpg(proc.pid, sig)
         except ProcessLookupError:
             break
+        except PermissionError:
+            # The group can end between inspection and delivery. A denied
+            # signal to remaining live work is an error, never a clean release.
+            if executing_group(proc.pid):
+                raise
+            break
         deadline = time.monotonic() + grace
         while time.monotonic() < deadline:
             proc.poll()
-            try:
-                os.killpg(proc.pid, 0)
-            except ProcessLookupError:
+            if not executing_group(proc.pid):
+                proc.wait(timeout=3)
                 return
             time.sleep(0.02)
     proc.wait(timeout=3)
@@ -32,16 +49,30 @@ def main():
     if seconds <= 0:
         raise ValueError('budget must be positive')
     proc = None
+    launching = False
+    pending_signal = None
 
     def cancelled(signum, _frame):
-        raise InterruptedError(signum)
+        nonlocal pending_signal
+        # Do not throw away a newly created child before Popen hands its PID
+        # back. Cancellation is delivered immediately once ownership is stored.
+        if launching:
+            pending_signal = signum
+        else:
+            raise InterruptedError(signum)
 
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(sig, cancelled)
     try:
-        proc = subprocess.Popen(['cargo', 'test', selector],
-                                env=dict(os.environ, AWL_CONVENTION_FORCE=convention),
-                                start_new_session=True)
+        launching = True
+        try:
+            proc = subprocess.Popen(['cargo', 'test', selector],
+                                    env=dict(os.environ, AWL_CONVENTION_FORCE=convention),
+                                    start_new_session=True)
+        finally:
+            launching = False
+        if pending_signal is not None:
+            raise InterruptedError(pending_signal)
         try:
             result = proc.wait(timeout=seconds)
             return (result if result >= 0 else 128 - result), False
