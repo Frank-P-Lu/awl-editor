@@ -44,11 +44,11 @@ def main():
                                 start_new_session=True)
         try:
             result = proc.wait(timeout=seconds)
-            return result if result >= 0 else 128 - result
+            return (result if result >= 0 else 128 - result), False
         except subprocess.TimeoutExpired:
-            return 137
+            return 137, True
     except InterruptedError as exc:
-        return 128 + exc.args[0]
+        return 128 + exc.args[0], False
     finally:
         # A repeated cancellation must not interrupt the bounded cleanup itself.
         for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
@@ -58,15 +58,15 @@ def main():
 
 
 if __name__ == '__main__':
-    status = main()
+    status, timed_out = main()
     convention, _selector, budget = sys.argv[1:]
     if status == 0:
         print(f'ci-wedge-budget convention={convention} status=0 — the wedge did NOT hang.')
         print('Do not read this as the wedge fixed until it stays green.')
-    elif status == 137:
+    elif timed_out:
         print(f'ci-wedge-budget convention={convention} status=137 — HUNG past {budget}s.')
         print('This is the wedge signature. The job is allowed to fail; the workflow is not cancelled.')
     else:
-        print(f'ci-wedge-budget convention={convention} status={status} — failed without hanging.')
-        print('A wedge job that FAILS rather than hangs is NOT the wedge signature; check it.')
+        print(f'ci-wedge-budget convention={convention} status={status} — failed before watchdog deadline.')
+        print('Inspect the test failure or signal; the watchdog deadline did not fire.')
     sys.exit(status)

@@ -22,6 +22,7 @@ root=Path(os.environ['LAW_ROOT'])
 mode=os.environ['LAW_MODE']
 if mode == 'fail': sys.exit(23)
 if mode == 'pass': sys.exit(0)
+if mode == 'kill': os.kill(os.getpid(), signal.SIGKILL)
 child=subprocess.Popen([sys.executable,'-c',"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 (root/'child').write_text(str(child.pid))
 if mode == 'early': sys.exit(0)
@@ -32,7 +33,7 @@ while True: time.sleep(.1)
             proc = subprocess.Popen(['bash', str(SCRIPT), 'mac', 'render::tests::', '0.7'], env=env, start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             child = None
             try:
-                if mode not in ('pass','fail'):
+                if mode not in ('pass','fail','kill'):
                     deadline=time.monotonic()+4
                     while not (root/'child').exists() and time.monotonic()<deadline: time.sleep(.02)
                     self.assertTrue((root/'child').exists(), 'fixture child started')
@@ -63,6 +64,12 @@ while True: time.sleep(.1)
 
     def test_caller_termination_cleans_descendants(self):
         self.assertEqual(self.run_case('hang',cancel=True)[0],143)
+
+    def test_sigkill_before_deadline_is_not_a_watchdog_timeout(self):
+        status, output = self.run_case('kill')
+        self.assertEqual(status, 137)
+        self.assertNotIn('HUNG past', output)
+        self.assertIn('failed before watchdog deadline', output)
 
     def test_ordinary_exit_status_is_preserved(self):
         self.assertEqual(self.run_case('pass')[0],0)
