@@ -28,7 +28,7 @@ if mode == 'pass': sys.exit(0)
 if mode == 'kill': os.kill(os.getpid(), signal.SIGKILL)
 child=subprocess.Popen([sys.executable,'-c',"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 (root/'child').write_text(str(child.pid))
-if mode in ('early', 'survive'): sys.exit(0)
+if mode in ('early', 'survive') or mode.startswith('ps-'): sys.exit(0)
 while True: time.sleep(.1)
 ''')
             cargo.chmod(0o755)
@@ -46,6 +46,28 @@ def retain_group(pgid,sig):
     calls.append([pgid,sig])
     record.write_text(json.dumps(calls))
 owner.os.killpg=retain_group
+sys.argv=['owner','mac','render::tests::','0.7']
+status,_=owner.main()
+sys.exit(status)
+""")
+                command = ['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(root/'signals')]
+            if mode.startswith('ps-'):
+                harness = root / 'inspection.py'
+                harness.write_text("""import importlib.util, json, os, subprocess, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+record=Path(sys.argv[2]);calls=[];real_killpg=os.killpg
+failures={'ps-missing':FileNotFoundError('ps missing'),
+          'ps-failed':subprocess.CalledProcessError(1,['ps']),
+          'ps-timeout':subprocess.TimeoutExpired(['ps'],2)}
+failure=failures[os.environ['LAW_MODE']]
+def unavailable(_pgid): raise failure
+def terminate_group(pgid,sig):
+    calls.append([pgid,sig]);record.write_text(json.dumps(calls))
+    return real_killpg(pgid,sig)
+owner.executing_group=unavailable
+owner.os.killpg=terminate_group
 sys.argv=['owner','mac','render::tests::','0.7']
 status,_=owner.main()
 sys.exit(status)
@@ -74,6 +96,11 @@ sys.exit(status)
                         self.assertTrue(state and not state.startswith('Z'), 'real descendant must survive both grace periods')
                     else:
                         self.assertTrue(not state or state.startswith('Z'), f'descendant {child} still executing ({state}): {output}')
+                    if mode.startswith('ps-'):
+                        import json
+                        calls = json.loads((root/'signals').read_text())
+                        self.assertEqual([call[1] for call in calls], [signal.SIGTERM, signal.SIGKILL])
+                        self.assertEqual(calls[0][0], calls[1][0])
                 return proc.returncode, output
             finally:
                 if child:
@@ -96,6 +123,13 @@ sys.exit(status)
 
     def test_cargo_exit_cannot_leave_a_test_descendant(self):
         self.assertEqual(self.run_case('early')[0],0)
+
+    def test_failed_process_inspection_still_terminates_descendants(self):
+        for mode in ('ps-missing', 'ps-failed', 'ps-timeout'):
+            with self.subTest(mode=mode):
+                status, output = self.run_case(mode)
+                self.assertNotEqual(status, 0, output)
+                self.assertIn('cleanup unverified: process-state inspection failed', output)
 
     def test_caller_termination_cleans_descendants(self):
         self.assertEqual(self.run_case('hang',cancel=True)[0],143)

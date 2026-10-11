@@ -20,8 +20,22 @@ def executing_group(pgid):
 def stop_group(proc):
     # Cargo may have exited while its test executable is still running. The
     # session belongs to this launch, so cleanup does not depend on parent life.
+    inspection_error = None
+
+    def remaining_work():
+        nonlocal inspection_error
+        # Unknown state must not suppress teardown. Retain the first probe
+        # failure so repeated probes cannot consume the cleanup grace periods.
+        if inspection_error is not None:
+            return None
+        try:
+            return executing_group(proc.pid)
+        except (OSError, subprocess.SubprocessError) as exc:
+            inspection_error = exc
+            return None
+
     for sig, grace in ((signal.SIGTERM, 1.0), (signal.SIGKILL, 1.0)):
-        if not executing_group(proc.pid):
+        if remaining_work() is False:
             break
         try:
             os.killpg(proc.pid, sig)
@@ -30,18 +44,23 @@ def stop_group(proc):
         except PermissionError:
             # The group can end between inspection and delivery. A denied
             # signal to remaining live work is an error, never a clean release.
-            if executing_group(proc.pid):
+            if remaining_work() is not False:
                 raise
             break
         deadline = time.monotonic() + grace
         while time.monotonic() < deadline:
             proc.poll()
-            if not executing_group(proc.pid):
+            if remaining_work() is False:
                 proc.wait(timeout=3)
                 return
             time.sleep(0.02)
     proc.wait(timeout=3)
-    if executing_group(proc.pid):
+    remaining = remaining_work()
+    if remaining is None:
+        raise RuntimeError(
+            f"cleanup unverified: process-state inspection failed for group {proc.pid}"
+        ) from inspection_error
+    if remaining:
         raise RuntimeError(
             f"cleanup incomplete: executing descendants remain in process group {proc.pid}"
         )
