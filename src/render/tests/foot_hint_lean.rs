@@ -34,11 +34,36 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
-use super::{headless_dqp, view};
+use super::{headless_dqp as shared_headless_dqp, view};
 use crate::overlay::OverlayKind;
 
 /// Geometry sweeps stage atlas/uniform writes without drawing a frame. Keep
 /// their retained pipeline upload lifecycle explicit at each measured cell.
+fn footer_trace(stage: &str, w: u32, h: u32) {
+    if std::env::var_os("AWL_FOOTER_TRACE").is_some() {
+        let thread = std::thread::current();
+        eprintln!(
+            "footer trace test={} stage={stage} size={w}x{h} time={:?}",
+            thread.name().unwrap_or("unnamed"),
+            std::time::SystemTime::now()
+        );
+    }
+}
+
+fn footer_serial() -> crate::testlock::SerialGuard {
+    footer_trace("serial waiting", 0, 0);
+    let guard = crate::testlock::serial();
+    footer_trace("serial acquired", 0, 0);
+    guard
+}
+
+fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
+    footer_trace("headless_dqp enter", w as u32, h as u32);
+    let result = shared_headless_dqp(w, h);
+    footer_trace("headless_dqp exit", w as u32, h as u32);
+    result
+}
+
 fn geometry_prepare(
     p: &mut TextPipeline,
     device: &wgpu::Device,
@@ -46,12 +71,23 @@ fn geometry_prepare(
     w: u32,
     h: u32,
 ) {
+    footer_trace("prepare enter", w, h);
     p.prepare(device, queue, w, h).unwrap();
+    footer_trace("prepare exit; submit enter", w, h);
+    let submitted = queue.submit(std::iter::empty());
+    footer_trace("submit exit; poll enter", w, h);
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: Some(submitted),
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .expect("footer geometry uploads must complete within the finite drain budget");
+    footer_trace("poll exit", w, h);
 }
 
 #[test]
 fn retained_footer_cells_bound_live_upload_buffers() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping retained_footer_cells_bound_live_upload_buffers: no wgpu adapter");
         return;
@@ -281,7 +317,7 @@ fn grade_on_the_spines_line(g: &Graded, dpi: f32, ctx: &str) -> f32 {
 /// a foot that re-derived the constant would lean further than the spine beside it.
 #[test]
 fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     assert!(
         !worlds.is_empty(),
@@ -369,7 +405,7 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
 /// about the mirror.
 #[test]
 fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let directions: Vec<theme::DiagonalDirection> = crate::theme::THEMES
         .iter()
@@ -448,7 +484,7 @@ fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
 /// reaches is a clamp no law has run.
 #[test]
 fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let entry = crate::theme::active_index();
     let mut graded = 0usize;
@@ -520,7 +556,7 @@ fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
 /// PNGs and sidecars).
 #[test]
 fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = upright_worlds();
     assert!(
         worlds.len() > 10,
@@ -581,7 +617,7 @@ fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
 /// this band's non-interactive nature leaves no hit-test to provide.
 #[test]
 fn the_hints_glyphs_are_drawn_in_the_band_the_placement_claims() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let entry = crate::theme::active_index();
     let mut graded = 0usize;
