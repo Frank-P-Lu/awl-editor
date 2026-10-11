@@ -71,6 +71,20 @@ fn geometry_prepare(
     w: u32,
     h: u32,
 ) {
+    if std::env::var_os("AWL_FOOTER_TRACE").is_some() {
+        footer_trace(
+            &format!(
+                "cell world={} title={:?} rows={} dpi={} menu_bar={}",
+                crate::theme::active_index(),
+                p.overlay_title,
+                p.overlay_items.len(),
+                p.dpi,
+                crate::menubar::menu_bar_on()
+            ),
+            w,
+            h,
+        );
+    }
     footer_trace("prepare enter", w, h);
     p.prepare(device, queue, w, h).unwrap();
     footer_trace("prepare exit; submit enter", w, h);
