@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$ROOT/scripts/native-gate-test-process.sh"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-gate-process.py"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-test-shards.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -647,7 +649,7 @@ probe group-kill AWL_NATIVE_GATE_BUDGET_SECONDS=2 AWL_NATIVE_GATE_PROBE_SLEEP=30
 survivors=""
 while read -r orphan; do
   [[ -n "$orphan" ]] || continue
-  if kill -0 "$orphan" 2>/dev/null; then
+  if native_gate_probe_running "$orphan"; then
     survivors="$survivors $orphan"
     kill -KILL "$orphan" 2>/dev/null || true
   fi
@@ -1637,11 +1639,12 @@ kill -0 "$resistant_budget_pid" 2>/dev/null && {
   kill -KILL "-$resistant_budget_pid" 2>/dev/null || true
   exit 1
 }
+# This grandchild cannot be reaped by the test; an unreaped exit is not live.
 for _ in $(seq 1 50); do
-  kill -0 "$resistant_sleeper_pid" 2>/dev/null || break
+  native_gate_probe_running "$resistant_sleeper_pid" || break
   sleep 0.1
 done
-kill -0 "$resistant_sleeper_pid" 2>/dev/null && {
+native_gate_probe_running "$resistant_sleeper_pid" && {
   echo "test-native-gate: the resistant heartbeat sleeper survived its owned group teardown" >&2
   kill -KILL "$resistant_sleeper_pid" 2>/dev/null || true
   exit 1
