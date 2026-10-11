@@ -37,6 +37,57 @@ use super::dither::{offscreen, read_pixels};
 use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
+/// Geometry sweeps stage atlas/uniform writes without drawing a frame. Keep
+/// their retained pipeline upload lifecycle explicit at each measured cell.
+fn geometry_prepare(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    w: u32,
+    h: u32,
+) {
+    p.prepare(device, queue, w, h).unwrap();
+}
+
+#[test]
+fn retained_footer_cells_bound_live_upload_buffers() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping retained_footer_cells_bound_live_upload_buffers: no wgpu adapter");
+        return;
+    };
+    assert!(crate::gpu_alloc::probe(&device).responds(crate::gpu_alloc::Class::Buffers));
+    let submitted = queue.submit(std::iter::empty());
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: Some(submitted),
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .unwrap();
+    for _ in 0..4 {
+        p.set_view(&picker(OverlayKind::Theme, 14, "warm footer "));
+        geometry_prepare(&mut p, &device, &queue, 1200, 800);
+    }
+    let base = crate::gpu_alloc::live(&device).buffers;
+    let mut peak = 0;
+    for cell in 0..128 {
+        p.set_view(&picker(
+            OverlayKind::Theme,
+            14,
+            &format!("footer cell {cell} "),
+        ));
+        geometry_prepare(&mut p, &device, &queue, 1200, 800);
+        peak = peak.max(crate::gpu_alloc::live(&device).buffers - base);
+    }
+    let last = crate::gpu_alloc::live(&device).buffers - base;
+    eprintln!("footer retained uploads: 128 cells peak={peak} last={last}");
+    // Read before a final submission could conceal an unbounded sweep.
+    assert!(
+        peak <= 4 && last <= 4,
+        "footer sweep retained uploads: peak={peak} last={last}"
+    );
+}
+
 /// THE PRESENCE FLOOR on the hint's own shaped ink, in physical px at 1×. The
 /// roster's real values sit around 340 px for the standard
 /// `"type to filter   ↵ keep   esc revert"` line at the picker's chrome size; this
@@ -270,7 +321,7 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
                     for kind in hinted_kinds() {
                         let v = picker(kind, rows, label);
                         p.set_view(&v);
-                        p.prepare(&device, &queue, cw, ch).unwrap();
+                        geometry_prepare(&mut p, &device, &queue, cw, ch);
                         let ctx = format!("{world}/{kind:?} dpi={dpi} {shape} menu_bar={bar}");
                         let g = grade(&p, cw).unwrap_or_else(|| {
                             panic!(
@@ -350,7 +401,7 @@ fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
         for kind in hinted_kinds() {
             let v = picker(kind, 14, "candidate row ");
             p.set_view(&v);
-            p.prepare(&device, &queue, 1200, 800).unwrap();
+            geometry_prepare(&mut p, &device, &queue, 1200, 800);
             let geom = p.overlay_geometry(1200);
             let plan = p.overlay_row_plan(&geom);
             let foot = p
@@ -413,7 +464,7 @@ fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
             for kind in hinted_kinds() {
                 let v = picker(kind, 14, "candidate row ");
                 p.set_view(&v);
-                p.prepare(&device, &queue, lw, 800).unwrap();
+                geometry_prepare(&mut p, &device, &queue, lw, 800);
                 let Some(g) = grade(&p, lw) else { continue };
                 let ctx = format!("{world}/{kind:?} width={lw}");
                 assert!(
@@ -491,7 +542,7 @@ fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
             for kind in hinted_kinds() {
                 let v = picker(kind, 14, "candidate row ");
                 p.set_view(&v);
-                p.prepare(&device, &queue, 1200, 800).unwrap();
+                geometry_prepare(&mut p, &device, &queue, 1200, 800);
                 let geom = p.overlay_geometry(1200);
                 let plan = p.overlay_row_plan(&geom);
                 let ctx = format!("{world}/{kind:?} menu_bar={bar}");
