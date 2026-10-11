@@ -7,6 +7,8 @@ use super::*;
 pub(in crate::render) const PANEL_PAD: Logical = Logical(20.0);
 pub(in crate::render) const PANEL_MARGIN: Logical = Logical(16.0);
 pub(in crate::render) const PANEL_MIN_W: Logical = Logical(440.0);
+// Reserve air beneath the field while action targets follow raster ink centres.
+const REPLACE_FIELD_LEADING: Logical = Logical(12.0);
 
 mod text;
 use text::PanelText;
@@ -189,7 +191,7 @@ impl TextPipeline {
                 &replacement_view,
                 field.clone().metrics(GlyphMetrics::new(
                     m.font_size,
-                    m.line_height + m.px(Logical(8.0)),
+                    m.line_height + m.px(REPLACE_FIELD_LEADING),
                 )),
                 field_right,
                 pad,
@@ -246,7 +248,7 @@ impl TextPipeline {
         self.panel_buffer.set_size(
             &mut self.font_system,
             Some(width as f32 * 2.0),
-            Some(m.line_height * rows + m.px(Logical(8.0))),
+            Some(m.line_height * rows + m.px(REPLACE_FIELD_LEADING)),
         );
         self.panel_buffer.set_rich_text(
             &mut self.font_system,
