@@ -99,6 +99,7 @@ fn geometry_prepare(
     footer_trace("poll exit", w, h);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn retained_footer_cells_bound_live_upload_buffers() {
     let _g = footer_serial();
