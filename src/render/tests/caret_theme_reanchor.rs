@@ -18,6 +18,8 @@ fn assert_anchored(p: &TextPipeline, label: &str) {
 #[test]
 fn theme_reflow_reanchors_drawn_caret_across_worlds_and_sync_paths() {
     let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     crate::page::set_page_on(true);
     crate::page::set_measure(40);
@@ -101,6 +103,8 @@ fn theme_reflow_reanchors_drawn_caret_across_worlds_and_sync_paths() {
 #[test]
 fn preview_burst_commit_and_revert_keep_caret_anchored_with_shape_tail() {
     let _guard = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let _page = crate::page::PagePin::snapshot();
     crate::page::set_page_on(true);
     crate::page::set_measure(40);
