@@ -318,7 +318,11 @@ fn write_glyph(out: &mut String, g: &GlyphOp, layout: &Layout) {
     let font = role_index(g.role) + 1;
     if let Some(palette) = layout.appearance.palette {
         let [r, green, b] = rgb_floats(palette.ink);
-        writeln!(out, "q {r:.3} {green:.3} {b:.3} rg").unwrap();
+        writeln!(
+            out,
+            "q {r:.3} {green:.3} {b:.3} rg {r:.3} {green:.3} {b:.3} RG"
+        )
+        .unwrap();
     }
     writeln!(
         out,

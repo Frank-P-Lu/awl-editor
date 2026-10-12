@@ -81,6 +81,13 @@ fn every_theme_has_embeddable_body_mono_and_japanese_faces_and_legible_ink() {
                 role,
                 asset.family
             );
+            assert_eq!(
+                asset.weight,
+                face.weight().to_number(),
+                "{} {:?} must request the bundled face's authentic weight",
+                theme.name,
+                role
+            );
             assert!(
                 embedding_is_permitted(asset),
                 "{} {} must permit PDF outline embedding",
@@ -113,6 +120,87 @@ fn every_theme_has_embeddable_body_mono_and_japanese_faces_and_legible_ink() {
             );
         }
     }
+}
+
+#[test]
+fn ibm_plex_mono_light_and_bold_shape_into_their_owned_pdf_roles() {
+    let _serial = crate::testlock::serial();
+    let theme = crate::theme::THEMES
+        .iter()
+        .position(|theme| theme.name == "Quokka")
+        .unwrap();
+    let document = PdfDocument::build(
+        "`zzzz` and **`qqqq`**",
+        &NoImages,
+        PdfOptions {
+            paper: PdfPaper::A4,
+            appearance: PdfAppearance::CurrentTheme(theme),
+        },
+    )
+    .unwrap();
+    let glyphs = document.layout.pages[0]
+        .ops
+        .iter()
+        .filter_map(|op| match op {
+            Op::Glyph(glyph) => Some(glyph),
+            _ => None,
+        });
+    let roles = glyphs
+        .filter(|glyph| glyph.actual == "z" || glyph.actual == "q")
+        .map(|glyph| (glyph.actual.as_str(), glyph.role))
+        .collect::<Vec<_>>();
+    assert!(roles.iter().any(|role| *role == ("z", FontRole::Mono)));
+    assert!(roles.iter().any(|role| *role == ("q", FontRole::MonoBold)));
+    assert!(roles.iter().all(|(text, role)| {
+        *role
+            == if *text == "z" {
+                FontRole::Mono
+            } else {
+                FontRole::MonoBold
+            }
+    }));
+    let regular = document.layout.fonts.asset(FontRole::Mono);
+    let bold = document.layout.fonts.asset(FontRole::MonoBold);
+    assert_eq!((regular.family, regular.weight), ("IBM Plex Mono", 300));
+    assert_eq!((bold.family, bold.weight), ("IBM Plex Mono", 700));
+}
+
+#[test]
+fn themed_emboldened_japanese_sets_fill_and_stroke_to_the_same_legible_ink() {
+    let _serial = crate::testlock::serial();
+    let theme_index = crate::theme::THEMES
+        .iter()
+        .position(|theme| theme.name == "Cassowary")
+        .unwrap();
+    let theme = &crate::theme::THEMES[theme_index];
+    let document = PdfDocument::build(
+        "**日**",
+        &NoImages,
+        PdfOptions {
+            paper: PdfPaper::A4,
+            appearance: PdfAppearance::CurrentTheme(theme_index),
+        },
+    )
+    .unwrap();
+    let bytes = document.bytes().unwrap();
+    let pdf = Pdf::parse(&bytes);
+    let content = std::str::from_utf8(pdf.page_streams()[0]).unwrap();
+    let lines = content.lines().collect::<Vec<_>>();
+    let actual = lines
+        .iter()
+        .position(|line| *line == "/Span << /ActualText <FEFF65E5> >> BDC")
+        .expect("Japanese glyph keeps ActualText");
+    let channel = |value: u8| value as f32 / 255.0;
+    let (r, green, b) = (
+        channel(theme.base_content.r),
+        channel(theme.base_content.g),
+        channel(theme.base_content.b),
+    );
+    assert_eq!(
+        lines[actual - 1],
+        format!("q {r:.3} {green:.3} {b:.3} rg {r:.3} {green:.3} {b:.3} RG")
+    );
+    assert!(lines[actual + 1].contains(" 2 Tr "));
 }
 
 #[test]

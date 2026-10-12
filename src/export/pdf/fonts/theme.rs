@@ -1,5 +1,7 @@
 //! Immutable theme-family selection over the renderer's existing bundled faces.
 
+use ttf_parser::Face;
+
 use super::{FontAsset, FontRole, FontRoster};
 
 impl FontRoster {
@@ -24,47 +26,26 @@ impl FontRoster {
             })?;
         Ok(Self {
             assets: [
-                themed_asset(
-                    FontRole::Serif,
-                    theme.font,
-                    "AWLThemeBody-Regular",
-                    regular,
-                    400,
-                ),
-                themed_asset(
-                    FontRole::SerifBold,
-                    theme.font,
-                    "AWLThemeBody-Bold",
-                    bold,
-                    700,
-                ),
-                themed_asset(
-                    FontRole::Mono,
-                    theme.mono,
-                    "AWLThemeMono-Regular",
-                    mono,
-                    400,
-                ),
+                themed_asset(FontRole::Serif, theme.font, "AWLThemeBody-Regular", regular),
+                themed_asset(FontRole::SerifBold, theme.font, "AWLThemeBody-Bold", bold),
+                themed_asset(FontRole::Mono, theme.mono, "AWLThemeMono-Regular", mono),
                 themed_asset(
                     FontRole::MonoBold,
                     theme.mono,
                     "AWLThemeMono-Bold",
                     mono_bold,
-                    700,
                 ),
                 themed_asset(
                     FontRole::JapaneseSerif,
                     japanese_family,
                     "AWLThemeJapanese-Prose",
                     japanese,
-                    400,
                 ),
                 themed_asset(
                     FontRole::JapaneseSans,
                     japanese_family,
                     "AWLThemeJapanese-Code",
                     japanese,
-                    400,
                 ),
             ],
         })
@@ -76,8 +57,11 @@ fn themed_asset(
     family: &'static str,
     pdf_name: &'static str,
     bytes: &'static [u8],
-    weight: u16,
 ) -> FontAsset {
+    let weight = Face::parse(bytes, 0)
+        .expect("verified bundled PDF theme face")
+        .weight()
+        .to_number();
     FontAsset {
         role,
         family,
