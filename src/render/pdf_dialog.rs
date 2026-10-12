@@ -115,14 +115,23 @@ impl PdfDialogLayer {
         view: &crate::pdf_dialog::View,
     ) {
         let (device, queue, [width, height]) = (context.device, context.queue, context.size);
-        if self
-            .texture
-            .as_ref()
-            .is_none_or(|(old, _, _)| !Arc::ptr_eq(old, &view.image))
-        {
+        let preview_size = [g.preview[2].ceil() as u32, g.preview[3].ceil() as u32];
+        if self.texture.as_ref().is_none_or(|(old, texture, _)| {
+            !Arc::ptr_eq(old, &view.image)
+                || texture.width() != preview_size[0]
+                || texture.height() != preview_size[1]
+        }) {
+            // Prefilter to physical output pixels: a single GPU bilinear sample
+            // can miss thin glyphs when a small window minifies the whole page.
+            let pixels = image::imageops::resize(
+                view.image.as_ref(),
+                preview_size[0],
+                preview_size[1],
+                image::imageops::FilterType::Triangle,
+            );
             let size = wgpu::Extent3d {
-                width: view.image.width(),
-                height: view.image.height(),
+                width: pixels.width(),
+                height: pixels.height(),
                 depth_or_array_layers: 1,
             };
             let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -142,11 +151,11 @@ impl PdfDialogLayer {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                view.image.as_raw(),
+                pixels.as_raw(),
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(view.image.width() * 4),
-                    rows_per_image: Some(view.image.height()),
+                    bytes_per_row: Some(pixels.width() * 4),
+                    rows_per_image: Some(pixels.height()),
                 },
                 size,
             );
