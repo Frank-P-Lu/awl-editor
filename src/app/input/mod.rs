@@ -175,6 +175,7 @@ impl InputRuntime {
         self.pointer.range_drag = None;
         self.pointer.row_drag = None;
         self.pointer.scroll_px_accum = 0.0;
+        self.pointer.cursor_icon = winit::window::CursorIcon::Default;
         self.pointer.resynced_geometry = None;
     }
 

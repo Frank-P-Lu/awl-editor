@@ -71,6 +71,23 @@ impl Geometry {
     }
 }
 
+/// Sidecars describe the audition's frozen page, separately from document layout.
+pub(crate) fn metadata(view: Option<&View>) -> String {
+    view.map(|v| {
+        serde_json::json!({
+            "appearance": v.appearance,
+            "paper": v.paper,
+            "page": v.page,
+            "pages": v.pages,
+            "selected": v.selected,
+            "revision": v.revision,
+            "error": v.error,
+        })
+        .to_string()
+    })
+    .unwrap_or_else(|| "null".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,21 +109,4 @@ mod tests {
             }
         }
     }
-}
-
-/// Sidecars describe the audition's frozen page, separately from document layout.
-pub(crate) fn metadata(view: Option<&View>) -> String {
-    view.map(|v| {
-        serde_json::json!({
-            "appearance": v.appearance,
-            "paper": v.paper,
-            "page": v.page,
-            "pages": v.pages,
-            "selected": v.selected,
-            "revision": v.revision,
-            "error": v.error,
-        })
-        .to_string()
-    })
-    .unwrap_or_else(|| "null".into())
 }

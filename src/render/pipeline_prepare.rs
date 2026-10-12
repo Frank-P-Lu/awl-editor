@@ -10,29 +10,9 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        if self.pdf_dialog_layer.active() {
-            self.viewport.update(queue, Resolution { width, height });
-            return self.pdf_dialog_layer.prepare(pdf_dialog::Prepare {
-                device,
-                queue,
-                size: [width, height],
-                dpi: self.dpi,
-                fs: &mut self.font_system,
-                atlas: &mut self.atlas,
-                viewport: &self.viewport,
-                swash: &mut self.swash_cache,
-            });
+        if self.prepare_pdf_dialog(device, queue, [width, height])? {
+            return Ok(());
         }
-        self.pdf_dialog_layer.prepare(pdf_dialog::Prepare {
-            device,
-            queue,
-            size: [width, height],
-            dpi: self.dpi,
-            fs: &mut self.font_system,
-            atlas: &mut self.atlas,
-            viewport: &self.viewport,
-            swash: &mut self.swash_cache,
-        })?;
         if self.text_sync_profile {
             self.owner_scan.reset();
         }

@@ -169,8 +169,8 @@ fn ibm_plex_mono_light_and_bold_shape_into_their_owned_pdf_roles() {
         .filter(|glyph| glyph.actual == "z" || glyph.actual == "q")
         .map(|glyph| (glyph.actual.as_str(), glyph.role))
         .collect::<Vec<_>>();
-    assert!(roles.iter().any(|role| *role == ("z", FontRole::Mono)));
-    assert!(roles.iter().any(|role| *role == ("q", FontRole::MonoBold)));
+    assert!(roles.contains(&("z", FontRole::Mono)));
+    assert!(roles.contains(&("q", FontRole::MonoBold)));
     assert!(roles.iter().all(|(text, role)| {
         *role
             == if *text == "z" {
@@ -305,8 +305,8 @@ fn preview_and_pdf_use_the_same_stored_glyph_positions_without_reflow() {
         }),
         "stored first-glyph box must contain preview ink"
     );
-    assert!(document.preview_page(1, 1.0).is_err());
-    assert!(document.preview_page(0, 0.0).is_err());
+    document.preview_page(1, 1.0).unwrap_err();
+    document.preview_page(0, 0.0).unwrap_err();
 }
 
 #[test]

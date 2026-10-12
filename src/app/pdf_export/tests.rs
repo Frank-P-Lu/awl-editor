@@ -233,3 +233,36 @@ fn pdf_write_failure_and_destination_cancel_preserve_document_defaults_and_audit
     );
     assert!(!fs.exists(Path::new("/synthetic/letter.pdf")));
 }
+
+// Append to src/app/pdf_export/tests.rs.
+#[cfg(target_os = "macos")]
+#[test]
+fn pdf_modal_swallows_native_panel_menu_routes_without_replacing_its_snapshot() {
+    let _serial = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let fs = seeded();
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app();
+    let before = state(&app);
+    app.open_pdf_export();
+    let view = app.pdf_export_view().unwrap();
+    let exit = schedule::RecordingExit::default();
+    for id in [
+        "awl.open",
+        "awl.save_copy",
+        "awl.export_pdf",
+        "awl.export_word",
+        "awl.export_html",
+    ] {
+        assert!(crate::menu::opens_native_panel(id));
+        app.handle_menu_event(id.into(), &exit);
+        let after = app.pdf_export_view().expect("menu keeps PDF modal open");
+        assert!(
+            Arc::ptr_eq(&after.image, &view.image),
+            "{id} replaced snapshot"
+        );
+        assert_eq!(after.revision, view.revision, "{id}");
+        assert_eq!(state(&app), before, "{id}");
+        assert!(!fs.exists(Path::new("/synthetic/letter.pdf")), "{id}");
+    }
+}

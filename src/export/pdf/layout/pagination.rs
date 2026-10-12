@@ -86,9 +86,11 @@ impl Engine<'_> {
                     .into_iter()
                     .take_while(|piece| matches!(piece, Piece::Text { .. }))
                     .collect::<Vec<_>>();
-                self.shape(&text, width)
+                let lines = self.shape(&text, width);
+                let minimum = if lines.len() <= 3 { lines.len() } else { 2 };
+                lines
                     .iter()
-                    .take(2)
+                    .take(minimum)
                     .map(|line| line.height)
                     .sum::<f32>()
                     .max(16.0)
@@ -157,5 +159,107 @@ impl Engine<'_> {
             .count();
         let printable = self.geometry.height - 2.0 * self.geometry.margin_y;
         fitting < 2 || (lines.len() <= 3 && total <= printable)
+    }
+}
+
+// Append to src/export/pdf/layout/pagination.rs. Keeping the test here permits
+// positioning the real Engine at an exact shaped boundary without a costly,
+// brittle search over padding paragraphs or duplicating layout formulas.
+#[cfg(test)]
+mod boundary_tests {
+    use super::*;
+    use crate::export::pdf::fonts::{FontRoster, Fonts};
+    use crate::export::pdf::layout::{Appearance, PageGeometry};
+    use crate::export::{PdfAppearance, PdfPaper};
+
+    struct NoImages;
+    impl crate::export::ImageSource for NoImages {
+        fn resolve(&self, _: &str) -> Option<crate::export::ExportImage> {
+            None
+        }
+    }
+
+    #[test]
+    fn heading_follows_a_three_line_paragraph_onto_its_next_page() {
+        let _serial = crate::testlock::serial();
+        let appearances = std::iter::once(PdfAppearance::Plain)
+            .chain((0..crate::theme::THEMES.len()).map(PdfAppearance::CurrentTheme));
+        for paper in [PdfPaper::A4, PdfPaper::Letter] {
+            for appearance in appearances.clone() {
+                let (palette, roster) = match appearance {
+                    PdfAppearance::Plain => (Appearance::plain(), FontRoster::plain()),
+                    PdfAppearance::CurrentTheme(index) => {
+                        let theme = &crate::theme::THEMES[index];
+                        (
+                            Appearance::theme(theme),
+                            FontRoster::for_theme(theme).unwrap(),
+                        )
+                    }
+                };
+                let geometry = PageGeometry::for_paper(paper);
+                let mut engine = Engine {
+                    fonts: Fonts::new(roster),
+                    images_source: &NoImages,
+                    pages: vec![super::super::style::page(geometry, palette)],
+                    page: 0,
+                    y: geometry.margin_y,
+                    images: Vec::new(),
+                    unicode: std::array::from_fn(|_| Default::default()),
+                    geometry,
+                    appearance: palette,
+                };
+                let heading = vec![Inline::Text("KEEP".into())];
+                let follower = vec![
+                    Inline::Text("First line".into()),
+                    Inline::HardBreak,
+                    Inline::Text("Second line".into()),
+                    Inline::HardBreak,
+                    Inline::Text("Third line".into()),
+                ];
+                let pieces = flatten(&follower, Style::body(), &engine.fonts.roster);
+                let lines = engine.shape(&pieces, geometry.measure);
+                assert_eq!(lines.len(), 3, "{paper:?} {appearance:?}");
+                let follower_height: f32 = lines.iter().map(|line| line.height).sum();
+
+                // Measure the heading through the production block path, then
+                // clear its operations so only the actual boundary is examined.
+                let block = Block::Heading {
+                    level: 2,
+                    inlines: heading,
+                };
+                engine.block(&block, None, geometry.margin_x, geometry.measure);
+                let heading_height_with_gap = engine.y - geometry.margin_y;
+                engine.pages[0].ops.clear();
+                engine.pages[0].links.clear();
+                let available = heading_height_with_gap
+                    + lines[0].height
+                    + lines[1].height
+                    + lines[2].height * 0.5;
+                assert!(available < heading_height_with_gap + follower_height);
+                engine.y = geometry.bottom() - available;
+                engine.blocks(
+                    &[block, Block::Paragraph(follower)],
+                    geometry.margin_x,
+                    geometry.measure,
+                );
+                assert_eq!(engine.pages.len(), 2, "{paper:?} {appearance:?}");
+                assert!(
+                    !engine.pages[0]
+                        .ops
+                        .iter()
+                        .any(|op| matches!(op, Op::Glyph(_))),
+                    "{paper:?} {appearance:?}: heading was stranded on the previous page"
+                );
+                let baselines = engine.pages[1]
+                    .ops
+                    .iter()
+                    .filter_map(|op| match op {
+                        Op::Glyph(glyph) => Some(glyph.y.to_bits()),
+                        _ => None,
+                    })
+                    .collect::<std::collections::BTreeSet<_>>();
+                assert_eq!(baselines.len(), 4, "heading and all three follower lines");
+            }
+        }
     }
 }

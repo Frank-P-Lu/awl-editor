@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub(super) struct PdfDialogLayer {
     view: Option<Arc<crate::pdf_dialog::View>>,
+    prepared: bool,
     buffers: [GlyphBuffer; 7],
     renderer: TextRenderer,
     controls: SelectionPipeline,
@@ -34,6 +35,7 @@ impl PdfDialogLayer {
         let _ = (queue, cache);
         Self {
             view: None,
+            prepared: false,
             buffers: std::array::from_fn(|_| GlyphBuffer::new(fs, GlyphMetrics::new(14.0, 18.0))),
             renderer: TextRenderer::new(atlas, device, wgpu::MultisampleState::default(), None),
             controls: SelectionPipeline::new(
@@ -52,12 +54,18 @@ impl PdfDialogLayer {
             self.texture = None;
         }
         self.view = view;
+        self.prepared = false;
     }
     pub fn active(&self) -> bool {
         self.view.is_some()
     }
 
+    pub fn prepared(&self) -> bool {
+        self.prepared
+    }
+
     pub fn prepare(&mut self, context: Prepare<'_>) -> anyhow::Result<()> {
+        self.prepared = false;
         #[cfg(not(target_arch = "wasm32"))]
         {
             let Some(view) = self.view.clone() else {
@@ -81,6 +89,7 @@ impl PdfDialogLayer {
             self.prepare_page(&context, &g, &view);
             self.prepare_controls(&context, &g, &view);
             self.prepare_text(context, &g, &view)?;
+            self.prepared = true;
         }
         #[cfg(target_arch = "wasm32")]
         let Prepare {
@@ -168,7 +177,7 @@ impl PdfDialogLayer {
     ) {
         let (device, queue, [width, height]) = (context.device, context.queue, context.size);
         let rgba = |c: theme::Srgb| [c.r, c.g, c.b, c.a];
-        let quads: Vec<_> = g
+        let mut quads: Vec<_> = g
             .controls
             .iter()
             .enumerate()
@@ -183,6 +192,15 @@ impl PdfDialogLayer {
                 )
             })
             .collect();
+        let edge = context.dpi.max(1.0);
+        let [x, y, w, h] = g.preview;
+        quads.insert(
+            0,
+            (
+                [x - edge, y - edge, w + 2.0 * edge, h + 2.0 * edge],
+                rgba(theme::base_300()),
+            ),
+        );
         self.controls
             .prepare_multicolor(device, queue, width, height, &quads);
     }
@@ -308,5 +326,37 @@ impl PdfDialogLayer {
         self.renderer
             .render(atlas, viewport, pass)
             .map_err(|e| anyhow::anyhow!("PDF dialog text: {e:?}"))
+    }
+}
+
+impl TextPipeline {
+    /// The PDF layer owns its frame inputs and leaves the parked renderer alone.
+    pub(in crate::render) fn prepare_pdf_dialog(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        size: [u32; 2],
+    ) -> anyhow::Result<bool> {
+        let active = self.pdf_dialog_layer.active();
+        if active {
+            self.viewport.update(
+                queue,
+                Resolution {
+                    width: size[0],
+                    height: size[1],
+                },
+            );
+        }
+        self.pdf_dialog_layer.prepare(Prepare {
+            device,
+            queue,
+            size,
+            dpi: self.dpi,
+            fs: &mut self.font_system,
+            atlas: &mut self.atlas,
+            viewport: &self.viewport,
+            swash: &mut self.swash_cache,
+        })?;
+        Ok(active)
     }
 }

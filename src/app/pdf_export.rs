@@ -218,6 +218,7 @@ impl App {
                 if let Some(gpu) = self.frame.gpu_mut() {
                     gpu.pipeline.set_image_preview(None);
                     gpu.pipeline.set_page_drag_readout(None);
+                    gpu.window.set_cursor(winit::window::CursorIcon::Default);
                 }
                 self.workspace_state.set_pdf_export(Some(dialog));
                 self.reconcile_text_focus();
@@ -320,22 +321,22 @@ impl App {
             self.frame.dpi(),
             view.image.width() as f32 / view.image.height() as f32,
         );
-        if let Some(index) = geometry.hit(x, y) {
-            if let Some(mut dialog) = self.workspace_state.take_pdf_export() {
-                dialog.selected = index;
-                self.workspace_state.set_pdf_export(Some(dialog));
-                let action = if index == 2 {
-                    let rect = geometry.controls[2];
-                    if x < rect[0] + rect[2] * 0.5 {
-                        Action::BackwardChar
-                    } else {
-                        Action::ForwardChar
-                    }
+        if let Some(index) = geometry.hit(x, y)
+            && let Some(mut dialog) = self.workspace_state.take_pdf_export()
+        {
+            dialog.selected = index;
+            self.workspace_state.set_pdf_export(Some(dialog));
+            let action = if index == 2 {
+                let rect = geometry.controls[2];
+                if x < rect[0] + rect[2] * 0.5 {
+                    Action::BackwardChar
                 } else {
-                    Action::Newline
-                };
-                self.apply_pdf_export_action(&action);
-            }
+                    Action::ForwardChar
+                }
+            } else {
+                Action::Newline
+            };
+            self.apply_pdf_export_action(&action);
         }
     }
 

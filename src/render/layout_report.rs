@@ -52,6 +52,13 @@ impl TextPipeline {
     /// `None` means there is no sealed frame. This method never makes layout
     /// reportable by doing work itself: callers must prepare the frame first.
     pub(crate) fn layout_report(&self) -> Option<LayoutReport> {
+        if self.pdf_dialog_layer.active() {
+            return self.pdf_dialog_layer.prepared().then(|| LayoutReport {
+                rows: Vec::new(),
+                caret: None,
+                selection: Vec::new(),
+            });
+        }
         let text_left = self.text_left();
         let doc_top = self.doc_top();
         self.row_geom.with_report_rows(|frame_rows| {
