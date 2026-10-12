@@ -372,6 +372,16 @@ impl App {
         // Inert when already down. A popover BUTTON click never routes through here
         // (it fires its Action directly via `App::apply`), so the popover stays open
         // across its own applies.
+        #[cfg(not(target_arch = "wasm32"))]
+        if matches!(self.workspace_state.layer(), workspace::Layer::PdfExport) {
+            let action = self
+                .input
+                .keyboard
+                .keymap
+                .resolve(&raw, &self.input.keyboard.mods.state());
+            self.apply(action, false, exit, crate::stats::Door::Chord);
+            return;
+        }
         self.workspace_state.dismiss_popover();
         // WEB/LINUX MENU BAR: a real (non-modifier) key press dismisses an open
         // dropdown — the awl bar's dropdown is mouse-driven (no keyboard nav in v1), so

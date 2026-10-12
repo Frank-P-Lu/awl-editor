@@ -18,6 +18,10 @@ impl App {
             return;
         }
         match key {
+            "pdf_appearance" => {
+                self.config.pdf_appearance = Some(value.trim_matches('"').to_string())
+            }
+            "pdf_paper" => self.config.pdf_paper = Some(value.trim_matches('"').to_string()),
             "theme" => self.config.theme = Some(value.trim_matches('"').to_string()),
             "caret_mode" => self.config.caret_mode = Some(value.trim_matches('"').to_string()),
             "dictionary" => self.config.dictionary = Some(value.trim_matches('"').to_string()),

@@ -287,6 +287,7 @@ pub(super) fn settled_viewstate(
     // Synthetic capture options do not carry field carets, so use the end.
     vstate.search_query_caret = vstate.search_query.chars().count();
     vstate.search_replacement_caret = vstate.search_replacement.chars().count();
+    vstate.pdf_export = opts.pdf_export.clone();
     viewstate_overlay::fold(&mut vstate, buffer, opts, search_active);
     if let Some(input) = &opts.field_input {
         vstate.apply_field_input(input.clone());

@@ -314,6 +314,7 @@ impl SemanticView<'_> {
         let focus_id = match self.layer() {
             workspace::Layer::Editor if self.buffer().is_some() => DOCUMENT_ID.to_string(),
             workspace::Layer::Editor => START_NEW_ID.to_string(),
+            workspace::Layer::PdfExport => self.fold_pdf_export(nodes),
             workspace::Layer::Popover => self.fold_popover(nodes),
             workspace::Layer::Search => self.fold_search(nodes),
             workspace::Layer::Workspace | workspace::Layer::Overlay => self.fold_overlay(nodes),
@@ -322,7 +323,9 @@ impl SemanticView<'_> {
         // PASSIVE surfaces ride on top of whatever holds focus and never take
         // it: any number may be up at once without disturbing the invariant
         // the projection asserts.
-        self.fold_passive(nodes);
+        if self.layer() != workspace::Layer::PdfExport {
+            self.fold_passive(nodes);
+        }
 
         if let Some(message) = self.notice.as_deref() {
             nodes.push(SemanticNode::new(NOTICE_ID, SemanticRole::Status, message));

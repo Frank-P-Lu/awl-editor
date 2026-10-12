@@ -143,6 +143,8 @@ impl App {
             self.set_sticky_notice(msg);
             return false;
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.workspace_state.set_pdf_export(None);
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): `path` may live outside the container.
         // `ensure_access` is a no-op fast-path for anything inside it or

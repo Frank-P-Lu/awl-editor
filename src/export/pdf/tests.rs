@@ -688,3 +688,5 @@ fn golden(name: &str, got: &[u8]) {
     });
     assert_eq!(got, want, "{name} exact-byte golden drift");
 }
+
+mod specimens;

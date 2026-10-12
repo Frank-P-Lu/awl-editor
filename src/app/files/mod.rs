@@ -42,7 +42,7 @@ mod dictionary;
 mod document;
 #[cfg(not(target_arch = "wasm32"))]
 mod drop;
-mod export;
+pub(in crate::app) mod export;
 mod external;
 mod open;
 mod quit;

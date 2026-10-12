@@ -20,6 +20,7 @@ impl App {
             return TextTarget::None;
         }
         match self.workspace_state.layer() {
+            Layer::PdfExport => TextTarget::None,
             Layer::Overlay | Layer::Workspace => {
                 let Some(card) = self.workspace_state.overlay() else {
                     return TextTarget::None;

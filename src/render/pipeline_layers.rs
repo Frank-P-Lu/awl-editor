@@ -72,6 +72,12 @@ impl TextPipeline {
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
     ) -> anyhow::Result<()> {
+        if self.pdf_dialog_layer.active() {
+            let mut pass = Self::begin_clear_pass(encoder, view);
+            return self
+                .pdf_dialog_layer
+                .draw(&self.atlas, &self.viewport, &mut pass);
+        }
         // Is the document layer relocated into a workspace's content region this
         // frame? Asked ONCE here; both paths below read the answer.
         let relocated = self.comparison_viewport().is_some();

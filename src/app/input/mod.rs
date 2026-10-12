@@ -161,6 +161,23 @@ impl InputRuntime {
         RestingPointer(self.pointer.cursor_px)
     }
 
+    /// A modal takes the pointer away from all parked surfaces. Retiring is
+    /// cancellation, so it never commits a pending settings scrub or row move.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn retire_pointer_gestures(&mut self) {
+        self.pointer.finish_text_drag();
+        self.pointer.clear_drag_scroll_tick();
+        self.pointer.query_drag = false;
+        self.pointer.page_resizing = false;
+        self.pointer.page_resize_edge = None;
+        self.pointer.page_resize_anchor = None;
+        self.pointer.image_resizing = None;
+        self.pointer.range_drag = None;
+        self.pointer.row_drag = None;
+        self.pointer.scroll_px_accum = 0.0;
+        self.pointer.resynced_geometry = None;
+    }
+
     /// Finish a text-selection gesture. The next press must always begin
     /// below drag slop; leaving `drag_armed` true leaks a completed drag into
     /// the next click.

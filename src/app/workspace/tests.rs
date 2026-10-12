@@ -26,6 +26,8 @@ fn cell(rung: Rung, search: bool, popover: bool) -> WorkspaceState {
         search: search.then(|| SearchState::start(0, crate::search::Direction::Forward)),
         popover_summoned: popover,
         tutorial_folder_intent: None,
+        #[cfg(not(target_arch = "wasm32"))]
+        pdf_export: None,
     }
 }
 
@@ -42,6 +44,7 @@ const RUNGS: &[Rung] = &[Rung::Nothing, Rung::Modal, Rung::Sustained];
 /// a real second opinion rather than the implementation restated.
 #[test]
 fn the_summoned_layer_ladder_resolves_every_combination() {
+    let _serial = crate::testlock::serial();
     let mut seen = std::collections::BTreeSet::new();
     for &rung in RUNGS {
         for search in [false, true] {
@@ -63,6 +66,18 @@ fn the_summoned_layer_ladder_resolves_every_combination() {
                      (rung={rung:?}, search={search}, popover={popover})"
                 );
                 seen.insert(got);
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let mut modal = cell(rung, search, popover);
+                    modal.set_pdf_export(Some(crate::app::pdf_export::Dialog::fixture()));
+                    assert_eq!(modal.layer(), Layer::PdfExport);
+                    assert!(modal.overlay_open());
+                    assert!(!modal.pickers_clear());
+                    assert!(!modal.popover_holds_attention());
+                    seen.insert(modal.layer());
+                    modal.set_pdf_export(None);
+                    assert_eq!(modal.layer(), expect, "cancel restores the parked rung");
+                }
 
                 // Every derived predicate must equal the conjunction it
                 // replaced, at EVERY cell. A card of EITHER rung owns the
@@ -136,6 +151,8 @@ fn every_overlay_kind_lands_on_the_rung_its_lifecycle_claims() {
             search: None,
             popover_summoned: false,
             tutorial_folder_intent: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            pdf_export: None,
         };
         let expect = if kind.sustained() {
             sustained.push(kind);

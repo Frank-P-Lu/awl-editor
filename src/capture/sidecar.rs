@@ -85,6 +85,7 @@ pub(super) fn write_sidecar(
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
         driver = json_string(opts.driver.as_str()),
+        pdf_export = crate::pdf_dialog::metadata(opts.pdf_export.as_deref()),
         semantic = opts.semantic_json(),
         document = document.summary,
         caret_extra = caret_extra,

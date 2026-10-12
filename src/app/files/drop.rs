@@ -21,6 +21,9 @@ impl App {
     /// classify-and-route step is the only new decision; neither door is
     /// reimplemented here.
     pub(in crate::app) fn on_dropped_file(&mut self, exit: &dyn schedule::Exit, path: PathBuf) {
+        if self.workspace_state.layer() == workspace::Layer::PdfExport {
+            return;
+        }
         match crate::drop::classify_drop(&path) {
             crate::drop::DropRoute::Open => {
                 self.load_path(path);

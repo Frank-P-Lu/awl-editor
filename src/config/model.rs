@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     pub default_folder: Option<PathBuf>,
     pub workspace: Option<PathBuf>,
+    pub pdf_appearance: Option<String>,
+    pub pdf_paper: Option<String>,
     pub theme: Option<String>,
     pub zoom: Option<f32>,
     pub scroll_sensitivity: Option<f32>,
@@ -52,6 +54,8 @@ impl Config {
         Config {
             default_folder: None,
             workspace: None,
+            pdf_appearance: None,
+            pdf_paper: None,
             theme: None,
             zoom: None,
             scroll_sensitivity: None,
@@ -213,6 +217,14 @@ impl Config {
         if let Some(w) = table.get("page_width_code").and_then(toml_as_usize) {
             cfg.page_width_code = Some(w.max(1));
         }
+        cfg.pdf_appearance = table
+            .get("pdf_appearance")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
+        cfg.pdf_paper = table
+            .get("pdf_paper")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
         if let Some(s) = table.get("caret_mode").and_then(|v| v.as_str()) {
             cfg.caret_mode = Some(s.to_string());
         }

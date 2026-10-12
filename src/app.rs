@@ -324,6 +324,7 @@ struct ThemeSettleInFlight {
 mod awl_event;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod files;
+mod pdf_export;
 /// Re-exported crate-wide so the render fixtures and the docs-vocabulary law
 /// read the SAME constant the running app displays, never a retyped copy.
 #[cfg(test)]
