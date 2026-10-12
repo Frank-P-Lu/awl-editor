@@ -1,4 +1,4 @@
-use ttf_parser::Face;
+use ttf_parser::{Face, Permissions};
 
 use super::super::fonts::{FontRole, FontRoster, ROLES, embedding_is_permitted};
 use super::super::layout::Op;
@@ -82,12 +82,31 @@ fn every_theme_has_embeddable_body_mono_and_japanese_faces_and_legible_ink() {
                 role,
                 asset.family
             );
+            let expected_permission =
+                if matches!(asset.family, "Monaspace Xenon" | "iA Writer Quattro S") {
+                    Permissions::Editable
+                } else {
+                    Permissions::Installable
+                };
+            assert_eq!(
+                face.permissions(),
+                Some(expected_permission),
+                "{} {} fsType must match the reviewed bundled metadata",
+                theme.name,
+                asset.family
+            );
             assert_eq!(
                 asset.weight,
                 face.weight().to_number(),
                 "{} {:?} must request the bundled face's authentic weight",
                 theme.name,
                 role
+            );
+            assert!(
+                face.is_subsetting_allowed() && face.is_outline_embedding_allowed(),
+                "{} {} must permit subset outline embedding",
+                theme.name,
+                asset.family
             );
             assert!(
                 embedding_is_permitted(asset),

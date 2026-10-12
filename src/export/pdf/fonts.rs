@@ -158,7 +158,7 @@ impl Fonts {
         for asset in &roster.assets {
             assert!(
                 embedding_is_permitted(asset),
-                "bundled PDF font {} does not permit outline embedding",
+                "bundled PDF font {} is not a permitted, subsettable TrueType outline face",
                 asset.pdf_name
             );
             let loaded = db.load_font_source(fontdb::Source::Binary(std::sync::Arc::new(
@@ -211,15 +211,6 @@ pub(super) fn has_glyph(role: FontRole, ch: char) -> bool {
     face(role).glyph_index(ch).is_some()
 }
 
-/// Resolve one scalar without letting a broad CJK font replace Latin
-/// typography. Han, kana, and their punctuation use the Japanese face that
-/// matches the source context; everything else stays in the requested face or
-/// takes the existing visible fallback.
-#[cfg(test)]
-pub(super) fn role_for_char(role: FontRole, ch: char) -> Option<FontRole> {
-    FontRoster::plain().role_for_char(role, ch)
-}
-
 pub(super) fn is_japanese_scalar(ch: char) -> bool {
     if matches!(
         crate::script::classify_char(ch),
@@ -258,12 +249,19 @@ pub(super) fn embedding_is_permitted(asset: &FontAsset) -> bool {
     let Ok(face) = Face::parse(asset.bytes, 0) else {
         return false;
     };
-    face.permissions() == Some(Permissions::Installable) && face.is_outline_embedding_allowed()
-}
-
-#[cfg(test)]
-pub(super) fn glyph_widths(role: FontRole, glyphs: &BTreeSet<u16>) -> Vec<(u16, u16)> {
-    glyph_widths_for(asset(role), glyphs)
+    // The OFL inventory is separate; require permissive fsType and subset/outline bits.
+    // Reject missing OS/2 and formats outside this `cmap`/`glyf`/`hmtx` pipeline.
+    let permission = matches!(
+        face.permissions(),
+        Some(Permissions::Installable | Permissions::PreviewAndPrint | Permissions::Editable)
+    );
+    let tables = face.tables();
+    permission
+        && face.is_subsetting_allowed()
+        && face.is_outline_embedding_allowed()
+        && tables.cmap.is_some()
+        && tables.glyf.is_some()
+        && tables.hmtx.is_some()
 }
 
 pub(super) fn glyph_widths_for(asset: &FontAsset, glyphs: &BTreeSet<u16>) -> Vec<(u16, u16)> {
@@ -476,11 +474,6 @@ pub(super) struct Descriptor {
     pub ascent: i32,
     pub descent: i32,
     pub cap_height: i32,
-}
-
-#[cfg(test)]
-pub(super) fn descriptor(role: FontRole) -> Descriptor {
-    descriptor_for(asset(role))
 }
 
 pub(super) fn descriptor_for(asset: &FontAsset) -> Descriptor {
