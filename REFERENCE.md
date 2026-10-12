@@ -64,7 +64,7 @@ Commands are grouped by the same task categories the palette browses.
 | Open scratch | Summon the persistent scratch surface, restoring it if it was closed. | — | — | Native, browser |
 | Export as Word… | Export as `.docx`; markdown buffers only, folder chosen on native. | — | — | Native, browser |
 | Export as HTML… | Export as `.html`; markdown buffers only, folder chosen on native. | — | — | Native, browser |
-| Export as PDF… | Choose a folder, then export as `.pdf`; markdown buffers only, native builds only. | — | — | Native |
+| Export as PDF… | Preview paper and appearance, then export as `.pdf`; Markdown only, native builds only. | — | — | Native |
 | Save | Save the buffer to disk. | `⌘S` | `Ctrl+S` | Native, browser |
 | Review the change | Show an unresolved change: differences, your version, disk version. Changes nothing. | — | — | Native |
 | Keep my version | Settle an unresolved external change by writing the buffer over the file on disk. | — | — | Native |
@@ -268,6 +268,9 @@ An absent key takes the default below. A command-line flag overrides the file; t
 |---|---|---|
 | `default_folder` | path | — |
 | `workspace` | path | — |
+| `pdf_appearance` | current_theme \| plain | `current_theme` |
+| `pdf_page_numbers` | true \| false | `true` |
+| `pdf_paper` | a4 \| letter | `a4` |
 | `theme` | world name | `Saltpan` |
 | `zoom` | percent | `100%` |
 | `scroll_sensitivity` | percent | `100%` |

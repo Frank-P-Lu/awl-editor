@@ -71,9 +71,10 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/219` — `focused_field`: rendered field text, composition, selection and
 ///          prepared candidate geometry from a real App's text recipient.
 /// `/222` — `pdf_export`: frozen appearance, paper, page and control state.
+/// `/225` — `pdf_export.page_numbers`: remembered footer-number toggle.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 222;
+pub const SCHEMA_VERSION: u32 = 225;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

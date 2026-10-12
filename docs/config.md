@@ -48,8 +48,9 @@ non-movers in the `is_motion` test; changing this is a product decision.
 ## PDF export defaults
 
 The native Export PDF dialog remembers `pdf_appearance = "current_theme"` or
-`"plain"`, and `pdf_paper = "a4"` or `"letter"`, after a successful export.
-Absent or unknown values start with Current theme and A4. Cancelling changes
+`"plain"`, `pdf_paper = "a4"` or `"letter"`, and `pdf_page_numbers = true` or
+`false`, after a successful export.
+Absent or unknown values start with Current theme, A4, and page numbers on. Cancelling changes
 neither the document nor the remembered defaults. Current theme freezes the
 world at dialog entry; Plain paper uses a neutral white sheet.
 

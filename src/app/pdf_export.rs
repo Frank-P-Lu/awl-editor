@@ -112,7 +112,8 @@ impl Dialog {
                     PdfPaper::Letter => PdfPaper::A4,
                 }
             }
-            2 => {
+            2 => options.page_numbers = !options.page_numbers,
+            3 => {
                 page = page
                     .saturating_add_signed(direction)
                     .min(self.artifact.page_count().saturating_sub(1))
@@ -157,6 +158,7 @@ impl Dialog {
                 PdfPaper::Letter => "Letter",
             }
             .into(),
+            page_numbers: self.options.page_numbers,
             page: self.page,
             pages: self.artifact.page_count(),
             selected: self.selected,
@@ -187,6 +189,7 @@ impl App {
             return;
         }
         let options = PdfOptions {
+            page_numbers: self.config.pdf_page_numbers.unwrap_or(true),
             paper: if self.config.pdf_paper.as_deref() == Some("letter") {
                 PdfPaper::Letter
             } else {
@@ -250,16 +253,16 @@ impl App {
             Action::PreviousLine | Action::NextLine | Action::InsertTab | Action::Outdent => {
                 dialog.selected = match action {
                     Action::PreviousLine => dialog.selected.saturating_sub(1),
-                    Action::NextLine => (dialog.selected + 1).min(4),
-                    Action::Outdent => (dialog.selected + 4) % 5,
-                    _ => (dialog.selected + 1) % 5,
+                    Action::NextLine => (dialog.selected + 1).min(5),
+                    Action::Outdent => (dialog.selected + 5) % 6,
+                    _ => (dialog.selected + 1) % 6,
                 };
                 dialog.revision = dialog.revision.wrapping_add(1);
                 self.workspace_state.set_pdf_export(Some(dialog));
             }
-            Action::Newline => match dialog.selected {
-                3 => self.finish_pdf_export(dialog),
-                4 => {}
+            Action::Newline | Action::InsertChar(' ') => match dialog.selected {
+                4 => self.finish_pdf_export(dialog),
+                5 => {}
                 _ => {
                     if let Err(e) = dialog.change(1) {
                         dialog.error = Some(e.clone());
@@ -289,7 +292,7 @@ impl App {
         let Some(index) = id
             .strip_prefix("pdf-export.control.")
             .and_then(|s| s.parse::<usize>().ok())
-            .filter(|i| *i < 5)
+            .filter(|i| *i < 6)
         else {
             return false;
         };
@@ -326,8 +329,8 @@ impl App {
         {
             dialog.selected = index;
             self.workspace_state.set_pdf_export(Some(dialog));
-            let action = if index == 2 {
-                let rect = geometry.controls[2];
+            let action = if index == 3 {
+                let rect = geometry.controls[3];
                 if x < rect[0] + rect[2] * 0.5 {
                     Action::BackwardChar
                 } else {
@@ -399,6 +402,14 @@ impl App {
             };
             self.persist_pref("pdf_appearance", appearance);
             self.persist_pref("pdf_paper", paper);
+            self.persist_pref(
+                "pdf_page_numbers",
+                if dialog.options.page_numbers {
+                    "true"
+                } else {
+                    "false"
+                },
+            );
         } else {
             dialog.error = self.frame.notice().text().map(str::to_owned);
             self.workspace_state.set_pdf_export(Some(dialog));

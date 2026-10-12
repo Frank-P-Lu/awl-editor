@@ -17,6 +17,7 @@ fn options_cover_both_papers_and_reject_unknown_theme_indices() {
         "# Letter\n\nBody.",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::Letter,
             appearance: PdfAppearance::Plain,
         },
@@ -37,6 +38,7 @@ fn options_cover_both_papers_and_reject_unknown_theme_indices() {
         "Body.",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(crate::theme::THEMES.len()),
         },
@@ -153,6 +155,7 @@ fn ibm_plex_mono_light_and_bold_shape_into_their_owned_pdf_roles() {
         "`zzzz` and **`qqqq`**",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme),
         },
@@ -197,6 +200,7 @@ fn themed_emboldened_japanese_sets_fill_and_stroke_to_the_same_legible_ink() {
         "**日**",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme_index),
         },
@@ -242,6 +246,7 @@ fn metadata_identifies_paper_dimensions_and_the_snapshot_appearance() {
         "Body.",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::Letter,
             appearance: PdfAppearance::CurrentTheme(index),
         },
@@ -264,6 +269,7 @@ fn preview_and_pdf_use_the_same_stored_glyph_positions_without_reflow() {
         "# Shared layout\n\nSelectable body text.",
         &NoImages,
         PdfOptions {
+            page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme),
         },
@@ -398,4 +404,80 @@ fn contrast(a: crate::theme::Srgb, b: crate::theme::Srgb) -> f32 {
     }
     let (a, b) = (luminance(a), luminance(b));
     (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+#[test]
+fn page_numbers_are_centered_selectable_and_do_not_reflow_any_theme_or_paper() {
+    let _serial = crate::testlock::serial();
+    let markdown = "A synthetic paragraph that crosses paper boundaries.\n\n".repeat(70);
+    for paper in [PdfPaper::A4, PdfPaper::Letter] {
+        for appearance in std::iter::once(PdfAppearance::Plain)
+            .chain((0..crate::theme::THEMES.len()).map(PdfAppearance::CurrentTheme))
+        {
+            let build = |page_numbers| {
+                PdfDocument::build(
+                    &markdown,
+                    &NoImages,
+                    PdfOptions {
+                        paper,
+                        appearance,
+                        page_numbers,
+                    },
+                )
+                .unwrap()
+            };
+            let off = build(false);
+            if let Some(palette) = off.layout.appearance.palette {
+                let [r, g, b] = palette.footer.0;
+                let footer = crate::theme::Srgb { r, g, b, a: 255 };
+                let [r, g, b] = palette.paper.0;
+                assert!(contrast(footer, crate::theme::Srgb { r, g, b, a: 255 }) >= 4.5);
+            }
+            let on = build(true);
+            assert!(on.page_count() > 1);
+            assert_eq!(off.page_count(), on.page_count());
+            let bytes = on.bytes().unwrap();
+            let extracted = super::semantic::recover_page_text(&super::parser::Pdf::parse(&bytes));
+            for (page, layout) in on.layout.pages.iter().enumerate() {
+                let footer: Vec<_> = layout
+                    .ops
+                    .iter()
+                    .filter_map(|op| match op {
+                        super::super::layout::Op::Glyph(glyph) if glyph.color.is_some() => {
+                            Some(glyph)
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                assert!(!footer.is_empty());
+                let label: String = footer.iter().map(|g| g.actual.as_str()).collect();
+                assert_eq!(label, (page + 1).to_string());
+                assert!(extracted[page].ends_with(&label));
+                assert!(
+                    footer
+                        .iter()
+                        .all(|g| g.y > on.layout.geometry.bottom() && g.y < paper.size().1 - 12.0)
+                );
+                let a = off.preview_page(page, 1.0).unwrap();
+                let b = on.preview_page(page, 1.0).unwrap();
+                let top = on.layout.geometry.bottom().ceil() as u32;
+                let changes: Vec<_> = a
+                    .enumerate_pixels()
+                    .filter(|(x, y, p)| *y >= top && b.get_pixel(*x, *y) != *p)
+                    .map(|(x, _, _)| x)
+                    .collect();
+                let left = changes.iter().min().unwrap();
+                let right = changes.iter().max().unwrap();
+                assert!(
+                    ((*left + *right) as f32 * 0.5 - paper.size().0 * 0.5).abs() < 3.0,
+                    "{paper:?} {appearance:?}"
+                );
+                assert!(
+                    a.enumerate_pixels()
+                        .filter(|(_, y, _)| *y < top)
+                        .all(|(x, y, p)| b.get_pixel(x, y) == p)
+                );
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@ pub struct Config {
     pub workspace: Option<PathBuf>,
     pub pdf_appearance: Option<String>,
     pub pdf_paper: Option<String>,
+    pub pdf_page_numbers: Option<bool>,
     pub theme: Option<String>,
     pub zoom: Option<f32>,
     pub scroll_sensitivity: Option<f32>,
@@ -56,6 +57,7 @@ impl Config {
             workspace: None,
             pdf_appearance: None,
             pdf_paper: None,
+            pdf_page_numbers: None,
             theme: None,
             zoom: None,
             scroll_sensitivity: None,
@@ -302,6 +304,7 @@ fn apply_string_settings(cfg: &mut Config, table: &toml::Table) {
 
 fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
     let value = |key| table.get(key).and_then(toml::Value::as_bool);
+    cfg.pdf_page_numbers = value("pdf_page_numbers");
     cfg.writing_nits = value("writing_nits");
     cfg.spellcheck = value("spellcheck");
     cfg.history = value("history");

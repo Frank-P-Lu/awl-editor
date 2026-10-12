@@ -254,7 +254,7 @@ pub(crate) fn overlay_band_overlap_for(theme: Theme) -> Srgb {
 // the derivation is only its default. A second accessor returning the same
 // value is the alignment this repo merges away.
 
-fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
+pub(crate) fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
     let (la, lb) = (rel_lum(a), rel_lum(b));
     let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
     (hi + 0.05) / (lo + 0.05)

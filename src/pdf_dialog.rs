@@ -5,6 +5,7 @@ use std::sync::Arc;
 pub(crate) struct View {
     pub image: Arc<image::RgbaImage>,
     pub appearance: String,
+    pub page_numbers: bool,
     pub paper: String,
     pub page: usize,
     pub pages: usize,
@@ -14,10 +15,14 @@ pub(crate) struct View {
 }
 
 impl View {
-    pub fn labels(&self) -> [String; 5] {
+    pub fn labels(&self) -> [String; 6] {
         [
             format!("Appearance\n{}", self.appearance),
             format!("Paper\n{}", self.paper),
+            format!(
+                "{} Show page numbers",
+                if self.page_numbers { "☑" } else { "☐" }
+            ),
             format!("←   Page {} of {}   →", self.page + 1, self.pages),
             "Export".into(),
             "Cancel".into(),
@@ -27,7 +32,7 @@ impl View {
 
 #[derive(Clone, Copy)]
 pub(crate) struct Geometry {
-    pub controls: [[f32; 4]; 5],
+    pub controls: [[f32; 4]; 6],
     pub preview: [f32; 4],
     pub title: [f32; 2],
     pub hint: [f32; 2],
@@ -44,6 +49,7 @@ impl Geometry {
         let controls = [
             [pad, top, column, cell_h],
             [pad + column + gap, top, column, cell_h],
+            [pad, top + cell_h + gap, width - 2.0 * pad, 26.0 * dpi],
             [pad, footer, (width - 2.0 * pad - 2.0 * gap) * 0.5, cell_h],
             [width - pad - column * 0.45, footer, column * 0.45, cell_h],
             [
@@ -53,12 +59,13 @@ impl Geometry {
                 cell_h,
             ],
         ];
-        let available_h = (footer - gap - top - cell_h - gap).max(1.0);
+        let preview_top = top + cell_h + gap + 26.0 * dpi + gap;
+        let available_h = (footer - gap - preview_top).max(1.0);
         let page_w = (width - 2.0 * pad).min(available_h * ratio).max(1.0);
         let page_h = page_w / ratio;
         Self {
             controls,
-            preview: [(width - page_w) * 0.5, top + cell_h + gap, page_w, page_h],
+            preview: [(width - page_w) * 0.5, preview_top, page_w, page_h],
             title: [pad, (20.0 * dpi).min(height * 0.05)],
             hint: [pad, (48.0 * dpi).min(height * 0.135)],
         }
@@ -76,6 +83,7 @@ pub(crate) fn metadata(view: Option<&View>) -> String {
     view.map(|v| {
         serde_json::json!({
             "appearance": v.appearance,
+            "page_numbers": v.page_numbers,
             "paper": v.paper,
             "page": v.page,
             "pages": v.pages,

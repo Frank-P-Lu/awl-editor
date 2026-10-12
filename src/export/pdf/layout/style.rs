@@ -60,6 +60,7 @@ pub(in crate::export::pdf) struct ThemePalette {
     pub(in crate::export::pdf) paper: PdfColor,
     pub(in crate::export::pdf) ink: PdfColor,
     pub(in crate::export::pdf) muted: PdfColor,
+    pub(in crate::export::pdf) footer: PdfColor,
     pub(in crate::export::pdf) faint: PdfColor,
     pub(in crate::export::pdf) accent: PdfColor,
     pub(in crate::export::pdf) surface: PdfColor,
@@ -87,6 +88,11 @@ impl Appearance {
                 paper: theme.base_100.into(),
                 ink: theme.base_content.into(),
                 muted: theme.muted.into(),
+                footer: if crate::theme::contrast_ratio(theme.muted, theme.base_100) >= 4.5 {
+                    theme.muted.into()
+                } else {
+                    theme.base_content.into()
+                },
                 faint: theme.faint.into(),
                 accent: theme.primary.into(),
                 surface: theme.base_200.into(),

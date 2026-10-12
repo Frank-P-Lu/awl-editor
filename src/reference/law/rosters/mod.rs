@@ -36,6 +36,7 @@ fn every_config_field_is_documented() {
         workspace,
         pdf_appearance,
         pdf_paper,
+        pdf_page_numbers,
         theme,
         zoom,
         scroll_sensitivity,

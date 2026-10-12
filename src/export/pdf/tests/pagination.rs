@@ -21,8 +21,16 @@ fn stored_lines_keep_headings_with_paragraphs_and_avoid_widows_on_every_appearan
 
     for paper in [PdfPaper::A4, PdfPaper::Letter] {
         for appearance in appearances.clone() {
-            let document =
-                PdfDocument::build(&markdown, &NoImages, PdfOptions { paper, appearance }).unwrap();
+            let document = PdfDocument::build(
+                &markdown,
+                &NoImages,
+                PdfOptions {
+                    paper,
+                    appearance,
+                    page_numbers: false,
+                },
+            )
+            .unwrap();
             let lines = stored_lines(&document);
             assert!(
                 document.page_count() >= 2,

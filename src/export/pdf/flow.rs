@@ -30,6 +30,7 @@ impl Engine<'_> {
                 italic: glyph.style.italic,
                 actual: glyph.actual.clone(),
                 embolden: glyph.style.embolden,
+                color: None,
             }));
             self.unicode[role_index(glyph.role)]
                 .entry(glyph.id)

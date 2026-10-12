@@ -144,6 +144,7 @@ fn pdf_export_repeats_the_frozen_origin_and_remembers_only_a_successful_commit()
     app.open_pdf_export();
     let mut dialog = app.workspace_state.take_pdf_export().unwrap();
     dialog.options = PdfOptions {
+        page_numbers: false,
         paper: PdfPaper::Letter,
         appearance: PdfAppearance::Plain,
     };
@@ -187,7 +188,7 @@ fn pdf_page_change_reuses_layout_and_bounds_both_directions() {
     .unwrap();
     assert!(dialog.artifact.page_count() > 2);
     let before = dialog.artifact.bytes().unwrap();
-    dialog.selected = 2;
+    dialog.selected = 3;
     dialog.change(-1).unwrap();
     assert_eq!(dialog.page, 0);
     dialog.change(1).unwrap();
@@ -265,4 +266,46 @@ fn pdf_modal_swallows_native_panel_menu_routes_without_replacing_its_snapshot() 
         assert_eq!(state(&app), before, "{id}");
         assert!(!fs.exists(Path::new("/synthetic/letter.pdf")), "{id}");
     }
+}
+
+#[test]
+fn page_numbers_default_on_toggle_cancel_and_successful_repeat_remember_the_choice() {
+    let _serial = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let fs = seeded();
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app();
+    let before = state(&app);
+    app.open_pdf_export();
+    assert!(app.pdf_export_view().unwrap().page_numbers);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Focus {
+        id: "pdf-export.control.2".into()
+    }));
+    app.apply_pdf_export_action(&Action::InsertChar(' '));
+    assert!(!app.pdf_export_view().unwrap().page_numbers);
+    app.apply_pdf_export_action(&Action::Cancel);
+    assert!(app.config.pdf_page_numbers.is_none());
+    assert_eq!(state(&app), before);
+    app.open_pdf_export();
+    assert!(app.pdf_export_view().unwrap().page_numbers);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Click {
+        id: "pdf-export.control.2".into()
+    }));
+    let dialog = app.workspace_state.take_pdf_export().unwrap();
+    assert!(!dialog.options.page_numbers);
+    app.finish_pdf_export(dialog);
+    assert_eq!(app.config.pdf_page_numbers, Some(false));
+    assert_eq!(
+        Config::load("/synthetic/config.toml".into()).pdf_page_numbers,
+        Some(false)
+    );
+    app.open_pdf_export();
+    assert!(!app.pdf_export_view().unwrap().page_numbers);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Click {
+        id: "pdf-export.control.2".into()
+    }));
+    let dialog = app.workspace_state.take_pdf_export().unwrap();
+    app.finish_pdf_export(dialog);
+    assert_eq!(app.config.pdf_page_numbers, Some(true));
+    assert_eq!(state(&app), before);
 }

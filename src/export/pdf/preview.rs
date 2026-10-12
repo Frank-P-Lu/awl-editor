@@ -61,10 +61,12 @@ pub(super) fn render(layout: &Layout, page: usize, scale: f32) -> Result<RgbaIma
                 scale,
             ),
             Op::Glyph(glyph) => {
-                let color = layout
-                    .appearance
-                    .palette
-                    .map_or(PdfColor([0, 0, 0]), |palette| palette.ink);
+                let color = glyph.color.unwrap_or_else(|| {
+                    layout
+                        .appearance
+                        .palette
+                        .map_or(PdfColor([0, 0, 0]), |palette| palette.ink)
+                });
                 draw_glyph(&mut canvas, &mut fonts, &mut swash, glyph, color, scale);
             }
             Op::Image { index, x, y, w, h } => {

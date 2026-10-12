@@ -38,6 +38,8 @@ pub enum PdfAppearance {
 pub struct PdfOptions {
     pub paper: PdfPaper,
     pub appearance: PdfAppearance,
+    /// Show centered page numbers in the bottom margin.
+    pub page_numbers: bool,
 }
 
 impl Default for PdfOptions {
@@ -45,6 +47,7 @@ impl Default for PdfOptions {
         Self {
             paper: PdfPaper::A4,
             appearance: PdfAppearance::Plain,
+            page_numbers: false,
         }
     }
 }

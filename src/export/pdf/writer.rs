@@ -316,8 +316,9 @@ fn page_content(page: &super::layout::Page, layout: &Layout) -> Vec<u8> {
 fn write_glyph(out: &mut String, g: &GlyphOp, layout: &Layout) {
     let shear = if g.italic { 0.212_556 } else { 0.0 };
     let font = role_index(g.role) + 1;
-    if let Some(palette) = layout.appearance.palette {
-        let [r, green, b] = rgb_floats(palette.ink);
+    let color = g.color.or_else(|| layout.appearance.palette.map(|p| p.ink));
+    if let Some(color) = color {
+        let [r, green, b] = rgb_floats(color);
         writeln!(
             out,
             "q {r:.3} {green:.3} {b:.3} rg {r:.3} {green:.3} {b:.3} RG"
@@ -353,7 +354,7 @@ fn write_glyph(out: &mut String, g: &GlyphOp, layout: &Layout) {
         )
         .unwrap();
     }
-    if layout.appearance.palette.is_some() {
+    if color.is_some() {
         out.push_str("Q\n");
     }
 }

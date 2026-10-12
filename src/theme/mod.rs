@@ -90,7 +90,7 @@ pub use derive::{
     selection_document, selection_ui, set_active, set_active_by_name, surface_selected,
 };
 pub(crate) use derive::{
-    overlay_band_overlap_for, pane_surface_for, selected_row_ink_for,
+    contrast_ratio, overlay_band_overlap_for, pane_surface_for, selected_row_ink_for,
     selected_row_secondary_ink_for, selection_ui_for, surface_selected_for,
 };
 // `DiagonalMark` is authored in `worlds.rs` and reached by the renderer through

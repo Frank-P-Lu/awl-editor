@@ -58,7 +58,7 @@ impl PdfDocument {
                 )
             }
         };
-        let layout = layout::build(doc, images, options.paper, appearance, fonts);
+        let layout = layout::build(doc, images, options, appearance, fonts);
         let metadata = manifest::build(doc, &layout);
         Ok(Self { layout, metadata })
     }

@@ -11,6 +11,7 @@ use super::inline::{Piece, Style, flatten};
 use crate::export::pdf_options::PdfPaper;
 
 mod footnotes;
+mod page_numbers;
 mod pagination;
 mod style;
 pub(super) use style::{Appearance, PageGeometry, PdfColor};
@@ -83,6 +84,7 @@ pub(super) struct GlyphOp {
     pub italic: bool,
     pub actual: String,
     pub embolden: bool,
+    pub color: Option<PdfColor>,
 }
 
 pub(super) struct LinkRect {
@@ -113,10 +115,11 @@ pub(super) struct ShapedLine {
 pub(super) fn build(
     doc: &Document,
     images: &dyn ImageSource,
-    paper: PdfPaper,
+    options: crate::export::PdfOptions,
     appearance: Appearance,
     roster: FontRoster,
 ) -> Layout {
+    let paper = options.paper;
     let geometry = PageGeometry::for_paper(paper);
     let mut engine = Engine {
         fonts: Fonts::new(roster),
@@ -130,6 +133,9 @@ pub(super) fn build(
         appearance,
     };
     engine.blocks(&doc.blocks, geometry.margin_x, geometry.measure);
+    if options.page_numbers {
+        engine.page_numbers();
+    }
     Layout {
         pages: engine.pages,
         images: engine.images,

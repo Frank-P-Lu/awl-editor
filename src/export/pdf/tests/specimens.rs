@@ -56,6 +56,7 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
                 &markdown,
                 &NoImages,
                 PdfOptions {
+                    page_numbers: true,
                     paper,
                     appearance: PdfAppearance::CurrentTheme(theme),
                 },

@@ -16,10 +16,15 @@ impl SemanticView<'_> {
             for (index, label) in view.labels().into_iter().enumerate() {
                 let id = format!("pdf-export.control.{index}");
                 let mut button = SemanticNode::new(&id, SemanticRole::Button, label);
+                if index == 2 {
+                    button.role = SemanticRole::CheckBox;
+                    button.name = "Show page numbers".into();
+                    button.checked = Some(view.page_numbers);
+                }
                 button.focusable = true;
                 button.focused = index == view.selected;
                 button.actions = vec![SemanticAction::Focus, SemanticAction::Click];
-                if index < 3 {
+                if index < 4 {
                     button
                         .actions
                         .extend([SemanticAction::Increment, SemanticAction::Decrement]);
