@@ -246,6 +246,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
     scan_dir_for_bare_writes(&root, &root, &mut counts);
 
     let expected: &[(&str, usize)] = &[
+        // This in-memory PNG insertion simulates an image appearing after the
+        // export snapshot froze its absence; it never writes to the host disk.
+        ("app/pdf_export/tests.rs", 1),
         ("app/tests/buffers.rs", 1),
         ("app/tests/lifecycle.rs", 3),
         ("app/daemon.rs", 3),
@@ -298,6 +301,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // `export::pdf::tests`, gated on `AWL_BLESS`): write committed test
         // fixtures under `src/export/testdata/`, never a durable user store
         // — a torn write just means re-blessing, and either golden is
+        // Optional AWL_PDF_SPECIMEN_DIR output: reproducible synthetic source,
+        // PDF and manifest artifacts, never an app-owned durable user store.
+        ("export/pdf/tests/specimens.rs", 3),
         ("export/pdf/tests.rs", 1),
         ("export/tests.rs", 1),
         ("firstrun/tests.rs", 1),
