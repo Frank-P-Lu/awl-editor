@@ -182,7 +182,7 @@ reason = "The review row joins the two resolutions in `row_hidden`, the one plac
 
 [[file_size_mark]]
 file = "src/config/model.rs"
-lines = 416
+lines = 410
 reason = "+15: `Config::effective_linux_keep` filters the emacs preset's own `C-c`/`C-v` contribution out before composing the keep-list, leaving an explicit `[keys] linux_keep_emacs` reclaim untouched \u2014 the one composition owner named in CLAUDE.md's Linux-emacs tripwire. +20: `cjk_priority` parsing widens to accept the literal `\"auto\"` string (Auto) alongside the existing explicit array, both funnelling to the one `None`/`Some` representation `cjk_priority_or_default` already reads. +3: the `footnote_ladder` key and its default, beside the other display toggles. +3: the independent previous-character preference joins the exhaustive config fields, defaults, and parser. The config model owns the two optional PDF defaults, empty values and TOML parsing beside the existing preferences."
 
 [[file_size_mark]]
