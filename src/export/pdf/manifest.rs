@@ -5,13 +5,33 @@
 //! that glyphs, images, or annotations were actually painted.
 
 use super::super::model::{Align, Block, Document, Inline};
-use super::fonts::{FontRole, fallback_char, role_for_char};
+use super::fonts::{FontRole, FontRoster};
 use super::layout::Layout;
 
 pub(super) fn build(doc: &Document, layout: &Layout) -> Vec<u8> {
+    let appearance = if layout.appearance.theme_name.is_some() {
+        "theme"
+    } else {
+        "plain"
+    };
+    let theme = layout
+        .appearance
+        .theme_name
+        .map(|name| format!(" theme=\"{name}\""))
+        .unwrap_or_default();
     let mut manifest = Manifest {
-        out: String::from(
-            "<?xpacket begin=\"\u{feff}\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\" xmlns:awl=\"https://awl.invalid/pdf/1\">\n<awl:document schema=\"awl-pdf-manifest/1\">",
+        out: format!(
+            concat!(
+                "<?xpacket begin=\"\u{feff}\"?>\n",
+                "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\" ",
+                "xmlns:awl=\"https://awl.invalid/pdf/1\">\n",
+                "<awl:document schema=\"awl-pdf-manifest/1\" paper=\"{}\" ",
+                "width-pt=\"{:.3}\" height-pt=\"{:.3}\" ",
+                "appearance=\"{appearance}\"{theme}>"
+            ),
+            layout.paper.name(),
+            layout.geometry.width,
+            layout.geometry.height,
         ),
         next_id: 1,
         resolved_images: layout
@@ -19,6 +39,7 @@ pub(super) fn build(doc: &Document, layout: &Layout) -> Vec<u8> {
             .iter()
             .map(|image| image.src.as_str())
             .collect(),
+        fonts: &layout.fonts,
     };
     if let Some(title) = &doc.title {
         manifest.out.push_str("<awl:title>");
@@ -38,6 +59,7 @@ struct Manifest<'a> {
     out: String,
     next_id: u32,
     resolved_images: Vec<&'a str>,
+    fonts: &'a FontRoster,
 }
 
 impl Manifest<'_> {
@@ -245,8 +267,14 @@ impl Manifest<'_> {
     fn text(&mut self, kind: &str, text: &str, role: FontRole) {
         let missing = text
             .chars()
-            .filter(|ch| role_for_char(role, *ch).is_none())
-            .map(|ch| format!("U+{:04X}:U+{:04X}", ch as u32, fallback_char(role) as u32))
+            .filter(|ch| self.fonts.role_for_char(role, *ch).is_none())
+            .map(|ch| {
+                format!(
+                    "U+{:04X}:U+{:04X}",
+                    ch as u32,
+                    self.fonts.fallback_char(role) as u32
+                )
+            })
             .collect::<Vec<_>>();
         let attrs = if missing.is_empty() {
             Vec::new()

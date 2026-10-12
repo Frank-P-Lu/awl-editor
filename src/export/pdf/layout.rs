@@ -1,31 +1,29 @@
-//! Fixed-measure A4 layout. Coordinates remain top-down here and are converted
-//! to PDF's bottom-up page space only by the writer.
+//! Fixed-measure top-down layout; the writer alone converts to PDF page space.
 
 use std::collections::BTreeMap;
 
 use glyphon::{Attrs, Buffer, Family, Metrics, Shaping, Weight, Wrap};
 
 use super::super::model::{Block, Document, ImageSource, Inline};
-use super::fonts::{FontRole, Fonts, ROLES, asset, is_japanese_scalar};
+use super::fonts::{FontRole, FontRoster, Fonts, ROLES};
 use super::images::PdfImage;
 use super::inline::{Piece, Style, flatten};
+use crate::export::pdf_options::PdfPaper;
 
 mod footnotes;
-
-pub(super) const PAGE_W: f32 = 595.276;
-pub(super) const PAGE_H: f32 = 841.890;
-pub(super) const MARGIN_X: f32 = 66.638;
-pub(super) const MARGIN_Y: f32 = 56.693;
-/// The locked prose measure: seventy Bitter body characters at the exporter’s
-/// fixed 11pt metric. It is intentionally not a user setting.
-pub(super) const PROSE_CHARS: usize = 70;
-pub(super) const MEASURE: f32 = PROSE_CHARS as f32 * 6.6;
-const BOTTOM: f32 = PAGE_H - MARGIN_Y;
+mod style;
+pub(super) use style::{Appearance, PageGeometry, PdfColor};
+#[cfg(test)]
+pub(super) use style::{MARGIN_X, MARGIN_Y, MEASURE, PAGE_H, PAGE_W, PROSE_CHARS};
 
 pub(super) struct Layout {
     pub pages: Vec<Page>,
     pub images: Vec<PdfImage>,
     pub unicode: [BTreeMap<u16, String>; ROLES.len()],
+    pub fonts: FontRoster,
+    pub geometry: PageGeometry,
+    pub paper: PdfPaper,
+    pub appearance: Appearance,
 }
 
 #[derive(Default)]
@@ -57,6 +55,21 @@ pub(super) enum Op {
         y: f32,
         w: f32,
         h: f32,
+    },
+    ColorRect {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        color: PdfColor,
+    },
+    ColorLine {
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        width: f32,
+        color: PdfColor,
     },
 }
 
@@ -96,54 +109,35 @@ pub(super) struct ShapedLine {
     pub height: f32,
 }
 
-pub(super) fn build(doc: &Document, images: &dyn ImageSource) -> Layout {
+pub(super) fn build(
+    doc: &Document,
+    images: &dyn ImageSource,
+    paper: PdfPaper,
+    appearance: Appearance,
+    roster: FontRoster,
+) -> Layout {
+    let geometry = PageGeometry::for_paper(paper);
     let mut engine = Engine {
-        fonts: Fonts::new(document_uses_japanese(doc)),
+        fonts: Fonts::new(roster),
         images_source: images,
-        pages: vec![Page::default()],
+        pages: vec![style::page(geometry, appearance)],
         page: 0,
-        y: MARGIN_Y,
+        y: geometry.margin_y,
         images: Vec::new(),
         unicode: std::array::from_fn(|_| BTreeMap::new()),
+        geometry,
+        appearance,
     };
-    engine.blocks(&doc.blocks, MARGIN_X, MEASURE);
+    engine.blocks(&doc.blocks, geometry.margin_x, geometry.measure);
     Layout {
         pages: engine.pages,
         images: engine.images,
         unicode: engine.unicode,
+        fonts: engine.fonts.roster,
+        geometry,
+        paper,
+        appearance,
     }
-}
-
-fn document_uses_japanese(doc: &Document) -> bool {
-    fn inlines(nodes: &[Inline]) -> bool {
-        nodes.iter().any(|node| match node {
-            Inline::Text(text) | Inline::Code(text) => text.chars().any(is_japanese_scalar),
-            Inline::Strong(children)
-            | Inline::Emphasis(children)
-            | Inline::Strikethrough(children)
-            | Inline::Highlight(children)
-            | Inline::Link { children, .. } => inlines(children),
-            Inline::Image { alt, .. } => alt.chars().any(is_japanese_scalar),
-            Inline::FootnoteReference { .. } => false,
-            Inline::SoftBreak | Inline::HardBreak => false,
-        })
-    }
-    fn blocks(nodes: &[Block]) -> bool {
-        nodes.iter().any(|block| match block {
-            Block::Heading { inlines: text, .. } | Block::Paragraph(text) => inlines(text),
-            Block::BlockQuote(children) => blocks(children),
-            Block::CodeBlock { code, .. } => code.chars().any(is_japanese_scalar),
-            Block::List(list) => list.items.iter().any(|item| blocks(&item.blocks)),
-            Block::Table(table) => table
-                .head
-                .iter()
-                .chain(table.rows.iter().flatten())
-                .any(|cell| inlines(cell)),
-            Block::FootnoteDefinition { blocks: body, .. } => blocks(body),
-            Block::Rule => false,
-        })
-    }
-    blocks(&doc.blocks)
 }
 
 pub(super) struct Engine<'a> {
@@ -154,6 +148,8 @@ pub(super) struct Engine<'a> {
     pub y: f32,
     pub images: Vec<PdfImage>,
     pub unicode: [BTreeMap<u16, String>; ROLES.len()],
+    pub geometry: PageGeometry,
+    pub appearance: Appearance,
 }
 
 impl Engine<'_> {
@@ -268,14 +264,18 @@ impl Engine<'_> {
         self.y += 3.0;
         self.blocks_italic(blocks, x + indent, (width - indent).max(40.0));
         let end_page = self.page;
-        let end_y = (self.y - 5.0).max(MARGIN_Y);
+        let end_y = (self.y - 5.0).max(self.geometry.margin_y);
         for page in start_page..=end_page {
             let y1 = if page == start_page {
                 start_y
             } else {
-                MARGIN_Y
+                self.geometry.margin_y
             };
-            let y2 = if page == end_page { end_y } else { BOTTOM };
+            let y2 = if page == end_page {
+                end_y
+            } else {
+                self.geometry.bottom()
+            };
             if y2 > y1 {
                 self.pages[page].ops.push(Op::Line {
                     x1: x + 4.0,
@@ -301,7 +301,7 @@ impl Engine<'_> {
         keep: bool,
         panel: bool,
     ) {
-        let pieces = flatten(inlines, style);
+        let pieces = flatten(inlines, style, &self.fonts.roster);
         self.text_pieces(&pieces, x, width, after, keep, panel);
     }
 
@@ -353,7 +353,20 @@ impl Engine<'_> {
         } else if lines.len() >= 2 && self.remaining() < lines[0].height * 2.0 {
             self.new_page();
         }
-        for line in lines {
+        for (index, line) in lines.iter().enumerate() {
+            // A paragraph may split, but its final line never sits alone on a
+            // new page. When only two shaped lines remain, move the pair as one
+            // unit if the current page cannot hold both.
+            if !keep && lines.len() - index == 2 {
+                let tail_height = lines[index..].iter().map(|line| line.height).sum::<f32>();
+                let printable = self.geometry.height - 2.0 * self.geometry.margin_y;
+                if tail_height <= printable
+                    && tail_height > self.remaining()
+                    && self.y > self.geometry.margin_y
+                {
+                    self.new_page();
+                }
+            }
             self.ensure(line.height);
             if panel {
                 self.pages[self.page].ops.push(Op::Rect {
@@ -390,7 +403,7 @@ impl Engine<'_> {
             .enumerate()
             .map(|(i, text)| {
                 let style = &styles[i];
-                let a = asset(style.role);
+                let a = self.fonts.roster.asset(style.role);
                 (
                     text,
                     Attrs::new()
@@ -402,9 +415,10 @@ impl Engine<'_> {
             })
             .collect();
         let base = &styles[0];
+        let base_asset = self.fonts.roster.asset(base.role);
         let default = Attrs::new()
-            .family(Family::Name(asset(base.role).family))
-            .weight(Weight(asset(base.role).weight))
+            .family(Family::Name(base_asset.family))
+            .weight(Weight(base_asset.weight))
             .metrics(Metrics::new(base.size, base.leading));
         let mut buffer = Buffer::new(
             &mut self.fonts.system,
@@ -471,16 +485,16 @@ impl Engine<'_> {
     }
 
     pub(super) fn remaining(&self) -> f32 {
-        BOTTOM - self.y
+        self.geometry.bottom() - self.y
     }
     pub(super) fn ensure(&mut self, h: f32) {
-        if h > self.remaining() && self.y > MARGIN_Y {
+        if h > self.remaining() && self.y > self.geometry.margin_y {
             self.new_page();
         }
     }
     pub(super) fn new_page(&mut self) {
-        self.pages.push(Page::default());
+        self.pages.push(style::page(self.geometry, self.appearance));
         self.page += 1;
-        self.y = MARGIN_Y;
+        self.y = self.geometry.margin_y;
     }
 }

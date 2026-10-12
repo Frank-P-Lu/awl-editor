@@ -1,5 +1,6 @@
 mod fixture;
 mod japanese;
+mod options;
 mod parser;
 mod semantic;
 

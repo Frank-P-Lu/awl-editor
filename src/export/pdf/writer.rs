@@ -4,9 +4,10 @@
 use std::fmt::Write as _;
 
 use super::fonts::{
-    BASE_ROLES, FontRole, ROLES, asset, descriptor, glyph_widths, role_index, subset,
+    BASE_ROLES, FontAsset, FontRole, ROLES, descriptor_for, glyph_widths_for, role_index,
+    subset_for,
 };
-use super::layout::{GlyphOp, Layout, Op, PAGE_H, PAGE_W};
+use super::layout::{GlyphOp, Layout, Op, PdfColor};
 
 const FONT_BASE: u32 = 3;
 const FONT_OBJECTS: u32 = 5;
@@ -70,7 +71,7 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Result<Vec<u8>, String> 
     );
 
     for (index, role) in active_roles.iter().copied().enumerate() {
-        write_font_objects(&mut objects, index, role, &layout.unicode[role_index(role)]);
+        write_layout_font(&mut objects, index, role, layout);
     }
     for (index, image) in layout.images.iter().enumerate() {
         let (main, alpha) = image_ids[index];
@@ -116,7 +117,7 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Result<Vec<u8>, String> 
         let content = page_content(page, layout);
         objects[ids.content as usize] = Some(stream("", &content));
         for (link, id) in page.links.iter().zip(&ids.annots) {
-            let bottom = PAGE_H - link.y - link.h;
+            let bottom = layout.geometry.height - link.y - link.h;
             objects[*id as usize] = Some(format!(
                 "<< /Type /Annot /Subtype /Link /Rect [{:.3} {:.3} {:.3} {:.3}] /Border [0 0 0] /A << /S /URI /URI <{}> >> >>",
                 link.x, bottom, link.x+link.w, bottom+link.h, hex(link.url.as_bytes())).into_bytes());
@@ -135,7 +136,7 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Result<Vec<u8>, String> 
         };
         objects[ids.page as usize] = Some(format!(
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {:.3} {:.3}] /Resources << /Font << {font_resources} >> /XObject << {image_resources} >> >> /Contents {} 0 R{annots} >>",
-            PAGE_W, PAGE_H, ids.content).into_bytes());
+            layout.geometry.width, layout.geometry.height, ids.content).into_bytes());
     }
     finish(objects)
 }
@@ -150,6 +151,21 @@ fn active_role_plan(layout: &Layout) -> (Vec<FontRole>, u32) {
     (roles, next)
 }
 
+fn write_layout_font(
+    objects: &mut [Option<Vec<u8>>],
+    object_index: usize,
+    role: FontRole,
+    layout: &Layout,
+) {
+    write_font_objects(
+        objects,
+        object_index,
+        role,
+        layout.fonts.asset(role),
+        &layout.unicode[role_index(role)],
+    );
+}
+
 fn font_type0_id(index: usize) -> u32 {
     FONT_BASE + index as u32 * FONT_OBJECTS
 }
@@ -158,23 +174,23 @@ fn write_font_objects(
     objects: &mut [Option<Vec<u8>>],
     object_index: usize,
     role: FontRole,
+    a: &FontAsset,
     unicode: &std::collections::BTreeMap<u16, String>,
 ) {
     let base = font_type0_id(object_index);
-    let a = asset(role);
     let cid = base + 1;
     let desc_id = base + 2;
     let file = base + 3;
     let cmap = base + 4;
     objects[base as usize] = Some(format!("<< /Type /Font /Subtype /Type0 /BaseFont /{} /Encoding /Identity-H /DescendantFonts [{cid} 0 R] /ToUnicode {cmap} 0 R >>", a.pdf_name).into_bytes());
     let glyphs = unicode.keys().copied().chain([0]).collect();
-    let widths = glyph_widths(role, &glyphs)
+    let widths = glyph_widths_for(a, &glyphs)
         .iter()
         .map(|(id, width)| format!("{id} [{width}]"))
         .collect::<Vec<_>>()
         .join(" ");
     objects[cid as usize] = Some(format!("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {desc_id} 0 R /CIDToGIDMap /Identity /DW 1000 /W [{widths}] >>", a.pdf_name).into_bytes());
-    let d = descriptor(role);
+    let d = descriptor_for(a);
     let fixed = matches!(role, FontRole::Mono | FontRole::MonoBold);
     let flags = if fixed { 33 } else { 34 };
     let stem = if matches!(role, FontRole::SerifBold | FontRole::MonoBold) {
@@ -183,7 +199,7 @@ fn write_font_objects(
         80
     };
     objects[desc_id as usize] = Some(format!("<< /Type /FontDescriptor /FontName /{} /Flags {flags} /FontBBox [{} {} {} {}] /ItalicAngle 0 /Ascent {} /Descent {} /CapHeight {} /StemV {stem} /FontFile2 {file} 0 R >>",a.pdf_name,d.bbox[0],d.bbox[1],d.bbox[2],d.bbox[3],d.ascent,d.descent,d.cap_height).into_bytes());
-    let font = subset(role, &glyphs);
+    let font = subset_for(a, &glyphs);
     objects[file as usize] = Some(stream(&format!("/Length1 {}", font.len()), &font));
     objects[cmap as usize] = Some(stream("", to_unicode(a.pdf_name, unicode).as_bytes()));
 }
@@ -211,16 +227,22 @@ fn page_content(page: &super::layout::Page, layout: &Layout) -> Vec<u8> {
     let mut out = String::new();
     for op in &page.ops {
         match op {
-            Op::Rect { x, y, w, h, gray } => writeln!(
-                out,
-                "q {:.3} g {:.3} {:.3} {:.3} {:.3} re f Q",
-                gray,
-                x,
-                PAGE_H - y - h,
-                w,
-                h
-            )
-            .unwrap(),
+            Op::Rect { x, y, w, h, gray } => {
+                if let Some(color) = themed_fill(layout, *gray) {
+                    write_color_rect(&mut out, color, *x, *y, *w, *h, layout.geometry.height);
+                } else {
+                    writeln!(
+                        out,
+                        "q {:.3} g {:.3} {:.3} {:.3} {:.3} re f Q",
+                        gray,
+                        x,
+                        layout.geometry.height - y - h,
+                        w,
+                        h
+                    )
+                    .unwrap();
+                }
+            }
             Op::Line {
                 x1,
                 y1,
@@ -228,18 +250,31 @@ fn page_content(page: &super::layout::Page, layout: &Layout) -> Vec<u8> {
                 y2,
                 width,
                 gray,
-            } => writeln!(
-                out,
-                "q {:.3} G {:.3} w {:.3} {:.3} m {:.3} {:.3} l S Q",
-                gray,
-                width,
-                x1,
-                PAGE_H - y1,
-                x2,
-                PAGE_H - y2
-            )
-            .unwrap(),
-            Op::Glyph(g) => write_glyph(&mut out, g),
+            } => {
+                if let Some(color) = themed_stroke(layout, *gray) {
+                    write_color_line(
+                        &mut out,
+                        color,
+                        (*x1, *y1),
+                        (*x2, *y2),
+                        *width,
+                        layout.geometry.height,
+                    );
+                } else {
+                    writeln!(
+                        out,
+                        "q {:.3} G {:.3} w {:.3} {:.3} m {:.3} {:.3} l S Q",
+                        gray,
+                        width,
+                        x1,
+                        layout.geometry.height - y1,
+                        x2,
+                        layout.geometry.height - y2
+                    )
+                    .unwrap();
+                }
+            }
+            Op::Glyph(g) => write_glyph(&mut out, g, layout),
             Op::Image { index, x, y, w, h } => {
                 let alt = &layout.images[*index].alt;
                 writeln!(out, "/Figure << /Alt <{}> >> BDC", utf16_hex(alt, true)).unwrap();
@@ -249,20 +284,42 @@ fn page_content(page: &super::layout::Page, layout: &Layout) -> Vec<u8> {
                     w,
                     h,
                     x,
-                    PAGE_H - y - h,
+                    layout.geometry.height - y - h,
                     index + 1
                 )
                 .unwrap();
                 out.push_str("EMC\n");
             }
+            Op::ColorRect { x, y, w, h, color } => {
+                write_color_rect(&mut out, *color, *x, *y, *w, *h, layout.geometry.height)
+            }
+            Op::ColorLine {
+                x1,
+                y1,
+                x2,
+                y2,
+                width,
+                color,
+            } => write_color_line(
+                &mut out,
+                *color,
+                (*x1, *y1),
+                (*x2, *y2),
+                *width,
+                layout.geometry.height,
+            ),
         }
     }
     out.into_bytes()
 }
 
-fn write_glyph(out: &mut String, g: &GlyphOp) {
+fn write_glyph(out: &mut String, g: &GlyphOp, layout: &Layout) {
     let shear = if g.italic { 0.212_556 } else { 0.0 };
     let font = role_index(g.role) + 1;
+    if let Some(palette) = layout.appearance.palette {
+        let [r, green, b] = rgb_floats(palette.ink);
+        writeln!(out, "q {r:.3} {green:.3} {b:.3} rg").unwrap();
+    }
     writeln!(
         out,
         "/Span << /ActualText <{}> >> BDC",
@@ -276,7 +333,7 @@ fn write_glyph(out: &mut String, g: &GlyphOp) {
             g.size,
             shear,
             g.x,
-            PAGE_H - g.y,
+            layout.geometry.height - g.y,
             g.glyph_id
         )
         .unwrap();
@@ -287,11 +344,77 @@ fn write_glyph(out: &mut String, g: &GlyphOp) {
             g.size,
             shear,
             g.x,
-            PAGE_H - g.y,
+            layout.geometry.height - g.y,
             g.glyph_id
         )
         .unwrap();
     }
+    if layout.appearance.palette.is_some() {
+        out.push_str("Q\n");
+    }
+}
+
+fn themed_fill(layout: &Layout, gray: f32) -> Option<PdfColor> {
+    let palette = layout.appearance.palette?;
+    Some(if gray <= 0.91 {
+        palette.surface_strong
+    } else if gray <= 0.96 {
+        palette.surface
+    } else {
+        palette.paper
+    })
+}
+
+fn themed_stroke(layout: &Layout, gray: f32) -> Option<PdfColor> {
+    let palette = layout.appearance.palette?;
+    Some(if gray <= 0.30 {
+        palette.accent
+    } else if gray <= 0.68 {
+        palette.muted
+    } else {
+        palette.faint
+    })
+}
+
+fn rgb_floats(color: PdfColor) -> [f32; 3] {
+    color.0.map(|channel| channel as f32 / 255.0)
+}
+
+fn write_color_rect(
+    out: &mut String,
+    color: PdfColor,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    page_h: f32,
+) {
+    let [r, green, b] = rgb_floats(color);
+    writeln!(
+        out,
+        "q {r:.3} {green:.3} {b:.3} rg {x:.3} {:.3} {w:.3} {h:.3} re f Q",
+        page_h - y - h
+    )
+    .unwrap();
+}
+
+fn write_color_line(
+    out: &mut String,
+    color: PdfColor,
+    from: (f32, f32),
+    to: (f32, f32),
+    width: f32,
+    page_h: f32,
+) {
+    let ((x1, y1), (x2, y2)) = (from, to);
+    let [r, green, b] = rgb_floats(color);
+    writeln!(
+        out,
+        "q {r:.3} {green:.3} {b:.3} RG {width:.3} w {x1:.3} {:.3} m {x2:.3} {:.3} l S Q",
+        page_h - y1,
+        page_h - y2
+    )
+    .unwrap();
 }
 
 fn stream(dict: &str, data: &[u8]) -> Vec<u8> {
@@ -349,28 +472,4 @@ fn utf16_hex(text: &str, bom: bool) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::finish;
-
-    /// `finish` is only reachable from within this module (`fn finish` is
-    /// private, not even `pub(super)`), so this is the one seam that can
-    /// drive its own defense-in-depth directly: a hand-built object plan
-    /// with a hole at id 2 (`emit` never produces one — see this file's
-    /// doc on `finish`) must return `Err`, not unwind.
-    #[test]
-    fn a_reserved_object_never_written_is_an_error_not_a_panic() {
-        let objects: Vec<Option<Vec<u8>>> =
-            vec![None, Some(b"<< /Type /Catalog >>".to_vec()), None];
-        let err = finish(objects).expect_err("a hole in the object plan must not panic");
-        assert_eq!(err, "PDF object 2 reserved but never written");
-    }
-
-    /// The companion PRESENCE check: an object plan with every slot written
-    /// succeeds, so the error path above is exercised by an actual hole and
-    /// not by some unrelated always-Err bug in `finish`.
-    #[test]
-    fn a_fully_written_object_plan_still_succeeds() {
-        let objects: Vec<Option<Vec<u8>>> = vec![None, Some(b"<< /Type /Catalog >>".to_vec())];
-        finish(objects).expect("every slot is written, so this must succeed");
-    }
-}
+mod tests;

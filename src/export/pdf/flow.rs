@@ -5,7 +5,7 @@ use super::super::model::{Align, Block, Inline, List, Table};
 use super::fonts::{FontRole, role_index};
 use super::images::PdfImage;
 use super::inline::{Style, flatten};
-use super::layout::{Engine, GlyphOp, LinkRect, MARGIN_Y, Op, PAGE_H, ShapedLine};
+use super::layout::{Engine, GlyphOp, LinkRect, Op, ShapedLine};
 
 impl Engine<'_> {
     pub(super) fn place_line(&mut self, line: &ShapedLine, x: f32, top: f32) {
@@ -104,7 +104,7 @@ impl Engine<'_> {
             } else {
                 format!("[{alt}]")
             };
-            let pieces = flatten(&[Inline::Text(label)], Style::body());
+            let pieces = flatten(&[Inline::Text(label)], Style::body(), &self.fonts.roster);
             self.shaped_segment(&pieces, x, width, 0.0, false, false);
             return;
         };
@@ -121,7 +121,7 @@ impl Engine<'_> {
             .map_or(image.width as f32 * 0.75, |v| v as f32 * 0.75)
             .min(width);
         let mut h = w * image.height as f32 / image.width as f32;
-        let max_h = PAGE_H - 2.0 * MARGIN_Y;
+        let max_h = self.geometry.height - 2.0 * self.geometry.margin_y;
         if h > max_h {
             let scale = max_h / h;
             h *= scale;
@@ -182,7 +182,9 @@ impl Engine<'_> {
         for row in &table.rows {
             let shaped = self.shape_row(row, col_w, false);
             let height = self.row_height(&shaped);
-            if height <= PAGE_H - 2.0 * MARGIN_Y && height > self.remaining() {
+            if height <= self.geometry.height - 2.0 * self.geometry.margin_y
+                && height > self.remaining()
+            {
                 self.new_page();
                 if let Some(header) = &head {
                     self.paint_row(header, &table.aligns, x, col_w, true, None);
@@ -202,7 +204,7 @@ impl Engine<'_> {
                 if head {
                     style.role = FontRole::SerifBold;
                 }
-                self.shape(&flatten(cell, style), col_w - 10.0)
+                self.shape(&flatten(cell, style, &self.fonts.roster), col_w - 10.0)
             })
             .collect()
     }
@@ -225,12 +227,12 @@ impl Engine<'_> {
             return;
         }
         let full_height = count as f32 * 14.0 + 6.0;
-        if full_height <= PAGE_H - 2.0 * MARGIN_Y {
+        if full_height <= self.geometry.height - 2.0 * self.geometry.margin_y {
             self.ensure(full_height);
             self.paint_row_fragment(shaped, aligns, x, col_w, head, 0, count);
         } else {
             for line in 0..count {
-                if 20.0 > self.remaining() && self.y > MARGIN_Y {
+                if 20.0 > self.remaining() && self.y > self.geometry.margin_y {
                     self.new_page();
                     if let Some(header) = repeat_header {
                         self.paint_row(header, aligns, x, col_w, true, None);
