@@ -38,7 +38,7 @@ fn state(app: &App) -> (String, u64, usize, Option<(usize, usize)>) {
 #[test]
 fn pdf_modal_blocks_document_actions_semantic_selection_ime_and_drop_then_cancel_restores() {
     let _serial = crate::testlock::serial();
-    let _restore = crate::testlock::TogglesRestore::capture();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let fs = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
     let mut app = app();
@@ -94,7 +94,7 @@ fn pdf_modal_blocks_document_actions_semantic_selection_ime_and_drop_then_cancel
 #[test]
 fn pdf_options_snapshot_theme_and_images_including_missing_images() {
     let _serial = crate::testlock::serial();
-    let _restore = crate::testlock::TogglesRestore::capture();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let fs = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
     let before_theme = crate::theme::active_index();
@@ -136,7 +136,7 @@ fn pdf_options_snapshot_theme_and_images_including_missing_images() {
 #[test]
 fn pdf_export_repeats_the_frozen_origin_and_remembers_only_a_successful_commit() {
     let _serial = crate::testlock::serial();
-    let _restore = crate::testlock::TogglesRestore::capture();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let fs = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
     let mut app = app();
@@ -173,7 +173,7 @@ fn pdf_export_repeats_the_frozen_origin_and_remembers_only_a_successful_commit()
 #[test]
 fn pdf_page_change_reuses_layout_and_bounds_both_directions() {
     let _serial = crate::testlock::serial();
-    let _restore = crate::testlock::TogglesRestore::capture();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let mut dialog = Dialog::build(
         TEXT.repeat(40),
         crate::export::FsImages { doc_dir: None },
@@ -202,7 +202,7 @@ fn pdf_page_change_reuses_layout_and_bounds_both_directions() {
 #[test]
 fn pdf_write_failure_and_destination_cancel_preserve_document_defaults_and_audition() {
     let _serial = crate::testlock::serial();
-    let _restore = crate::testlock::TogglesRestore::capture();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
     let fs = seeded();
     let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
     let mut app = app();

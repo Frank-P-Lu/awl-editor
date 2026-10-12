@@ -4,8 +4,8 @@ use crate::export::pdf_options::PdfPaper;
 
 use super::{Op, Page};
 
-pub(in crate::export::pdf) const PAGE_W: f32 = 595.276;
-pub(in crate::export::pdf) const PAGE_H: f32 = 841.890;
+pub(in crate::export::pdf) const PAGE_W: f32 = PdfPaper::A4.size().0;
+pub(in crate::export::pdf) const PAGE_H: f32 = PdfPaper::A4.size().1;
 pub(in crate::export::pdf) const MARGIN_X: f32 = 66.638;
 pub(in crate::export::pdf) const MARGIN_Y: f32 = 56.693;
 /// The locked prose measure: seventy Bitter body characters at 11pt.

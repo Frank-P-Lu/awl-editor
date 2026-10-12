@@ -898,6 +898,9 @@ fn every_ladder_rung_names_exactly_one_focus_owner() {
         let mut app = hermetic();
         app.set_semantic_text_for_test("some prose");
         match rung {
+            workspace::Layer::PdfExport => app
+                .workspace_state
+                .set_pdf_export(Some(crate::app::pdf_export::Dialog::fixture())),
             workspace::Layer::Editor => {}
             workspace::Layer::Popover => app.workspace_state.summon_popover(true),
             workspace::Layer::Search => {
@@ -941,6 +944,9 @@ fn passive_surfaces_announce_without_stealing_focus() {
     for rung in workspace::Layer::ROSTER {
         let mut app = hermetic();
         match rung {
+            workspace::Layer::PdfExport => app
+                .workspace_state
+                .set_pdf_export(Some(crate::app::pdf_export::Dialog::fixture())),
             workspace::Layer::Editor => {}
             workspace::Layer::Popover => app.workspace_state.summon_popover(true),
             workspace::Layer::Search => {
@@ -970,6 +976,17 @@ fn passive_surfaces_announce_without_stealing_focus() {
             1,
             "{rung:?} produced more than one focus owner",
         );
+        if *rung == workspace::Layer::PdfExport {
+            assert_eq!(
+                loud.nodes.len(),
+                quiet.nodes.len(),
+                "the modal hides passive surfaces"
+            );
+            for id in [WHICHKEY_ID, MENUBAR_ID] {
+                assert!(loud.nodes.iter().all(|node| node.id != id));
+            }
+            continue;
+        }
         assert!(
             loud.nodes.len() > quiet.nodes.len(),
             "{rung:?} announced no passive surface at all",

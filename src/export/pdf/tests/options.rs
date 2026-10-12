@@ -23,7 +23,8 @@ fn options_cover_both_papers_and_reject_unknown_theme_indices() {
     )
     .unwrap();
     assert_eq!(letter.page_size(), (612.0, 792.0));
-    let pdf = Pdf::parse(&letter.bytes().unwrap());
+    let bytes = letter.bytes().unwrap();
+    let pdf = Pdf::parse(&bytes);
     for page in pdf.page_ids() {
         assert!(
             pdf.object(page)
@@ -207,12 +208,12 @@ fn themed_emboldened_japanese_sets_fill_and_stroke_to_the_same_legible_ink() {
 fn metadata_identifies_paper_dimensions_and_the_snapshot_appearance() {
     let _serial = crate::testlock::serial();
     let plain = PdfDocument::build("Body.", &NoImages, PdfOptions::default()).unwrap();
-    let metadata = metadata(&plain.bytes().unwrap());
-    assert!(metadata.contains("paper=\"A4\""));
-    assert!(metadata.contains("width-pt=\"595.276\""));
-    assert!(metadata.contains("height-pt=\"841.890\""));
-    assert!(metadata.contains("appearance=\"plain\""));
-    assert!(!metadata.contains(" theme=\""));
+    let meta = metadata(&plain.bytes().unwrap());
+    assert!(meta.contains("paper=\"A4\""));
+    assert!(meta.contains("width-pt=\"595.276\""));
+    assert!(meta.contains("height-pt=\"841.890\""));
+    assert!(meta.contains("appearance=\"plain\""));
+    assert!(!meta.contains(" theme=\""));
 
     let index = crate::theme::THEMES
         .iter()
@@ -227,10 +228,10 @@ fn metadata_identifies_paper_dimensions_and_the_snapshot_appearance() {
         },
     )
     .unwrap();
-    let metadata = metadata(&themed.bytes().unwrap());
-    assert!(metadata.contains("paper=\"Letter\""));
-    assert!(metadata.contains("appearance=\"theme\""));
-    assert!(metadata.contains("theme=\"Cassowary\""));
+    let meta = metadata(&themed.bytes().unwrap());
+    assert!(meta.contains("paper=\"Letter\""));
+    assert!(meta.contains("appearance=\"theme\""));
+    assert!(meta.contains("theme=\"Cassowary\""));
 }
 
 #[test]

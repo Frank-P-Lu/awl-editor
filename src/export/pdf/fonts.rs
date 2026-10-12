@@ -187,6 +187,7 @@ impl Fonts {
     }
 }
 
+#[cfg(test)]
 pub(super) fn asset(role: FontRole) -> &'static FontAsset {
     &ASSETS[role_index(role)]
 }
@@ -214,6 +215,7 @@ pub(super) fn has_glyph(role: FontRole, ch: char) -> bool {
 /// typography. Han, kana, and their punctuation use the Japanese face that
 /// matches the source context; everything else stays in the requested face or
 /// takes the existing visible fallback.
+#[cfg(test)]
 pub(super) fn role_for_char(role: FontRole, ch: char) -> Option<FontRole> {
     FontRoster::plain().role_for_char(role, ch)
 }
@@ -247,6 +249,7 @@ pub(super) fn glyph_probe() -> usize {
         .sum()
 }
 
+#[cfg(test)]
 pub(super) fn fallback_char(role: FontRole) -> char {
     FontRoster::plain().fallback_char(role)
 }
@@ -258,6 +261,7 @@ pub(super) fn embedding_is_permitted(asset: &FontAsset) -> bool {
     face.permissions() == Some(Permissions::Installable) && face.is_outline_embedding_allowed()
 }
 
+#[cfg(test)]
 pub(super) fn glyph_widths(role: FontRole, glyphs: &BTreeSet<u16>) -> Vec<(u16, u16)> {
     glyph_widths_for(asset(role), glyphs)
 }
@@ -276,6 +280,7 @@ pub(super) fn glyph_widths_for(asset: &FontAsset, glyphs: &BTreeSet<u16>) -> Vec
 }
 
 /// Build a PDF-safe TrueType subset while preserving original glyph IDs.
+#[cfg(test)]
 pub(super) fn subset(role: FontRole, used: &BTreeSet<u16>) -> Vec<u8> {
     subset_for(asset(role), used)
 }
@@ -473,6 +478,7 @@ pub(super) struct Descriptor {
     pub cap_height: i32,
 }
 
+#[cfg(test)]
 pub(super) fn descriptor(role: FontRole) -> Descriptor {
     descriptor_for(asset(role))
 }

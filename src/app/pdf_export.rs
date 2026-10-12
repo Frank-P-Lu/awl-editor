@@ -2,6 +2,8 @@
 use crate::app::*;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::export::ImageSource;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
 use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -60,7 +62,7 @@ impl Dialog {
         };
         let theme_index = crate::theme::active_index();
         let artifact = PdfDocument::build(&markdown, &images, options)?;
-        let image = Arc::new(artifact.preview_page(0, 1.5)?);
+        let image = Self::preview(&artifact, 0)?;
         Ok(Self {
             markdown,
             images,
@@ -76,10 +78,15 @@ impl Dialog {
         })
     }
 
+    fn preview(artifact: &PdfDocument, page: usize) -> Result<Arc<image::RgbaImage>, String> {
+        let (width, _) = artifact.page_size();
+        artifact.preview_page(page, 900.0 / width).map(Arc::new)
+    }
+
     fn refresh(&mut self, options: PdfOptions, page: usize) -> Result<(), String> {
         let artifact = PdfDocument::build(&self.markdown, &self.images, options)?;
         let page = page.min(artifact.page_count().saturating_sub(1));
-        let image = Arc::new(artifact.preview_page(page, 1.5)?);
+        let image = Self::preview(&artifact, page)?;
         self.artifact = artifact;
         self.options = options;
         self.error = None;
@@ -115,7 +122,7 @@ impl Dialog {
         if options != self.options {
             self.refresh(options, page)?;
         } else if page != self.page {
-            self.image = Arc::new(self.artifact.preview_page(page, 1.5)?);
+            self.image = Self::preview(&self.artifact, page)?;
             self.page = page;
             self.revision = self.revision.wrapping_add(1);
         }

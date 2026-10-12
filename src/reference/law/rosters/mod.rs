@@ -34,6 +34,8 @@ fn every_config_field_is_documented() {
     let fields: Vec<&str> = config_fields!(
         default_folder,
         workspace,
+        pdf_appearance,
+        pdf_paper,
         theme,
         zoom,
         scroll_sensitivity,

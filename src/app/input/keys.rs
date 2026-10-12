@@ -378,7 +378,7 @@ impl App {
                 .input
                 .keyboard
                 .keymap
-                .resolve(&raw, &self.input.keyboard.mods.state());
+                .resolve(&raw, &self.input.keyboard.mods);
             self.apply(action, false, exit, crate::stats::Door::Chord);
             return;
         }
