@@ -4,25 +4,25 @@ use crate::export::pdf_options::PdfPaper;
 
 use super::{Op, Page};
 
-pub(super) const PAGE_W: f32 = 595.276;
-pub(super) const PAGE_H: f32 = 841.890;
-pub(super) const MARGIN_X: f32 = 66.638;
-pub(super) const MARGIN_Y: f32 = 56.693;
+pub(in crate::export::pdf) const PAGE_W: f32 = 595.276;
+pub(in crate::export::pdf) const PAGE_H: f32 = 841.890;
+pub(in crate::export::pdf) const MARGIN_X: f32 = 66.638;
+pub(in crate::export::pdf) const MARGIN_Y: f32 = 56.693;
 /// The locked prose measure: seventy Bitter body characters at 11pt.
-pub(super) const PROSE_CHARS: usize = 70;
-pub(super) const MEASURE: f32 = PROSE_CHARS as f32 * 6.6;
+pub(in crate::export::pdf) const PROSE_CHARS: usize = 70;
+pub(in crate::export::pdf) const MEASURE: f32 = PROSE_CHARS as f32 * 6.6;
 
 #[derive(Clone, Copy)]
-pub(super) struct PageGeometry {
-    pub width: f32,
-    pub height: f32,
-    pub margin_x: f32,
-    pub margin_y: f32,
-    pub measure: f32,
+pub(in crate::export::pdf) struct PageGeometry {
+    pub(in crate::export::pdf) width: f32,
+    pub(in crate::export::pdf) height: f32,
+    pub(in crate::export::pdf) margin_x: f32,
+    pub(in crate::export::pdf) margin_y: f32,
+    pub(in crate::export::pdf) measure: f32,
 }
 
 impl PageGeometry {
-    pub const fn for_paper(paper: PdfPaper) -> Self {
+    pub(in crate::export::pdf) const fn for_paper(paper: PdfPaper) -> Self {
         match paper {
             PdfPaper::A4 => Self {
                 width: PAGE_W,
@@ -41,13 +41,13 @@ impl PageGeometry {
         }
     }
 
-    pub const fn bottom(self) -> f32 {
+    pub(in crate::export::pdf) const fn bottom(self) -> f32 {
         self.height - self.margin_y
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct PdfColor(pub [u8; 3]);
+pub(in crate::export::pdf) struct PdfColor(pub(in crate::export::pdf) [u8; 3]);
 
 impl From<crate::theme::Srgb> for PdfColor {
     fn from(color: crate::theme::Srgb) -> Self {
@@ -56,31 +56,31 @@ impl From<crate::theme::Srgb> for PdfColor {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct ThemePalette {
-    pub paper: PdfColor,
-    pub ink: PdfColor,
-    pub muted: PdfColor,
-    pub faint: PdfColor,
-    pub accent: PdfColor,
-    pub surface: PdfColor,
-    pub surface_strong: PdfColor,
+pub(in crate::export::pdf) struct ThemePalette {
+    pub(in crate::export::pdf) paper: PdfColor,
+    pub(in crate::export::pdf) ink: PdfColor,
+    pub(in crate::export::pdf) muted: PdfColor,
+    pub(in crate::export::pdf) faint: PdfColor,
+    pub(in crate::export::pdf) accent: PdfColor,
+    pub(in crate::export::pdf) surface: PdfColor,
+    pub(in crate::export::pdf) surface_strong: PdfColor,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct Appearance {
-    pub theme_name: Option<&'static str>,
-    pub palette: Option<ThemePalette>,
+pub(in crate::export::pdf) struct Appearance {
+    pub(in crate::export::pdf) theme_name: Option<&'static str>,
+    pub(in crate::export::pdf) palette: Option<ThemePalette>,
 }
 
 impl Appearance {
-    pub const fn plain() -> Self {
+    pub(in crate::export::pdf) const fn plain() -> Self {
         Self {
             theme_name: None,
             palette: None,
         }
     }
 
-    pub fn theme(theme: &crate::theme::Theme) -> Self {
+    pub(in crate::export::pdf) fn theme(theme: &crate::theme::Theme) -> Self {
         Self {
             theme_name: Some(theme.name),
             palette: Some(ThemePalette {

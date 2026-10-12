@@ -32,6 +32,8 @@ pub(super) fn build(doc: &Document, layout: &Layout) -> Vec<u8> {
             layout.paper.name(),
             layout.geometry.width,
             layout.geometry.height,
+            appearance = appearance,
+            theme = theme,
         ),
         next_id: 1,
         resolved_images: layout

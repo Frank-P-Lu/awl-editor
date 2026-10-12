@@ -2,9 +2,9 @@
 //! [`Layout`] rather than markdown: page switching paints the same glyph IDs,
 //! baselines, rectangles, images, and pagination the writer consumes.
 
+use glyphon::cosmic_text::CacheKeyFlags;
 use glyphon::{
-    Attrs, Buffer, CacheKey, CacheKeyFlags, Family, Metrics, Shaping, SwashCache, SwashContent,
-    Weight, Wrap,
+    Attrs, Buffer, CacheKey, Family, Metrics, Shaping, SwashCache, SwashContent, Weight, Wrap,
 };
 use image::{Rgba, RgbaImage};
 
