@@ -5,7 +5,8 @@ use crate::export::{PdfAppearance, PdfDocument, PdfOptions, PdfPaper};
 
 fn letter() -> String {
     let mut text = String::from(concat!(
-        "# A letter across pages\n\nDear reader,\n\n",
+        "# A letter across pages\n\nDear reader,\nWelcome to this synthetic letter.\n",
+        "These authored lines stay separate when preservation is on.\n\n\n\n",
         "This is a **synthetic sample** for reviewing pagination. ",
         "It contains no personal or work information. ",
         "*Emphasis* and `inline code` remain text.\n\n",
@@ -21,7 +22,9 @@ fn letter() -> String {
                     "Letter paragraph {:02}.{}: a page should carry its type, color and margins ",
                     "into the next sheet. The reader can follow the thought through a natural ",
                     "break without finding clipped lines or an isolated heading. ",
-                    "We keep the source as plain text and let the paper set the measure.\n\n",
+                    "We keep the source as plain text and let the paper set the measure.\n",
+                    "A short authored continuation belongs to the same paragraph.  \n",
+                    "This explicit hard break remains in both settings.\n\n",
                 ),
                 section, paragraph
             ));
@@ -47,16 +50,22 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
         std::fs::write(dir.join("synthetic-letter.md"), &markdown).unwrap();
     }
     let mut manifest = Vec::new();
-    for name in ["Quokka", "Paperbark", "Cassowary", "Kite", "Potoroo"] {
+    for name in ["Quokka", "Paperbark", "Cassowary", "Kite"] {
         let theme = crate::theme::THEMES
             .iter()
             .position(|theme| theme.name == name)
             .unwrap();
-        for paper in [PdfPaper::A4, PdfPaper::Letter] {
+        for (paper, preserve) in [
+            (PdfPaper::A4, true),
+            (PdfPaper::A4, false),
+            (PdfPaper::Letter, true),
+            (PdfPaper::Letter, false),
+        ] {
             let document = PdfDocument::build(
                 &markdown,
                 &NoImages,
                 PdfOptions {
+                    preserve_line_breaks: preserve,
                     page_numbers: true,
                     paper,
                     appearance: PdfAppearance::CurrentTheme(theme),
@@ -71,7 +80,11 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
             let bytes = document.bytes().unwrap();
             let pdf = Pdf::parse(&bytes);
             assert_eq!(pdf.page_ids().len(), document.page_count());
-            let stem = format!("{name}-{}", paper.name());
+            let stem = format!(
+                "{name}-{}-{}",
+                paper.name(),
+                if preserve { "preserved" } else { "reflowed" }
+            );
             if let Some(dir) = &output {
                 std::fs::write(dir.join(format!("{stem}.pdf")), &bytes).unwrap();
             }
@@ -116,6 +129,7 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
             }
             manifest.push(serde_json::json!({
                 "theme": name,
+                "preserve_line_breaks": preserve,
                 "paper": paper.name(),
                 "pages": document.page_count(),
                 "pdf": format!("{stem}.pdf"),

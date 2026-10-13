@@ -108,6 +108,7 @@ fn emit_block(out: &mut String, block: &Block, images: &dyn ImageSource, indent:
             out.push_str("</code></pre>\n");
         }
         Block::List(list) => emit_list(out, list, images, indent),
+        Block::BlankLines(_) => {}
         Block::Rule(_) => out.push_str(&format!("{pad}<hr>\n")),
         Block::Table(table) => emit_table(out, table, images, indent),
         Block::FootnoteDefinition {

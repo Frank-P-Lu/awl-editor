@@ -37,6 +37,7 @@ fn every_config_field_is_documented() {
         pdf_appearance,
         pdf_paper,
         pdf_page_numbers,
+        pdf_preserve_line_breaks,
         theme,
         zoom,
         scroll_sensitivity,

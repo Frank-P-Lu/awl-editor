@@ -68,7 +68,7 @@ The sidecar writer replaces the builder's home path with `~`; consumers expand i
 when needed. This does not sanitize directory entry names or the PNG. Use seeded
 roots and explicit config for public artifacts; do not capture private filenames.
 
-## The sidecar JSON — schema `awl-capture/225` (`/226` timeline, `/227` held)
+## The sidecar JSON — schema `awl-capture/228` (`/229` timeline, `/230` held)
 
 This header and the field table are read by the existing schema/enumeration laws.
 Keep them here. `capture::SCHEMA_VERSION` and its source ledger own schema numbers.

@@ -151,6 +151,7 @@ impl Docx<'_> {
             }
             Block::CodeBlock { code, .. } => self.code_block(code),
             Block::List(list) => self.list(list, list_depth),
+            Block::BlankLines(_) => {}
             Block::Rule(_) => self.rule(),
             Block::Table(table) => self.table(table),
             Block::FootnoteDefinition {

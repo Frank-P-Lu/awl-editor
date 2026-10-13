@@ -1,6 +1,6 @@
 //! The event fold, including the shared footnote roster and duplicate fallback.
 
-use pulldown_cmark::{Event, Parser, Tag};
+use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 
 use super::{
     Block, Document, Frame, Inline, accept_block, close_frame, open_frame, plain_text, push_inline,
@@ -11,6 +11,15 @@ use super::{
 /// (excluded from the export, matching every other awl consumer) and folds the
 /// pulldown event stream into the nesting-aware tree.
 pub(in crate::export) fn parse(markdown: &str) -> Document {
+    parse_with_spacing(markdown, None)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::export) fn parse_pdf(markdown: &str, preserve: bool) -> Document {
+    parse_with_spacing(markdown, Some(preserve))
+}
+
+fn parse_with_spacing(markdown: &str, preserve: Option<bool>) -> Document {
     let body_start = crate::frontmatter::detect(markdown)
         .map(|f| f.range.end)
         .unwrap_or(0);
@@ -38,11 +47,20 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
     // A pending task marker: pulldown emits `TaskListMarker` at the START of the
     // item's paragraph, so we stash it and stamp the enclosing Item on close.
     let mut pending_task: Option<bool> = None;
+    let mut spacing = super::spacing::SourceSpacing::default();
 
     // The OFFSET iterator: each event carries its byte range into `src`, which the
     // strikethrough gate needs (the exactly-two-tilde decision reads the span's
     // source slice — see `crate::markdown::strike_engaged`).
     for (ev, range) in events {
+        if preserve.is_some() && !matches!(ev, Event::End(_)) {
+            spacing.advance(src, range.start, &mut stack);
+        }
+        let end = range.end;
+        let starts = matches!(ev, Event::Start(_));
+        if !starts && !matches!(ev, Event::End(_)) {
+            spacing.consume(end);
+        }
         if let Some(duplicate) = duplicate_footnote_ranges
             .iter()
             .find(|duplicate| duplicate.start <= range.start && range.end <= duplicate.end)
@@ -53,7 +71,12 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
                     Block::Paragraph(vec![Inline::Text(src[duplicate.clone()].to_string())]),
                 );
             }
+            spacing.consume(duplicate.end);
             continue;
+        }
+        // Item gaps belong to the item, before it closes into a List frame.
+        if preserve.is_some() && matches!(ev, Event::End(TagEnd::Item)) {
+            spacing.advance(src, end, &mut stack);
         }
         match ev {
             // STRIKETHROUGH is gated at its Start on the SHARED exactly-two-tilde
@@ -87,7 +110,14 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
             Event::End(tag) => close_frame(&mut stack, tag, &mut pending_task),
             Event::Text(t) => push_text(&mut stack, &t),
             Event::Code(c) => push_inline(&mut stack, Inline::Code(c.into_string())),
-            Event::SoftBreak => push_inline(&mut stack, Inline::SoftBreak),
+            Event::SoftBreak => push_inline(
+                &mut stack,
+                if preserve == Some(true) {
+                    Inline::HardBreak
+                } else {
+                    Inline::SoftBreak
+                },
+            ),
             Event::HardBreak => push_inline(&mut stack, Inline::HardBreak),
             Event::Rule => accept_block(
                 &mut stack,
@@ -114,8 +144,14 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
             }
             Event::InlineMath(_) | Event::DisplayMath(_) => {}
         }
+        if preserve.is_some() && !starts {
+            spacing.finish_event(src, end, &mut stack);
+        }
     }
 
+    if preserve.is_some() {
+        spacing.advance(src, src.len(), &mut stack);
+    }
     let blocks = match stack.pop() {
         Some(Frame::Root(b)) => b,
         _ => Vec::new(),

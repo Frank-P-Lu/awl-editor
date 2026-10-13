@@ -117,14 +117,6 @@ pub(super) fn page(geometry: PageGeometry, appearance: Appearance) -> Page {
         });
         page.ops.push(Op::ColorLine {
             x1: geometry.margin_x,
-            y1: geometry.margin_y - 18.0,
-            x2: geometry.margin_x + 64.0,
-            y2: geometry.margin_y - 18.0,
-            width: 1.5,
-            color: palette.accent,
-        });
-        page.ops.push(Op::ColorLine {
-            x1: geometry.margin_x,
             y1: geometry.height - geometry.margin_y + 18.0,
             x2: geometry.width - geometry.margin_x,
             y2: geometry.height - geometry.margin_y + 18.0,

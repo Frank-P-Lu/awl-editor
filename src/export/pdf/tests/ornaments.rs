@@ -11,6 +11,7 @@ fn themed_dividers_keep_all_three_editor_marks_in_both_papers() {
                 "Before.\n\n---\n\nMiddle.\n\n* * *\n\nAfter.\n\n___\n",
                 &NoImages,
                 PdfOptions {
+                    preserve_line_breaks: false,
                     paper,
                     appearance: PdfAppearance::CurrentTheme(index),
                     page_numbers: false,
@@ -88,6 +89,7 @@ fn plain_dividers_preserve_neutral_rules_and_code_stays_literal() {
         "```\n***\n```",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             appearance: PdfAppearance::CurrentTheme(0),
             ..PdfOptions::default()
         },
@@ -135,6 +137,7 @@ fn a_divider_near_the_bottom_moves_as_one_group() {
         .unwrap();
     for paper in [PdfPaper::A4, PdfPaper::Letter] {
         let options = PdfOptions {
+            preserve_line_breaks: false,
             paper,
             appearance: PdfAppearance::CurrentTheme(index),
             page_numbers: false,

@@ -25,6 +25,7 @@ fn stored_lines_keep_headings_with_paragraphs_and_avoid_widows_on_every_appearan
                 &markdown,
                 &NoImages,
                 PdfOptions {
+                    preserve_line_breaks: false,
                     paper,
                     appearance,
                     page_numbers: false,

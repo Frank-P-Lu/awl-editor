@@ -139,6 +139,7 @@ impl Manifest<'_> {
                 }
                 self.close();
             }
+            Block::BlankLines(count) => self.empty("blank-lines", &[("count", count.to_string())]),
             Block::Rule(_) => self.empty("rule", &[]),
             Block::Table(table) => {
                 self.open("table", &[("columns", table.aligns.len().to_string())]);

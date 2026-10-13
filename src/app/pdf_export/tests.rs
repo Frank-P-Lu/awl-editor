@@ -144,6 +144,7 @@ fn pdf_export_repeats_the_frozen_origin_and_remembers_only_a_successful_commit()
     app.open_pdf_export();
     let mut dialog = app.workspace_state.take_pdf_export().unwrap();
     dialog.options = PdfOptions {
+        preserve_line_breaks: false,
         page_numbers: false,
         paper: PdfPaper::Letter,
         appearance: PdfAppearance::Plain,
@@ -188,7 +189,7 @@ fn pdf_page_change_reuses_layout_and_bounds_both_directions() {
     .unwrap();
     assert!(dialog.artifact.page_count() > 2);
     let before = dialog.artifact.bytes().unwrap();
-    dialog.selected = 3;
+    dialog.selected = 4;
     dialog.change(-1).unwrap();
     assert_eq!(dialog.page, 0);
     dialog.change(1).unwrap();
@@ -308,4 +309,73 @@ fn page_numbers_default_on_toggle_cancel_and_successful_repeat_remember_the_choi
     app.finish_pdf_export(dialog);
     assert_eq!(app.config.pdf_page_numbers, Some(true));
     assert_eq!(state(&app), before);
+}
+
+#[test]
+fn preserve_line_breaks_default_on_toggle_cancel_and_successful_repeat_remember_the_choice() {
+    let _serial = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let fs = seeded();
+    let _fs = crate::fs::FsGuard::install(Arc::new(fs.clone()));
+    let mut app = app();
+    let before = state(&app);
+    app.open_pdf_export();
+    assert!(app.pdf_export_view().unwrap().preserve_line_breaks);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Focus {
+        id: "pdf-export.control.3".into()
+    }));
+    app.apply_pdf_export_action(&Action::InsertChar(' '));
+    assert!(!app.pdf_export_view().unwrap().preserve_line_breaks);
+    app.apply_pdf_export_action(&Action::Cancel);
+    assert!(app.config.pdf_preserve_line_breaks.is_none());
+    assert_eq!(state(&app), before);
+    app.open_pdf_export();
+    assert!(app.pdf_export_view().unwrap().preserve_line_breaks);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Click {
+        id: "pdf-export.control.3".into()
+    }));
+    let dialog = app.workspace_state.take_pdf_export().unwrap();
+    assert!(!dialog.options.preserve_line_breaks);
+    app.finish_pdf_export(dialog);
+    assert_eq!(app.config.pdf_preserve_line_breaks, Some(false));
+    assert_eq!(
+        Config::load("/synthetic/config.toml".into()).pdf_preserve_line_breaks,
+        Some(false)
+    );
+    app.open_pdf_export();
+    assert!(!app.pdf_export_view().unwrap().preserve_line_breaks);
+    assert!(app.apply_pdf_semantic(SemanticRequest::Click {
+        id: "pdf-export.control.3".into()
+    }));
+    let dialog = app.workspace_state.take_pdf_export().unwrap();
+    app.finish_pdf_export(dialog);
+    assert_eq!(app.config.pdf_preserve_line_breaks, Some(true));
+    assert_eq!(state(&app), before);
+}
+
+#[test]
+fn line_break_toggle_rebuilds_preview_from_frozen_source() {
+    let _serial = crate::testlock::serial();
+    let mut dialog = Dialog::build(
+        "First line\nSecond line\nThird line".into(),
+        crate::export::FsImages { doc_dir: None },
+        PdfOptions::default(),
+        Origin {
+            path: None,
+            root: "/synthetic".into(),
+            stem: "sample".into(),
+        },
+    )
+    .unwrap();
+    let before = dialog.image.clone();
+    let bytes = dialog.artifact.bytes().unwrap();
+    dialog.selected = 3;
+    dialog.change(1).unwrap();
+    assert!(!dialog.options.preserve_line_breaks);
+    assert_eq!(dialog.revision, 1);
+    assert_ne!(*before, *dialog.image);
+    assert_ne!(bytes, dialog.artifact.bytes().unwrap());
+    dialog.change(1).unwrap();
+    assert_eq!(*before, *dialog.image);
+    assert_eq!(bytes, dialog.artifact.bytes().unwrap());
 }

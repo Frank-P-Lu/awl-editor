@@ -119,10 +119,12 @@ pub(super) fn build(
     options: crate::export::PdfOptions,
     appearance: Appearance,
     roster: FontRoster,
+    source_spacing: bool,
 ) -> Layout {
     let paper = options.paper;
     let geometry = PageGeometry::for_paper(paper);
     let mut engine = Engine {
+        source_spacing,
         fonts: Fonts::new(roster),
         images_source: images,
         pages: vec![style::page(geometry, appearance)],
@@ -149,6 +151,7 @@ pub(super) fn build(
 }
 
 pub(super) struct Engine<'a> {
+    pub source_spacing: bool,
     pub fonts: Fonts,
     pub images_source: &'a dyn ImageSource,
     pub pages: Vec<Page>,
@@ -167,7 +170,15 @@ impl Engine<'_> {
                 Block::Paragraph(inlines) => {
                     let mut s = Style::body();
                     s.italic = true;
-                    self.rich(inlines, s, x, width, 6.0, false, false);
+                    self.rich(
+                        inlines,
+                        s,
+                        x,
+                        width,
+                        if self.source_spacing { 0.0 } else { 6.0 },
+                        false,
+                        false,
+                    );
                 }
                 Block::Heading { level: _, inlines } => {
                     let mut s = Style::body();
@@ -175,14 +186,9 @@ impl Engine<'_> {
                     s.italic = true;
                     let mut follower = Style::body();
                     follower.italic = true;
-                    let reserve = self.heading_reserve(
-                        inlines,
-                        &s,
-                        blocks.get(index + 1),
-                        follower,
-                        width,
-                        6.0,
-                    );
+                    let (next, gap) = pagination::following(&blocks[index + 1..]);
+                    let reserve =
+                        self.heading_reserve(inlines, &s, next, follower, width, 6.0 + gap);
                     self.ensure(reserve);
                     self.rich(inlines, s, x, width, 6.0, true, false);
                 }
@@ -205,7 +211,7 @@ impl Engine<'_> {
                     );
                 }
                 Block::List(l) => self.list(l, x, width),
-                Block::Rule(_) => self.block(block, None, x, width),
+                Block::Rule(_) | Block::BlankLines(_) => self.block(block, None, x, width, 0.0),
                 Block::Table(t) => self.table(t, x, width),
                 Block::FootnoteDefinition { number, blocks, .. } => {
                     self.footnote_definition(*number, blocks, x, width)

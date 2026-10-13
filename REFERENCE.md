@@ -269,6 +269,7 @@ An absent key takes the default below. A command-line flag overrides the file; t
 | `default_folder` | path | — |
 | `workspace` | path | — |
 | `pdf_appearance` | current_theme \| plain | `current_theme` |
+| `pdf_preserve_line_breaks` | true \| false | `true` |
 | `pdf_page_numbers` | true \| false | `true` |
 | `pdf_paper` | a4 \| letter | `a4` |
 | `theme` | world name | `Saltpan` |

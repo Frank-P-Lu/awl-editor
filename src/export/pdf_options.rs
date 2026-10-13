@@ -40,6 +40,8 @@ pub struct PdfOptions {
     pub appearance: PdfAppearance,
     /// Show centered page numbers in the bottom margin.
     pub page_numbers: bool,
+    /// Keep authored single newlines; blank paragraphs and hard breaks always remain.
+    pub preserve_line_breaks: bool,
 }
 
 impl Default for PdfOptions {
@@ -48,6 +50,7 @@ impl Default for PdfOptions {
             paper: PdfPaper::A4,
             appearance: PdfAppearance::Plain,
             page_numbers: false,
+            preserve_line_breaks: true,
         }
     }
 }

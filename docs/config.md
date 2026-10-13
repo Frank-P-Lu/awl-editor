@@ -50,6 +50,9 @@ non-movers in the `is_motion` test; changing this is a product decision.
 The native Export PDF dialog remembers `pdf_appearance = "current_theme"` or
 `"plain"`, `pdf_paper = "a4"` or `"letter"`, and `pdf_page_numbers = true` or
 `false`, after a successful export.
+`pdf_preserve_line_breaks` defaults to `true`: authored single newlines remain.
+Turning it off joins ordinary paragraph lines; blank paragraphs and explicit
+hard breaks remain in either mode. Text wraps to the selected paper width.
 Absent or unknown values start with Current theme, A4, and page numbers on. Cancelling changes
 neither the document nor the remembered defaults. Current theme freezes the
 world at dialog entry; Plain paper uses a neutral white sheet.

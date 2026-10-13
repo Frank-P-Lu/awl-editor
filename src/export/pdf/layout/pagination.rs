@@ -2,15 +2,41 @@
 
 use super::{Block, Engine, FontRole, Inline, Op, Piece, ShapedLine, Style, flatten};
 
+pub(super) fn following(blocks: &[Block]) -> (Option<&Block>, f32) {
+    let mut gap = 0.0;
+    for block in blocks {
+        if let Block::BlankLines(count) = block {
+            gap += *count as f32 * 16.0;
+        } else {
+            return (Some(block), gap);
+        }
+    }
+    (None, gap)
+}
+
 impl Engine<'_> {
     pub(in crate::export::pdf) fn blocks(&mut self, blocks: &[Block], x: f32, width: f32) {
         for (index, block) in blocks.iter().enumerate() {
-            self.block(block, blocks.get(index + 1), x, width);
+            let (next, gap) = following(&blocks[index + 1..]);
+            self.block(block, next, x, width, gap);
         }
     }
 
-    pub(super) fn block(&mut self, block: &Block, next: Option<&Block>, x: f32, width: f32) {
+    pub(super) fn block(
+        &mut self,
+        block: &Block,
+        next: Option<&Block>,
+        x: f32,
+        width: f32,
+        gap: f32,
+    ) {
         match block {
+            Block::BlankLines(count) => {
+                for _ in 0..*count {
+                    self.ensure(16.0);
+                    self.y += 16.0;
+                }
+            }
             Block::Heading { level, inlines } => {
                 let size = match level {
                     1 => 22.0,
@@ -25,13 +51,19 @@ impl Engine<'_> {
                 style.size = size;
                 style.leading = (size * 1.28).max(14.0);
                 let reserve =
-                    self.heading_reserve(inlines, &style, next, Style::body(), width, 5.0);
+                    self.heading_reserve(inlines, &style, next, Style::body(), width, 5.0 + gap);
                 self.ensure(reserve);
                 self.rich(inlines, style, x, width, 5.0, true, false);
             }
-            Block::Paragraph(inlines) => {
-                self.rich(inlines, Style::body(), x, width, 8.0, false, false)
-            }
+            Block::Paragraph(inlines) => self.rich(
+                inlines,
+                Style::body(),
+                x,
+                width,
+                if self.source_spacing { 0.0 } else { 8.0 },
+                false,
+                false,
+            ),
             Block::BlockQuote(blocks) => self.blockquote(blocks, x, width, 18.0),
             Block::CodeBlock { lang: _, code } => {
                 let mut style = Style::body();
@@ -201,6 +233,7 @@ mod boundary_tests {
                 };
                 let geometry = PageGeometry::for_paper(paper);
                 let mut engine = Engine {
+                    source_spacing: true,
                     fonts: Fonts::new(roster),
                     images_source: &NoImages,
                     pages: vec![super::super::style::page(geometry, palette)],
@@ -230,18 +263,19 @@ mod boundary_tests {
                     level: 2,
                     inlines: heading,
                 };
-                engine.block(&block, None, geometry.margin_x, geometry.measure);
+                engine.block(&block, None, geometry.margin_x, geometry.measure, 0.0);
                 let heading_height_with_gap = engine.y - geometry.margin_y;
                 engine.pages[0].ops.clear();
                 engine.pages[0].links.clear();
-                let available = heading_height_with_gap
+                let available = 32.0
+                    + heading_height_with_gap
                     + lines[0].height
                     + lines[1].height
                     + lines[2].height * 0.5;
-                assert!(available < heading_height_with_gap + follower_height);
+                assert!(available < 32.0 + heading_height_with_gap + follower_height);
                 engine.y = geometry.bottom() - available;
                 engine.blocks(
-                    &[block, Block::Paragraph(follower)],
+                    &[block, Block::BlankLines(2), Block::Paragraph(follower)],
                     geometry.margin_x,
                     geometry.measure,
                 );

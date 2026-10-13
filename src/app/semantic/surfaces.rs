@@ -21,10 +21,15 @@ impl SemanticView<'_> {
                     button.name = "Show page numbers".into();
                     button.checked = Some(view.page_numbers);
                 }
+                if index == 3 {
+                    button.role = SemanticRole::CheckBox;
+                    button.name = "Preserve line breaks".into();
+                    button.checked = Some(view.preserve_line_breaks);
+                }
                 button.focusable = true;
                 button.focused = index == view.selected;
                 button.actions = vec![SemanticAction::Focus, SemanticAction::Click];
-                if index < 4 {
+                if index < 5 {
                     button
                         .actions
                         .extend([SemanticAction::Increment, SemanticAction::Decrement]);

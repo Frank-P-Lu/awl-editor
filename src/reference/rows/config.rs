@@ -100,6 +100,10 @@ const CONFIG_KEYS: &[ConfigKey] = &[
         ty: ConfigType::Choice(pdf_appearances),
     },
     ConfigKey {
+        key: "pdf_preserve_line_breaks",
+        ty: ConfigType::Bool,
+    },
+    ConfigKey {
         key: "pdf_page_numbers",
         ty: ConfigType::Bool,
     },
@@ -263,7 +267,7 @@ pub(crate) fn config_default(key: &str) -> Cell {
         | "linux_keep_emacs" => Cell::Dash,
         "pdf_appearance" => Cell::code("current_theme"),
         "pdf_paper" => Cell::code("a4"),
-        "pdf_page_numbers" => Cell::code("true"),
+        "pdf_page_numbers" | "pdf_preserve_line_breaks" => Cell::code("true"),
         "theme" => Cell::code(crate::theme::THEMES[crate::theme::DEFAULT_THEME].name),
         "zoom" => range_default(&crate::range::ZOOM),
         "scroll_sensitivity" => range_default(&crate::range::SCROLL_SENSITIVITY),

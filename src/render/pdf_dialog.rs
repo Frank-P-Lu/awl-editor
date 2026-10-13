@@ -5,7 +5,7 @@ use std::sync::Arc;
 pub(super) struct PdfDialogLayer {
     view: Option<Arc<crate::pdf_dialog::View>>,
     prepared: bool,
-    buffers: [GlyphBuffer; 8],
+    buffers: [GlyphBuffer; 9],
     renderer: TextRenderer,
     controls: SelectionPipeline,
     image: crate::image_pipeline::ImageQuadPipeline,
@@ -244,6 +244,7 @@ impl PdfDialogLayer {
             labels[3].clone(),
             labels[4].clone(),
             labels[5].clone(),
+            labels[6].clone(),
         ];
         for (i, (buffer, text)) in self.buffers.iter_mut().zip(texts.iter()).enumerate() {
             let available = if i < 2 {

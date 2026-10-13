@@ -6,6 +6,7 @@ pub(crate) struct View {
     pub image: Arc<image::RgbaImage>,
     pub appearance: String,
     pub page_numbers: bool,
+    pub preserve_line_breaks: bool,
     pub paper: String,
     pub page: usize,
     pub pages: usize,
@@ -15,13 +16,21 @@ pub(crate) struct View {
 }
 
 impl View {
-    pub fn labels(&self) -> [String; 6] {
+    pub fn labels(&self) -> [String; 7] {
         [
             format!("Appearance\n{}", self.appearance),
             format!("Paper\n{}", self.paper),
             format!(
                 "{} Show page numbers",
                 if self.page_numbers { "☑" } else { "☐" }
+            ),
+            format!(
+                "{} Preserve line breaks",
+                if self.preserve_line_breaks {
+                    "☑"
+                } else {
+                    "☐"
+                }
             ),
             format!("←   Page {} of {}   →", self.page + 1, self.pages),
             "Export".into(),
@@ -32,7 +41,7 @@ impl View {
 
 #[derive(Clone, Copy)]
 pub(crate) struct Geometry {
-    pub controls: [[f32; 4]; 6],
+    pub controls: [[f32; 4]; 7],
     pub preview: [f32; 4],
     pub title: [f32; 2],
     pub hint: [f32; 2],
@@ -49,7 +58,8 @@ impl Geometry {
         let controls = [
             [pad, top, column, cell_h],
             [pad + column + gap, top, column, cell_h],
-            [pad, top + cell_h + gap, width - 2.0 * pad, 26.0 * dpi],
+            [pad, top + cell_h + gap, column, 26.0 * dpi],
+            [pad + column + gap, top + cell_h + gap, column, 26.0 * dpi],
             [pad, footer, (width - 2.0 * pad - 2.0 * gap) * 0.5, cell_h],
             [width - pad - column * 0.45, footer, column * 0.45, cell_h],
             [
@@ -84,6 +94,7 @@ pub(crate) fn metadata(view: Option<&View>) -> String {
         serde_json::json!({
             "appearance": v.appearance,
             "page_numbers": v.page_numbers,
+            "preserve_line_breaks": v.preserve_line_breaks,
             "paper": v.paper,
             "page": v.page,
             "pages": v.pages,

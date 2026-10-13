@@ -164,6 +164,7 @@ fn pdf_modal_reports_only_its_prepared_surface_and_restores_editor_rows() {
         )),
         appearance: "Plain paper".into(),
         page_numbers: true,
+        preserve_line_breaks: true,
         paper: "A4".into(),
         page: 0,
         pages: 1,

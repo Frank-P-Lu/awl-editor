@@ -17,6 +17,7 @@ fn options_cover_both_papers_and_reject_unknown_theme_indices() {
         "# Letter\n\nBody.",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::Letter,
             appearance: PdfAppearance::Plain,
@@ -38,6 +39,7 @@ fn options_cover_both_papers_and_reject_unknown_theme_indices() {
         "Body.",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(crate::theme::THEMES.len()),
@@ -157,6 +159,7 @@ fn ibm_plex_mono_light_and_bold_shape_into_their_owned_pdf_roles() {
         "`zzzz` and **`qqqq`**",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme),
@@ -202,6 +205,7 @@ fn themed_emboldened_japanese_sets_fill_and_stroke_to_the_same_legible_ink() {
         "**日**",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme_index),
@@ -248,6 +252,7 @@ fn metadata_identifies_paper_dimensions_and_the_snapshot_appearance() {
         "Body.",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::Letter,
             appearance: PdfAppearance::CurrentTheme(index),
@@ -271,6 +276,7 @@ fn preview_and_pdf_use_the_same_stored_glyph_positions_without_reflow() {
         "# Shared layout\n\nSelectable body text.",
         &NoImages,
         PdfOptions {
+            preserve_line_breaks: false,
             page_numbers: false,
             paper: PdfPaper::A4,
             appearance: PdfAppearance::CurrentTheme(theme),
@@ -421,6 +427,7 @@ fn page_numbers_are_centered_selectable_and_do_not_reflow_any_theme_or_paper() {
                     &markdown,
                     &NoImages,
                     PdfOptions {
+                        preserve_line_breaks: false,
                         paper,
                         appearance,
                         page_numbers,
