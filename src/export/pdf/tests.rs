@@ -1,6 +1,7 @@
 mod fixture;
 mod japanese;
 mod options;
+mod ornaments;
 mod pagination;
 mod parser;
 mod semantic;

@@ -165,7 +165,7 @@ pub enum Block {
         code: String,
     },
     List(List),
-    Rule,
+    Rule(crate::markdown::BreakKind),
     Table(Table),
     FootnoteDefinition {
         label: String,

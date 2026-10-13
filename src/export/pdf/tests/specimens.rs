@@ -10,9 +10,10 @@ fn letter() -> String {
         "It contains no personal or work information. ",
         "*Emphasis* and `inline code` remain text.\n\n",
         "- An ordinary first bullet\n- A second bullet with **strong words**\n",
-        "  - A nested observation\n\n## A quiet beginning\n\n",
+        "  - A nested observation\n\n***\n\n## A quiet beginning\n\n",
     ));
     for section in 1..=12 {
+        text.push_str(["\n---\n", "\n***\n", "\n___\n"][(section - 1) % 3]);
         text.push_str(&format!("\n## Section {section:02}\n\n"));
         for paragraph in 1..=3 {
             text.push_str(&format!(
@@ -31,7 +32,7 @@ fn letter() -> String {
     }
     text.push_str(concat!(
         "## Closing\n\n日本語の文字。A final **clear sentence** closes the letter.\n\n",
-        "Kind regards,\nThe synthetic writer\n\nEND OF SYNTHETIC LETTER\n",
+        "Kind regards,\nThe synthetic writer\nEND OF SYNTHETIC LETTER\n",
     ));
     text
 }
@@ -46,7 +47,7 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
         std::fs::write(dir.join("synthetic-letter.md"), &markdown).unwrap();
     }
     let mut manifest = Vec::new();
-    for name in ["Quokka", "Paperbark", "Cassowary", "Kite"] {
+    for name in ["Quokka", "Paperbark", "Cassowary", "Kite", "Potoroo"] {
         let theme = crate::theme::THEMES
             .iter()
             .position(|theme| theme.name == name)
@@ -80,8 +81,8 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
                     image.width() > 800 && image.height() > 1100,
                     "normal-size review page"
                 );
-                let margin_x = (72.0 * 1.5) as u32;
-                let margin_y = (80.0 * 1.5) as u32;
+                let margin_x = (document.layout.geometry.margin_x * 1.5) as u32;
+                let margin_y = (document.layout.geometry.margin_y * 1.5) as u32;
                 let background = image.get_pixel(0, 0);
                 let body_ink = (margin_y..image.height() - margin_y).any(|y| {
                     (margin_x..image.width() - margin_x)

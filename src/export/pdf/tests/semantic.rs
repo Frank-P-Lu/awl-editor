@@ -122,7 +122,7 @@ pub(super) fn expected_kinds(doc: &Document) -> Vec<&'static str> {
                         blocks(&item.blocks, out);
                     }
                 }
-                Block::Rule => out.push("rule"),
+                Block::Rule(_) => out.push("rule"),
                 Block::Table(table) => {
                     out.push("table");
                     out.push("table-head");
@@ -221,7 +221,7 @@ pub(super) fn text_fragments(doc: &Document) -> Vec<String> {
                         blocks(&item.blocks, out);
                     }
                 }
-                Block::Rule => {}
+                Block::Rule(_) => {}
                 Block::Table(table) => {
                     for cell in &table.head {
                         inlines(cell, out);
@@ -270,7 +270,7 @@ pub(super) fn all_inlines(doc: &Document) -> Vec<&Inline> {
                 | Block::FootnoteDefinition {
                     blocks: children, ..
                 } => visit_blocks(children, out),
-                Block::CodeBlock { .. } | Block::Rule => {}
+                Block::CodeBlock { .. } | Block::Rule(_) => {}
                 Block::List(list) => {
                     for item in &list.items {
                         visit_blocks(&item.blocks, out);
@@ -317,7 +317,7 @@ pub(super) fn block_roster(block: &Block) -> Vec<&'static str> {
         Block::BlockQuote(_) => "blockquote",
         Block::CodeBlock { .. } => "codeblock",
         Block::List(_) => "list",
-        Block::Rule => "rule",
+        Block::Rule(_) => "rule",
         Block::Table(_) => "table",
         Block::FootnoteDefinition { .. } => "footnote-definition",
     }];
@@ -334,7 +334,7 @@ pub(super) fn block_roster(block: &Block) -> Vec<&'static str> {
         Block::Heading { .. }
         | Block::Paragraph(_)
         | Block::CodeBlock { .. }
-        | Block::Rule
+        | Block::Rule(_)
         | Block::Table(_) => {}
     }
     out

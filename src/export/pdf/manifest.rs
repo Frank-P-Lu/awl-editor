@@ -139,7 +139,7 @@ impl Manifest<'_> {
                 }
                 self.close();
             }
-            Block::Rule => self.empty("rule", &[]),
+            Block::Rule(_) => self.empty("rule", &[]),
             Block::Table(table) => {
                 self.open("table", &[("columns", table.aligns.len().to_string())]);
                 let alignments = table
@@ -197,6 +197,7 @@ impl Manifest<'_> {
                         FontRole::Mono | FontRole::MonoBold => FontRole::MonoBold,
                         FontRole::JapaneseSerif => FontRole::JapaneseSerif,
                         FontRole::JapaneseSans => FontRole::JapaneseSans,
+                        FontRole::Ornament => FontRole::Ornament,
                     };
                     self.inlines(children, bold);
                     self.close();

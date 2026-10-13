@@ -45,7 +45,10 @@ impl Engine<'_> {
                 self.text_pieces(&pieces, x + 9.0, width - 18.0, 8.0, false, true);
             }
             Block::List(list) => self.list(list, x, width),
-            Block::Rule => {
+            Block::Rule(kind) => {
+                if self.ornament(*kind, x, width) {
+                    return;
+                }
                 self.ensure(12.0);
                 self.pages[self.page].ops.push(Op::Line {
                     x1: x,

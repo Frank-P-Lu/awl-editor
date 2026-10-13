@@ -7,7 +7,9 @@ use std::sync::LazyLock;
 use glyphon::{FontSystem, fontdb};
 use ttf_parser::{Face, GlyphId, Permissions};
 
+mod assets;
 mod theme;
+pub(super) use assets::{ASSETS, ORNAMENT_ASSET};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum FontRole {
@@ -17,15 +19,17 @@ pub(super) enum FontRole {
     MonoBold,
     JapaneseSerif,
     JapaneseSans,
+    Ornament,
 }
 
-pub(super) const ROLES: [FontRole; 6] = [
+pub(super) const ROLES: [FontRole; 7] = [
     FontRole::Serif,
     FontRole::SerifBold,
     FontRole::Mono,
     FontRole::MonoBold,
     FontRole::JapaneseSerif,
     FontRole::JapaneseSans,
+    FontRole::Ornament,
 ];
 
 pub(super) const BASE_ROLES: [FontRole; 4] = [
@@ -44,52 +48,7 @@ pub(super) struct FontAsset {
     pub weight: u16,
 }
 
-pub(super) static ASSETS: [FontAsset; 6] = [
-    FontAsset {
-        role: FontRole::Serif,
-        family: "Bitter",
-        pdf_name: "AWLBitter-Regular",
-        bytes: &crate::font_assets::BITTER_REGULAR,
-        weight: 400,
-    },
-    FontAsset {
-        role: FontRole::SerifBold,
-        family: "Bitter",
-        pdf_name: "AWLBitter-Bold",
-        bytes: &crate::font_assets::BITTER_BOLD,
-        weight: 700,
-    },
-    FontAsset {
-        role: FontRole::Mono,
-        family: "IBM Plex Mono",
-        pdf_name: "AWLIBMPlexMono-Light",
-        bytes: &crate::font_assets::IBM_PLEX_MONO_LIGHT,
-        weight: 300,
-    },
-    FontAsset {
-        role: FontRole::MonoBold,
-        family: "IBM Plex Mono",
-        pdf_name: "AWLIBMPlexMono-Bold",
-        bytes: &crate::font_assets::IBM_PLEX_MONO_BOLD,
-        weight: 700,
-    },
-    FontAsset {
-        role: FontRole::JapaneseSerif,
-        family: "Noto Serif JP",
-        pdf_name: "AWLNotoSerifJP-Regular",
-        bytes: &crate::font_assets::NOTO_SERIF_JP_REGULAR,
-        weight: 400,
-    },
-    FontAsset {
-        role: FontRole::JapaneseSans,
-        family: "Noto Sans JP",
-        pdf_name: "AWLNotoSansJP-Regular",
-        bytes: &crate::font_assets::NOTO_SANS_JP_REGULAR,
-        weight: 400,
-    },
-];
-
-/// One document's immutable six-role bundled face snapshot. Plain uses
+/// One document's immutable bundled face snapshot. Plain uses
 /// [`ASSETS`]; themes resolve their display, mono, and Japanese families.
 #[derive(Clone)]
 pub(super) struct FontRoster {
@@ -124,6 +83,7 @@ impl FontRoster {
                 FontRole::JapaneseSerif
             }
             FontRole::Mono | FontRole::MonoBold | FontRole::JapaneseSans => FontRole::JapaneseSans,
+            FontRole::Ornament => return None,
         };
         self.has_glyph(fallback, ch).then_some(fallback)
     }
@@ -138,7 +98,7 @@ impl FontRoster {
 }
 
 /// Cached plain faces keep ordinary coverage checks from reparsing static bytes.
-static FACES: LazyLock<[Face<'static>; 6]> = LazyLock::new(|| {
+static FACES: LazyLock<[Face<'static>; 7]> = LazyLock::new(|| {
     std::array::from_fn(|index| {
         let asset = &ASSETS[index];
         Face::parse(asset.bytes, 0).expect("verified bundled PDF face")
@@ -200,6 +160,7 @@ pub(super) const fn role_index(role: FontRole) -> usize {
         FontRole::MonoBold => 3,
         FontRole::JapaneseSerif => 4,
         FontRole::JapaneseSans => 5,
+        FontRole::Ornament => 6,
     }
 }
 

@@ -84,12 +84,14 @@ fn every_theme_has_embeddable_body_mono_and_japanese_faces_and_legible_ink() {
                 role,
                 asset.family
             );
-            let expected_permission =
-                if matches!(asset.family, "Monaspace Xenon" | "iA Writer Quattro S") {
-                    Permissions::Editable
-                } else {
-                    Permissions::Installable
-                };
+            let expected_permission = if matches!(
+                asset.family,
+                "Monaspace Xenon" | "iA Writer Quattro S" | "Awl Marks"
+            ) {
+                Permissions::Editable
+            } else {
+                Permissions::Installable
+            };
             assert_eq!(
                 face.permissions(),
                 Some(expected_permission),

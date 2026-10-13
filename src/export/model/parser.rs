@@ -89,7 +89,10 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
             Event::Code(c) => push_inline(&mut stack, Inline::Code(c.into_string())),
             Event::SoftBreak => push_inline(&mut stack, Inline::SoftBreak),
             Event::HardBreak => push_inline(&mut stack, Inline::HardBreak),
-            Event::Rule => accept_block(&mut stack, Block::Rule),
+            Event::Rule => accept_block(
+                &mut stack,
+                Block::Rule(crate::markdown::break_kind(&src[range])),
+            ),
             Event::TaskListMarker(checked) => pending_task = Some(checked),
             // Raw HTML remains literal text.
             Event::Html(h) | Event::InlineHtml(h) => push_text(&mut stack, &h),

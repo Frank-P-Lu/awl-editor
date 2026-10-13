@@ -47,6 +47,7 @@ impl FontRoster {
                     "AWLThemeJapanese-Code",
                     japanese,
                 ),
+                super::ORNAMENT_ASSET,
             ],
         })
     }

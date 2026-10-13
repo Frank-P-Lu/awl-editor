@@ -71,6 +71,7 @@ fn visit(inlines: &[Inline], style: &Style, fonts: &FontRoster, out: &mut Vec<Pi
                     FontRole::Mono | FontRole::MonoBold => FontRole::MonoBold,
                     FontRole::JapaneseSerif => FontRole::JapaneseSerif,
                     FontRole::JapaneseSans => FontRole::JapaneseSans,
+                    FontRole::Ornament => FontRole::Ornament,
                 };
                 visit(children, &next, fonts, out);
             }

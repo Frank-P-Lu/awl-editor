@@ -11,6 +11,7 @@ use super::inline::{Piece, Style, flatten};
 use crate::export::pdf_options::PdfPaper;
 
 mod footnotes;
+mod ornaments;
 mod page_numbers;
 mod pagination;
 mod style;
@@ -204,7 +205,7 @@ impl Engine<'_> {
                     );
                 }
                 Block::List(l) => self.list(l, x, width),
-                Block::Rule => self.block(block, None, x, width),
+                Block::Rule(_) => self.block(block, None, x, width),
                 Block::Table(t) => self.table(t, x, width),
                 Block::FootnoteDefinition { number, blocks, .. } => {
                     self.footnote_definition(*number, blocks, x, width)

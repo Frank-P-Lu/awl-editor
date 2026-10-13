@@ -69,6 +69,7 @@ pub(in crate::export::pdf) struct ThemePalette {
 
 #[derive(Clone, Copy)]
 pub(in crate::export::pdf) struct Appearance {
+    pub(in crate::export::pdf) ornaments: Option<(crate::theme::Ornaments, f32)>,
     pub(in crate::export::pdf) theme_name: Option<&'static str>,
     pub(in crate::export::pdf) palette: Option<ThemePalette>,
 }
@@ -76,6 +77,7 @@ pub(in crate::export::pdf) struct Appearance {
 impl Appearance {
     pub(in crate::export::pdf) const fn plain() -> Self {
         Self {
+            ornaments: None,
             theme_name: None,
             palette: None,
         }
@@ -83,6 +85,7 @@ impl Appearance {
 
     pub(in crate::export::pdf) fn theme(theme: &crate::theme::Theme) -> Self {
         Self {
+            ornaments: Some((theme.ornaments, theme.ornament_scale)),
             theme_name: Some(theme.name),
             palette: Some(ThemePalette {
                 paper: theme.base_100.into(),
