@@ -62,7 +62,7 @@ fn themed_dividers_keep_all_three_editor_marks_in_both_papers() {
                     theme.name
                 );
             }
-            assert!(document.preview_page(0, 1.0).is_ok());
+            document.preview_page(0, 1.0).unwrap();
         }
     }
 }
