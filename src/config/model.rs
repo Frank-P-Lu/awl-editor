@@ -3,6 +3,10 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     pub default_folder: Option<PathBuf>,
     pub workspace: Option<PathBuf>,
+    pub pdf_appearance: Option<String>,
+    pub pdf_paper: Option<String>,
+    pub pdf_page_numbers: Option<bool>,
+    pub pdf_preserve_line_breaks: Option<bool>,
     pub theme: Option<String>,
     pub zoom: Option<f32>,
     pub scroll_sensitivity: Option<f32>,
@@ -52,6 +56,10 @@ impl Config {
         Config {
             default_folder: None,
             workspace: None,
+            pdf_appearance: None,
+            pdf_paper: None,
+            pdf_page_numbers: None,
+            pdf_preserve_line_breaks: None,
             theme: None,
             zoom: None,
             scroll_sensitivity: None,
@@ -199,9 +207,6 @@ impl Config {
         if let Some(s) = table.get("workspace").and_then(|v| v.as_str()) {
             cfg.workspace = Some(expand_tilde(s));
         }
-        if let Some(s) = table.get("theme").and_then(|v| v.as_str()) {
-            cfg.theme = Some(s.to_string());
-        }
         (cfg.zoom, cfg.scroll_sensitivity) = super::sticky::numeric_ranges(&table);
         debug_assert!(
             cfg.scroll_sensitivity.is_none() || cfg.scroll_sensitivity.unwrap().is_finite()
@@ -213,12 +218,7 @@ impl Config {
         if let Some(w) = table.get("page_width_code").and_then(toml_as_usize) {
             cfg.page_width_code = Some(w.max(1));
         }
-        if let Some(s) = table.get("caret_mode").and_then(|v| v.as_str()) {
-            cfg.caret_mode = Some(s.to_string());
-        }
-        if let Some(s) = table.get("dictionary").and_then(|v| v.as_str()) {
-            cfg.dictionary = Some(s.to_string());
-        }
+        apply_string_settings(&mut cfg, &table);
         apply_boolean_settings(&mut cfg, &table);
         // `cjk_priority` accepts EITHER an explicit ordered array (Explicit —
         // Han evidence overrides steps 1-4 of the ladder regardless, but this
@@ -246,12 +246,6 @@ impl Config {
                 }
             }
             None => {}
-        }
-        if let Some(s) = table.get("keymap").and_then(|v| v.as_str()) {
-            cfg.keymap = Some(s.to_string());
-        }
-        if let Some(s) = table.get("date_format").and_then(|v| v.as_str()) {
-            cfg.date_format = Some(s.to_string());
         }
         if let Some(arr) = table.get("linux_keep_emacs").and_then(|v| v.as_array()) {
             cfg.linux_keep_emacs = arr
@@ -294,8 +288,26 @@ impl Config {
     }
 }
 
+fn apply_string_settings(cfg: &mut Config, table: &toml::Table) {
+    let value = |key| {
+        table
+            .get(key)
+            .and_then(toml::Value::as_str)
+            .map(str::to_owned)
+    };
+    cfg.theme = value("theme");
+    cfg.caret_mode = value("caret_mode");
+    cfg.dictionary = value("dictionary");
+    cfg.keymap = value("keymap");
+    cfg.date_format = value("date_format");
+    cfg.pdf_appearance = value("pdf_appearance");
+    cfg.pdf_paper = value("pdf_paper");
+}
+
 fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
     let value = |key| table.get(key).and_then(toml::Value::as_bool);
+    cfg.pdf_page_numbers = value("pdf_page_numbers");
+    cfg.pdf_preserve_line_breaks = value("pdf_preserve_line_breaks");
     cfg.writing_nits = value("writing_nits");
     cfg.spellcheck = value("spellcheck");
     cfg.history = value("history");

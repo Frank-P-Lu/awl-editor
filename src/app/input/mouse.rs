@@ -24,6 +24,10 @@ impl App {
         {
             gpu.window.set_cursor_visible(visible);
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.workspace_state.layer() == workspace::Layer::PdfExport {
+            return;
+        }
         if self.input.pointer.range_drag.is_some() {
             // A live SETTINGS RAIL SCRUB owns the pointer outright (it is
             // a grabbed control): the value tracks the pointer through the range
@@ -72,6 +76,9 @@ impl App {
 
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         self.stamp_input();
+        if matches!(self.workspace_state.layer(), workspace::Layer::PdfExport) {
+            return;
+        }
         // A summoned MODAL card owns any press, but SWALLOWS a wheel outright.
         if crate::card::modal_card_open() {
             return;

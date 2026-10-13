@@ -61,9 +61,11 @@ impl SemanticView<'_> {
     /// roster — so what an assistive technology is TOLD about the document and
     /// what the doors actually do cannot come apart.
     pub(super) fn document_is_read_only(&self) -> bool {
-        self.workspace_state
-            .overlay()
-            .is_some_and(crate::overlay::OverlayState::shows_read_only_prose)
+        self.workspace_state.layer() == workspace::Layer::PdfExport
+            || self
+                .workspace_state
+                .overlay()
+                .is_some_and(crate::overlay::OverlayState::shows_read_only_prose)
     }
 
     /// The substituted prose text, borrowed. `None` exactly when the document
@@ -75,6 +77,9 @@ impl SemanticView<'_> {
     /// The relocated document/comparison pane owns workspace focus only on
     /// the detail side of a rows-primary workspace.
     pub(super) fn comparison_detail_focused(&self) -> bool {
+        if self.layer() == workspace::Layer::PdfExport {
+            return false;
+        }
         self.workspace_state.overlay().is_some_and(|overlay| {
             overlay.detail_focus
                 && overlay

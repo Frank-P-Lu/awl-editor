@@ -297,6 +297,16 @@ impl App {
         exit: &dyn schedule::Exit,
         door: crate::stats::Door,
     ) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        if matches!(self.workspace_state.layer(), workspace::Layer::PdfExport) {
+            self.apply_pdf_export_action(&action);
+            return false;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if matches!(action, Action::ExportPdf) && self.document.has_active() {
+            self.open_pdf_export();
+            return false;
+        }
         let action = self.prepare_tutorial_action(action);
         #[cfg(not(target_arch = "wasm32"))]
         self.trace_input_state("before", &action, door);

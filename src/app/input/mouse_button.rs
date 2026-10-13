@@ -9,6 +9,14 @@ impl App {
         state: ElementState,
         button: MouseButton,
     ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if matches!(self.workspace_state.layer(), workspace::Layer::PdfExport) {
+            if state == ElementState::Pressed && button == MouseButton::Left {
+                let (x, y) = self.input.pointer.cursor_px;
+                self.click_pdf_export(x, y);
+            }
+            return;
+        }
         if state == ElementState::Pressed
             && matches!(button, MouseButton::Left | MouseButton::Right)
         {

@@ -14,6 +14,10 @@ use super::*;
 
 impl App {
     pub(in crate::app) fn apply_semantic_request(&mut self, request: SemanticRequest) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.workspace_state.layer() == workspace::Layer::PdfExport {
+            return self.apply_pdf_semantic(request);
+        }
         match request {
             SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
             SemanticRequest::Click { id } => self.click_semantic_node(&id),

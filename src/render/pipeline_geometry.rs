@@ -355,6 +355,7 @@ impl TextPipeline {
     /// selection/preedit, spell, search, overlay, and project status — into the
     /// renderer's mirror of the view snapshot.
     fn sync_view_fields(&mut self, view: &ViewState) {
+        self.pdf_dialog_layer.set_view(view.pdf_export.clone());
         self.sync_popover(view);
         self.scroll = view.scroll;
         self.image_base_dir = view.doc_dir.clone();

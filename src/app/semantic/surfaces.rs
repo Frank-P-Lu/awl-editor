@@ -8,6 +8,42 @@
 use super::*;
 
 impl SemanticView<'_> {
+    pub(super) fn fold_pdf_export(&self, nodes: &mut Vec<SemanticNode>) -> String {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(view) = self.workspace_state.pdf_export().map(|d| d.view()) {
+            let mut dialog = SemanticNode::new("pdf-export", SemanticRole::Dialog, "Export PDF");
+            dialog.description = view.error.clone();
+            for (index, label) in view.labels().into_iter().enumerate() {
+                let id = format!("pdf-export.control.{index}");
+                let mut button = SemanticNode::new(&id, SemanticRole::Button, label);
+                if index == 2 {
+                    button.role = SemanticRole::CheckBox;
+                    button.name = "Show page numbers".into();
+                    button.checked = Some(view.page_numbers);
+                }
+                if index == 3 {
+                    button.role = SemanticRole::CheckBox;
+                    button.name = "Preserve line breaks".into();
+                    button.checked = Some(view.preserve_line_breaks);
+                }
+                button.focusable = true;
+                button.focused = index == view.selected;
+                button.actions = vec![SemanticAction::Focus, SemanticAction::Click];
+                if index < 5 {
+                    button
+                        .actions
+                        .extend([SemanticAction::Increment, SemanticAction::Decrement]);
+                }
+                dialog.children.push(id);
+                nodes.push(button);
+            }
+            nodes[0].children.push("pdf-export".into());
+            nodes.push(dialog);
+            return format!("pdf-export.control.{}", view.selected);
+        }
+        DOCUMENT_ID.into()
+    }
+
     pub(super) fn fold_search(&self, nodes: &mut Vec<SemanticNode>) -> String {
         let Some(search) = self.workspace_state.search() else {
             return DOCUMENT_ID.to_string();

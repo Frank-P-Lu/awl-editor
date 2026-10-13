@@ -1,12 +1,15 @@
-//! The closed PDF font world: repository-owned OFL faces and no system
-//! database. Shaping uses the complete faces; embedding rebuilds each TrueType
-//! face with only this document's glyph outlines (plus composite dependencies).
+//! Closed PDF fonts: repository-owned OFL faces shaped in full, then embedded
+//! as TrueType subsets containing the document's used outlines.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
 
 use glyphon::{FontSystem, fontdb};
 use ttf_parser::{Face, GlyphId, Permissions};
+
+mod assets;
+mod theme;
+pub(super) use assets::{ASSETS, ORNAMENT_ASSET};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum FontRole {
@@ -16,15 +19,17 @@ pub(super) enum FontRole {
     MonoBold,
     JapaneseSerif,
     JapaneseSans,
+    Ornament,
 }
 
-pub(super) const ROLES: [FontRole; 6] = [
+pub(super) const ROLES: [FontRole; 7] = [
     FontRole::Serif,
     FontRole::SerifBold,
     FontRole::Mono,
     FontRole::MonoBold,
     FontRole::JapaneseSerif,
     FontRole::JapaneseSans,
+    FontRole::Ornament,
 ];
 
 pub(super) const BASE_ROLES: [FontRole; 4] = [
@@ -34,6 +39,7 @@ pub(super) const BASE_ROLES: [FontRole; 4] = [
     FontRole::MonoBold,
 ];
 
+#[derive(Clone, Copy)]
 pub(super) struct FontAsset {
     pub role: FontRole,
     pub family: &'static str,
@@ -42,56 +48,57 @@ pub(super) struct FontAsset {
     pub weight: u16,
 }
 
-pub(super) static ASSETS: [FontAsset; 6] = [
-    FontAsset {
-        role: FontRole::Serif,
-        family: "Bitter",
-        pdf_name: "AWLBitter-Regular",
-        bytes: &crate::font_assets::BITTER_REGULAR,
-        weight: 400,
-    },
-    FontAsset {
-        role: FontRole::SerifBold,
-        family: "Bitter",
-        pdf_name: "AWLBitter-Bold",
-        bytes: &crate::font_assets::BITTER_BOLD,
-        weight: 700,
-    },
-    FontAsset {
-        role: FontRole::Mono,
-        family: "IBM Plex Mono",
-        pdf_name: "AWLIBMPlexMono-Light",
-        bytes: &crate::font_assets::IBM_PLEX_MONO_LIGHT,
-        weight: 300,
-    },
-    FontAsset {
-        role: FontRole::MonoBold,
-        family: "IBM Plex Mono",
-        pdf_name: "AWLIBMPlexMono-Bold",
-        bytes: &crate::font_assets::IBM_PLEX_MONO_BOLD,
-        weight: 700,
-    },
-    FontAsset {
-        role: FontRole::JapaneseSerif,
-        family: "Noto Serif JP",
-        pdf_name: "AWLNotoSerifJP-Regular",
-        bytes: &crate::font_assets::NOTO_SERIF_JP_REGULAR,
-        weight: 400,
-    },
-    FontAsset {
-        role: FontRole::JapaneseSans,
-        family: "Noto Sans JP",
-        pdf_name: "AWLNotoSansJP-Regular",
-        bytes: &crate::font_assets::NOTO_SANS_JP_REGULAR,
-        weight: 400,
-    },
-];
+/// One document's immutable bundled face snapshot. Plain uses
+/// [`ASSETS`]; themes resolve their display, mono, and Japanese families.
+#[derive(Clone)]
+pub(super) struct FontRoster {
+    assets: [FontAsset; ROLES.len()],
+}
 
-/// The immutable source faces behind the PDF coverage checks. Parsing a
-/// TrueType directory for every scalar made ordinary export text needlessly pay
-/// the font-load cost; the bundled bytes are static, so one parsed face per role
-/// is sufficient for the process lifetime.
-static FACES: LazyLock<[Face<'static>; 6]> = LazyLock::new(|| {
+impl FontRoster {
+    pub fn plain() -> Self {
+        Self { assets: ASSETS }
+    }
+
+    pub fn asset(&self, role: FontRole) -> &FontAsset {
+        &self.assets[role_index(role)]
+    }
+
+    pub fn has_glyph(&self, role: FontRole, ch: char) -> bool {
+        Face::parse(self.asset(role).bytes, 0)
+            .ok()
+            .and_then(|face| face.glyph_index(ch))
+            .is_some()
+    }
+
+    pub fn role_for_char(&self, role: FontRole, ch: char) -> Option<FontRole> {
+        if ch == '\n' || self.has_glyph(role, ch) {
+            return Some(role);
+        }
+        if !is_japanese_scalar(ch) {
+            return None;
+        }
+        let fallback = match role {
+            FontRole::Serif | FontRole::SerifBold | FontRole::JapaneseSerif => {
+                FontRole::JapaneseSerif
+            }
+            FontRole::Mono | FontRole::MonoBold | FontRole::JapaneseSans => FontRole::JapaneseSans,
+            FontRole::Ornament => return None,
+        };
+        self.has_glyph(fallback, ch).then_some(fallback)
+    }
+
+    pub fn fallback_char(&self, role: FontRole) -> char {
+        if self.has_glyph(role, '\u{25a1}') {
+            '\u{25a1}'
+        } else {
+            '?'
+        }
+    }
+}
+
+/// Cached plain faces keep ordinary coverage checks from reparsing static bytes.
+static FACES: LazyLock<[Face<'static>; 7]> = LazyLock::new(|| {
     std::array::from_fn(|index| {
         let asset = &ASSETS[index];
         Face::parse(asset.bytes, 0).expect("verified bundled PDF face")
@@ -100,20 +107,18 @@ static FACES: LazyLock<[Face<'static>; 6]> = LazyLock::new(|| {
 
 pub(super) struct Fonts {
     pub system: FontSystem,
+    pub roster: FontRoster,
     ids: BTreeMap<FontRole, fontdb::ID>,
 }
 
 impl Fonts {
-    pub fn new(include_japanese: bool) -> Self {
+    pub fn new(roster: FontRoster) -> Self {
         let mut db = fontdb::Database::new();
         let mut ids = BTreeMap::new();
-        for asset in ASSETS
-            .iter()
-            .filter(|asset| include_japanese || BASE_ROLES.contains(&asset.role))
-        {
+        for asset in &roster.assets {
             assert!(
                 embedding_is_permitted(asset),
-                "bundled PDF font {} does not permit outline embedding",
+                "bundled PDF font {} is not a permitted, subsettable TrueType outline face",
                 asset.pdf_name
             );
             let loaded = db.load_font_source(fontdb::Source::Binary(std::sync::Arc::new(
@@ -126,8 +131,13 @@ impl Fonts {
         db.set_monospace_family("IBM Plex Mono");
         Self {
             system: FontSystem::new_with_locale_and_db("en-US".into(), db),
+            roster,
             ids,
         }
+    }
+
+    pub fn id(&self, role: FontRole) -> fontdb::ID {
+        self.ids[&role]
     }
 
     pub fn role_for_id(&self, id: fontdb::ID) -> Option<FontRole> {
@@ -137,6 +147,7 @@ impl Fonts {
     }
 }
 
+#[cfg(test)]
 pub(super) fn asset(role: FontRole) -> &'static FontAsset {
     &ASSETS[role_index(role)]
 }
@@ -149,6 +160,7 @@ pub(super) const fn role_index(role: FontRole) -> usize {
         FontRole::MonoBold => 3,
         FontRole::JapaneseSerif => 4,
         FontRole::JapaneseSans => 5,
+        FontRole::Ornament => 6,
     }
 }
 
@@ -158,24 +170,6 @@ fn face(role: FontRole) -> &'static Face<'static> {
 
 pub(super) fn has_glyph(role: FontRole, ch: char) -> bool {
     face(role).glyph_index(ch).is_some()
-}
-
-/// Resolve one scalar without letting a broad CJK font replace Latin
-/// typography. Han, kana, and their punctuation use the Japanese face that
-/// matches the source context; everything else stays in the requested face or
-/// takes the existing visible fallback.
-pub(super) fn role_for_char(role: FontRole, ch: char) -> Option<FontRole> {
-    if ch == '\n' || has_glyph(role, ch) {
-        return Some(role);
-    }
-    if !is_japanese_scalar(ch) {
-        return None;
-    }
-    let fallback = match role {
-        FontRole::Serif | FontRole::SerifBold | FontRole::JapaneseSerif => FontRole::JapaneseSerif,
-        FontRole::Mono | FontRole::MonoBold | FontRole::JapaneseSans => FontRole::JapaneseSans,
-    };
-    has_glyph(fallback, ch).then_some(fallback)
 }
 
 pub(super) fn is_japanese_scalar(ch: char) -> bool {
@@ -207,23 +201,32 @@ pub(super) fn glyph_probe() -> usize {
         .sum()
 }
 
+#[cfg(test)]
 pub(super) fn fallback_char(role: FontRole) -> char {
-    if has_glyph(role, '\u{25a1}') {
-        '\u{25a1}'
-    } else {
-        '?'
-    }
+    FontRoster::plain().fallback_char(role)
 }
 
 pub(super) fn embedding_is_permitted(asset: &FontAsset) -> bool {
     let Ok(face) = Face::parse(asset.bytes, 0) else {
         return false;
     };
-    face.permissions() == Some(Permissions::Installable) && face.is_outline_embedding_allowed()
+    // The OFL inventory is separate; require permissive fsType and subset/outline bits.
+    // Reject missing OS/2 and formats outside this `cmap`/`glyf`/`hmtx` pipeline.
+    let permission = matches!(
+        face.permissions(),
+        Some(Permissions::Installable | Permissions::PreviewAndPrint | Permissions::Editable)
+    );
+    let tables = face.tables();
+    permission
+        && face.is_subsetting_allowed()
+        && face.is_outline_embedding_allowed()
+        && tables.cmap.is_some()
+        && tables.glyf.is_some()
+        && tables.hmtx.is_some()
 }
 
-pub(super) fn glyph_widths(role: FontRole, glyphs: &BTreeSet<u16>) -> Vec<(u16, u16)> {
-    let face = Face::parse(asset(role).bytes, 0).expect("verified bundled PDF face");
+pub(super) fn glyph_widths_for(asset: &FontAsset, glyphs: &BTreeSet<u16>) -> Vec<(u16, u16)> {
+    let face = Face::parse(asset.bytes, 0).expect("verified bundled PDF face");
     let upm = u32::from(face.units_per_em());
     glyphs
         .iter()
@@ -236,8 +239,13 @@ pub(super) fn glyph_widths(role: FontRole, glyphs: &BTreeSet<u16>) -> Vec<(u16, 
 }
 
 /// Build a PDF-safe TrueType subset while preserving original glyph IDs.
+#[cfg(test)]
 pub(super) fn subset(role: FontRole, used: &BTreeSet<u16>) -> Vec<u8> {
-    let source = asset(role).bytes;
+    subset_for(asset(role), used)
+}
+
+pub(super) fn subset_for(asset: &FontAsset, used: &BTreeSet<u16>) -> Vec<u8> {
+    let source = asset.bytes;
     let tables = table_directory(source);
     let head = table(source, &tables, b"head");
     let maxp = table(source, &tables, b"maxp");
@@ -429,8 +437,8 @@ pub(super) struct Descriptor {
     pub cap_height: i32,
 }
 
-pub(super) fn descriptor(role: FontRole) -> Descriptor {
-    let face = Face::parse(asset(role).bytes, 0).expect("verified bundled PDF face");
+pub(super) fn descriptor_for(asset: &FontAsset) -> Descriptor {
+    let face = Face::parse(asset.bytes, 0).expect("verified bundled PDF face");
     let upm = i32::from(face.units_per_em());
     let scale = |v: i16| i32::from(v) * 1000 / upm;
     let b = face.global_bounding_box();

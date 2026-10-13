@@ -161,6 +161,7 @@ impl App {
         let settings_focus = self.workspace_state.journey().settings_focus();
         let mut view = ViewState {
             document_active: true,
+            pdf_export: self.pdf_export_view(),
             // The no-document start surface's own concern; irrelevant with a
             // real document on screen.
             start_folder: None,

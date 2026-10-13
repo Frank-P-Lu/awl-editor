@@ -335,6 +335,7 @@ impl CaptureDriver {
 
 #[derive(Clone, Default)]
 pub struct CaptureOpts {
+    pub pdf_export: Option<std::sync::Arc<crate::pdf_dialog::View>>,
     /// A live-App capture reached the explicit no-active-document state. The
     /// renderer still receives an inert scratch value as a transport detail,
     /// but this bit suppresses every document surface and makes the sidecar's

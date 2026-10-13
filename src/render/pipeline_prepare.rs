@@ -10,6 +10,9 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        if self.prepare_pdf_dialog(device, queue, [width, height])? {
+            return Ok(());
+        }
         if self.text_sync_profile {
             self.owner_scan.reset();
         }

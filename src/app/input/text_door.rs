@@ -299,7 +299,9 @@ impl App {
     /// reader who types on a reading surface has done nothing wrong, and a
     /// scolding surface is the opposite of what this one is for.
     pub(in crate::app) fn text_door_open(&self, door: TextDoor) -> bool {
-        if !self.document.has_active() {
+        if !self.document.has_active()
+            || self.workspace_state.layer() == workspace::Layer::PdfExport
+        {
             return false;
         }
         !(door.is_walled() && self.presents_read_only_prose())

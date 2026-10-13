@@ -174,6 +174,9 @@ impl App {
     /// earn a nonzero scroll rate. A stationary press or dead-zone hover never arms
     /// idle scrolling; unavailable geometry also declines.
     pub(in crate::app) fn drag_scroll_primed(&self) -> bool {
+        if self.workspace_state.layer() == workspace::Layer::PdfExport {
+            return false;
+        }
         if !self.input.pointer.dragging || !self.input.pointer.drag_armed {
             return false;
         }

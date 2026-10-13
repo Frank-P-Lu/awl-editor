@@ -476,7 +476,7 @@ fn every_fixture_text_fragment_survives_into_both_emitters() {
                         }
                     }
                 }
-                Block::Rule => {}
+                Block::BlankLines(_) | Block::Rule(_) => {}
             }
         }
     }
@@ -818,7 +818,10 @@ fn all_inlines(blocks: &[Block]) -> Vec<&Inline> {
                         visit(&item.blocks, out);
                     }
                 }
-                Block::CodeBlock { .. } | Block::Rule | Block::Table(_) => {}
+                Block::BlankLines(_)
+                | Block::CodeBlock { .. }
+                | Block::Rule(_)
+                | Block::Table(_) => {}
             }
         }
     }
@@ -1077,7 +1080,7 @@ fn export_struck_tokens(md: &str) -> Vec<String> {
                         }
                     }
                 }
-                Block::CodeBlock { .. } | Block::Rule => {}
+                Block::CodeBlock { .. } | Block::BlankLines(_) | Block::Rule(_) => {}
             }
         }
     }
@@ -1241,7 +1244,7 @@ fn export_highlighted_tokens(md: &str) -> Vec<String> {
                         }
                     }
                 }
-                Block::CodeBlock { .. } | Block::Rule => {}
+                Block::CodeBlock { .. } | Block::BlankLines(_) | Block::Rule(_) => {}
             }
         }
     }
@@ -1524,7 +1527,7 @@ fn export_smart_punct_glyphs(md: &str) -> Vec<char> {
                         }
                     }
                 }
-                Block::CodeBlock { .. } | Block::Rule => {}
+                Block::CodeBlock { .. } | Block::BlankLines(_) | Block::Rule(_) => {}
             }
         }
     }

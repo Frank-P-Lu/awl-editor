@@ -2,31 +2,35 @@ use std::collections::BTreeMap;
 
 use crate::export::model::{Block, Document, Inline};
 
-use super::super::fonts::{ROLES, role_index};
-use super::parser::{Pdf, decode_utf16_hex, hex_value_after};
+use super::parser::{Pdf, decode_utf16_hex, hex_value_after, reference};
 
 pub(super) fn recover_page_text(pdf: &Pdf<'_>) -> Vec<String> {
-    let cmaps = ROLES
-        .iter()
-        .flat_map(|role| {
-            let font = role_index(*role) + 1;
-            pdf.objects
-                .values()
-                .find(|object| {
-                    let text = object.text();
-                    text.contains("/CMapName /")
-                        && text.contains(super::super::fonts::asset(*role).pdf_name)
-                })
-                .map(|object| parse_cmap(object.stream().unwrap()))
-                .unwrap_or_default()
-                .into_iter()
-                .map(move |(glyph, text)| ((font, glyph), text))
-                .collect::<Vec<_>>()
-        })
-        .collect::<BTreeMap<_, _>>();
-    pdf.page_streams()
+    pdf.page_ids()
         .into_iter()
-        .map(|stream| {
+        .map(|page| {
+            let page = pdf.object(page).text();
+            let resources = page
+                .split_once("/Font << ")
+                .unwrap()
+                .1
+                .split_once(" >>")
+                .unwrap()
+                .0;
+            let words = resources.split_whitespace().collect::<Vec<_>>();
+            let cmaps = words
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .flat_map(|entry| {
+                    let font = entry[0].trim_start_matches("/F").parse::<usize>().unwrap();
+                    let object = pdf.object(entry[1].parse().unwrap());
+                    let cmap = reference(object.text(), "/ToUnicode ");
+                    parse_cmap(pdf.object(cmap).stream().unwrap())
+                        .into_iter()
+                        .map(move |(glyph, text)| ((font, glyph), text))
+                })
+                .collect::<BTreeMap<_, _>>();
+            let stream = pdf.object(reference(page, "/Contents ")).stream().unwrap();
             let content = std::str::from_utf8(stream).unwrap();
             let mut recovered = String::new();
             let mut actual = None;
@@ -118,7 +122,8 @@ pub(super) fn expected_kinds(doc: &Document) -> Vec<&'static str> {
                         blocks(&item.blocks, out);
                     }
                 }
-                Block::Rule => out.push("rule"),
+                Block::BlankLines(_) => out.push("blank-lines"),
+                Block::Rule(_) => out.push("rule"),
                 Block::Table(table) => {
                     out.push("table");
                     out.push("table-head");
@@ -217,7 +222,7 @@ pub(super) fn text_fragments(doc: &Document) -> Vec<String> {
                         blocks(&item.blocks, out);
                     }
                 }
-                Block::Rule => {}
+                Block::BlankLines(_) | Block::Rule(_) => {}
                 Block::Table(table) => {
                     for cell in &table.head {
                         inlines(cell, out);
@@ -266,7 +271,7 @@ pub(super) fn all_inlines(doc: &Document) -> Vec<&Inline> {
                 | Block::FootnoteDefinition {
                     blocks: children, ..
                 } => visit_blocks(children, out),
-                Block::CodeBlock { .. } | Block::Rule => {}
+                Block::CodeBlock { .. } | Block::BlankLines(_) | Block::Rule(_) => {}
                 Block::List(list) => {
                     for item in &list.items {
                         visit_blocks(&item.blocks, out);
@@ -313,7 +318,8 @@ pub(super) fn block_roster(block: &Block) -> Vec<&'static str> {
         Block::BlockQuote(_) => "blockquote",
         Block::CodeBlock { .. } => "codeblock",
         Block::List(_) => "list",
-        Block::Rule => "rule",
+        Block::BlankLines(_) => "blank-lines",
+        Block::Rule(_) => "rule",
         Block::Table(_) => "table",
         Block::FootnoteDefinition { .. } => "footnote-definition",
     }];
@@ -330,7 +336,8 @@ pub(super) fn block_roster(block: &Block) -> Vec<&'static str> {
         Block::Heading { .. }
         | Block::Paragraph(_)
         | Block::CodeBlock { .. }
-        | Block::Rule
+        | Block::BlankLines(_)
+        | Block::Rule(_)
         | Block::Table(_) => {}
     }
     out

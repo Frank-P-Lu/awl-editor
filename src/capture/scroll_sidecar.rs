@@ -7,6 +7,7 @@ macro_rules! sidecar_format {
                 "{{\n",
                 "  \"schema\": {schema_json},\n",
                 "  \"driver\": {driver},\n",
+                "  \"pdf_export\": {pdf_export},\n",
                 "  \"semantic\": {semantic},\n",
                 "  \"document\": {document},\n",
                 "  \"canvas\": {canvas},\n",

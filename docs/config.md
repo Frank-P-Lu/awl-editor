@@ -44,3 +44,19 @@ search_forward = ["Cmd-F", "C-s"]        # up to 2 chords, capped at 2
 
 Shift-PageDown and Shift-PageUp deliberately do not extend selection. They are
 non-movers in the `is_motion` test; changing this is a product decision.
+
+## PDF export defaults
+
+The native Export PDF dialog remembers `pdf_appearance = "current_theme"` or
+`"plain"`, `pdf_paper = "a4"` or `"letter"`, and `pdf_page_numbers = true` or
+`false`, after a successful export.
+`pdf_preserve_line_breaks` defaults to `true`: authored single newlines remain.
+Turning it off joins ordinary paragraph lines; blank paragraphs and explicit
+hard breaks remain in either mode. Text wraps to the selected paper width.
+Absent or unknown values start with Current theme, A4, and page numbers on. Cancelling changes
+neither the document nor the remembered defaults. Current theme freezes the
+world at dialog entry; Plain paper uses a neutral white sheet.
+
+The page preview and exported PDF use the same stored layout. PNG images are
+previewed directly. JPEGs show a labelled placeholder in the preview and keep
+the actual image in the exported PDF.

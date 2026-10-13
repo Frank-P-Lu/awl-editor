@@ -22,12 +22,16 @@ impl ttf_parser::OutlineBuilder for SegmentCount {
 }
 
 #[test]
-fn pdf_faces_are_true_type_installable_ofl_inventory_faces() {
+fn pdf_faces_are_true_type_embeddable_ofl_inventory_faces() {
     for face in &ASSETS {
         let parsed = Face::parse(face.bytes, 0).expect(face.pdf_name);
         assert_eq!(
             parsed.permissions(),
-            Some(Permissions::Installable),
+            Some(if face.role == FontRole::Ornament {
+                Permissions::Editable
+            } else {
+                Permissions::Installable
+            }),
             "{} fsType",
             face.pdf_name
         );
@@ -37,7 +41,7 @@ fn pdf_faces_are_true_type_installable_ofl_inventory_faces() {
             face.pdf_name
         );
         // Subsetting is both technically supported by these `glyf` faces and
-        // permitted by their installable-embedding license bits.
+        // permitted by their reviewed embedding permission bits.
         assert!(
             parsed.is_subsetting_allowed(),
             "{} subsetting permitted by license",
@@ -50,6 +54,7 @@ fn pdf_faces_are_true_type_installable_ofl_inventory_faces() {
     let inventory = crate::embedded_docs::FONT_LICENSES_MD;
     let ofl = crate::embedded_docs::FONT_OFL_TXT;
     for file in [
+        "AwlMarks.ttf",
         "Bitter-Regular.ttf",
         "Bitter-Bold.ttf",
         "IBMPlexMono-Light.ttf",
@@ -86,6 +91,8 @@ fn subsets_preserve_composite_outlines_and_sfnt_checksum() {
         let source = Face::parse(asset.bytes, 0).unwrap();
         let probe = if matches!(asset.role, FontRole::JapaneseSerif | FontRole::JapaneseSans) {
             '日'
+        } else if asset.role == FontRole::Ornament {
+            '⁂'
         } else {
             'é'
         };

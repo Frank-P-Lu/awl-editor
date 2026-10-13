@@ -42,6 +42,14 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let code_pill_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let pdf_dialog_layer = pdf_dialog::PdfDialogLayer::new(
+            device,
+            queue,
+            cache,
+            format,
+            &mut font_system,
+            &mut atlas,
+        );
         let image_pipeline = crate::image_pipeline::ImageQuadPipeline::new(device, format);
         let image_placeholder_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
@@ -380,6 +388,7 @@ impl TextPipeline {
             image_report: std::cell::RefCell::new(Vec::new()),
             image_preview: None,
             image_preview_dirty: false,
+            pdf_dialog_layer,
             image_pipeline,
             image_placeholder_pipeline,
             image_scrim_pipeline,

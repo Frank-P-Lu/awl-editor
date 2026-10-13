@@ -70,9 +70,11 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          physical-pixel hit rects, or `null` off Theme.
 /// `/219` — `focused_field`: rendered field text, composition, selection and
 ///          prepared candidate geometry from a real App's text recipient.
+/// `/225` — `pdf_export`: frozen appearance, paper, page-number toggle and controls.
+/// `/228` — `pdf_export.preserve_line_breaks` and its checkbox control.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 219;
+pub const SCHEMA_VERSION: u32 = 228;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

@@ -1,5 +1,9 @@
 mod fixture;
 mod japanese;
+mod line_breaks;
+mod options;
+mod ornaments;
+mod pagination;
 mod parser;
 mod semantic;
 
@@ -687,3 +691,5 @@ fn golden(name: &str, got: &[u8]) {
     });
     assert_eq!(got, want, "{name} exact-byte golden drift");
 }
+
+mod specimens;

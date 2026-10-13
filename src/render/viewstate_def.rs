@@ -19,6 +19,7 @@ pub struct ViewState {
     /// default, so the start surface draws its original two rows,
     /// byte-identical.
     pub start_folder: Option<String>,
+    pub pdf_export: Option<Arc<crate::pdf_dialog::View>>,
     pub text: String,
     pub cursor_line: usize,
     pub cursor_col: usize,
@@ -363,17 +364,9 @@ pub struct DocSource {
 }
 
 impl ViewState {
-    /// The CANONICAL default `ViewState` — an empty, unscrolled, unzoomed prose
-    /// buffer with every search / overlay field inert. This is the ONE owner of
-    /// "what a fresh ViewState looks like": the bench / perf / frame / capture /
-    /// test scaffolds all build on it (`ViewState { <real fields>, ..base() }`),
-    /// so a NEW ViewState field is defaulted in exactly ONE place here and every
-    /// scaffold inherits it automatically — retiring the old "update all six
-    /// initializers or the build breaks at merge" ritual. The live App's
-    /// `sync_view` (`src/app/viewstate.rs`) stays deliberately EXHAUSTIVE (it sets
-    /// every field from live state and MUST fail to compile when a field is added,
-    /// forcing a conscious render decision) — it is the one authoritative site and
-    /// does not route through `base()`.
+    /// Canonical empty view. All scaffolds inherit these inert defaults through
+    /// `base()`; the live App's `sync_view` remains exhaustive so each new field
+    /// requires an explicit render decision at that authoritative site.
     ///
     /// Non-inert defaults: `zoom = range::ZOOM.default`, `overlay_window_rows = 12` (the no-overlay
     /// cap the pipeline windows against), `cjk_priority = DEFAULT_CJK_PRIORITY`, and
@@ -382,6 +375,7 @@ impl ViewState {
         ViewState {
             document_active: true,
             start_folder: None,
+            pdf_export: None,
             text: String::new(),
             cursor_line: 0,
             cursor_col: 0,

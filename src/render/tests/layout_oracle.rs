@@ -132,3 +132,64 @@ fn layout_report_borrows_the_sealed_frame_without_assembly_or_row_clones() {
         "one report is one in-place borrow of the drawn frame partition"
     );
 }
+
+// Append to src/render/tests/layout_oracle.rs.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn pdf_modal_reports_only_its_prepared_surface_and_restores_editor_rows() {
+    let _serial = crate::testlock::serial();
+    let _restore = crate::testlock::misc::TogglesRestore::capture();
+    let _page = crate::page::PagePin::snapshot();
+    crate::page::set_page_on(false);
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping pdf_modal_reports_only_its_prepared_surface: no wgpu");
+        return;
+    };
+    let mut editor = super::view("Parked document selection", 0, 8);
+    editor.selection = Some(((0, 2), (0, 12)));
+    p.set_view(&editor);
+    prepare(&mut p, &device, &queue, 1200, 800);
+    let before = p.layout_report().expect("prepared editor");
+    assert!(!before.rows.is_empty());
+    assert!(before.caret.is_some());
+    assert!(!before.selection.is_empty());
+
+    let mut modal = super::view("Parked document selection", 0, 8);
+    modal.selection = editor.selection;
+    modal.pdf_export = Some(std::sync::Arc::new(crate::pdf_dialog::View {
+        image: std::sync::Arc::new(image::RgbaImage::from_pixel(
+            60,
+            84,
+            image::Rgba([255, 255, 255, 255]),
+        )),
+        appearance: "Plain paper".into(),
+        page_numbers: true,
+        preserve_line_breaks: true,
+        paper: "A4".into(),
+        page: 0,
+        pages: 1,
+        selected: 0,
+        revision: 0,
+        error: None,
+    }));
+    p.set_view(&modal);
+    assert!(p.layout_report().is_none(), "modal has not been prepared");
+    prepare(&mut p, &device, &queue, 1200, 800);
+    let report = p.layout_report().expect("prepared modal is reportable");
+    assert!(report.rows.is_empty(), "parked document rows are not drawn");
+    assert!(report.caret.is_none());
+    assert!(report.selection.is_empty());
+
+    p.set_view(&editor);
+    prepare(&mut p, &device, &queue, 1200, 800);
+    assert_eq!(p.layout_report().unwrap(), before);
+
+    // A fresh pipeline has no prior document partition to accidentally borrow.
+    let Some((fresh_device, fresh_queue, mut fresh)) = headless_dqp(1200.0, 800.0) else {
+        panic!("adapter disappeared during modal ownership test");
+    };
+    fresh.set_view(&modal);
+    assert!(fresh.layout_report().is_none());
+    prepare(&mut fresh, &fresh_device, &fresh_queue, 1200, 800);
+    assert_eq!(fresh.layout_report().unwrap(), report);
+}

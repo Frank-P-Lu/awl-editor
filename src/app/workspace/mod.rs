@@ -71,6 +71,8 @@ pub(in crate::app) enum Layer {
     Workspace,
     /// A modal picker is up and owns both keyboard and pointer.
     Overlay,
+    /// The PDF preview owns input without changing the parked editor state.
+    PdfExport,
 }
 
 impl Layer {
@@ -83,6 +85,8 @@ impl Layer {
         Layer::Search,
         Layer::Workspace,
         Layer::Overlay,
+        #[cfg(not(target_arch = "wasm32"))]
+        Layer::PdfExport,
     ];
 }
 
@@ -95,6 +99,8 @@ pub(in crate::app) struct WorkspaceState {
     /// Content mutation goes through [`Self::overlay_mut`]; the journey itself
     /// is only ever advanced by the shared action core via [`Self::core_slots`].
     journey: Journey,
+    #[cfg(not(target_arch = "wasm32"))]
+    pdf_export: Option<super::pdf_export::Dialog>,
     /// The summoned find/replace panel, or `None`.
     search: Option<SearchState>,
     /// The format popover's SUMMON BIT. Not "is the popover visible" — the
@@ -133,6 +139,10 @@ impl WorkspaceState {
     /// reachable, and the law test below asserts every cell rather than the
     /// four the author happened to imagine.
     pub(in crate::app) fn layer(&self) -> Layer {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.pdf_export.is_some() {
+            return Layer::PdfExport;
+        }
         match (
             self.journey.rung(),
             self.search.is_some(),
@@ -156,7 +166,10 @@ impl WorkspaceState {
     /// Is a modal picker up? (The top rung.) Replaces every
     /// `self.overlay.card().is_some()`.
     pub(in crate::app) fn overlay_open(&self) -> bool {
-        matches!(self.layer(), Layer::Overlay | Layer::Workspace)
+        matches!(
+            self.layer(),
+            Layer::Overlay | Layer::Workspace | Layer::PdfExport
+        )
     }
 
     /// Is NO picker up — i.e. does the document (possibly with its format
@@ -384,3 +397,16 @@ impl WorkspaceState {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+impl WorkspaceState {
+    pub(in crate::app) fn pdf_export(&self) -> Option<&super::pdf_export::Dialog> {
+        self.pdf_export.as_ref()
+    }
+    pub(in crate::app) fn take_pdf_export(&mut self) -> Option<super::pdf_export::Dialog> {
+        self.pdf_export.take()
+    }
+    pub(in crate::app) fn set_pdf_export(&mut self, dialog: Option<super::pdf_export::Dialog>) {
+        self.pdf_export = dialog;
+    }
+}

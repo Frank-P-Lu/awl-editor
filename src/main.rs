@@ -90,6 +90,7 @@ mod frame_clock;
 mod frontmatter;
 mod fs;
 mod fuzzy;
+mod pdf_dialog;
 mod roster_claim_law;
 // THE PORTABLE ALLOCATION ORACLE — how many wgpu objects are alive on a device,
 // in a number that means the same thing on every backend awl ships, plus the

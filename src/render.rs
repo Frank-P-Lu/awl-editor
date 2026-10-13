@@ -137,6 +137,7 @@ pub use viewstate_def::{DocSource, FoldTail, ViewState};
 mod field_input;
 pub use field_input::FieldInput;
 
+mod pdf_dialog;
 mod pipeline_activity;
 mod pipeline_band_epoch;
 mod pipeline_draw;
@@ -2036,6 +2037,7 @@ pub struct TextPipeline {
     /// image (one instanced quad per image) fit-to-column in its reserved tall row,
     /// after the washes + before selection. Empty (nothing drawn) when the feature
     /// is off / no visible images / on wasm, so a default capture is byte-identical.
+    pdf_dialog_layer: pdf_dialog::PdfDialogLayer,
     pub image_pipeline: crate::image_pipeline::ImageQuadPipeline,
     pub image_placeholder_pipeline: SelectionPipeline,
     pub image_scrim_pipeline: SelectionPipeline,

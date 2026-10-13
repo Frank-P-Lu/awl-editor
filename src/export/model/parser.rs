@@ -11,6 +11,15 @@ use super::{
 /// (excluded from the export, matching every other awl consumer) and folds the
 /// pulldown event stream into the nesting-aware tree.
 pub(in crate::export) fn parse(markdown: &str) -> Document {
+    parse_with_spacing(markdown, None)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(in crate::export) fn parse_pdf(markdown: &str, preserve: bool) -> Document {
+    parse_with_spacing(markdown, Some(preserve))
+}
+
+fn parse_with_spacing(markdown: &str, preserve: Option<bool>) -> Document {
     let body_start = crate::frontmatter::detect(markdown)
         .map(|f| f.range.end)
         .unwrap_or(0);
@@ -20,39 +29,30 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
         .into_offset_iter()
         .collect();
     let footnotes = crate::markdown::footnotes_from_events(src, &events);
-    let duplicate_footnote_ranges: Vec<_> = events
-        .iter()
-        .filter_map(|(event, range)| match event {
-            Event::Start(Tag::FootnoteDefinition(_))
-                if !footnotes
-                    .definitions
-                    .iter()
-                    .any(|definition| definition.range == *range) =>
-            {
-                Some(range.clone())
-            }
-            _ => None,
-        })
-        .collect();
+    let duplicates = duplicate_ranges(
+        &events,
+        footnotes
+            .definitions
+            .iter()
+            .map(|definition| definition.range.clone()),
+    );
     let mut stack: Vec<Frame> = vec![Frame::Root(Vec::new())];
     // A pending task marker: pulldown emits `TaskListMarker` at the START of the
     // item's paragraph, so we stash it and stamp the enclosing Item on close.
     let mut pending_task: Option<bool> = None;
+    let mut spacing = super::spacing::SourceSpacing::default();
 
     // The OFFSET iterator: each event carries its byte range into `src`, which the
     // strikethrough gate needs (the exactly-two-tilde decision reads the span's
     // source slice — see `crate::markdown::strike_engaged`).
     for (ev, range) in events {
-        if let Some(duplicate) = duplicate_footnote_ranges
-            .iter()
-            .find(|duplicate| duplicate.start <= range.start && range.end <= duplicate.end)
-        {
-            if matches!(ev, Event::Start(Tag::FootnoteDefinition(_))) && range == *duplicate {
-                accept_block(
-                    &mut stack,
-                    Block::Paragraph(vec![Inline::Text(src[duplicate.clone()].to_string())]),
-                );
-            }
+        let end = range.end;
+        let starts = matches!(ev, Event::Start(_));
+        if preserve.is_some() {
+            spacing.before(src, &ev, &range, &mut stack);
+        }
+        if let Some(end) = literal_duplicate(&mut stack, src, &ev, &range, &duplicates) {
+            spacing.consume(end);
             continue;
         }
         match ev {
@@ -87,9 +87,15 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
             Event::End(tag) => close_frame(&mut stack, tag, &mut pending_task),
             Event::Text(t) => push_text(&mut stack, &t),
             Event::Code(c) => push_inline(&mut stack, Inline::Code(c.into_string())),
+            Event::SoftBreak if preserve == Some(true) => {
+                push_inline(&mut stack, Inline::HardBreak)
+            }
             Event::SoftBreak => push_inline(&mut stack, Inline::SoftBreak),
             Event::HardBreak => push_inline(&mut stack, Inline::HardBreak),
-            Event::Rule => accept_block(&mut stack, Block::Rule),
+            Event::Rule => accept_block(
+                &mut stack,
+                Block::Rule(crate::markdown::break_kind(&src[range])),
+            ),
             Event::TaskListMarker(checked) => pending_task = Some(checked),
             // Raw HTML remains literal text.
             Event::Html(h) | Event::InlineHtml(h) => push_text(&mut stack, &h),
@@ -111,8 +117,14 @@ pub(in crate::export) fn parse(markdown: &str) -> Document {
             }
             Event::InlineMath(_) | Event::DisplayMath(_) => {}
         }
+        if preserve.is_some() && !starts {
+            spacing.finish_event(src, end, &mut stack);
+        }
     }
 
+    if preserve.is_some() {
+        spacing.advance(src, src.len(), &mut stack);
+    }
     let blocks = match stack.pop() {
         Some(Frame::Root(b)) => b,
         _ => Vec::new(),
@@ -132,4 +144,40 @@ fn first_heading_text(blocks: &[Block]) -> Option<String> {
         }
     }
     None
+}
+
+/// Duplicate definitions fall back to literal source under the shared roster.
+fn duplicate_ranges(
+    events: &[(Event<'_>, std::ops::Range<usize>)],
+    recognized: impl Iterator<Item = std::ops::Range<usize>>,
+) -> Vec<std::ops::Range<usize>> {
+    let recognized: Vec<_> = recognized.collect();
+    events
+        .iter()
+        .filter_map(|(event, range)| match event {
+            Event::Start(Tag::FootnoteDefinition(_)) if !recognized.contains(range) => {
+                Some(range.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn literal_duplicate(
+    stack: &mut [Frame],
+    src: &str,
+    event: &Event<'_>,
+    range: &std::ops::Range<usize>,
+    duplicates: &[std::ops::Range<usize>],
+) -> Option<usize> {
+    let duplicate = duplicates
+        .iter()
+        .find(|duplicate| duplicate.start <= range.start && range.end <= duplicate.end)?;
+    if matches!(event, Event::Start(Tag::FootnoteDefinition(_))) && range == duplicate {
+        accept_block(
+            stack,
+            Block::Paragraph(vec![Inline::Text(src[duplicate.clone()].to_string())]),
+        );
+    }
+    Some(duplicate.end)
 }

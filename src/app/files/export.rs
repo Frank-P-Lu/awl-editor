@@ -46,7 +46,7 @@ impl ExportTarget {
     /// A flag per arm had already reached two arms, and each new door would have
     /// set it by guess: that line is the only thing standing between this verb
     /// and a file the writer cannot find.
-    fn at(path: std::path::PathBuf, doc_path: Option<&std::path::Path>) -> Self {
+    pub(in crate::app) fn at(path: std::path::PathBuf, doc_path: Option<&std::path::Path>) -> Self {
         let show_full = path.parent() != doc_path.and_then(|p| p.parent());
         Self { path, show_full }
     }
@@ -162,7 +162,7 @@ impl App {
 
     /// Resolve this App's export destination through the ONE pure owner.
     #[cfg(not(target_arch = "wasm32"))]
-    fn export_destination(
+    pub(in crate::app) fn export_destination(
         &self,
         format: crate::export::Format,
         dest_dir: Option<&str>,
@@ -237,7 +237,7 @@ impl App {
     /// at an already-resolved destination, then say where they went — in the
     /// notice, and (macOS, live only) by revealing the file in the Finder.
     #[cfg(not(target_arch = "wasm32"))]
-    fn write_export(&mut self, bytes: &[u8], target: ExportTarget) {
+    pub(in crate::app) fn write_export(&mut self, bytes: &[u8], target: ExportTarget) -> bool {
         if let Some(parent) = target.path.parent() {
             let _ = crate::fs::active().create_dir_all(parent);
         }
@@ -254,8 +254,12 @@ impl App {
                 };
                 self.set_toast_notice(format!("exported {shown}"));
                 let _revealed = self.reveal_path(&target.path);
+                true
             }
-            Err(e) => self.report_export_failure(&e.to_string()),
+            Err(e) => {
+                self.report_export_failure(&e.to_string());
+                false
+            }
         }
     }
 

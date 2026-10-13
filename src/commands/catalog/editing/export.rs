@@ -30,6 +30,6 @@ pub(super) const EXPORT_PDF: Command = Command {
     native_only: true,
     web_only: false,
     description: Some(
-        "Choose a folder, then export as `.pdf`; markdown buffers only, native builds only.",
+        "Preview paper and appearance, then export as `.pdf`; Markdown only, native builds only.",
     ),
 };

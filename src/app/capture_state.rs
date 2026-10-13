@@ -79,6 +79,7 @@ impl App {
             &self.config,
         );
         let mut opts = crate::run::fold_capture_state(self, project);
+        opts.pdf_export = self.pdf_export_view();
         opts.driver = crate::capture::CaptureDriver::LiveApp;
         opts.field_input = self.field_input_projection();
         opts.preedit = matches!(self.focused_text_target(), input::TextTarget::Document(_))

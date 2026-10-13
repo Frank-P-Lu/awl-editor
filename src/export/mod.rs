@@ -23,6 +23,8 @@ mod html;
 mod model;
 #[cfg(not(target_arch = "wasm32"))]
 mod pdf;
+#[cfg(not(target_arch = "wasm32"))]
+mod pdf_options;
 mod zip;
 
 // Native-only: the export tests read on-disk golden files at runtime
@@ -33,6 +35,10 @@ mod zip;
 mod tests;
 
 pub use model::{ExportImage, ImageSource};
+#[cfg(not(target_arch = "wasm32"))]
+pub use pdf::PdfDocument;
+#[cfg(not(target_arch = "wasm32"))]
+pub use pdf_options::{PdfAppearance, PdfOptions, PdfPaper};
 
 /// The export format a command targets — drives the sibling-file extension + the
 /// emitter chosen. Kept here (not in `commands.rs`) so the whole export surface

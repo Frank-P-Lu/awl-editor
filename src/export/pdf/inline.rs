@@ -2,7 +2,7 @@
 //! replaced before shaping, with their original value retained as ActualText.
 
 use super::super::model::Inline;
-use super::fonts::{FontRole, fallback_char, is_bold_role, role_for_char};
+use super::fonts::{FontRole, FontRoster, is_bold_role};
 
 #[derive(Clone, Debug)]
 pub(super) struct Style {
@@ -54,16 +54,16 @@ pub(super) enum Piece {
     },
 }
 
-pub(super) fn flatten(inlines: &[Inline], base: Style) -> Vec<Piece> {
+pub(super) fn flatten(inlines: &[Inline], base: Style, fonts: &FontRoster) -> Vec<Piece> {
     let mut out = Vec::new();
-    visit(inlines, &base, &mut out);
+    visit(inlines, &base, fonts, &mut out);
     out
 }
 
-fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
+fn visit(inlines: &[Inline], style: &Style, fonts: &FontRoster, out: &mut Vec<Piece>) {
     for inline in inlines {
         match inline {
-            Inline::Text(text) => push_checked(out, text, style),
+            Inline::Text(text) => push_checked(out, text, style, fonts),
             Inline::Strong(children) => {
                 let mut next = style.clone();
                 next.role = match next.role {
@@ -71,23 +71,24 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
                     FontRole::Mono | FontRole::MonoBold => FontRole::MonoBold,
                     FontRole::JapaneseSerif => FontRole::JapaneseSerif,
                     FontRole::JapaneseSans => FontRole::JapaneseSans,
+                    FontRole::Ornament => FontRole::Ornament,
                 };
-                visit(children, &next, out);
+                visit(children, &next, fonts, out);
             }
             Inline::Emphasis(children) => {
                 let mut next = style.clone();
                 next.italic = true;
-                visit(children, &next, out);
+                visit(children, &next, fonts, out);
             }
             Inline::Strikethrough(children) => {
                 let mut next = style.clone();
                 next.strike = true;
-                visit(children, &next, out);
+                visit(children, &next, fonts, out);
             }
             Inline::Highlight(children) => {
                 let mut next = style.clone();
                 next.highlight = true;
-                visit(children, &next, out);
+                visit(children, &next, fonts, out);
             }
             Inline::Code(code) => {
                 let mut next = style.clone();
@@ -97,12 +98,12 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
                     FontRole::Mono
                 };
                 next.code = true;
-                push_checked(out, code, &next);
+                push_checked(out, code, &next, fonts);
             }
             Inline::Link { url, children } => {
                 let mut next = style.clone();
                 next.link = Some(url.clone());
-                visit(children, &next, out);
+                visit(children, &next, fonts, out);
             }
             Inline::Image {
                 src,
@@ -117,15 +118,15 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
                 let mut next = style.clone();
                 next.size *= 0.68;
                 next.rise += style.size * 0.30;
-                push_checked(out, &number.to_string(), &next);
+                push_checked(out, &number.to_string(), &next, fonts);
             }
-            Inline::SoftBreak => push_checked(out, " ", style),
-            Inline::HardBreak => push_checked(out, "\n", style),
+            Inline::SoftBreak => push_checked(out, " ", style, fonts),
+            Inline::HardBreak => push_checked(out, "\n", style, fonts),
         }
     }
 }
 
-fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style) {
+fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style, fonts: &FontRoster) {
     let mut supported = String::new();
     let mut supported_role = None;
     let flush = |out: &mut Vec<Piece>, supported: &mut String, role: &mut Option<FontRole>| {
@@ -140,7 +141,7 @@ fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style) {
         }
     };
     for ch in text.chars() {
-        if let Some(role) = role_for_char(style.role, ch) {
+        if let Some(role) = fonts.role_for_char(style.role, ch) {
             if supported_role.is_some_and(|open| open != role) {
                 flush(out, &mut supported, &mut supported_role);
             }
@@ -151,7 +152,7 @@ fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style) {
             let mut replacement = style.clone();
             replacement.actual = Some(ch.to_string());
             out.push(Piece::Text {
-                text: fallback_char(style.role).to_string(),
+                text: fonts.fallback_char(style.role).to_string(),
                 style: replacement,
             });
         }

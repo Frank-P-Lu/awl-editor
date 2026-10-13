@@ -87,6 +87,12 @@ impl App {
     fn run_native_panel(&mut self, id: &str, exit: &dyn schedule::Exit) {
         use crate::keymap::Action;
         let action = crate::menu::resolve(id);
+        if self.workspace_state.layer() == workspace::Layer::PdfExport {
+            if let Some(action) = action {
+                self.apply(action, false, exit, crate::stats::Door::Menu);
+            }
+            return;
+        }
         let location = action
             .as_ref()
             .and_then(crate::overlay::native_consumer_for_action);
@@ -125,9 +131,7 @@ impl App {
                 }
             }
             (Some(Action::ExportPdf), Some(crate::overlay::LocationConsumer::NativeExportPdf)) => {
-                if self.export_via_platform_panel(crate::export::Format::Pdf) {
-                    self.request_frame();
-                }
+                self.apply(Action::ExportPdf, false, exit, crate::stats::Door::Menu);
             }
             (None, None) => {}
             (None, Some(_)) => unreachable!("a native location route needs a catalog action"),
