@@ -1,5 +1,6 @@
 //! Retain empty source lines omitted by the CommonMark event stream.
 use super::{Block, Frame, accept_block};
+use pulldown_cmark::{Event, TagEnd};
 
 #[derive(Default)]
 pub(super) struct SourceSpacing {
@@ -7,6 +8,25 @@ pub(super) struct SourceSpacing {
 }
 
 impl SourceSpacing {
+    pub fn before(
+        &mut self,
+        src: &str,
+        event: &Event<'_>,
+        range: &std::ops::Range<usize>,
+        stack: &mut [Frame],
+    ) {
+        if !matches!(event, Event::End(_)) {
+            self.advance(src, range.start, stack);
+        }
+        if !matches!(event, Event::Start(_) | Event::End(_)) {
+            self.consume(range.end);
+        }
+        // Item gaps belong to the item, before it closes into a List frame.
+        if matches!(event, Event::End(TagEnd::Item)) {
+            self.advance(src, range.end, stack);
+        }
+    }
+
     pub fn consume(&mut self, end: usize) {
         self.cursor = self.cursor.max(end);
     }

@@ -3,6 +3,13 @@ use super::fixture::NoImages;
 use super::parser::Pdf;
 use crate::export::{PdfAppearance, PdfDocument, PdfOptions, PdfPaper};
 
+const PAPERS_AND_BREAKS: [(PdfPaper, bool); 4] = [
+    (PdfPaper::A4, true),
+    (PdfPaper::A4, false),
+    (PdfPaper::Letter, true),
+    (PdfPaper::Letter, false),
+];
+
 fn letter() -> String {
     let mut text = String::from(concat!(
         "# A letter across pages\n\nDear reader,\nWelcome to this synthetic letter.\n",
@@ -55,12 +62,7 @@ fn representative_theme_letters_keep_both_papers_and_continuation_pages() {
             .iter()
             .position(|theme| theme.name == name)
             .unwrap();
-        for (paper, preserve) in [
-            (PdfPaper::A4, true),
-            (PdfPaper::A4, false),
-            (PdfPaper::Letter, true),
-            (PdfPaper::Letter, false),
-        ] {
+        for (paper, preserve) in PAPERS_AND_BREAKS {
             let document = PdfDocument::build(
                 &markdown,
                 &NoImages,
