@@ -539,8 +539,9 @@ pub(super) struct WashCache {
     /// UNDERLINE both ride ([`TextPipeline::link_underlines`], positioned by
     /// `super::spans::link_underline_band` — the SAME line-band primitive
     /// `strike_line_band` rides, just a different vertical fraction). A sixth
-    /// bucket of the SAME cache/build walk.
-    link_underline_protos: std::cell::RefCell<Vec<UnderlineProto>>,
+    /// bucket of the SAME cache/build walk. Each segment also retains its
+    /// shaped baseline's displacement from the document face's ordinary cell.
+    link_underline_protos: std::cell::RefCell<Vec<(UnderlineProto, f32)>>,
     japanese_emphasis_protos: std::cell::RefCell<Vec<UnderlineProto>>,
 }
 
@@ -1573,7 +1574,7 @@ impl TextPipeline {
             let Some(rows) = rows_by_line.get(&li) else {
                 continue; // unreachable: every requested line gets rows
             };
-            for row in rows {
+            for (row_index, row) in rows.iter().enumerate() {
                 let rs = s_col.max(row.start_col);
                 let re = e_col.min(row.end_col);
                 if re <= rs {
@@ -1602,7 +1603,10 @@ impl TextPipeline {
                     Bucket::Highlight => highlight_protos.push(proto),
                     Bucket::CodePill => code_pill_protos.push(proto),
                     Bucket::Strike => strike_protos.push(proto),
-                    Bucket::LinkUnderline => link_underline_protos.push(proto),
+                    Bucket::LinkUnderline => {
+                        let shift = self.link_baseline_shift(li, row_index, row.line_height);
+                        link_underline_protos.push((proto, shift));
+                    }
                 }
             }
         }
@@ -1799,7 +1803,7 @@ impl TextPipeline {
         let doc_top = self.doc_top();
         let text_left = self.text_left();
         let mut out = Vec::with_capacity(protos.len());
-        for p in protos.iter() {
+        for (p, baseline_shift) in protos.iter() {
             let line_top = doc_top + p.line_top;
             if !self.proto_visible(line_top, p.line_height) {
                 continue; // off-screen: the quad would be clipped to nothing
@@ -1807,7 +1811,8 @@ impl TextPipeline {
             let x = text_left + p.xs_s;
             let w = (p.xs_e - p.xs_s).max(m.px(DECOR_MIN_W));
             let (band_y, cell_h) = self.row_band_for(p.line, p.line_height, line_top);
-            let (y, band_h, stroke) = super::spans::link_underline_band(band_y, cell_h, m.scale);
+            let (y, band_h, stroke) =
+                super::spans::link_underline_band(band_y + baseline_shift, cell_h, m.scale);
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
             }
@@ -1822,6 +1827,21 @@ impl TextPipeline {
             });
         }
         out
+    }
+
+    /// Keep the authored ordinary-row gap, but follow the baseline when larger
+    /// indentation or a fallback face changes the row's ascent/descent balance.
+    fn link_baseline_shift(&self, line: usize, row: usize, height: f32) -> f32 {
+        let Some(layout) = self.buffer.lines.get(line).and_then(|l| l.layout_opt()) else {
+            return 0.0;
+        };
+        let Some(shaped) = layout.get(row) else {
+            return 0.0;
+        };
+        let (ascent, descent) = facepitch::vertical_em_metrics(self.shaped_font);
+        let size = self.metrics.font_size * self.caret_band_scale(line, height);
+        let ordinary_baseline = (height + size * (ascent - descent)) * 0.5;
+        geometry::layout_baseline_offset(shaped, self.metrics.line_height) - ordinary_baseline
     }
 
     fn ensure_fence_panel_protos(&self) {

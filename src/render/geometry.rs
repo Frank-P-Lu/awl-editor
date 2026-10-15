@@ -505,6 +505,15 @@ pub(super) fn visual_row_from_run(
     )
 }
 
+/// Baseline relative to a shaped row's top, matching cosmic-text's LayoutRun.
+pub(super) fn layout_baseline_offset(
+    row: &glyphon::cosmic_text::LayoutLine,
+    default_height: f32,
+) -> f32 {
+    let height = row.line_height_opt.unwrap_or(default_height);
+    (height - (row.max_ascent + row.max_descent)) * 0.5 + row.max_ascent
+}
+
 /// Assemble a visual row from the fields shared by a document `LayoutRun` and
 /// one line's cached `LayoutLine`. This keeps the retained-row patch and the
 /// full document walk on the same glyph-to-column mapping.
@@ -1047,7 +1056,6 @@ impl TextPipeline {
         let mut rows = Vec::with_capacity(layout.len());
         for lline in layout.iter() {
             let line_height = lline.line_height_opt.unwrap_or(self.metrics.line_height);
-            let glyph_height = lline.max_ascent + lline.max_descent;
             rows.push(LocalVisualRow {
                 row: visual_row_from_glyphs(
                     line_text,
@@ -1056,7 +1064,7 @@ impl TextPipeline {
                     line_height,
                     self.metrics.char_width,
                 ),
-                baseline_offset: (line_height - glyph_height) * 0.5 + lline.max_ascent,
+                baseline_offset: layout_baseline_offset(lline, self.metrics.line_height),
             });
         }
         (!rows.is_empty()).then_some(rows)
