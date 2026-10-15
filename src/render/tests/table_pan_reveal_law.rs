@@ -179,6 +179,10 @@ fn growing_a_selection_into_a_panned_table_never_moves_the_other_rows() {
         crate::theme::set_active_by_name(world.name).unwrap();
         p.sync_theme();
         let table_start = seed_panned_table(&mut p, &device, &queue);
+        // Compare settled table layout; navigation ink may still occupy an
+        // untouched row while the caret moves from the previous world's view.
+        p.settle_caret();
+        p.prepare(&device, &queue, w, h).unwrap();
         let mut prev_frame = render_frame(&mut p, &device, &queue, w, h);
         let mut prev_xray: Vec<usize> = Vec::new();
 
@@ -196,6 +200,8 @@ fn growing_a_selection_into_a_panned_table_never_moves_the_other_rows() {
             p.table_pan = Some((table_start, 300.0));
             p.prepare(&device, &queue, w, h).unwrap();
             let xray: Vec<usize> = p.xray.iter().map(|x| x.line).collect();
+            p.settle_caret();
+            p.prepare(&device, &queue, w, h).unwrap();
             let frame = render_frame(&mut p, &device, &queue, w, h);
 
             for line in [HEADER_LINE, DIVIDER_LINE].into_iter().chain(BODY_LINES) {

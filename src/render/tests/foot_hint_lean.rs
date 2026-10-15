@@ -34,8 +34,110 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
-use super::{headless_dqp, view};
+use super::{headless_dqp as shared_headless_dqp, view};
 use crate::overlay::OverlayKind;
+
+/// Geometry sweeps stage atlas/uniform writes without drawing a frame. Keep
+/// their retained pipeline upload lifecycle explicit at each measured cell.
+fn footer_trace(stage: &str, w: u32, h: u32) {
+    if std::env::var_os("AWL_FOOTER_TRACE").is_some() {
+        let thread = std::thread::current();
+        eprintln!(
+            "footer trace test={} stage={stage} size={w}x{h} time={:?}",
+            thread.name().unwrap_or("unnamed"),
+            std::time::SystemTime::now()
+        );
+    }
+}
+
+fn footer_serial() -> crate::testlock::SerialGuard {
+    footer_trace("serial waiting", 0, 0);
+    let guard = crate::testlock::serial();
+    footer_trace("serial acquired", 0, 0);
+    guard
+}
+
+fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
+    footer_trace("headless_dqp enter", w as u32, h as u32);
+    let result = shared_headless_dqp(w, h);
+    footer_trace("headless_dqp exit", w as u32, h as u32);
+    result
+}
+
+fn geometry_prepare(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    w: u32,
+    h: u32,
+) {
+    if std::env::var_os("AWL_FOOTER_TRACE").is_some() {
+        footer_trace(
+            &format!(
+                "cell world={} title={:?} rows={} dpi={} menu_bar={}",
+                crate::theme::active_index(),
+                p.overlay_title,
+                p.overlay_items.len(),
+                p.dpi,
+                crate::menubar::menu_bar_on()
+            ),
+            w,
+            h,
+        );
+    }
+    footer_trace("prepare enter", w, h);
+    p.prepare(device, queue, w, h).unwrap();
+    footer_trace("prepare exit; submit enter", w, h);
+    let submitted = queue.submit(std::iter::empty());
+    footer_trace("submit exit; poll enter", w, h);
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: Some(submitted),
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .expect("footer geometry uploads must complete within the finite drain budget");
+    footer_trace("poll exit", w, h);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn retained_footer_cells_bound_live_upload_buffers() {
+    let _g = footer_serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping retained_footer_cells_bound_live_upload_buffers: no wgpu adapter");
+        return;
+    };
+    assert!(crate::gpu_alloc::probe(&device).responds(crate::gpu_alloc::Class::Buffers));
+    let submitted = queue.submit(std::iter::empty());
+    device
+        .poll(wgpu::PollType::Wait {
+            submission_index: Some(submitted),
+            timeout: Some(std::time::Duration::from_secs(10)),
+        })
+        .unwrap();
+    for _ in 0..4 {
+        p.set_view(&picker(OverlayKind::Theme, 14, "warm footer "));
+        geometry_prepare(&mut p, &device, &queue, 1200, 800);
+    }
+    let base = crate::gpu_alloc::live(&device).buffers;
+    let mut peak = 0;
+    for cell in 0..128 {
+        p.set_view(&picker(
+            OverlayKind::Theme,
+            14,
+            &format!("footer cell {cell} "),
+        ));
+        geometry_prepare(&mut p, &device, &queue, 1200, 800);
+        peak = peak.max(crate::gpu_alloc::live(&device).buffers - base);
+    }
+    let last = crate::gpu_alloc::live(&device).buffers - base;
+    eprintln!("footer retained uploads: 128 cells peak={peak} last={last}");
+    // Read before a final submission could conceal an unbounded sweep.
+    assert!(
+        peak <= 4 && last <= 4,
+        "footer sweep retained uploads: peak={peak} last={last}"
+    );
+}
 
 /// THE PRESENCE FLOOR on the hint's own shaped ink, in physical px at 1×. The
 /// roster's real values sit around 340 px for the standard
@@ -230,7 +332,7 @@ fn grade_on_the_spines_line(g: &Graded, dpi: f32, ctx: &str) -> f32 {
 /// a foot that re-derived the constant would lean further than the spine beside it.
 #[test]
 fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     assert!(
         !worlds.is_empty(),
@@ -270,7 +372,7 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
                     for kind in hinted_kinds() {
                         let v = picker(kind, rows, label);
                         p.set_view(&v);
-                        p.prepare(&device, &queue, cw, ch).unwrap();
+                        geometry_prepare(&mut p, &device, &queue, cw, ch);
                         let ctx = format!("{world}/{kind:?} dpi={dpi} {shape} menu_bar={bar}");
                         let g = grade(&p, cw).unwrap_or_else(|| {
                             panic!(
@@ -318,7 +420,7 @@ fn the_foot_band_hangs_on_the_line_the_drawn_spine_takes() {
 /// about the mirror.
 #[test]
 fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let directions: Vec<theme::DiagonalDirection> = crate::theme::THEMES
         .iter()
@@ -350,7 +452,7 @@ fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
         for kind in hinted_kinds() {
             let v = picker(kind, 14, "candidate row ");
             p.set_view(&v);
-            p.prepare(&device, &queue, 1200, 800).unwrap();
+            geometry_prepare(&mut p, &device, &queue, 1200, 800);
             let geom = p.overlay_geometry(1200);
             let plan = p.overlay_row_plan(&geom);
             let foot = p
@@ -397,7 +499,7 @@ fn the_foot_band_hangs_on_the_same_spine_end_a_row_name_does() {
 /// reaches is a clamp no law has run.
 #[test]
 fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let entry = crate::theme::active_index();
     let mut graded = 0usize;
@@ -413,7 +515,7 @@ fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
             for kind in hinted_kinds() {
                 let v = picker(kind, 14, "candidate row ");
                 p.set_view(&v);
-                p.prepare(&device, &queue, lw, 800).unwrap();
+                geometry_prepare(&mut p, &device, &queue, lw, 800);
                 let Some(g) = grade(&p, lw) else { continue };
                 let ctx = format!("{world}/{kind:?} width={lw}");
                 assert!(
@@ -469,7 +571,7 @@ fn the_foot_bands_ink_stays_inside_the_text_column_at_every_width() {
 /// PNGs and sidecars).
 #[test]
 fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = upright_worlds();
     assert!(
         worlds.len() > 10,
@@ -491,7 +593,7 @@ fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
             for kind in hinted_kinds() {
                 let v = picker(kind, 14, "candidate row ");
                 p.set_view(&v);
-                p.prepare(&device, &queue, 1200, 800).unwrap();
+                geometry_prepare(&mut p, &device, &queue, 1200, 800);
                 let geom = p.overlay_geometry(1200);
                 let plan = p.overlay_row_plan(&geom);
                 let ctx = format!("{world}/{kind:?} menu_bar={bar}");
@@ -530,7 +632,7 @@ fn an_upright_world_seats_its_foot_band_at_the_cards_own_text_edge() {
 /// this band's non-interactive nature leaves no hit-test to provide.
 #[test]
 fn the_hints_glyphs_are_drawn_in_the_band_the_placement_claims() {
-    let _g = crate::testlock::serial();
+    let _g = footer_serial();
     let worlds = leaning_worlds();
     let entry = crate::theme::active_index();
     let mut graded = 0usize;

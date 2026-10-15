@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Real descendants witness the hosted watchdog's process-group contract."""
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+
+sys.dont_write_bytecode = True
+
+SCRIPT = Path(__file__).resolve().parent / 'ci-wedge-budget.sh'
+
+class BudgetLaws(unittest.TestCase):
+    def run_case(self, mode, cancel=False):
+        with tempfile.TemporaryDirectory(prefix='awl-wedge-law-') as raw:
+            root = Path(raw)
+            cargo = root / 'cargo'
+            cargo.write_text('''#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+from pathlib import Path
+root=Path(os.environ['LAW_ROOT'])
+mode=os.environ['LAW_MODE']
+if mode == 'fail': sys.exit(23)
+if mode == 'pass': sys.exit(0)
+if mode == 'kill': os.kill(os.getpid(), signal.SIGKILL)
+child=subprocess.Popen([sys.executable,'-c',"import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+(root/'child').write_text(str(child.pid))
+if mode in ('early', 'survive') or mode.startswith('ps-'): sys.exit(0)
+while True: time.sleep(.1)
+''')
+            cargo.chmod(0o755)
+            env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'], LAW_ROOT=raw, LAW_MODE=mode)
+            command = ['bash', str(SCRIPT), 'mac', 'render::tests::', '0.7']
+            if mode == 'survive':
+                harness = root / 'survive.py'
+                harness.write_text("""import importlib.util, json, os, signal, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+record=Path(sys.argv[2]);calls=[]
+def retain_group(pgid,sig):
+    # Fault injection: the real group remains alive through TERM and KILL.
+    calls.append([pgid,sig])
+    record.write_text(json.dumps(calls))
+owner.os.killpg=retain_group
+sys.argv=['owner','mac','render::tests::','0.7']
+status,_=owner.main()
+sys.exit(status)
+""")
+                command = ['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(root/'signals')]
+            if mode.startswith('ps-'):
+                harness = root / 'inspection.py'
+                harness.write_text("""import importlib.util, json, os, subprocess, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+record=Path(sys.argv[2]);calls=[];real_killpg=os.killpg
+failures={'ps-missing':FileNotFoundError('ps missing'),
+          'ps-failed':subprocess.CalledProcessError(1,['ps']),
+          'ps-timeout':subprocess.TimeoutExpired(['ps'],2)}
+failure=failures[os.environ['LAW_MODE']]
+def unavailable(_pgid): raise failure
+def terminate_group(pgid,sig):
+    calls.append([pgid,sig]);record.write_text(json.dumps(calls))
+    return real_killpg(pgid,sig)
+owner.executing_group=unavailable
+owner.os.killpg=terminate_group
+sys.argv=['owner','mac','render::tests::','0.7']
+status,_=owner.main()
+sys.exit(status)
+""")
+                command = ['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(root/'signals')]
+            proc = subprocess.Popen(command, env=env, start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            child = None
+            try:
+                if mode not in ('pass','fail','kill'):
+                    deadline=time.monotonic()+4
+                    while not (root/'child').exists() and time.monotonic()<deadline: time.sleep(.02)
+                    self.assertTrue((root/'child').exists(), 'fixture child started')
+                    child=int((root/'child').read_text())
+                if cancel: proc.send_signal(signal.SIGTERM)
+                output, _ = proc.communicate(timeout=8)
+                if child:
+                    # Zombies are terminal: no executing child survives the wrapper.
+                    state=subprocess.run(['ps','-o','stat=','-p',str(child)], capture_output=True,text=True).stdout.strip()
+                    if mode == 'survive':
+                        import json
+                        calls = json.loads((root/'signals').read_text())
+                        self.assertEqual([call[1] for call in calls], [signal.SIGTERM, signal.SIGKILL])
+                        self.assertEqual(calls[0][0], calls[1][0])
+                        cargo = subprocess.run(['ps','-o','stat=','-p',str(calls[0][0])], capture_output=True,text=True).stdout.strip()
+                        self.assertFalse(cargo, 'Cargo itself must already be reaped')
+                        self.assertTrue(state and not state.startswith('Z'), 'real descendant must survive both grace periods')
+                    else:
+                        self.assertTrue(not state or state.startswith('Z'), f'descendant {child} still executing ({state}): {output}')
+                    if mode.startswith('ps-'):
+                        import json
+                        calls = json.loads((root/'signals').read_text())
+                        self.assertEqual([call[1] for call in calls], [signal.SIGTERM, signal.SIGKILL])
+                        self.assertEqual(calls[0][0], calls[1][0])
+                return proc.returncode, output
+            finally:
+                if child:
+                    try: os.kill(child,signal.SIGKILL)
+                    except ProcessLookupError: pass
+                try: os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError: pass
+                proc.wait(timeout=3)
+                proc.stdout.close()
+
+    def test_deadline_reaps_the_actual_test_descendant(self):
+        status, output=self.run_case('hang')
+        self.assertEqual(status,137)
+        self.assertIn('HUNG past',output)
+
+    def test_reaped_cargo_cannot_hide_a_group_surviving_both_graces(self):
+        status, output = self.run_case('survive')
+        self.assertNotEqual(status, 0, output)
+        self.assertIn('cleanup incomplete: executing descendants remain', output)
+
+    def test_cargo_exit_cannot_leave_a_test_descendant(self):
+        self.assertEqual(self.run_case('early')[0],0)
+
+    def test_failed_process_inspection_still_terminates_descendants(self):
+        for mode in ('ps-missing', 'ps-failed', 'ps-timeout'):
+            with self.subTest(mode=mode):
+                status, output = self.run_case(mode)
+                self.assertNotEqual(status, 0, output)
+                self.assertIn('cleanup unverified: process-state inspection failed', output)
+
+    def test_caller_termination_cleans_descendants(self):
+        self.assertEqual(self.run_case('hang',cancel=True)[0],143)
+
+    def test_cancellation_during_spawn_retains_process_ownership(self):
+        with tempfile.TemporaryDirectory(prefix='awl-wedge-spawn-law-') as raw:
+            root = Path(raw)
+            harness = root / 'spawn.py'
+            harness.write_text("""import importlib.util, os, signal, subprocess, sys
+from pathlib import Path
+spec=importlib.util.spec_from_file_location('owner',sys.argv[1])
+owner=importlib.util.module_from_spec(spec);spec.loader.exec_module(owner)
+real=subprocess.Popen
+pid_file=Path(sys.argv[2])
+def spawn(*args,**kwargs):
+    child=real([sys.executable,'-c','import time; time.sleep(60)'],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    pid_file.write_text(str(child.pid))
+    owner.subprocess.Popen=real
+    # Deliver cancellation after creation, before Popen returns to its owner.
+    os.kill(os.getpid(),signal.SIGTERM)
+    return child
+owner.subprocess.Popen=spawn
+sys.argv=['owner','mac','render::tests::','2']
+status,_=owner.main()
+sys.exit(status)
+""")
+            pid_file = root / 'pid'
+            proc = subprocess.Popen(['python3','-B',str(harness),str(SCRIPT.parent/'ci-wedge-process.py'),str(pid_file)], start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            child = None
+            try:
+                output, _ = proc.communicate(timeout=8)
+                self.assertTrue(pid_file.exists(), output)
+                child = int(pid_file.read_text())
+                state = subprocess.run(['ps','-o','stat=','-p',str(child)], capture_output=True,text=True).stdout.strip()
+                self.assertTrue(not state or state.startswith('Z'), f'spawned process {child} escaped cancellation ({state})')
+                self.assertEqual(proc.returncode,143,output)
+            finally:
+                if child is None and pid_file.exists(): child=int(pid_file.read_text())
+                if child:
+                    try: os.killpg(child,signal.SIGKILL)
+                    except ProcessLookupError: pass
+                try: os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError: pass
+                proc.wait(timeout=3)
+                proc.stdout.close()
+
+    def test_sigkill_before_deadline_is_not_a_watchdog_timeout(self):
+        status, output = self.run_case('kill')
+        self.assertEqual(status, 137)
+        self.assertNotIn('HUNG past', output)
+        self.assertIn('failed before watchdog deadline', output)
+
+    def test_ordinary_exit_status_is_preserved(self):
+        self.assertEqual(self.run_case('pass')[0],0)
+        self.assertEqual(self.run_case('fail')[0],23)
+
+if __name__ == '__main__': unittest.main()
