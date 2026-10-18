@@ -1,22 +1,8 @@
 name: release
 
-# Cuts a GitHub Release. Builds three things — native arm64 and x86_64 macOS
-# apps/DMGs, Linux downloads, and a zipped web (trunk) bundle. A tag publishes
-# both signed/notarized macOS DMGs and both Linux downloads.
-#
-# Triggers:
-#   - push of a `v*` tag        -> real release, artifacts attached to the tag's GH Release
-#   - workflow_dispatch          -> manual run, with a `dry_run` input
-#
-# dry_run (default true on manual dispatch): when true, OR when the run was
-# NOT triggered by a tag push, every job builds and uploads its artifacts as
-# a plain workflow-run artifact (Actions "Artifacts" tab) instead of
-# attaching to a GitHub Release — so you can green-check the whole pipeline
-# with zero tags and zero releases created. Signing/notarizing on the mac
-# job is independently gated on its own secrets (see below) — a dry run
-# with no signing secrets configured produces an UNSIGNED .app + .dmg, which
-# is the default nonpublishing rehearsal. The explicit credentialed rehearsal
-# exercises signing/notarization without a tag and still cannot publish.
+# Manual dispatch uses hosted builders and explicit preview/stable selection.
+# dry_run=true is nonpublishing; signing additionally requires explicit opt-in.
+# Legacy v-tag/local staging remains a fallback until hosted signing is proven.
 
 on:
   push:
@@ -25,9 +11,14 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run (skip GitHub Release attach; upload as workflow artifacts instead)"
+        description: "Rehearse only (false deliberately publishes the selected channel from main)"
         type: boolean
         default: true
+      channel:
+        description: "Release channel (preview marks a prerelease; stable marks a full release)"
+        type: choice
+        options: [preview, stable]
+        default: preview
       credentialed_macos_rehearsal:
         description: "Sign and notarize macOS during this nonpublishing manual run"
         type: boolean
@@ -39,7 +30,7 @@ on:
         default: false
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-pipeline
   cancel-in-progress: false
 
 # The repository's default workflow permission is READ. Every build job is
@@ -51,14 +42,6 @@ permissions:
   contents: read
 
 jobs:
-  # Single source of truth for "is this a real release" so every job (and
-  # the final publish step) agrees.
-  #
-  # Note what this does NOT read: the `dry_run` input. Only a `v*` TAG PUSH
-  # can ever set is_release, so `-f dry_run=false` on a manual dispatch is
-  # inert — a manual run cannot publish, whatever the box says. That is the
-  # safety property, kept deliberately; the input survives as documentation
-  # of intent.
   plan:
     name: plan
     runs-on: ubuntu-latest
@@ -67,50 +50,17 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       sign_macos: ${{ steps.plan.outputs.sign_macos }}
       local_macos: ${{ steps.plan.outputs.local_macos }}
-      # Pre-1.0 is a beta, marked prerelease on the GitHub Release — the
-      # rule is "major version 0", the same discriminator a v1.0.0 launch
-      # flips by construction. Computed from the tag's own version rather
-      # than hand-set per release, so the flag can't drift from the version
-      # string it describes.
       is_prerelease: ${{ steps.plan.outputs.is_prerelease }}
+      channel: ${{ steps.plan.outputs.channel }}
     steps:
-      # Manual rehearsals use the exact checked-out package version too. Keeping
-      # a nonnumeric "dryrun" suffix out of the app's Info.plist is required by
-      # Apple's bundle-version formats; tag runs still take VERSION from the tag.
       - uses: actions/checkout@v7
-
       - id: plan
-        run: |
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            MAJOR="${VERSION%%.*}"
-            if [ "$MAJOR" -lt 1 ] 2>/dev/null; then
-              IS_PRERELEASE=true
-            else
-              IS_PRERELEASE=false
-            fi
-            {
-              echo "local_macos=true"
-              echo "is_release=true"
-              echo "version=$VERSION"
-              echo "sign_macos=true"
-              echo "is_prerelease=$IS_PRERELEASE"
-            } >> "$GITHUB_OUTPUT"
-          else
-            VERSION="$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("Cargo.toml").read_text())["package"]["version"])')"
-            if [ "${{ inputs.credentialed_macos_rehearsal }}" = "true" ]; then
-              SIGN_MACOS=true
-            else
-              SIGN_MACOS=false
-            fi
-            {
-              echo "local_macos=${{ inputs.local_macos_rehearsal == true }}"
-              echo "is_release=false"
-              echo "version=$VERSION"
-              echo "is_prerelease=true"
-              echo "sign_macos=$SIGN_MACOS"
-            } >> "$GITHUB_OUTPUT"
-          fi
+        run: python3 scripts/release-plan.py plan
+
+  checks:
+    name: Exact source correctness
+    needs: plan
+    uses: ./.github/workflows/ci.yml
 
   extended:
     name: Pre-release journeys
@@ -122,7 +72,7 @@ jobs:
   mac:
     name: mac (arm64 + x86_64 .apps + .dmgs)
     if: needs.plan.outputs.local_macos != 'true'
-    needs: [plan, extended]
+    needs: [plan, checks, extended]
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -181,8 +131,8 @@ jobs:
       #   APPLE_API_KEY_ID     App Store Connect API key id
       #   APPLE_API_ISSUER     App Store Connect API issuer id
       #   APPLE_API_KEY_B64    base64-encoded .p8 API key file
-      # A tag and an explicit credentialed rehearsal both fail closed when
-      # any credential is missing. The default manual dry run remains unsigned.
+      # Publication and credentialed rehearsals fail closed when any credential
+      # is missing. The default nonpublishing rehearsal remains unsigned.
       - name: Check signing secrets
         id: signing
         env:
@@ -314,6 +264,7 @@ jobs:
             dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg.sha256
             dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.app.zip
             dist-mac/awl-${{ needs.plan.outputs.version }}-macos-x86_64.app.zip.sha256
+          if-no-files-found: error
           retention-days: 14
 
       - name: Remove temporary signing keychain
@@ -324,7 +275,7 @@ jobs:
 
   mac-staged:
     name: mac (verify locally signed downloads)
-    needs: [plan, extended]
+    needs: [plan, checks, extended]
     if: needs.plan.outputs.local_macos == 'true'
     runs-on: macos-latest
     timeout-minutes: 15
@@ -370,7 +321,7 @@ jobs:
 
   linux:
     name: linux (release tar.gz)
-    needs: [plan, extended]
+    needs: [plan, checks, extended]
     # THE GLIBC FLOOR IS SET HERE AND NOWHERE ELSE — whichever image builds
     # this job decides which systems can run the download. `ubuntu-latest`
     # (24.04, glibc 2.39) excluded Debian 12, Ubuntu 22.04 LTS and RHEL 9 over
@@ -472,6 +423,7 @@ jobs:
             dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.tar.gz.sha256
             dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage
             dist-linux/awl-${{ needs.plan.outputs.version }}-linux-x86_64.AppImage.sha256
+          if-no-files-found: error
           retention-days: 14
 
   web:
@@ -521,16 +473,16 @@ jobs:
         with:
           name: awl-web
           path: dist-web/awl-web-dist.zip
+          if-no-files-found: error
           retention-days: 14
 
   prepare-release:
     name: prepare release payload
-    # This job deliberately runs on manual dry runs as well as tags. It is the
-    # rehearsal for the artifact download/layout/checksum work that used to be
-    # hidden behind the tag-only publish condition.
-    needs: [plan, mac, mac-staged, linux]
+    # Rehearsals and publication consume the same immutable verified payload.
+    needs: [plan, checks, extended, mac, mac-staged, linux]
     if: >-
-      !cancelled() && needs.plan.result == 'success' && needs.linux.result == 'success' &&
+      !cancelled() && needs.plan.result == 'success' && needs.checks.result == 'success' &&
+      needs.extended.result == 'success' && needs.linux.result == 'success' &&
       ((needs.mac.result == 'success' && needs.mac-staged.result == 'skipped') ||
        (needs.mac.result == 'skipped' && needs.mac-staged.result == 'success'))
     runs-on: ubuntu-latest
@@ -559,17 +511,25 @@ jobs:
         with:
           name: awl-release-payload
           path: release/
+          if-no-files-found: error
           retention-days: 14
 
   publish:
     name: publish GitHub Release
-    needs: [plan, prepare-release]
+    needs: [plan, checks, extended, prepare-release]
     if: needs.plan.outputs.is_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Refuse existing releases or mismatched tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release-plan.py check-publication
       - uses: actions/download-artifact@v8
         with:
           name: awl-release-payload
@@ -578,20 +538,15 @@ jobs:
       - name: Verify prepared payload
         run: (cd release && sha256sum -c SHA256SUMS)
 
-      # The release body IS the install page — a reader arrives here from the
-      # site's Download link and must not have to guess. `body` (not
-      # `body_path`) keeps it beside the file list it describes;
-      # `fail_on_unmatched_files` is the difference between a failed run and a
-      # published Release with nothing attached to it. `prerelease` is the
-      # ONLY thing on this step that is not a version string but must still
-      # track the version: pre-1.0 publishes marked prerelease, computed
-      # once in `plan` from the same tag so it can't disagree with the
-      # version above it.
-      - name: softprops/action-gh-release
+      - name: Upload verified bytes to a draft
         uses: softprops/action-gh-release@v3
         with:
+          draft: true
           tag_name: v${{ needs.plan.outputs.version }}
+          target_commitish: ${{ github.sha }}
           prerelease: ${{ needs.plan.outputs.is_prerelease }}
+          make_latest: false
+          overwrite_files: false
           fail_on_unmatched_files: true
           body: |
             **macOS Apple Silicon (arm64).** Download the Apple Silicon DMG.
@@ -653,3 +608,16 @@ jobs:
             release/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg
             release/awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg
             release/SHA256SUMS
+
+      - name: Verify GitHub asset digests before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release-plan.py check-uploaded
+
+      - name: Publish verified draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          PRERELEASE: ${{ needs.plan.outputs.is_prerelease }}
+          LATEST: ${{ needs.plan.outputs.channel == 'stable' }}
+        run: gh release edit "v$VERSION" --draft=false --prerelease="$PRERELEASE" --latest="$LATEST" --repo "$GITHUB_REPOSITORY"

@@ -34,19 +34,24 @@ runner is required here so core runtime execution cannot be skipped. The final
 HEAD and working tree must still be unchanged. This is one composed gate, not
 permission to replace required coverage with filtered tests.
 
-CI preserves the current required Linux, Mac non-render, wasm and Mac live-probe
-jobs. Linux invokes native-gate.sh once; its redundant standalone complete health
-invocation is removed. Web remains its own platform job, and push profile parity
-remains blocking. The Mac rendering and AT-SPI jobs retain their existing declared
-tolerances and visible gap reports. Local Metal/software Vulkan does not certify
-hosted virtualized Metal. Do not run complete health immediately before the
-native gate just to repeat it. Workers deliver targeted evidence; combine their
-changes and gate the final candidate, not every worker branch by default.
+CI retains the Linux, Mac non-render, wasm and Mac live-probe job identities.
+Linux runs complete code health and tooling laws once, dependency policy, all
+non-render unit/integration targets under both conventions, and the alternate
+menu-bar policy. Mac retains both non-render convention suites and native Clippy.
+Wasm compilation and Node runtime smoke remain blocking; a missing runner fails.
+Main pushes retain blocking debug/release parity. The Mac live probe continues
+to gate main/manual/release calls and skip PRs. Per-change CI no longer issues a
+full-native receipt: the unfiltered Linux gate now runs nightly and before releases.
+Mac rendering and AT-SPI diagnostics move to nightly with their existing declared
+tolerances, watchdogs and visible job names. The web distribution build also moves
+to nightly; wasm correctness remains per-change. Coverage placement and limitations
+are mapped in [ci-release-migration.md](ci-release-migration.md).
 
 Layer 3 is broader overnight and pre-release validation.
 Extended verification runs daily at **03:17 UTC** on the default branch, or manually
 through `extended-verification.yml` with mode overnight/pre-release. It is also
-called by the nonpublishing and tagged release workflow before package jobs.
+called by nonpublishing and publishing release runs before package jobs. Release
+runs additionally call the per-change CI workflow on their exact source commit.
 Both hosted Linux and macOS build release once, sweep the binary's complete world
 roster at both DPI values using `scripts/verify.sh extended --bin
 target/release/awl --jobs 1`, then run a longer 120-second live GPU launch.
@@ -54,7 +59,9 @@ Journey inputs use the host convention, including Linux Ctrl-End for document
 end; the existing `AWL_CONVENTION_FORCE` fixture door reproduces either convention
 locally. Typed text, Shift chords and every pixel/state assertion are preserved.
 A finding or failed app contract fails that job; there is no new tolerated-failure
-arm. The existing full unit/integration suites are not duplicated overnight.
+arm. The bounded full Linux native gate runs once here, with both conventions,
+integration targets and existing menu-bar coverage. It remains unfiltered.
+The fast non-render subset is necessarily also exercised by this broader gate.
 
 The release workflow then validates its actual artifacts: the executables inside
 the mounted arm64 and x86_64 Mac DMGs, the extracted Linux tarball binary, and

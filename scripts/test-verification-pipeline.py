@@ -41,11 +41,24 @@ def wiring_errors(ci: str, release: str, extended: str, verifier: str | None = N
         if "uses: ./.github/actions/project-rust" not in c.get(name, ""):
             errors.append(f"project Rust activation lost: {name}")
     linux = c.get("linux", "")
-    if linux.count("run: scripts/native-gate.sh") != 1 or "run: bash scripts/code-health.sh" in linux:
-        errors.append("Linux must run one native gate and no duplicate complete health")
+    if linux.count("run: bash scripts/code-health.sh") != 1 or "run: scripts/native-gate.sh" in linux:
+        errors.append("fast Linux must run health once; the full gate belongs to nightly")
+    nightly = e.get("linux", "")
+    if nightly.count("run: scripts/native-gate.sh") != 1 or "AWL_NATIVE_GATE_DEADLINE_EPOCH=" not in nightly:
+        errors.append("nightly must retain one bounded full native gate")
+    for name in ("mac-render-tests", "atspi"):
+        if name in c or "continue-on-error: true" not in e.get(name, ""):
+            errors.append(f"tolerated diagnostic lost from nightly or returned to fast CI: {name}")
+    if "trunk build --release" in ci or "trunk build --release" not in e.get("web-bundle", ""):
+        errors.append("release web bundle must run nightly")
+    for convention in ("mac", "linux"):
+        if f"env AWL_CONVENTION_FORCE={convention} cargo test -- --skip render::tests" not in linux:
+            errors.append(f"fast Linux correctness lost: {convention}")
+    if "env AWL_MENU_BAR_FORCE=off cargo test --bin awl -- --skip render::tests" not in linux:
+        errors.append("fast Linux alternate menu-bar policy lost")
     for job, command in [
         ("linux", "run: scripts/release-profile-gate.sh"),
-        ("web", "run: scripts/web-smoke.sh"),
+        ("web", "          scripts/web-smoke.sh"),
         ("mac-live-probe", "run: scripts/ci-live-probe.sh 25"),
     ]:
         if command not in c.get(job, ""):
@@ -68,9 +81,21 @@ def wiring_errors(ci: str, release: str, extended: str, verifier: str | None = N
         errors.append("broader findings must fail")
     if "uses: ./.github/workflows/extended-verification.yml" not in r.get("extended", ""):
         errors.append("release journey prerequisite lost")
-    for job in ["mac", "linux"]:
-        if "needs: [plan, extended]" not in r.get(job, ""):
+    if "uses: ./.github/workflows/ci.yml" not in r.get("checks", "") or "workflow_call:" not in ci:
+        errors.append("release must gate the exact source through reusable CI")
+    for job in ["mac", "mac-staged", "linux"]:
+        if "needs: [plan, checks, extended]" not in r.get(job, ""):
             errors.append(f"release {job} no longer waits for journeys")
+    publish = r.get("publish", "")
+    for command in ("needs: [plan, checks, extended, prepare-release]",
+                    "if: needs.plan.outputs.is_release == 'true'",
+                    "run: python3 scripts/release-plan.py check-publication",
+                    "run: (cd release && sha256sum -c SHA256SUMS)",
+                    "overwrite_files: false", "target_commitish: ${{ github.sha }}",
+                    "draft: true", "run: python3 scripts/release-plan.py check-uploaded",
+                    'run: gh release edit "v$VERSION" --draft=false'):
+        if command not in publish:
+            errors.append(f"publication safety lost: {command}")
     for job, artifact in [
         ("linux", '$UNPACK/awl-$VERSION-linux-x86_64/awl'),
         ("linux", '$PWD/dist-linux/awl-$VERSION-linux-x86_64.AppImage'),
@@ -237,15 +262,21 @@ class WorkflowWiring(unittest.TestCase):
         release = (ROOT / ".github/workflows/release.yml").read_text()
         extended = (ROOT / ".github/workflows/extended-verification.yml").read_text()
         self.assertEqual(wiring_errors(ci, release, extended), [])
-        for text, bad in [
-            (ci, ci.replace("run: scripts/native-gate.sh", "# run: scripts/native-gate.sh")),
-            (ci, ci.replace("run: scripts/web-smoke.sh", "run: true")),
-            (ci, ci.replace("run: scripts/native-gate.sh", "run: bash scripts/code-health.sh")),
-            (ci, ci.replace("    name: linux (build + test)", "    continue-on-error: true\n    name: linux (build + test)")),
+        for bad in [
+            ci.replace("run: bash scripts/code-health.sh", "# run: bash scripts/code-health.sh"),
+            ci.replace("          scripts/web-smoke.sh", "          true"),
+            ci.replace("run: bash scripts/code-health.sh", "run: scripts/native-gate.sh"),
+            ci.replace("    name: linux (build + test)", "    continue-on-error: true\n    name: linux (build + test)"),
+            ci.replace("AWL_CONVENTION_FORCE=linux", "AWL_CONVENTION_FORCE=mac"),
         ]:
-            self.assertNotEqual(text, bad)
+            self.assertNotEqual(ci, bad)
             self.assertTrue(wiring_errors(bad, release, extended))
-        self.assertTrue(wiring_errors(ci, release.replace("needs: [plan, extended]", "needs: plan"), extended))
+        self.assertTrue(wiring_errors(ci, release.replace("needs: [plan, checks, extended]", "needs: plan"), extended))
+        for lost in ("uses: ./.github/workflows/ci.yml", "overwrite_files: false",
+                     "run: (cd release && sha256sum -c SHA256SUMS)",
+                     "run: python3 scripts/release-plan.py check-publication"):
+            self.assertTrue(wiring_errors(ci, release.replace(lost, "true"), extended))
+        self.assertTrue(wiring_errors(ci, release, extended.replace("run: scripts/native-gate.sh", "run: true")))
         self.assertTrue(wiring_errors(ci, release, extended.replace("--jobs 1", "--jobs 1 --worlds Saltpan")))
         self.assertTrue(wiring_errors(ci, release.replace("--binary", "--missing-binary"), extended))
         self.assertTrue(wiring_errors(ci, release.replace("macos-arm64.dmg", "macos-universal.dmg"), extended))

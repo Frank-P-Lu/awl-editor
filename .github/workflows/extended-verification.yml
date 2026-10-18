@@ -62,3 +62,128 @@ jobs:
           path: gallery/pretag/
           if-no-files-found: error
           retention-days: 7
+
+  linux:
+    name: linux (full native suite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Runner death clock
+        run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 5100 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: scripts/linux-build-deps.sh test
+
+      - uses: ./.github/actions/project-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      - name: Install code-health tools
+        run: cargo install cargo-machete --version "$(bash scripts/code-health.sh --cargo-machete-version)" --locked
+
+      - name: Install dependency-policy tool
+        run: cargo install cargo-deny --version "$(bash scripts/audit.sh --cargo-deny-version)" --locked
+
+      - name: Dependency policy
+        run: bash scripts/audit.sh
+
+      - name: cargo build
+        run: cargo build
+
+      - name: native full suite
+        run: scripts/native-gate.sh
+
+      - name: Debug/release sidecar parity
+        run: scripts/release-profile-gate.sh
+
+  atspi:
+    name: "atspi (AT-SPI2 bridge liveness) — allowed failure"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          scripts/linux-build-deps.sh --timeout 5m run \
+            xvfb fluxbox dbus at-spi2-core xdotool \
+            gir1.2-atspi-2.0 python3-gi
+
+      - uses: ./.github/actions/project-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: atspi
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      - name: cargo build
+        run: cargo build
+
+      - name: AT-SPI bridge probe
+        run: scripts/ci-atspi-budget.sh target/debug/awl 180
+
+  mac-render-tests:
+    name: "mac (render::tests) — tolerated failure"
+    runs-on: macos-latest
+    timeout-minutes: 90
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/project-rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+
+      - name: cargo build
+        run: cargo build
+
+      - name: render::tests (mac convention) — allowed to hang or fail
+        timeout-minutes: 35
+        run: "scripts/ci-wedge-budget.sh mac render::tests:: 1500"
+
+      - name: render::tests (linux convention) — allowed to hang or fail
+        timeout-minutes: 35
+        run: "scripts/ci-wedge-budget.sh linux render::tests:: 1500"
+
+  web-bundle:
+    name: web release bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/project-rust
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-web
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+      - name: Install wasm-bindgen-cli + trunk
+        run: |
+          cargo install wasm-bindgen-cli --version 0.2.121 --locked
+          cargo install trunk --locked
+      - name: Build web distribution
+        run: scripts/with-remap.sh trunk build --release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
