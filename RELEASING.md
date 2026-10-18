@@ -1,20 +1,15 @@
 # RELEASING.md — cutting a release + deploying the website
 
-Three GitHub Actions workflows. Two are release/deploy pipelines, both
-`workflow_dispatch` (deliberate, never automatic): `.github/workflows/deploy-web.yml`
-(the site + `/editor/` demo, on Fly.io) and `.github/workflows/release.yml`
-(macOS / Linux / web downloadable artifacts, on a `v*` tag push or a manual dry
-run). The third, `.github/workflows/ci.yml`, runs automatically on every push /
-pull request (linux build + test, wasm build + smoke) — the merge gate, not a
-release step. This doc is the one-time setup for the two release pipelines, plus
-how to actually cut a release.
+Per-change correctness runs in `ci.yml`. The deeper nightly suite runs in
+`extended-verification.yml` at 03:17 UTC. `release.yml` calls both suites for its
+exact source commit, then builds and verifies the downloads. Preview and stable
+use the same hosted signing, notarization, final-package launch and checksum path.
+The website remains a separate deliberate `deploy-web.yml` operation.
 
-**A tag publishes Linux and macOS downloads.** The macOS job is fail-closed:
-it requires all signing and notarization credentials, signs the native arm64 and
-x86_64 apps, waits for both notarizations, staples them, validates Gatekeeper,
-and verifies both final versioned DMGs before `publish` can run. The web job
-remains dry-run only because the website is its distribution. §5 is the pre-tag
-checklist.
+Manual release dispatch defaults to a nonpublishing rehearsal. Publishing requires
+`dry_run=false`, an explicit preview/stable selection, and a run from `main`.
+Existing local staging and tag publishing remain migration fallbacks; they are
+not required by the hosted path. See [coverage and migration](docs/ci-release-migration.md).
 
 ## Graphics support
 
@@ -26,17 +21,17 @@ CI remains useful for correctness checks, not interactive performance acceptance
 
 ## 1. Apple signing and notarization
 
-Apple signing and notarization setup is complete. The workflow implements the
-signed path; a credentialed hosted rehearsal and its results remain to be verified
-before a release. Tags require signing and
-notarization; a missing credential fails the macOS job and blocks publication.
-A default manual dry run produces unsigned arm64 and x86_64 apps and DMGs without
-publishing. An explicit credentialed rehearsal exercises both signed paths
-without a tag or GitHub Release. The steps below document setup and renewal.
-Both rehearsals use `Cargo.toml`'s numeric package version for artifact names and
-`CFBundleShortVersionString`. `CFBundleVersion` is a separate positive Apple
-build version, `${{ github.run_number }}.0.0` in the release workflow; this keeps
-both plist fields valid during the same notarization path a tag will use.
+The workflow implements hosted signing, but availability of the five GitHub
+Apple secrets must be checked by an authorized owner. Local credentials do not
+establish hosted readiness. Missing credentials fail closed for publication or a
+credentialed rehearsal. The default rehearsal never imports signing credentials.
+Do not create, export, copy or configure credentials, keychain permissions or
+repository access without separate specific approval.
+
+Both rehearsal and publication use the numeric `Cargo.toml` package version for
+artifact names and `CFBundleShortVersionString`. `CFBundleVersion` is the separate
+positive `${{ github.run_number }}.0.0` Apple build version. The following existing
+setup/renewal procedure is reference material, not authorization to execute it.
 
 **(a) Export your Developer ID Application certificate as a `.p12`:**
 
@@ -98,46 +93,46 @@ writes generated output into `site/editor/` or commits it.
 
 **Downloadable artifacts (Linux + macOS):**
 
-```sh
-# 1. on the final combined main, prove debug/release state parity
-scripts/release-profile-gate.sh
-# 2. bump Cargo.toml's package.version if this is a real version bump
-# 3. work §5's checklist, then tag and push
-git tag v0.9.0
-git push origin v0.9.0
-```
-
-The tag push builds the Linux tarball and AppImage plus native arm64 and x86_64
-macOS apps. Each app is signed with Developer ID, notarized, stapled, and
-packaged as `awl-<version>-macos-arm64.dmg` or
-`awl-<version>-macos-x86_64.dmg`. A separate preparation job always depends on
-both platform jobs, verifies their producer checksums, selects exactly those
-four public downloads, and builds and verifies one `SHA256SUMS`. It runs on dry
-runs too. Only GitHub Release creation is tag-gated, and it consumes that
-prepared payload. The workflow-only app zips are never selected for publication.
-
-**Dry run (no tag, nothing published) — verify the pipeline is healthy:**
+After the version bump and §5 checklist, start a nonpublishing cloud rehearsal:
 
 ```sh
-gh workflow run release.yml -f dry_run=true
+gh workflow run release.yml --ref main -f dry_run=true -f channel=preview
 gh run watch
 ```
 
-All three build jobs run, then `prepare-release` downloads the named Linux and
-macOS artifacts, verifies their producer checksums, and uploads the exact public
-layout as `awl-release-payload`. `publish` is skipped, and no tag or release is
-created. The macOS output is unsigned by default.
+This runs the reusable correctness suite, full native suite, world/DPI journeys,
+web bundle and diagnostics, then builds both native Mac DMGs and both Linux
+packages. The default Mac rehearsal is unsigned. `prepare-release` verifies
+producer hashes, selects exactly four public downloads, and uploads
+`awl-release-payload` with `SHA256SUMS`. Nothing is published.
 
-**Credentialed macOS rehearsal (still no tag and nothing published):**
+After separately approved credential setup, rehearse the signed hosted path:
 
 ```sh
-gh workflow run release.yml -f dry_run=true -f credentialed_macos_rehearsal=true
-gh run watch
+gh workflow run release.yml --ref main -f dry_run=true -f channel=preview -f credentialed_macos_rehearsal=true
 ```
 
-This opts the manual run into the same signing, notarization, staple, Gatekeeper,
-DMG-content, checksum, and size gates used by a tag. Manual dispatch can never
-set `is_release`, so even this credentialed path cannot create a GitHub Release.
+Only after that succeeds and the user authorizes publication, use the same
+workflow with `dry_run=false` and `channel=preview` or `channel=stable`. Preview
+marks a GitHub prerelease; stable marks a full release and latest. The version
+comes from `Cargo.toml`; the workflow creates its `v<version>` tag at the tested
+source SHA. Existing releases and tags pointing at another commit are refused.
+A rerun cannot replace an existing release's assets. Upload first creates a draft;
+GitHub's asset digests and sizes must match all four packages and SHA256SUMS
+before that draft is made public. A failure leaves the draft for investigation.
+
+The publication run builds its own packages, signs/notarizes/staples the Mac apps,
+then verifies the apps mounted from the final DMGs, including both native
+architectures, pinned team, source/version identity, Gatekeeper, presentation,
+recovery and size. Linux launches use the extracted tarball and actual AppImage
+entry point. Producer checksums bind these final files into the prepared payload;
+publication rechecks that payload and uploads the same bytes without repackaging.
+A rehearsal's packages are evidence, not promoted into a later publication run.
+
+The existing `v*` tag fallback continues to consume locally staged signed DMGs.
+It now requires the same exact-source correctness and nightly suites and requires
+the tag version to match `Cargo.toml`. Keep this fallback until the hosted signed
+replacement has been demonstrated and its retirement is separately agreed.
 
 **Locally, without GitHub** — the packaging steps alone, against any Linux build:
 
@@ -169,10 +164,10 @@ treat a missing licence file as a hard failure, not a warning.
 
 | Artifact | Where |
 |---|---|
-| `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `awl-<version>-macos-arm64.dmg` + `awl-<version>-macos-x86_64.dmg` + `SHA256SUMS` (covering all four) | GitHub Release (tag) |
+| `awl-<version>-linux-x86_64.tar.gz` + `awl-<version>-linux-x86_64.AppImage` + `awl-<version>-macos-arm64.dmg` + `awl-<version>-macos-x86_64.dmg` + `SHA256SUMS` (covering all four) | GitHub Release (deliberate publication or legacy tag) |
 | same two files + their own `.sha256`s | workflow artifact `awl-linux` (dry run — `<version>` is the checked-out `Cargo.toml` package version) |
-| versioned arm64 and x86_64 app zips + DMGs + their `.sha256`s | workflow artifact `awl-macos` (unsigned on the default dry run; both signed/notarized on tags and credentialed rehearsals; only the DMGs are public) |
-| exact four-download public layout + verified `SHA256SUMS` | workflow artifact `awl-release-payload` (dry runs and tags; only a tag hands it to GitHub Release creation) |
+| versioned arm64 and x86_64 app zips + DMGs + their `.sha256`s | workflow artifact `awl-macos` (unsigned on the default rehearsal; signed/notarized on publication and credentialed rehearsals; only the DMGs are public) |
+| exact four-download public layout + verified `SHA256SUMS` | workflow artifact `awl-release-payload` (dry runs and tags; only an authorized publication run hands it to GitHub Release creation) |
 | `awl-web-dist.zip` (the `trunk build --release` output) | workflow artifact `awl-web` — **dry run only**, never attached to a Release |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
@@ -296,7 +291,7 @@ the same offer. `scripts/package-linux.sh` and `scripts/package-appimage.sh`
 both exit non-zero on any missing file in that set; `scripts/package-macos.sh`
 warns, because it must stay runnable against an older checkout.
 
-## Local Mac signing without GitHub Apple secrets
+## Local Mac signing fallback without GitHub Apple secrets
 
 Use a clean dedicated checkout of the final verified commit. Existing Developer
 ID and App Store Connect credentials stay on the owner Mac. The helper never
@@ -330,7 +325,7 @@ The existing journey prerequisites and four-download payload checks still apply.
 
 After the nonpublishing staged rehearsal and exact-commit required CI pass, the
 explicitly authorized final `v` tag consumes those same staged DMGs. The default
-unsigned and GitHub-credentialed manual rehearsals remain available. The public
+hosted path uses manual preview/stable selection and does not require this staging. The public
 DMGs contain signed, notarized and stapled apps; the disk-image containers are
 not themselves notarized. App ZIPs remain diagnostic workflow artifacts.
 

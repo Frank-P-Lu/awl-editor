@@ -5,302 +5,105 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   linux:
     name: linux (build + test)
+    needs: [linux-health, linux-correctness]
+    if: always()
     runs-on: ubuntu-latest
-    # ‼ THIS CEILING COVERS A COLD CACHE. THE NUMBER IT REPLACED DID NOT, AND
-    # THE COMMENT THAT SET IT SAID SO IN WORDS THE MEASUREMENT CONTRADICTS. The
-    # old text here read "about 35 minutes on a cold hosted runner"; every job
-    # in that baseline had in fact restored `Swatinem/rust-cache` with
-    # `full match: true`, so `Install sccache` cost 0s and `cargo build` 14s.
-    # 35-37 minutes is this job's WARM cost, and the ceiling derived from it had
-    # never once seen a cold run.
-    #
-    # rust-cache mixes the exact rustc version and commit into its key and
-    # Upgrading rust-toolchain.toml invalidates this job's cache. Previously
-    # following stable invalidated it on every toolchain release. The run that
-    # first exceeded the old ceiling
-    # was the first on a new stable after a baseline of four on the previous
-    # one, and its restore step says `No cache found.` Measured on that run,
-    # step by step: sccache from source 4m25s (warm 0s), code health 6m07s
-    # (3m59s), the dependency-policy install 1m52s, `cargo build` 5m13s (14s) —
-    # 18m59s to reach the suite against 5m01s warm — and inside the gate its own
-    # phase clock puts `compile-finished` 274s later than warm. Projected cold
-    # total 54m18s. Per-TEST cost was not the difference: unit shards whose test
-    # count was unchanged still ran 4.7-10.4% slower under the cold compile's
-    # load, and the one shard that grew ran 8.7% slower — inside that band.
-    #
-    # 75 leaves roughly 38% headroom over that measured cold run. It is a
-    # BACKSTOP, not the hang bound: the first step arms the gate's own budget
-    # below it, so a genuine hang ends as a readable failure, not a cancellation.
-    timeout-minutes: 75
+    timeout-minutes: 2
     steps:
-      # THE RUNNER DEATH CLOCK. First step, so the epoch is the job's own start
-      # rather than whatever point the suite happens to begin at — which is why
-      # `native-gate.sh` takes an ABSOLUTE deadline as well as a duration (its
-      # own comment: the duration form starts when the script starts, a
-      # different point on the clock that actually kills the job).
-      #
-      # An exhausted budget makes the gate name its phase, dump its process
-      # groups and exit non-zero — an ordinary FAILURE, which is verification.
-      # `timeout-minutes` instead CANCELS, which is no verification at all, and
-      # a cancelled job additionally skips every post step: the expensive cold
-      # `target/` it just built is never saved, so the next run is cold too.
-      # That trap is self-perpetuating, and is how one timeout becomes a streak.
-      - name: Runner death clock
-        run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 4200 ))" >> "$GITHUB_ENV"
+      - name: Require every Linux lane
+        env:
+          HEALTH_RESULT: ${{ needs.linux-health.result }}
+          TEST_RESULT: ${{ needs.linux-correctness.result }}
+        run: test "$HEALTH_RESULT" = success && test "$TEST_RESULT" = success
 
+  linux-health:
+    name: linux health and dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
       - uses: actions/checkout@v7
         with:
-          # code-health's checked-in debt baseline is a real commit, not a
-          # regenerated ignore list, so this job needs that one object.
           fetch-depth: 0
-
-      # System deps mirror Dockerfile.linux's apt-get list, PLUS
-      # mesa-vulkan-drivers so the wgpu-backed capture tests have a software
-      # Vulkan adapter to run against on a headless GitHub runner (there is
-      # no real GPU here).
-      #
-      # ‼ THIS IS NOT A VIRTUALISED-GPU ARM; measurement established that rather
-      # than assuming it. lavapipe is a CPU rasteriser: each process gets its
-      # own llvmpipe in its own address space, with no driver-internal pipeline
-      # table and nothing shared between processes. The wedge is a
-      # SYSTEM-WIDE contention (two processes with two separate wgpu devices
-      # stopped within 10 ms of each other), so there is no resource here for
-      # it to exhaust. The evidence, not the argument: this job ran the same
-      # `scripts/native-gate.sh` — full suite, both conventions, every
-      # `render::tests::` — green on the very commits where `mac` hung, for the
-      # full long-running wedge investigation. A local arm64 lavapipe container
-      # agrees: every termination is a prompt, diagnosable SIGKILL, never the hosted
-      # runner's park-forever-in-poll. So this arm buys real Linux/Vulkan
-      # coverage and buys NOTHING on the virtualised-GPU axis; do not cite it as
-      # that axis's arm. The `mac` job below is it.
-      #
-      # ‼ WHAT THAT CONTAINER *DID* SEE under a
-      # FIXED 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS
-      # up monotonically and is OOM-killed — and how far it gets is exactly
-      # commit-correlated. The same suite peaks at 448 MiB
-      # on the dev host's Metal (CLAUDE.md's gate note), so this is not portable
-      # as an RSS number — but it makes the residual suspects
-      # (per-call `glyphon::Cache` + `TextAtlas`, `offscreen()` textures and
-      # readback buffers, reclaimed only on poll) made visible and deterministic
-      # in ~4 local minutes. It does NOT prove that bounding the growth would
-      # have prevented the hang; nothing measured here says that.
-      # The package names live in scripts/linux-deps.sh, the one owner shared
-      # with release.yml's linux job, Dockerfile.linux and the from-source
-      # bootstrap. `test` is BUILD + the Vulkan driver: this job runs the suite
-      # against lavapipe, so it needs a driver that Dockerfile.linux does not.
       - name: Install system dependencies
         run: scripts/linux-build-deps.sh test
-
       - uses: ./.github/actions/project-rust
-
-      # `cache-on-failure`, for the same reason the mac wedge job carries it:
-      # rust-cache saves only on success by default, so a red run discards the
-      # `target/` it just built. That costs most on the run that built it COLD,
-      # which is also the run most likely to be red for a timing reason.
-      # (It does not cover a CANCELLED job — post steps do not run at all
-      # there — which is why the death clock above turns an over-run into a
-      # failure instead.)
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-on-failure: true
-
-      # sccache installs AFTER the cache restore, so the registry/target cache
-      # is already in place for cargo-machete and cargo-deny (installed right
-      # after) regardless of what this step does. install-sccache.sh itself
-      # fetches mozilla/sccache's own prebuilt release binary for this host's
-      # (OS, arch), verified by a hardcoded SHA256, rather than compiling it
-      # via `cargo install` — a supported host pays about a second for this
-      # step on EVERY run, cache warm or cold, because the download replaces
-      # the ~4-7 wall-minute source build outright rather than depending on
-      # rust-cache having carried a previous `~/.cargo/bin/sccache` forward.
-      # Only a host outside the pinned (OS, arch) table, or a download that
-      # fails outright, falls through to that original from-source cost.
+          shared-key: linux
+          save-if: false
       - name: Install sccache
         run: scripts/install-sccache.sh
-
-      # The health command owns its exact tool version and every check. CI only
-      # installs that requested checker before invoking the shared entry point.
+      - name: Policy tool versions
+        id: policy-tools
+        run: |
+          echo "machete=$(bash scripts/code-health.sh --cargo-machete-version)" >> "$GITHUB_OUTPUT"
+          echo "deny=$(bash scripts/audit.sh --cargo-deny-version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/cargo-machete
+            ~/.cargo/bin/cargo-deny
+          key: policy-tools-${{ env.ImageOS }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ steps.policy-tools.outputs.machete }}-${{ steps.policy-tools.outputs.deny }}
       - name: Install code-health tools
-        run: cargo install cargo-machete --version "$(bash scripts/code-health.sh --cargo-machete-version)" --locked
-
-      # The shared wrapper owns the pinned cargo-deny version and every
-      # dependency-policy decision; CI must not restate policy in YAML.
+        env:
+          TOOL_VERSION: ${{ steps.policy-tools.outputs.machete }}
+        run: |
+          if ! cargo machete --version 2>/dev/null | grep -Fxq "$TOOL_VERSION"; then
+            cargo install cargo-machete --version "$TOOL_VERSION" --locked
+          fi
       - name: Install dependency-policy tool
-        run: cargo install cargo-deny --version "$(bash scripts/audit.sh --cargo-deny-version)" --locked
-
+        env:
+          TOOL_VERSION: ${{ steps.policy-tools.outputs.deny }}
+        run: |
+          if ! cargo deny --version 2>/dev/null | grep -Fq "$TOOL_VERSION"; then
+            cargo install cargo-deny --version "$TOOL_VERSION" --locked
+          fi
       - name: Dependency policy
         run: bash scripts/audit.sh
-
-      # Dev-profile build + test, matching local practice (CLAUDE.md's build
-      # section runs `cargo build` / `cargo test`, not --release). No
-      # artifact upload for v1 — nothing built here is `--release`, and
-      # speed matters more than a dev binary nobody will download.
-      - name: cargo build
-        run: cargo build
-
-      # The canonical native gate owns its integration canary, both supported
-      # conventions, and exact-commit receipt. Do not reconstruct this here:
-      # `cargo test --bin awl` is binary unit tests, not the full native suite.
-      - name: native full suite
-        run: scripts/native-gate.sh
-
-      # A push is the combined-main train. Pull requests/worktree landings keep
-      # the fast dev-only loop; once the train is assembled, compare one real
-      # headless replay per ActionFamily across debug and release sidecars.
+      - name: Rust code health and tooling laws
+        run: bash scripts/code-health.sh
       - name: Debug/release sidecar parity
         if: github.event_name == 'push'
         run: scripts/release-profile-gate.sh
 
-  # ── AT-SPI bridge liveness — separate from `linux`, deliberately ─────────────
-  # Question this answers, narrowly: does AccessKit's Unix adapter actually
-  # register with the AT-SPI2 accessibility bus on real Linux and publish the
-  # tree `SemanticSnapshot` intends — the document's STABLE LINE
-  # RUNS, focus, and a live selection? `ACCESSIBILITY.md:65` names AT-SPI2 as
-  # the Linux half of AccessKit's platform backend and states plainly that no
-  # AT-SPI journey has ever been run against it, and the stable handler
-  # rewrote both the activation handler and the document's shape without any
-  # Linux gate able to see either change. This job is bridge LIVENESS AND
-  # STRUCTURE, mechanically, on every push/PR — `scripts/ci-atspi-probe.py`
-  # has the actual assertions and their rationale.
-  #
-  # ‼ THIS DOES NOT CLOSE THE HUMAN JOURNEY. There is no Orca here, no
-  # human, no ears — a hosted runner has no desktop session for a screen
-  # reader to sit in front of. The probe asserts STRUCTURE over the AT-SPI
-  # wire (roles, children, text, focus, a keyboard-driven selection); it says
-  # nothing about what a screen reader user would hear or how navigation
-  # feels. It still needs a human at a real Linux
-  # desktop.
-  #
-  # TOLERATED, not gating. ‼ THIS WAS NOT A PRODUCT DEFECT — IT WAS THIS
-  # PROBE ASSERTING A SHAPE ACCESSKIT DELIBERATELY DOES NOT PUBLISH. The arm
-  # asserted `document.get_child_count() == 4` and went red on every run;
-  # `accesskit_consumer::common_filter` returns ExcludeNode for
-  # `Role::TextRun`, and BOTH backends compute their exposed tree with that
-  # same function, so a document whose children are all text runs correctly
-  # exposes ZERO accessible children on Linux and on macOS alike. Its text
-  # reaches a screen reader through the text interface instead, which is what
-  # the probe now asserts, at LINE granularity so it still fails on the
-  # pre-218 monolith. `GetChildAtIndex(0)` returning None agreed with
-  # ChildCount because the filter applies through both doors — corroboration
-  # of the filter, not of a defect.
-  #
-  # It stays tolerated for one more reason only: the repaired probe has never
-  # run. No local gate on macOS reaches AT-SPI, so this job is its own first
-  # instrument. Promote to gating once it runs GREEN on `main` for a stretch —
-  # a conscious decision, not automatic, exactly as the eventual fix
-  # promotes `mac-render-tests`. `continue-on-error` is set at the JOB level.
-  #
-  # The awl-side half of this contract is pinned by a law that measures it
-  # against accesskit_consumer rather than reading it off the source:
-  # `the_platform_filters_text_runs_out_of_the_documents_accessible_children`
-  # in src/app/frame/accessibility/tests.rs. If accesskit ever stops filtering
-  # Role::TextRun, that law goes red and this comment is what explains why.
-  atspi:
-    name: "atspi (AT-SPI2 bridge liveness) — allowed failure"
+  linux-correctness:
+    name: linux correctness (${{ matrix.convention }} convention)
+    strategy:
+      fail-fast: false
+      matrix:
+        convention: [mac, linux]
     runs-on: ubuntu-latest
-    # BACKSTOP only: `continue-on-error` tolerates a job that FAILS, not
-    # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
-    # than fails. `scripts/ci-atspi-budget.sh` converts a hung probe into an
-    # ordinary non-zero exit well before this fires; this stays only for the
-    # different failure it exists for — the runner losing communication with
-    # the server — set generously above that script's own budget.
-    #
-    # A short ceiling can expire during the build, before the budget begins.
-    # 30, matching the shape of the other jobs, leaves real
-    # margin above build + budget.
-    timeout-minutes: 30
-    continue-on-error: true
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-
-      # Build deps mirror the `linux` job's list (including mesa-vulkan-
-      # drivers — awl is a real wgpu/Vulkan window even under Xvfb) plus the
-      # AT-SPI stack: xvfb (virtual display), fluxbox (xdotool's keyboard
-      # injection needs real X11 input focus, which bare Xvfb does not
-      # reliably grant), dbus (dbus-run-session, for accessibility-bus
-      # activation), at-spi2-core (at-spi-bus-launcher + at-spi2-registryd),
-      # xdotool (drives the live selection keystroke), and the GI Atspi
-      # client bindings the probe script uses.
-      #
-      # libxkbcommon-x11-0 is NOT pulled in by libxkbcommon-dev: it's a
-      # separate runtime package for the X11 keymap module, which winit's X11
-      # backend dlopens at startup (the xkbcommon-dl crate). `linux` never
-      # needed it — that job runs headless, with no X11 display, so the
-      # dlopen path is never reached. This job is the first arm to put a
-      # built awl in front of a real X server. It reaches the from-source
-      # bootstrap and the shipped README.txt through linux-deps.sh's DEB
-      # RUNTIME group, which both compose; it had to be hand-applied to each
-      # of them in the round that found it, which is why that file exists.
-      # This step is where a rare apt-get stall against the package mirror
-      # can consume the ENTIRE job budget, so the AT-SPI probe below may
-      # never get a chance to run at all, let alone hang — its own
-      # step recorded `skipped`, because `cargo build` was still mid-compile
-      # when the job's 30-minute ceiling cancelled it. `timeout` (not a
-      # step-level `timeout-minutes`, which cancels rather than fails and so
-      # still dominates the run — see ci-atspi-budget.sh's own comment on
-      # the same distinction) turns a repeat of that stall into an ordinary
-      # tolerated FAILURE within minutes, not a job-dominating CANCELLED at
-      # the 30-minute ceiling. 5m per call is generous headroom over the
-      # ~15-35s this step normally takes across a wide sample of runs.
-      #
-      # `--timeout` is passed INTO the script rather than wrapped around it,
-      # and that is load-bearing: `timeout` signals the child it forked, so
-      # `sudo timeout 5m scripts/linux-build-deps.sh` would make that child
-      # bash, which does not forward the signal to the apt-get it is waiting
-      # on. The script reassembles the exact `sudo timeout 5m apt-get …`
-      # command line this step used to spell out; its own header carries the
-      # full sudo/timeout ordering argument.
-      #
-      # Profile `run`, not `test`: this is the one arm that puts a built awl in
-      # front of a REAL X server, so it needs the RUNTIME group — which is
-      # where libxkbcommon-x11-0 lives. Naming that package here instead would
-      # be a second copy of a name scripts/linux-deps.sh already owns, so the
-      # only thing spelled out is the AT-SPI test rig, which is genuinely
-      # specific to this job and belongs to no distro roster.
+        with:
+          fetch-depth: 0
       - name: Install system dependencies
-        run: |
-          scripts/linux-build-deps.sh --timeout 5m run \
-            xvfb fluxbox dbus at-spi2-core xdotool \
-            gir1.2-atspi-2.0 python3-gi
-
+        run: scripts/linux-build-deps.sh test
       - uses: ./.github/actions/project-rust
-
       - uses: Swatinem/rust-cache@v2
         with:
-          key: atspi
-
-      # This job's own rust-cache never carries `cache-on-failure`, and the
-      # probe below fails by design (a known-flaky liveness check, allowed to
-      # fail) — so the cache here has never once saved across a run, and this
-      # step used to pay the full `cargo install sccache` cost EVERY time, not
-      # just on a cold toolchain bump. install-sccache.sh's prebuilt-binary
-      # path (see the linux job's comment) makes that irrelevant: the step
-      # costs about a second regardless of whether the cache above hit.
+          shared-key: linux
+          cache-on-failure: true
+          save-if: ${{ matrix.convention == 'linux' }}
       - name: Install sccache
         run: scripts/install-sccache.sh
-
-      # Dev-profile build, matching the `linux` job — this arm is not
-      # `native-gate.sh` and claims no suite coverage; it exists only to
-      # produce a real binary for the probe to launch.
-      - name: cargo build
-        run: cargo build
-
-      # ci-atspi-budget.sh, not ci-atspi-probe.sh directly (the split's
-      # wedge-budget pattern, reused): a hang inside the probe must become an
-      # ordinary failed step, never a cancelled one. 180s is generous — the
-      # probe's own internal deadlines (30s app-appears, 10s focus, 10s
-      # selection) sum to well under a minute, plus Xvfb/fluxbox startup and
-      # xdotool calls.
-      - name: AT-SPI bridge probe
-        run: scripts/ci-atspi-budget.sh target/debug/awl 180
+      - name: Core correctness, pixel regressions and menu policy
+        env:
+          CONVENTION: ${{ matrix.convention }}
+        run: python3 scripts/ci-linux-tests.py "$CONVENTION"
 
   web:
     name: web (wasm build + smoke)
@@ -317,9 +120,6 @@ jobs:
         with:
           key: web
 
-      # sccache installs after the cache restore — see the linux job's
-      # comment: install-sccache.sh fetches a prebuilt binary now, so this
-      # costs about a second on every run rather than depending on the cache.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
@@ -327,74 +127,18 @@ jobs:
         with:
           node-version: 20
 
-      # wasm-bindgen-cli's version must match the crate's pinned wasm-bindgen
-      # (Cargo.toml: 0.2.121, see WEB.md). trunk builds the release web
-      # bundle (dist/) for the artifact upload.
-      - name: Install wasm-bindgen-cli + trunk
+      - name: Install wasm-bindgen-cli
         run: |
           cargo install wasm-bindgen-cli --version 0.2.121 --locked
-          cargo install trunk --locked
 
-      # L1 (crate compiles to wasm32) + L2 (src/websmoke.rs
-      # #[wasm_bindgen_test]s run through the node runner) — see
-      # scripts/web-smoke.sh's own header comment for the stage breakdown.
       - name: scripts/web-smoke.sh (L1 + L2)
-        run: scripts/web-smoke.sh
+        run: |
+          command -v wasm-bindgen-test-runner
+          scripts/web-smoke.sh
 
-      # with-remap.sh strips the builder's $HOME/registry paths from the wasm
-      # (rustc bakes compile-time source locations); the uploaded artifact is
-      # public, so it must carry no builder path.
-      - name: trunk build --release
-        run: scripts/with-remap.sh trunk build --release
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: web-dist
-          path: dist/
-          retention-days: 14
-
-  # ── mac, split in two by user decision ──────────────────────────────────────
-  # Measurement asked whether a portable software adapter could stand in for
-  # hosted macOS's virtualised Metal and measured NO on two independent
-  # stacks: the `linux` job's x86_64 lavapipe and a local arm64 lavapipe
-  # container. A CPU
-  # rasteriser has no system-wide GPU resource for a cross-process wedge to
-  # exhaust — two processes with two
-  # separate wgpu devices stopped within 10 ms of each other. So a hosted-mac
-  # job stays the ONLY place awl looks at that axis; no local arm, and no
-  # slower local gate, can substitute.
-  #
-  # A prior recommendation was to gate on the whole job. The USER CHOSE THE
-  # SPLIT instead: gating on a red job would have blocked `main` until the
-  # diagnosis is complete. The discriminating probe
-  # discriminating probe measured that `render::tests::` is the one module
-  # that hangs — `--skip render::tests::` COMPLETED at 2860 tests per
-  # convention in 110 s, while standing up its own device per test and
-  # building ~80,000 GPU programs in aggregate, i.e. doing MORE total GPU
-  # work than the module that hangs. So the split below restores the
-  # distinction the whole red streak erased: a red run now says WHICH half,
-  # by name, instead of "the mac job is red" meaning nothing anyone could act
-  # on.
-  #
-  # `mac` gates immediately: it is `mac (build + test)` minus the one module
-  # remains under diagnosis, and it passes today at no cost. The
-  # isolated module lives in `mac-render-tests` below — tolerated red,
-  # pinned by name in this file, not only on the board. When the diagnosis
-  # lands, that job goes green and is promoted to gating; no further
-  # decision is needed, which is why this shape needs deciding only once.
-  #
-  # `scripts/native-gate.sh` forbids any filter by construction (its receipt
-  # means "unfiltered, both conventions, every target" and nothing else), so
-  # neither job below calls it: each runs `cargo test` directly and neither
-  # claims a "native-gate-receipt". Per CLAUDE.md/README, any filtered
-  # invocation is "targeted tests", never "full native suite" — that
-  # authorization still comes only from a developer's own local run.
   mac:
     name: mac (build + test, minus render::tests)
     runs-on: macos-latest
-    # Both conventions filtered to ~95% of the suite measured at 110 s each
-    # (the hosted-mac wedge); this ceiling is headroom over cold-cache compile, not a
-    # bound this job is expected to approach.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -403,19 +147,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # sccache installs after the cache restore — see the linux job's
-      # comment: install-sccache.sh fetches a prebuilt binary now, so this
-      # costs about a second on every run rather than depending on the cache.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
-      # This job is the only one that ever compiles `cfg(target_os = "macos")`
-      # arms for real (About window, dock-icon adoption, menu bar,
-      # packaging/bundle-identity paths) — the linux job's cross-clippy arm
-      # only reaches the non-mac side. `--clippy-only` runs just the clippy
-      # pass: cargo fmt, code-health.py and cargo-machete already run
-      # tree-wide in the linux job, and repeating them on this pricier
-      # runner would buy no new coverage.
       - name: Rust code health (clippy, mac-only cfg arms)
         run: bash scripts/code-health.sh --clippy-only
 
@@ -428,102 +162,6 @@ jobs:
       - name: cargo test, minus render::tests (linux convention)
         run: env AWL_CONVENTION_FORCE=linux cargo test -- --skip render::tests
 
-  # ── The isolated wedge, tolerated red and pinned by name ────────────────────
-  # This is the ONLY thing this job runs, so a red run here is attributable
-  # to the wedge from this file alone: the hosted macOS runner's virtualised
-  # Metal stack HANGS — does not fail, hangs — inside `render::tests::`,
-  # every libtest worker parking at the same instant and never moving. Signal
-  # A red run here is the wedge signature; do not read it as a new regression
-  # without checking the underlying state, and do not read a green run as fixed
-  # without confirming it stays green — the
-  # exhausted resource still has no confirming measurement (the diagnosis'
-  # entry has the full diagnosis-in-progress).
-  #
-  # `continue-on-error` is set at the JOB level and is the whole point: a red
-  # run here must never fail this workflow.
-  #
-  # ‼ IT TOLERATES A FAILED JOB, NOT A CANCELLED ONE, AND A STEP THAT EXCEEDS
-  # `timeout-minutes` IS CANCELLED RATHER THAN FAILED. Cancellation propagates
-  # to the workflow's conclusion, so relying on the runner's timeout to bound
-  # the hang defeats the split. Measured, not reasoned: the first run after the
-  # split (30825396088) had all four gating jobs green — `mac (build + test,
-  # minus render::tests)`, `linux`, `web`, `mac live-probe` — and still
-  # concluded `cancelled`, because this job hit its step timeout at 60m33s.
-  #
-  # So the hang is bounded INSIDE the step by `scripts/ci-wedge-budget.sh`,
-  # which kills the run and exits non-zero — an ordinary failure, which
-  # `continue-on-error` does tolerate. `timeout-minutes` stays as a BACKSTOP,
-  # set ABOVE that budget, for the different failure it was written for: the
-  # hosted runner losing communication with the server (upstream
-  # actions/runner-images#13882, the same mode the old unsplit job fought at
-  # job-minute 53-62), which no in-process watchdog can survive.
-  mac-render-tests:
-    name: "mac (render::tests) — tolerated failure"
-    runs-on: macos-latest
-    timeout-minutes: 90
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/project-rust
-
-      # `cache-on-failure` stops a red (or hung) run here from making the
-      # NEXT one harder: rust-cache saves only on success by default, and
-      # without this a target/ frozen at a stale commit would force a full
-      # rebuild of the accumulated delta on every subsequent run.
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Install sccache
-        run: scripts/install-sccache.sh
-
-      - name: cargo build
-        run: cargo build
-
-      # `timeout-minutes` here is enforced by the runner agent, not our
-      # shell, so it survives a genuinely hung process. 40 minutes puts each
-      # step comfortably inside the job's 90-minute ceiling with both steps
-      # run, and inside the runner-loss window observed on the old unsplit
-      # job (job-minute 53-62).
-      - name: render::tests (mac convention) — allowed to hang or fail
-        timeout-minutes: 35
-        run: "scripts/ci-wedge-budget.sh mac render::tests:: 1500"
-
-      - name: render::tests (linux convention) — allowed to hang or fail
-        timeout-minutes: 35
-        run: "scripts/ci-wedge-budget.sh linux render::tests:: 1500"
-
-  # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────
-  # GitHub's macos-latest runners are real macOS VMs with a WindowServer, and
-  # the "does a headful awl window PRESENT frames there?" question has been
-  # answered YES: a headful awl window clears the wgpu occlusion gate (an
-  # NSWindow lacking NSWindowOcclusionStateVisible returns Occluded BEFORE
-  # nextDrawable() → presents=0 — see CLAUDE.md's --soak-gpu tripwire) and the
-  # deterministic --soak-gpu stimulus schedule runs its full GPU contract. So
-  # awl's "live-only" bug tier (present/compositor races, redraw-scheduling
-  # gaps) is now reproducible in ordinary CI — and worth GATING on: a
-  # soak-contract regression (frames stop presenting, an injected GPU fault
-  # fails to recover, slideshow-grade degradation) should turn main red here.
-  #
-  # GATING (eyes-open, user decision 2026-07-22): the earlier three
-  # failure-swallowing layers are GONE — the job-level and step-level
-  # `continue-on-error: true`, and `scripts/ci-live-probe.sh`'s terminal
-  # always-`exit 0`. The probe propagates a non-zero exit when the soak fails
-  # its verification contract, and that exit reds the run. Still NOT run on
-  # pull_request (fires on push to main and on manual workflow_dispatch) — a
-  # SEPARATE job from the gating `mac` job, so it gates independently.
-  #
-  # ONE VERDICT: the soak BINARY's exit status is the sole
-  # oracle. `report.passed()` owns every hard gate — a real surface, the
-  # presents FLOOR (>=100), the absolute cycle contract (300/300/150), all three
-  # faults recovered, and live memory samples — and `awl` bails nonzero on any
-  # miss. `ci-live-probe.sh` only launches it and tails the report for humans;
-  # it no longer re-derives a second, script-side pass/fail that could disagree
-  # with the process exit. And the soak now RUNS TO SCHEDULE COMPLETION (bounded
-  # by a 2x-duration grace), so a slightly-slow shared VM that walks the last
-  # ~5% of the schedule late still PASSES instead of being guillotined at the
-  # nominal 25s — the false-red that made every main push fail.
   mac-live-probe:
     name: mac live-probe (free mac-VM tier — gating)
     runs-on: macos-latest
@@ -536,18 +174,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # sccache installs after the cache restore — see the linux job's
-      # comment: install-sccache.sh fetches a prebuilt binary now, so this
-      # costs about a second on every run rather than depending on the cache
-      # — a real saving here specifically, since this job otherwise only runs
-      # a 25s probe.
       - name: Install sccache
         run: scripts/install-sccache.sh
 
-      # Launches a SHORT headful --soak-gpu and propagates the binary's exit
-      # status — the single verdict (presents floor / cycle contract / faults /
-      # recovery / memory all live in report.passed()). A soak-contract failure
-      # exits non-zero and fails this (gating) job; the script only tails the
-      # report for humans.
       - name: live-probe (does the mac VM present frames?)
         run: scripts/ci-live-probe.sh 25

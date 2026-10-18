@@ -56,6 +56,18 @@ fn step<'a>(job: &'a str, name: &str) -> &'a str {
     &rest[..end]
 }
 
+fn release_plan(workflow: &str) -> String {
+    let plan = job(workflow, "plan");
+    if plan.contains("run: python3 scripts/release-plan.py plan") {
+        format!(
+            "{plan}\n{}",
+            without_comments(&read("scripts/release-plan.py"))
+        )
+    } else {
+        plan.to_owned()
+    }
+}
+
 fn release_audit(
     workflow: &str,
     packager: &str,
@@ -70,20 +82,20 @@ fn release_audit(
     let combined_mac = format!("{mac_job}\n{verifier}");
     let mac = combined_mac.as_str();
     let staged = job(&workflow, "mac-staged");
-    let plan = job(&workflow, "plan");
+    let plan = release_plan(&workflow);
     let prepare = job(&workflow, "prepare-release");
     let publish = job(&workflow, "publish");
     let mut failures = Vec::new();
 
-    failures.extend(macos::signing_audit(mac_job, staged, plan, mac));
-    failures.extend(macos::bundle_audit(plan, mac, &packager));
+    failures.extend(macos::signing_audit(mac_job, staged, &plan, mac));
+    failures.extend(macos::bundle_audit(&plan, mac, &packager));
     if !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
         || !mac.contains("awl-${{ needs.plan.outputs.version }}-macos-x86_64.dmg")
         || !mac.contains("$DMG.sha256")
     {
         failures.push("versioned-mac-artifact");
     }
-    if !prepare.contains("needs: [plan, mac, mac-staged, linux]") {
+    if !prepare.contains("needs: [plan, checks, extended, mac, mac-staged, linux]") {
         failures.push("publication-depends-on-mac");
     }
     if !prepare.contains("needs.mac-staged.result == 'success'")
@@ -95,7 +107,7 @@ fn release_audit(
     {
         failures.push("dry-run-prepares-public-payload");
     }
-    if !publish.contains("needs: [plan, prepare-release]")
+    if !publish.contains("needs: [plan, checks, extended, prepare-release]")
         || !publish.contains("name: awl-release-payload")
         || !publish.contains("sha256sum -c SHA256SUMS")
         || !publish.contains("release/awl-${{ needs.plan.outputs.version }}-macos-arm64.dmg")
@@ -107,10 +119,14 @@ fn release_audit(
         failures.push("public-app-zip");
     }
     if !publish.contains("if: needs.plan.outputs.is_release == 'true'")
-        || !plan.contains("github.event_name }}\" = \"push\"")
-        || !plan.contains("refs/tags/v")
+        || !plan.contains("inputs.get('dry_run', True) in (False, 'false')")
+        || !plan.contains("ref != 'refs/heads/main'")
+        || !plan.contains("'sign_macos': publish or credentialed")
+        || !publish.contains("draft: true")
+        || !publish.contains("run: python3 scripts/release-plan.py check-uploaded")
+        || !job(&workflow, "checks").contains("uses: ./.github/workflows/ci.yml")
     {
-        failures.push("manual-run-cannot-publish");
+        failures.push("explicit-verified-publication");
     }
     if packager.matches("create_dmg() {").count() != 1
         || packager.matches("create_dmg \"").count() != 2
@@ -167,7 +183,7 @@ fn release_audit_rejects_each_headline_regression() {
             "missing-credentials-fail-closed",
         ),
         (
-            "needs: [plan, mac, mac-staged, linux]",
+            "needs: [plan, checks, extended, mac, mac-staged, linux]",
             "needs: [plan, linux]",
             "publication-depends-on-mac",
         ),
@@ -175,6 +191,16 @@ fn release_audit_rejects_each_headline_regression() {
             "needs.mac-staged.result == 'success'",
             "needs.mac-staged.result == 'skipped'",
             "dry-run-prepares-public-payload",
+        ),
+        (
+            "run: python3 scripts/release-plan.py plan",
+            "run: true",
+            "explicit-verified-publication",
+        ),
+        (
+            "run: python3 scripts/release-plan.py check-uploaded",
+            "run: true",
+            "explicit-verified-publication",
         ),
         (
             "xcrun stapler validate",

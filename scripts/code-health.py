@@ -1969,10 +1969,11 @@ def main() -> int:
     if args.native_gate_audit:
         failures = native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
-            (ROOT / ".github/workflows/ci.yml").read_text(),
+            (ROOT / ".github/workflows/extended-verification.yml").read_text(),
         )
         failures.extend(
-            mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text())
+            mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text() +
+                            (ROOT / ".github/workflows/extended-verification.yml").read_text())
         )
         if failures:
             print("\n".join(failures), file=sys.stderr)
@@ -2033,11 +2034,12 @@ def main() -> int:
     failures.extend(
         native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
-            (ROOT / ".github/workflows/ci.yml").read_text(),
+            (ROOT / ".github/workflows/extended-verification.yml").read_text(),
         )
     )
     failures.extend(
-        mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text())
+        mac_split_audit((ROOT / ".github/workflows/ci.yml").read_text() +
+                            (ROOT / ".github/workflows/extended-verification.yml").read_text())
     )
     failures.extend(
         workflow_wrapper_bootstrap_audit(

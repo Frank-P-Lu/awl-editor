@@ -34,19 +34,37 @@ runner is required here so core runtime execution cannot be skipped. The final
 HEAD and working tree must still be unchanged. This is one composed gate, not
 permission to replace required coverage with filtered tests.
 
-CI preserves the current required Linux, Mac non-render, wasm and Mac live-probe
-jobs. Linux invokes native-gate.sh once; its redundant standalone complete health
-invocation is removed. Web remains its own platform job, and push profile parity
-remains blocking. The Mac rendering and AT-SPI jobs retain their existing declared
-tolerances and visible gap reports. Local Metal/software Vulkan does not certify
-hosted virtualized Metal. Do not run complete health immediately before the
-native gate just to repeat it. Workers deliver targeted evidence; combine their
-changes and gate the final candidate, not every worker branch by default.
+CI retains the Linux aggregate, Mac non-render, wasm and Mac live-probe job
+identities. The Linux aggregate requires a health job and both independent
+correctness matrix lanes to succeed; failed, cancelled or skipped lanes refuse.
+All three start in parallel on separate runners. Health keeps complete code health,
+tooling stress/failure laws and dependency policy per change. Each convention lane
+compiles every native target, runs every unit test outside `render::tests`, all
+integration targets except the three exhaustive caret matrices, the two existing
+Bombora/Bowerbird pixel regressions, and focused menu-off laws. New integration
+targets join fast CI automatically; missing core/deep targets or pixel regressions
+fail closed. `scripts/ci-linux-tests.py` owns this selection and phase timings.
+
+The three deferred matrices (`caret_mono_grid_pixels`, `caret_punctuation_color`,
+`caret_punctuation_pixels`) remain unchanged in the unfiltered nightly/pre-release
+native gate. The complete alternate menu-off non-render unit suite also runs there
+explicitly; fast CI retains its focused menu laws. These jobs still gate release
+packaging. This defers exhaustive visual/configuration combinations rather than
+editing, Unicode, undo, save fidelity or data-loss checks.
+
+Mac retains both non-render convention suites and native Clippy. Wasm compilation
+and Node runtime smoke remain blocking; a missing runner fails. Main pushes retain
+blocking debug/release parity in Linux health. The Mac live probe continues to gate
+main/manual/release calls and skip PRs. Fast CI issues no full-native receipt.
+Mac rendering/AT-SPI diagnostics retain their nightly tolerances and watchdogs.
+The web distribution build remains nightly. The coverage map and measurement
+procedure are in [ci-release-migration.md](ci-release-migration.md).
 
 Layer 3 is broader overnight and pre-release validation.
 Extended verification runs daily at **03:17 UTC** on the default branch, or manually
 through `extended-verification.yml` with mode overnight/pre-release. It is also
-called by the nonpublishing and tagged release workflow before package jobs.
+called by nonpublishing and publishing release runs before package jobs. Release
+runs additionally call the per-change CI workflow on their exact source commit.
 Both hosted Linux and macOS build release once, sweep the binary's complete world
 roster at both DPI values using `scripts/verify.sh extended --bin
 target/release/awl --jobs 1`, then run a longer 120-second live GPU launch.
@@ -54,7 +72,9 @@ Journey inputs use the host convention, including Linux Ctrl-End for document
 end; the existing `AWL_CONVENTION_FORCE` fixture door reproduces either convention
 locally. Typed text, Shift chords and every pixel/state assertion are preserved.
 A finding or failed app contract fails that job; there is no new tolerated-failure
-arm. The existing full unit/integration suites are not duplicated overnight.
+arm. The bounded full Linux native gate runs once here, with both conventions,
+integration targets and existing menu-bar coverage. It remains unfiltered.
+The fast non-render subset is necessarily also exercised by this broader gate.
 
 The release workflow then validates its actual artifacts: the executables inside
 the mounted arm64 and x86_64 Mac DMGs, the extracted Linux tarball binary, and
