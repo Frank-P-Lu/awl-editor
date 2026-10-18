@@ -37,27 +37,47 @@ def wiring_errors(ci: str, release: str, extended: str, verifier: str | None = N
         for name, body in roster.items():
             if "uses: dtolnay/rust-toolchain" in body:
                 errors.append(f"floating or independent Rust toolchain: {name}")
-    for name in ["linux", "mac", "web", "mac-live-probe"]:
+    for name in ["linux-health", "linux-correctness", "mac", "web", "mac-live-probe"]:
         if "uses: ./.github/actions/project-rust" not in c.get(name, ""):
             errors.append(f"project Rust activation lost: {name}")
-    linux = c.get("linux", "")
-    if linux.count("run: bash scripts/code-health.sh") != 1 or "run: scripts/native-gate.sh" in linux:
-        errors.append("fast Linux must run health once; the full gate belongs to nightly")
+        if "continue-on-error:" in c.get(name, ""):
+            errors.append(f"required lane tolerated: {name}")
+    aggregate = c.get("linux", "")
+    for guard in ("needs: [linux-health, linux-correctness]", "if: always()",
+                  'run: test "$HEALTH_RESULT" = success && test "$TEST_RESULT" = success',
+                  "HEALTH_RESULT: ${{ needs.linux-health.result }}",
+                  "TEST_RESULT: ${{ needs.linux-correctness.result }}"):
+        if guard not in aggregate:
+            errors.append(f"Linux aggregate lost: {guard}")
+    health = c.get("linux-health", "")
+    if health.count("run: bash scripts/code-health.sh") != 1 or "run: bash scripts/audit.sh" not in health:
+        errors.append("Linux health and dependency policy must remain blocking")
+    lane = c.get("linux-correctness", "")
+    for guard in ("convention: [mac, linux]", "fail-fast: false",
+                  'run: python3 scripts/ci-linux-tests.py "$CONVENTION"',
+                  "CONVENTION: ${{ matrix.convention }}", "shared-key: linux"):
+        if guard not in lane:
+            errors.append(f"Linux parallel correctness lost: {guard}")
+    bootstrap = "run: scripts/install-sccache.sh"
+    runner = 'run: python3 scripts/ci-linux-tests.py "$CONVENTION"'
+    if bootstrap not in lane or (runner in lane and lane.index(bootstrap) > lane.index(runner)):
+        errors.append("Linux correctness wrapper bootstrap lost or late")
+    if "save-if: false" not in health or "save-if: ${{ matrix.convention == 'linux' }}" not in lane:
+        errors.append("Linux dependency cache must have a single test-lane writer")
+    if "needs:" in health or "needs:" in lane:
+        errors.append("Linux health/convention lanes must start independently")
     nightly = e.get("linux", "")
     if nightly.count("run: scripts/native-gate.sh") != 1 or "AWL_NATIVE_GATE_DEADLINE_EPOCH=" not in nightly:
         errors.append("nightly must retain one bounded full native gate")
+    if "run: env AWL_MENU_BAR_FORCE=off cargo test --bin awl -- --skip render::tests" not in nightly:
+        errors.append("nightly full alternate menu-bar suite lost")
     for name in ("mac-render-tests", "atspi"):
         if name in c or "continue-on-error: true" not in e.get(name, ""):
             errors.append(f"tolerated diagnostic lost from nightly or returned to fast CI: {name}")
     if "trunk build --release" in ci or "trunk build --release" not in e.get("web-bundle", ""):
         errors.append("release web bundle must run nightly")
-    for convention in ("mac", "linux"):
-        if f"env AWL_CONVENTION_FORCE={convention} cargo test -- --skip render::tests" not in linux:
-            errors.append(f"fast Linux correctness lost: {convention}")
-    if "env AWL_MENU_BAR_FORCE=off cargo test --bin awl -- --skip render::tests" not in linux:
-        errors.append("fast Linux alternate menu-bar policy lost")
     for job, command in [
-        ("linux", "run: scripts/release-profile-gate.sh"),
+        ("linux-health", "run: scripts/release-profile-gate.sh"),
         ("web", "          scripts/web-smoke.sh"),
         ("mac-live-probe", "run: scripts/ci-live-probe.sh 25"),
     ]:
@@ -266,8 +286,11 @@ class WorkflowWiring(unittest.TestCase):
             ci.replace("run: bash scripts/code-health.sh", "# run: bash scripts/code-health.sh"),
             ci.replace("          scripts/web-smoke.sh", "          true"),
             ci.replace("run: bash scripts/code-health.sh", "run: scripts/native-gate.sh"),
+            ci.replace("convention: [mac, linux]", "convention: [linux]"),
+            ci.replace('test "$TEST_RESULT" = success', "true"),
+            ci.replace("if: always()", "if: success()"),
             ci.replace("    name: linux (build + test)", "    continue-on-error: true\n    name: linux (build + test)"),
-            ci.replace("AWL_CONVENTION_FORCE=linux", "AWL_CONVENTION_FORCE=mac"),
+            ci.replace("CONVENTION: ${{ matrix.convention }}", "CONVENTION: linux"),
         ]:
             self.assertNotEqual(ci, bad)
             self.assertTrue(wiring_errors(bad, release, extended))

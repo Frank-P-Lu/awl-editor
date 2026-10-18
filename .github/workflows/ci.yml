@@ -17,54 +17,93 @@ concurrency:
 jobs:
   linux:
     name: linux (build + test)
+    needs: [linux-health, linux-correctness]
+    if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 2
+    steps:
+      - name: Require every Linux lane
+        env:
+          HEALTH_RESULT: ${{ needs.linux-health.result }}
+          TEST_RESULT: ${{ needs.linux-correctness.result }}
+        run: test "$HEALTH_RESULT" = success && test "$TEST_RESULT" = success
+
+  linux-health:
+    name: linux health and dependency policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
       - name: Install system dependencies
         run: scripts/linux-build-deps.sh test
-
       - uses: ./.github/actions/project-rust
-
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-on-failure: true
-
+          shared-key: linux
+          save-if: false
       - name: Install sccache
         run: scripts/install-sccache.sh
-
+      - name: Policy tool versions
+        id: policy-tools
+        run: |
+          echo "machete=$(bash scripts/code-health.sh --cargo-machete-version)" >> "$GITHUB_OUTPUT"
+          echo "deny=$(bash scripts/audit.sh --cargo-deny-version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/cargo-machete
+            ~/.cargo/bin/cargo-deny
+          key: policy-tools-${{ env.ImageOS }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ steps.policy-tools.outputs.machete }}-${{ steps.policy-tools.outputs.deny }}
       - name: Install code-health tools
-        run: cargo install cargo-machete --version "$(bash scripts/code-health.sh --cargo-machete-version)" --locked
-
+        env:
+          TOOL_VERSION: ${{ steps.policy-tools.outputs.machete }}
+        run: |
+          if ! cargo machete --version 2>/dev/null | grep -Fxq "$TOOL_VERSION"; then
+            cargo install cargo-machete --version "$TOOL_VERSION" --locked
+          fi
       - name: Install dependency-policy tool
-        run: cargo install cargo-deny --version "$(bash scripts/audit.sh --cargo-deny-version)" --locked
-
+        env:
+          TOOL_VERSION: ${{ steps.policy-tools.outputs.deny }}
+        run: |
+          if ! cargo deny --version 2>/dev/null | grep -Fq "$TOOL_VERSION"; then
+            cargo install cargo-deny --version "$TOOL_VERSION" --locked
+          fi
       - name: Dependency policy
         run: bash scripts/audit.sh
-
-      - name: cargo build
-        run: cargo build
-
-      # Every non-render unit and integration target, both input conventions.
-      # The unfiltered GPU suite and native receipt belong to nightly.
       - name: Rust code health and tooling laws
         run: bash scripts/code-health.sh
-
-      - name: Non-render correctness (mac convention)
-        run: env AWL_CONVENTION_FORCE=mac cargo test -- --skip render::tests
-
-      - name: Non-render correctness (linux convention)
-        run: env AWL_CONVENTION_FORCE=linux cargo test -- --skip render::tests
-
-      - name: Alternate menu-bar policy
-        run: env AWL_MENU_BAR_FORCE=off cargo test --bin awl -- --skip render::tests
-
       - name: Debug/release sidecar parity
         if: github.event_name == 'push'
         run: scripts/release-profile-gate.sh
+
+  linux-correctness:
+    name: linux correctness (${{ matrix.convention }} convention)
+    strategy:
+      fail-fast: false
+      matrix:
+        convention: [mac, linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install system dependencies
+        run: scripts/linux-build-deps.sh test
+      - uses: ./.github/actions/project-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux
+          cache-on-failure: true
+          save-if: ${{ matrix.convention == 'linux' }}
+      - name: Install sccache
+        run: scripts/install-sccache.sh
+      - name: Core correctness, pixel regressions and menu policy
+        env:
+          CONVENTION: ${{ matrix.convention }}
+        run: python3 scripts/ci-linux-tests.py "$CONVENTION"
 
   web:
     name: web (wasm build + smoke)

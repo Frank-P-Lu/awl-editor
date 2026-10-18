@@ -87,6 +87,7 @@ scripts/test-native-gate.sh
 scripts/test-preflight.sh
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-verification-pipeline.py
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-release-plan.py
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-ci-linux-tests.py
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-verify-macos-release.py
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-macos-verification-receipt.py
 PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-ci-atspi-probe.py

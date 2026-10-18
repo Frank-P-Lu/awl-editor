@@ -101,6 +101,9 @@ jobs:
       - name: native full suite
         run: scripts/native-gate.sh
 
+      - name: Complete non-render menu-off suite
+        run: env AWL_MENU_BAR_FORCE=off cargo test --bin awl -- --skip render::tests
+
       - name: Debug/release sidecar parity
         run: scripts/release-profile-gate.sh
 

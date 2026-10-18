@@ -7,9 +7,10 @@ Baseline: `c69f469f50a8d633e7c3c526071a26d5ffd92ba1`. No editor or icon changes.
 | Existing check / dependency | Consolidated owner | Gate and migration effect |
 | --- | --- | --- |
 | Linux complete native gate: every target, both conventions, canary, menu-bar arms, partition audit and frozen-source receipt | Nightly and pre-release `linux` | Still blocking and unfiltered; moved out of per-change CI |
-| Linux non-render editing, Unicode, undo, persistence and integration correctness | Per-change `linux`, both conventions | Blocking, with alternate menu-bar policy; no full-native claim |
-| Formatting, strict Clippy, source/ownership audits, tooling laws and unused dependencies | Per-change `linux`; full gate also owns health | Blocking; no duplicate standalone health before full gate |
-| Dependency license/advisory/source policy | Per-change Linux and nightly full Linux | Blocking, same policy owner and pinned checker |
+| Linux editing, Unicode, undo, persistence and core integration correctness | Parallel per-change `linux-correctness` lanes, both conventions | All native targets compile; complete non-render unit suites and every integration target except the three explicit deep matrices execute |
+| Formatting, strict Clippy, source/ownership audits, tooling laws and unused dependencies | Per-change `linux-health`; full gate also owns health | Blocking; no duplicate standalone health before full gate |
+| Dependency license/advisory/source policy | Per-change Linux health and nightly full Linux | Blocking, same policy owner and pinned checker |
+| Exhaustive caret pixel matrices and full alternate menu-off unit suite | Nightly/pre-release Linux | Blocking; two complete headline pixel regressions and focused menu laws stay per change |
 | Mac native cfg Clippy and every non-render test, both conventions | Per-change `mac` | Blocking; unchanged platform coverage |
 | Hosted Mac render family and wedge watchdog | Nightly `mac-render-tests` | Existing tolerated failure remains explicit; no claim to solve virtualized Metal |
 | AT-SPI wire structure/liveness and watchdog | Nightly `atspi` | Existing tolerated failure remains explicit; no human screen-reader claim |
@@ -29,10 +30,39 @@ SHA. It does not infer readiness from another branch's green status or depend on
 branch protection. Package jobs wait for both suites. There is no new tolerated
 failure. The original two diagnostic jobs keep their existing tolerances.
 
-The fast suite still compiles native tests and runs GPU-backed tests outside the
-isolated render family. “Fast” describes reduced work, not a measured latency SLA;
-cold-cache timings and the new hosted gate must be measured on the draft PR.
-Nightly/release capacity increases because the full native suite now lives there.
+The Linux fast suite has independent health and convention lanes, followed by a
+blocking aggregate. Both convention lanes run all unit tests outside `render::tests`
+and all integration targets except three explicitly deferred exhaustive matrices.
+The existing Bombora asterisk and Bowerbird colour-flip pixel tests still execute in
+both lanes, with their full assertions, punctuation roster, scales and caret forms.
+Focused menu-off laws run per change; the full alternate menu-off unit pass runs in
+nightly/prerelease. No assertions or tests are deleted or newly ignored. New native
+integration targets join fast CI by default, and required target/smoke absence fails.
+
+The baseline hosted run [39131961640](https://github.com/Frank-P-Lu/awl-editor/actions/runs/39131961640)
+used an exact Rust-cache hit but took 39m18s on Linux: three serial unit passes
+18m14s, the three caret matrices across both conventions 11m16s, health 4m46s, and
+initial test compilation 2m38s. The revised design targets a warm Linux critical
+path below 15 minutes by using separate runners for both conventions and health,
+while keeping meaningful per-change correctness and moving only explicit deep
+coverage. This is a target, not proof of cold-cache or queue-time performance.
+
+Measure the final exact PR head after every change to the candidate. Record workflow
+creation/start, each lane start/end, cache hit/miss, compile and execution phases,
+and aggregate completion. Report both elapsed Linux feedback time (including queue
+and aggregation) and execution time. A green run over 15 minutes misses the latency
+target and needs investigation. Do not replace measured time with a parallelization
+estimate. Mac remains an independent platform gate.
+
+All Linux lanes restore the prior `linux` dependency cache. Only the Linux-convention
+lane writes it, preventing health-only metadata from winning a cold-cache save race.
+Policy tools have a separate versioned cache. This reuses caches without treating
+warm-cache evidence as a cold-build guarantee.
+
+The three exhaustive caret matrices and the full menu-off cross-suite remain
+mandatory in nightly and every prerelease/release invocation of extended verification.
+The tradeoff is that a regression unique to an unsampled world/DPI/menu-off
+combination can be found later than PR CI; packaging still waits for deep coverage.
 
 ## Release intent and immutable bytes
 
