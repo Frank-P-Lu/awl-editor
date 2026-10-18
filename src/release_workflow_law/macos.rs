@@ -20,9 +20,9 @@ pub(super) fn signing_audit(
         failures.push("mac-tag-enrolment");
     }
     if !plan.contains("sign_macos: ${{ steps.plan.outputs.sign_macos }}")
-        || !plan.contains("echo \"sign_macos=true\"")
+        || !plan.contains("'sign_macos': publish or credentialed")
         || !plan.contains("credentialed_macos_rehearsal")
-        || !plan.contains("SIGN_MACOS=false")
+        || !plan.contains("boolean = lambda key: inputs.get(key, False)")
     {
         failures.push("signing-plan");
     }
@@ -75,7 +75,7 @@ pub(super) fn apple_bundle_versions_are_proved(plan: &str, mac: &str, packager: 
         .is_some_and(|(validation, plist)| validation < plist);
     plan.contains("uses: actions/checkout@v7")
         && plan.contains("tomllib.loads")
-        && plan.contains("[\"package\"][\"version\"]")
+        && plan.contains("['package']['version']")
         && !plan.contains("0.0.0-dryrun")
         && mac.contains("AWL_BUILD_VERSION: ${{ github.run_number }}.0.0")
         && mac.contains("BUILD_VERSION: ${{ github.run_number }}.0.0")
@@ -100,7 +100,7 @@ fn apple_bundle_version_law_rejects_each_regression() {
     let packager = super::without_comments(&super::read("scripts/package-macos.sh"));
     let audit = |workflow: &str, packager: &str| {
         apple_bundle_versions_are_proved(
-            super::job(workflow, "plan"),
+            &super::release_plan(workflow),
             &format!("{}\n{}", super::job(workflow, "mac"), verifier),
             packager,
         )
@@ -108,7 +108,7 @@ fn apple_bundle_version_law_rejects_each_regression() {
     assert!(audit(&workflow, &packager));
 
     for (subject, replacement) in [
-        ("tomllib.loads", "print_dryrun_version"),
+        ("run: python3 scripts/release-plan.py plan", "run: true"),
         (
             "AWL_BUILD_VERSION: ${{ github.run_number }}.0.0",
             "AWL_BUILD_VERSION: ${{ needs.plan.outputs.version }}",
@@ -129,7 +129,11 @@ fn apple_bundle_version_law_rejects_each_regression() {
             verifier.replacen(subject, replacement, 1)
         );
         assert!(
-            !apple_bundle_versions_are_proved(super::job(&broken, "plan"), &broken_mac, &packager),
+            !apple_bundle_versions_are_proved(
+                &super::release_plan(&broken),
+                &broken_mac,
+                &packager
+            ),
             "workflow mutation escaped: {subject}"
         );
     }
@@ -271,7 +275,7 @@ fn signed_staged_source_and_identity_checks_cannot_be_removed() {
     assert!(staged.contains("contents: write"));
     assert!(staged.contains("GH_TOKEN: ${{ github.token }}"));
     assert!(!staged.contains("secrets."));
-    assert!(staged.contains("needs: [plan, extended]"));
+    assert!(staged.contains("needs: [plan, checks, extended]"));
     let local = super::read("scripts/local-macos-release.py");
     for forbidden in [
         "store-credentials",
