@@ -519,14 +519,14 @@ impl App {
         let mut browse_to =
             |kind, rel| files_builder.browse(kind, rel, workspace.as_deref(), &recent_projects);
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
-        // the shaped wrap geometry. A shared borrow of `self.frame.gpu()` (disjoint from the
+        // the shaped wrap geometry. A mutable borrow of `self.frame.gpu_mut()` (disjoint from the
         // `&mut self.document.buffer()` below), so the same transition seam sees the SAME
         // geometry headless replay sees through its offscreen pipeline. `None` before
         // the window's GPU exists; motion then falls back to LOGICAL lines.
         let oracle = self
             .frame
-            .gpu()
-            .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
+            .gpu_mut()
+            .map(|g| &mut g.pipeline as &mut dyn actions::LayoutOracle);
         let (search, journey) = self.workspace_state.core_slots();
         let mut inactive = crate::buffer::Buffer::scratch();
         let buffer = self.document.action_buffer_mut().unwrap_or(&mut inactive);

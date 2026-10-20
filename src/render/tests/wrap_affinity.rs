@@ -218,7 +218,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
         // wrap queries `apply_transition` asks).
         p.set_view(&view(text, 0, 0));
 
-        let drive = |p: &TextPipeline, actions: &[crate::keymap::Action]| -> Buffer {
+        let drive = |p: &mut TextPipeline, actions: &[crate::keymap::Action]| -> Buffer {
             let mut buffer = Buffer::from_str(text);
             let mut shift_selecting = false;
             let mut zoom = 1.0;
@@ -239,7 +239,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
                     journey: &mut overlay,
                     make_overlay: &mut make_overlay,
                     browse_to: &mut browse_to,
-                    oracle: Some(p as &dyn crate::actions::LayoutOracle),
+                    oracle: Some(&mut *p as &mut dyn crate::actions::LayoutOracle),
                 };
                 crate::actions::apply_transition(&mut ctx, a, false).primary();
             }
@@ -247,7 +247,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
         };
 
         // C-e / End / Cmd-Right → LineEnd: caret lands at the boundary, Upstream.
-        let ended = drive(&p, &[crate::keymap::Action::LineEnd]);
+        let ended = drive(&mut p, &[crate::keymap::Action::LineEnd]);
         assert_eq!(
             ended.cursor_line_col(),
             (0, boundary),
@@ -262,7 +262,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
         // A second LineEnd from the Upstream caret is a NO-OP (idempotent), not a
         // jump to the lower row's end — the oracle reads the row the caret sits on.
         let ended2 = drive(
-            &p,
+            &mut p,
             &[
                 crate::keymap::Action::LineEnd,
                 crate::keymap::Action::LineEnd,
@@ -281,7 +281,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
 
         // A rightward motion up to the boundary column leaves Downstream (the lower
         // row's leading edge) — the SAME column, the OTHER legit render.
-        let stepped = drive(&p, &vec![crate::keymap::Action::ForwardChar; boundary]);
+        let stepped = drive(&mut p, &vec![crate::keymap::Action::ForwardChar; boundary]);
         assert_eq!(
             stepped.cursor_line_col(),
             (0, boundary),
@@ -296,7 +296,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
         // LineStart from the Upstream caret goes to the UPPER row's start (col 0),
         // not a no-op at the lower row's start — coherent with the render.
         let homed = drive(
-            &p,
+            &mut p,
             &[
                 crate::keymap::Action::LineEnd,
                 crate::keymap::Action::LineStart,

@@ -2752,7 +2752,7 @@ impl crate::actions::LayoutOracle for TextPipeline {
     }
 
     fn visual_line_up(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         goal_x: f32,
@@ -2770,12 +2770,12 @@ impl crate::actions::LayoutOracle for TextPipeline {
         if line == 0 {
             return (line, col); // top visual row of the first line: nowhere up
         }
-        let prev = self.line_rows_local(line - 1);
+        let prev = self.revealed_line_rows(line - 1);
         (line - 1, col_on_row(&prev, prev.len() - 1, goal_x))
     }
 
     fn visual_line_down(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         goal_x: f32,
@@ -2794,7 +2794,7 @@ impl crate::actions::LayoutOracle for TextPipeline {
         if line >= last_line {
             return (line, col); // bottom visual row of the last line: nowhere down
         }
-        let next = self.line_rows_local(line + 1);
+        let next = self.revealed_line_rows(line + 1);
         (line + 1, col_on_row(&next, 0, goal_x))
     }
 

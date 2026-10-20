@@ -192,7 +192,7 @@ impl LayoutOracle for TwoRowsPerLine {
     }
 
     fn visual_line_up(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         _goal_x: f32,
@@ -202,7 +202,7 @@ impl LayoutOracle for TwoRowsPerLine {
     }
 
     fn visual_line_down(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         _goal_x: f32,
@@ -249,7 +249,7 @@ fn measured_page_input_uses_shared_wrapped_geometry_and_effects() {
         journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
-        oracle: Some(&TwoRowsPerLine),
+        oracle: Some(&mut TwoRowsPerLine),
     };
     let transition = apply_transition(&mut ctx, &Action::PageScrollDown, false);
     assert_eq!(ctx.buffer.cursor_line_col(), (2, 0));

@@ -232,7 +232,7 @@ fn oracle_full_vertical_walk_reaches_extremes_fixture() {
 
     // Walk one direction with a fixed sticky goal_x; return the number of steps
     // and the final (line,col), stopping on a NO-MOVE (a fixed point / stuck).
-    let walk = |p: &TextPipeline,
+    let walk = |p: &mut TextPipeline,
                 down: bool,
                 seed: (usize, usize),
                 goal: f32|
@@ -268,12 +268,12 @@ fn oracle_full_vertical_walk_reaches_extremes_fixture() {
     // real content, incl. a table row's own end column) — the "goal_x lands
     // past the row's content" default is the historical wrap-boundary stick.
     for &goal in &[0.0f32, 500.0, 1050.0, 2000.0] {
-        let (_steps, (fl, _fc)) = walk(&p, true, (0, 0), goal);
+        let (_steps, (fl, _fc)) = walk(&mut p, true, (0, 0), goal);
         assert_eq!(
             fl, last_line,
             "DOWN from the top with goal_x={goal} must reach the LAST logical line, stopped at {fl}"
         );
-        let (_steps, (fl, _fc)) = walk(&p, false, (last_line, 0), goal);
+        let (_steps, (fl, _fc)) = walk(&mut p, false, (last_line, 0), goal);
         assert_eq!(
             fl, 0,
             "UP from the bottom with goal_x={goal} must reach line 0 (no wrap-boundary stick), stopped at {fl}"
@@ -366,7 +366,7 @@ fn check_vertical_step(c: VerticalStepCheck) {
 /// every landing regime (incl. the past-content default that lands on the
 /// shared wrap-boundary column — the historical stick). `walks_only` keeps just
 /// the held-arrow walks — the cheap mode the wide width-grid points use.
-fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_only: bool) {
+fn assert_vertical_sweep_clean(p: &mut TextPipeline, text: &str, label: &str, walks_only: bool) {
     use crate::actions::LayoutOracle;
     use crate::buffer::Buffer;
     let n = p.line_count();
@@ -510,16 +510,16 @@ fn oracle_vertical_sweep_fixture_across_widths() {
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
-    assert_vertical_sweep_clean(&p, &text, "fixture w=1200", false);
+    assert_vertical_sweep_clean(&mut p, &text, "fixture w=1200", false);
     for w in [560.0f32, 900.0, 1620.0] {
         p.set_size(w, 800.0);
-        assert_vertical_sweep_clean(&p, &text, &format!("fixture w={w}"), true);
+        assert_vertical_sweep_clean(&mut p, &text, &format!("fixture w={w}"), true);
     }
     // HiDPI: the live Retina window (dpi 2) shapes at doubled metrics — walk
     // one doubled-width point so the scaled advances get the same guarantee.
     p.set_dpi(2.0);
     p.set_size(2400.0, 1600.0);
-    assert_vertical_sweep_clean(&p, &text, "fixture dpi=2 w=2400", true);
+    assert_vertical_sweep_clean(&mut p, &text, "fixture dpi=2 w=2400", true);
     p.set_dpi(1.0);
     p.set_size(1200.0, 800.0);
 }
@@ -559,7 +559,7 @@ fn oracle_vertical_sweep_bullet_bold_fixture() {
         480.0f32, 620.0, 760.0, 900.0, 1040.0, 1200.0, 1400.0, 1680.0,
     ] {
         p.set_size(w, 800.0);
-        assert_vertical_sweep_clean(&p, &text, &format!("fixture w={w}"), false);
+        assert_vertical_sweep_clean(&mut p, &text, &format!("fixture w={w}"), false);
     }
     p.set_size(1200.0, 800.0);
 }

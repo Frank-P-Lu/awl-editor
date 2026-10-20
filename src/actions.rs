@@ -18,6 +18,7 @@ mod overlay_nav; // the modal overlay intercept + browse-path helpers + live pre
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
 pub(crate) mod table; // Insert-table -- open the dimension picker + build its FormatResult
+mod task_shortcut; // typed [] + space input rule, parser guarded
 mod workspace_nav; // the workspace's two-region keys + the Cmd-P deep link
 use deferred::*;
 use dispatch::{dispatch_action, summoned_surface_defers};
@@ -37,14 +38,14 @@ pub trait LayoutOracle {
     fn visual_row_of(&self, line: usize, col: usize) -> usize;
     fn visual_x_of(&self, line: usize, col: usize, affinity: crate::caret::Affinity) -> f32;
     fn visual_line_up(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         goal_x: f32,
         affinity: crate::caret::Affinity,
     ) -> (usize, usize);
     fn visual_line_down(
-        &self,
+        &mut self,
         line: usize,
         col: usize,
         goal_x: f32,
@@ -90,7 +91,7 @@ pub struct ActionCtx<'a> {
     /// lines. Consulted by the vertical (C-n/C-p, Up/Down), line-edge (C-a/C-e,
     /// Home/End) and kill-line (C-k) motions, which follow the SHAPED visual rows
     /// whenever it is present (the flat default).
-    pub oracle: Option<&'a dyn LayoutOracle>,
+    pub oracle: Option<&'a mut dyn LayoutOracle>,
 }
 
 /// Apply one resolved `action` to the editor core. `shift` is whether Shift was
@@ -220,8 +221,10 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::BackwardSentence => ctx.buffer.backward_sentence(),
         Action::BufferStart => ctx.buffer.buffer_start(),
         Action::BufferEnd => ctx.buffer.buffer_end(),
-        Action::InsertChar(c) => ctx.buffer.insert_char(*c),
-        Action::InsertText(text) => ctx.buffer.insert_chars(text),
+        Action::InsertChar(c) => {
+            task_shortcut::insert_typed(ctx.buffer, c.encode_utf8(&mut [0; 4]))
+        }
+        Action::InsertText(text) => task_shortcut::insert_typed(ctx.buffer, text),
         Action::Newline => {
             if !table_newline(ctx) && !smart_newline(ctx) {
                 ctx.buffer.insert_newline();

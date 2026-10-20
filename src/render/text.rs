@@ -44,6 +44,7 @@ mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
 mod list_layout;
+mod motion;
 use change::{ChangedLines, TextChange};
 pub(super) use list_layout::ListLayoutState;
 use list_layout::parsed_list_ownership;

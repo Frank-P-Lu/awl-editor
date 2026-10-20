@@ -55,8 +55,8 @@ pub struct OraclePipeline {
 #[allow(dead_code)]
 impl OraclePipeline {
     /// Borrow as the renderer-agnostic motion oracle for `ActionCtx::oracle`.
-    pub fn as_oracle(&self) -> &dyn crate::actions::LayoutOracle {
-        &self.pipeline
+    pub fn as_oracle(&mut self) -> &mut dyn crate::actions::LayoutOracle {
+        &mut self.pipeline
     }
 
     /// Forwards to the wrapped [`TextPipeline::resolve_overlay_hover`]

@@ -326,7 +326,7 @@ impl ReplaySession<'_> {
             journey: &mut self.journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
-            oracle: self.oracle.as_deref().map(|oracle| oracle.as_oracle()),
+            oracle: self.oracle.as_deref_mut().map(|oracle| oracle.as_oracle()),
         };
         let transition = actions::apply_transition(&mut ctx, &action, shift);
         let primary = transition.primary();

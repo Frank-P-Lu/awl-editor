@@ -1409,3 +1409,5 @@ println!("{n}");
     );
     buffer
 }
+
+mod task_shortcut;

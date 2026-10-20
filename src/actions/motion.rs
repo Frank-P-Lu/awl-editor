@@ -23,7 +23,7 @@ use super::*;
 /// the buffer's LOGICAL `next_line` / `previous_line`, so non-wrapped behavior is
 /// identical.
 pub(super) fn vertical_motion(ctx: &mut ActionCtx, down: bool) {
-    if let Some(oracle) = ctx.oracle {
+    if let Some(oracle) = ctx.oracle.as_deref_mut() {
         let (line, col) = ctx.buffer.cursor_line_col();
         // The caret's affinity resolves which visual row it starts on at a shared
         // boundary (an `Upstream` caret — right after C-e — sits on the UPPER row).
@@ -57,7 +57,7 @@ pub(super) fn vertical_motion(ctx: &mut ActionCtx, down: bool) {
 /// not the logical line's). With NO oracle it falls back to the LOGICAL
 /// `line_start_motion` / `line_end_motion`, identical to before.
 pub(super) fn line_edge_motion(ctx: &mut ActionCtx, end: bool) {
-    if let Some(oracle) = ctx.oracle {
+    if let Some(oracle) = ctx.oracle.as_deref_mut() {
         let (line, col) = ctx.buffer.cursor_line_col();
         // Consult the caret's CURRENT affinity so a repeat C-e / C-a on a caret
         // already parked at the boundary reads the row it VISUALLY sits on (an
@@ -93,7 +93,7 @@ pub(super) fn line_edge_motion(ctx: &mut ActionCtx, end: bool) {
 /// it kills the trailing newline and joins the next line, exactly as today. With
 /// NO oracle it falls back to the buffer's LOGICAL `kill_line`.
 pub(super) fn kill_line_motion(ctx: &mut ActionCtx) {
-    if let Some(oracle) = ctx.oracle {
+    if let Some(oracle) = ctx.oracle.as_deref_mut() {
         let (line, col) = ctx.buffer.cursor_line_col();
         // Kill to the end of the visual row the caret VISUALLY sits on (affinity
         // resolves the shared boundary); `Downstream` for any ordinary caret, so a
@@ -110,7 +110,7 @@ pub(super) fn kill_line_motion(ctx: &mut ActionCtx) {
 /// the caller-supplied viewport measurement. With no layout oracle, each
 /// logical line is one row: the deterministic replay and pre-GPU fallback.
 pub(super) fn scroll_page(ctx: &mut super::ActionCtx, down: bool) {
-    let oracle = ctx.oracle;
+    let oracle = ctx.oracle.as_deref();
     let scroll_page_lines = ctx.scroll_page_lines;
     let buffer = &mut *ctx.buffer;
     let start_row = oracle.map(|oracle| {
