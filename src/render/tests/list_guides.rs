@@ -167,3 +167,53 @@ fn retained_ordered_indent_matches_fresh_layout_through_fence_edits() {
     fresh.set_view(&view_md(fenced, 4, 0));
     assert_eq!(fresh.visual_rows(2)[0].xs, fenced_xs);
 }
+
+#[test]
+fn guides_align_with_parent_bullet_and_checkbox_ink_in_every_world() {
+    let _serial = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = super::headless_dqp(900.0, 700.0) else {
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    let text = concat!(
+        "- Parent\n  - [ ] Open parent\n    - [x] Checked parent\n",
+        "      - Child parent\n        - Leaf\n\nOutside\n",
+    );
+    for world in theme::THEMES.iter() {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            let width = (900.0 * dpi) as u32;
+            let height = (700.0 * dpi) as u32;
+            p.set_dpi(dpi);
+            p.set_size(width as f32, height as f32);
+            p.set_view(&view_md(text, 6, 0));
+            let marks = p.list_marks();
+            assert_eq!(marks.len(), 5);
+            let (masks, _) = super::task_markers::isolated_marker_masks(
+                &mut p, &device, &queue, width, height, &marks,
+            );
+            let rects = rails(&p);
+            for parent in 0..4 {
+                let mask = &masks[parent];
+                assert!(!mask.is_empty());
+                let left = mask.iter().map(|(x, _)| *x).min().unwrap();
+                let right = mask.iter().map(|(x, _)| *x).max().unwrap();
+                let center = marks[parent].left.floor() + (left + right + 1) as f32 * 0.5;
+                let child_top = p.doc_top() + p.visual_rows(parent + 1)[0].line_top;
+                let row = rects
+                    .iter()
+                    .filter(|r| (r[1] - child_top).abs() < 0.1)
+                    .collect::<Vec<_>>();
+                assert_eq!(row.len(), parent + 1, "{} dpi {dpi}", world.name);
+                let rail_center = row[parent][0] + row[parent][2] * 0.5;
+                assert!(
+                    (rail_center - center).abs() <= 1.01,
+                    "{} dpi {dpi} parent {parent}: rail {rail_center}, marker {center}",
+                    world.name
+                );
+            }
+        }
+    }
+}

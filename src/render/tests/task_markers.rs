@@ -419,7 +419,7 @@ fn lazy_list_continuation_reconciles_inset_for_caret_and_either_selection_direct
     assert_eq!(p.buffer.lines[1].text(), "lazy continuation");
 }
 
-fn isolated_marker_masks(
+pub(super) fn isolated_marker_masks(
     p: &mut TextPipeline,
     device: &wgpu::Device,
     queue: &wgpu::Queue,

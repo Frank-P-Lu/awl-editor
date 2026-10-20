@@ -9,13 +9,15 @@ pub(crate) struct ListGuideLine {
     pub marker: bool,
     /// Midpoints between successive, parser-confirmed parent/child columns.
     pub columns: Vec<f32>,
+    /// Source rows of the parser-confirmed parent markers, in column order.
+    pub parents: Vec<usize>,
 }
 
 pub(super) struct ListGuideCollector<'a> {
     text: &'a str,
     offset: usize,
     starts: Vec<usize>,
-    items: Vec<Option<usize>>,
+    items: Vec<Option<(usize, usize)>>,
     blocked: usize,
     lines: std::collections::BTreeMap<usize, ListGuideLine>,
 }
@@ -39,7 +41,8 @@ impl<'a> ListGuideCollector<'a> {
             Event::Start(Tag::Item) => {
                 let line = self.line_at(range.start);
                 let item = list_item(self.line(line));
-                self.items.push(item.map(|it| it.indent));
+                self.items
+                    .push(item.map(|it| (line + self.offset, it.indent)));
                 if self.blocked == 0 {
                     self.record(line, true);
                 }
@@ -96,13 +99,21 @@ impl<'a> ListGuideCollector<'a> {
             .items
             .windows(2)
             .filter_map(|pair| {
-                let (parent, child) = (pair[0]?, pair[1]?);
+                let ((_, parent), (_, child)) = (pair[0]?, pair[1]?);
                 (child > parent).then_some((parent + child) as f32 * 0.5)
             })
             .collect::<Vec<_>>();
         if columns.is_empty() {
             return;
         }
+        let parents = self
+            .items
+            .windows(2)
+            .filter_map(|pair| {
+                let ((line, parent), (_, child)) = (pair[0]?, pair[1]?);
+                (child > parent).then_some(line)
+            })
+            .collect();
         let source_indent = self
             .line(line)
             .bytes()
@@ -116,6 +127,7 @@ impl<'a> ListGuideCollector<'a> {
                 source_indent,
                 marker,
                 columns,
+                parents,
             });
     }
 

@@ -17,7 +17,14 @@ pub(in crate::render) struct ListLine {
 }
 
 impl ListLine {
-    fn body_col(self) -> usize {
+    pub(in crate::render) fn task(self) -> Option<bool> {
+        match self.kind {
+            ListLineKind::Bullet => None,
+            ListLineKind::Task(checked) => Some(checked),
+        }
+    }
+
+    pub(in crate::render) fn body_col(self) -> usize {
         self.marker_col
             + match self.kind {
                 ListLineKind::Bullet => 2,
@@ -95,6 +102,15 @@ impl TextPipeline {
     pub(in crate::render) fn list_lines_snapshot(&self) -> Vec<ListLine> {
         self.ensure_list_lines();
         self.ornament_cache.list_lines.borrow().clone()
+    }
+
+    pub(in crate::render) fn parsed_list_line(&self, line: usize) -> Option<ListLine> {
+        self.ensure_list_lines();
+        let lines = self.ornament_cache.list_lines.borrow();
+        lines
+            .binary_search_by_key(&line, |item| item.line)
+            .ok()
+            .map(|index| lines[index])
     }
 
     /// Map the normalized preview rail back to its collapsed source prefix.

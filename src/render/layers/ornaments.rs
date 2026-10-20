@@ -112,10 +112,6 @@ struct ListMarkers {
 }
 
 impl ListMarkers {
-    /// Marker-to-prose clearance in body ems. The prefix spacer reserves the
-    /// room; tight raster bounds spend it from the prose edge leftward.
-    const PROSE_GAP_EM: f32 = 0.4;
-
     fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
         let marks = if pipeline.md_enabled {
             pipeline.list_marks()
@@ -165,7 +161,7 @@ impl ListMarkers {
                     * body_ascent_em
                     * crate::render::facepitch::typical_letter_ratio(pipeline.shaped_font);
                 let baseline_offset = f32::from_bits(baseline_offset_bits);
-                let target_ink_right = width - metrics.font_size * Self::PROSE_GAP_EM;
+                let target_ink_right = width - metrics.font_size * ListLayoutMetrics::PROSE_GAP_EM;
                 let target_ink_center_y = baseline_offset - body_typical_height * 0.5;
                 let offset = pipeline
                     .glyph_ink_cache

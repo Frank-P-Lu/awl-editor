@@ -1,6 +1,7 @@
 //! Font-derived dimensions for the concealed list-marker rail.
 
 use super::*;
+mod marker_centers;
 
 /// Exact advances that define the shared list rail. Both values are shaped in
 /// the same registered faces and body metrics as their former source spans;
@@ -10,6 +11,7 @@ pub(in crate::render) struct ListLayoutMetrics {
     pub(in crate::render) marker_slot: f32,
     indent_space: f32,
     pub(in crate::render) body_baseline: f32,
+    marker_centers: [f32; 5],
 }
 
 impl ListLayoutMetrics {
@@ -60,16 +62,24 @@ impl ListLayoutMetrics {
                 (space, run.line_y - run.line_top)
             })
         };
+        let marker_slot = advance(
+            font_system,
+            mono_family,
+            super::list::LIST_MARKER_GAP_TRACKING,
+        )
+        .max(1.0);
         Self {
-            marker_slot: advance(
-                font_system,
-                mono_family,
-                super::list::LIST_MARKER_GAP_TRACKING,
-            )
-            .max(1.0),
+            marker_slot,
+            marker_centers: marker_centers::shape(font_system, metrics, marker_slot),
             indent_space,
             body_baseline,
         }
+    }
+
+    pub(in crate::render) const PROSE_GAP_EM: f32 = 0.4;
+
+    pub(in crate::render) fn marker_center(self, depth: usize, task: Option<bool>) -> f32 {
+        self.marker_centers[task.map_or(depth % 3, |checked| 3 + usize::from(checked))]
     }
 
     pub(in crate::render) fn indent_advance(self, column: f32, scale: f32) -> f32 {
