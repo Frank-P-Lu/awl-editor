@@ -1064,3 +1064,102 @@ fn task_marker_reveal_transitions_remove_only_the_touched_ornament_and_keep_sour
         "clearing selection restores the marker without moving the caret line"
     );
 }
+
+#[test]
+fn empty_tasks_keep_filled_task_pitch_and_baseline_through_focus_changes() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping empty task geometry regression: no GPU adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    for world in crate::theme::THEMES.iter() {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            for focus in [6, 0, 1, 2, 6] {
+                p.set_view(&view_md(
+                    "- [ ] \n- [ ] \n- [x] \n- [ ] filled\n- [x] filled\n- [ ]\nanchor",
+                    focus,
+                    0,
+                ));
+                let filled = &p.visual_rows(3)[0];
+                for line in 0..6 {
+                    let rows = p.visual_rows(line);
+                    let row = &rows[0];
+                    assert!(
+                        (row.line_height - filled.line_height).abs() < 0.1,
+                        "{} dpi {dpi} focus {focus} line {line}: empty={} filled={}",
+                        world.name,
+                        row.line_height,
+                        filled.line_height
+                    );
+                    let baseline = p
+                        .list_marks()
+                        .iter()
+                        .find(|mark| (mark.top - p.line_ornament_top(line)).abs() < 0.1)
+                        .map_or_else(|| p.line_ornament_baseline(line), |mark| mark.baseline)
+                        - row.line_top;
+                    let filled_baseline = p.line_ornament_baseline(3) - filled.line_top;
+                    assert!(
+                        (baseline - filled_baseline).abs() < 0.51,
+                        "{} dpi {dpi} focus {focus} line {line}: baseline {baseline} \
+                         filled {filled_baseline}",
+                        world.name
+                    );
+                }
+            }
+        }
+    }
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}
+
+#[test]
+fn empty_task_marker_pixels_match_filled_marker_seating() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(720.0, 460.0) else {
+        eprintln!("skipping empty task pixel regression: no GPU adapter");
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    for world in crate::theme::THEMES.iter() {
+        crate::theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            let width = (720.0 * dpi) as u32;
+            let height = (460.0 * dpi) as u32;
+            p.set_size(width as f32, height as f32);
+            p.set_dpi(dpi);
+            p.set_view(&view_md(
+                "- [ ] \n- [ ] \n- [x] \n- [ ] filled\n- [x] filled\nanchor",
+                5,
+                0,
+            ));
+            let marks = p.list_marks();
+            assert_eq!(marks.len(), 5);
+            let (masks, _) = isolated_marker_masks(&mut p, &device, &queue, width, height, &marks);
+            for (empty, filled) in [(0, 3), (1, 3), (2, 4)] {
+                let bounds = |mask: &MarkerMask| {
+                    assert!(
+                        !mask.is_empty(),
+                        "{} dpi {dpi}: checkbox ink exists",
+                        world.name
+                    );
+                    (
+                        mask.iter().map(|(_, y)| *y).min().unwrap(),
+                        mask.iter().map(|(_, y)| *y).max().unwrap(),
+                    )
+                };
+                let (a0, a1) = bounds(&masks[empty]);
+                let (b0, b1) = bounds(&masks[filled]);
+                assert!(
+                    (a0 - b0).abs() <= 1 && (a1 - b1).abs() <= 1,
+                    "{} dpi {dpi}: empty checkbox {a0}..{a1} vs filled {b0}..{b1}",
+                    world.name
+                );
+            }
+        }
+    }
+}

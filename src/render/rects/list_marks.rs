@@ -225,7 +225,19 @@ impl TextPipeline {
                 };
                 ListMark {
                     top,
-                    baseline: self.line_ornament_baseline(item.line),
+                    // A fully concealed empty prefix has near-zero ascent. Seat
+                    // its ornament on the measured body baseline, just as a row
+                    // with visible prose would, without inventing source text.
+                    baseline: if self.buffer.lines[item.line]
+                        .text()
+                        .chars()
+                        .skip(body_col)
+                        .all(char::is_whitespace)
+                    {
+                        top + self.list_layout.metrics.body_baseline
+                    } else {
+                        self.line_ornament_baseline(item.line)
+                    },
                     left: text_left + body_x - slot_width,
                     kind: item.kind,
                     glyph,

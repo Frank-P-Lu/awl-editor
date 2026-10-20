@@ -49,3 +49,76 @@ mod tests {
         );
     }
 }
+
+/// Resolve follow against the same line space that the pipeline shapes.
+pub(super) fn cursor_follow_row(
+    pipeline: &crate::render::TextPipeline,
+    view: &ViewState,
+    affinity: crate::caret::Affinity,
+) -> usize {
+    pipeline.visual_row_of_aff(view.cursor_line, view.cursor_col, affinity)
+}
+
+#[cfg(test)]
+mod fold_follow_tests {
+    use super::*;
+
+    #[test]
+    fn typing_after_multiple_folds_follows_the_visible_wrapped_caret() {
+        let _g = crate::testlock::serial();
+        let _page = crate::page::PagePin::snapshot();
+        crate::page::set_page_on(true);
+        crate::page::set_measure(30);
+        let Some(mut pipeline) = crate::test_gpu::with_shared_programs(|device, queue| {
+            let cache = glyphon::Cache::new(device);
+            crate::render::TextPipeline::new(
+                device,
+                queue,
+                &cache,
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+            )
+        }) else {
+            eprintln!("skipping fold follow regression: no GPU adapter");
+            return;
+        };
+        pipeline.set_size(720.0, 460.0);
+        let doc = format!(
+            "# A\n{}# C\n{}# B\n{}\n{}",
+            "hidden line\n".repeat(12),
+            "other hidden line\n".repeat(9),
+            "visible wrapped sentence with several words ".repeat(6),
+            "following paragraph\n".repeat(30)
+        );
+        let levels = crate::fold::heading_levels(&doc, true);
+        for headings in [vec![], vec![0], vec![0, 13]] {
+            let folds = headings.into_iter().collect();
+            let hidden = crate::fold::hidden_lines(&levels, &folds);
+            let tails = crate::fold::fold_tails(&levels, &folds);
+            for col in [0, 55, 110] {
+                let mut view = ViewState::base();
+                let mut buffer = crate::buffer::Buffer::from_str(&doc);
+                buffer.set_cursor(buffer.line_col_to_char(24, col));
+                buffer.insert_char('x');
+                view.text = buffer.text();
+                view.is_markdown = true;
+                view.cursor_line = 24;
+                view.cursor_col = col + 1;
+                crate::fold::apply_to_view(&mut view, &hidden, &tails, &folds);
+                pipeline.set_view(&view);
+                let expected = pipeline.visual_row_of_aff(
+                    view.cursor_line,
+                    col + 1,
+                    crate::caret::Affinity::Downstream,
+                );
+                let actual =
+                    cursor_follow_row(&pipeline, &view, crate::caret::Affinity::Downstream);
+                assert_eq!(actual, expected, "folded caret must follow its painted row");
+                let scroll = crate::render::ScrollPos::default();
+                assert_eq!(
+                    pipeline.scroll_to_show_row_pos(actual, scroll, 460.0),
+                    pipeline.scroll_to_show_row_pos(expected, scroll, 460.0),
+                );
+            }
+        }
+    }
+}

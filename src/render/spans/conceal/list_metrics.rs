@@ -9,6 +9,7 @@ use super::*;
 pub(in crate::render) struct ListLayoutMetrics {
     pub(in crate::render) marker_slot: f32,
     indent_space: f32,
+    pub(in crate::render) body_baseline: f32,
 }
 
 impl ListLayoutMetrics {
@@ -31,7 +32,7 @@ impl ListLayoutMetrics {
             buffer.shape_until_scroll(font_system, false);
             buffer.layout_runs().next().map_or(0.0, |run| run.line_w)
         };
-        let indent_space = {
+        let (indent_space, body_baseline) = {
             let mut buffer = GlyphBuffer::new(
                 font_system,
                 GlyphMetrics::new(metrics.font_size, metrics.line_height),
@@ -49,12 +50,15 @@ impl ListLayoutMetrics {
             // sentinel, so half the boundary is the body's one-space advance.
             buffer.set_text(font_system, "  x", &attrs, Shaping::Advanced, None);
             buffer.shape_until_scroll(font_system, false);
-            buffer
-                .layout_runs()
-                .next()
-                .and_then(|run| run.glyphs.iter().find(|glyph| glyph.start == 2))
-                .map_or(0.0, |sentinel| sentinel.x * 0.5)
-                .max(1.0)
+            buffer.layout_runs().next().map_or((1.0, 0.0), |run| {
+                let space = run
+                    .glyphs
+                    .iter()
+                    .find(|glyph| glyph.start == 2)
+                    .map_or(0.0, |sentinel| sentinel.x * 0.5)
+                    .max(1.0);
+                (space, run.line_y - run.line_top)
+            })
         };
         Self {
             marker_slot: advance(
@@ -64,6 +68,7 @@ impl ListLayoutMetrics {
             )
             .max(1.0),
             indent_space,
+            body_baseline,
         }
     }
 

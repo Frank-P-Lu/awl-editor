@@ -108,7 +108,7 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 638
+lines = 635
 # 641 -> 643: the exhaustive projection mirrors browser paste policy.
 # +16: the exhaustive live projection carries Files location/query focus and
 # Settings' explicit focus state; no second ViewState construction path exists.
@@ -647,7 +647,7 @@ reason = "One representative-fixture constructor covers each overlay kind and it
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (309/100)"
+message = "this function has too many lines (306/100)"
 # +3: reconcile transient text focus before the one exhaustive frame projection.
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens. +1: mirrors the query field's own seeded selection range into `overlay_query_selection`, beside the other query-caret mirrors. +3: mirrors `overlay_asset_preview` from `selected_asset_path()`, beside the other summoned-surface mirrors this function already owns. +1: mirrors overlay_match_highlights from the search picker. +1: mirrors the working set's outline-rail appetite (`parked_wants_rail()`) into `set_wants_outline_rail`, beside the other per-frame mirrors this one exhaustive projection site already owns. +4: `search_field_selection`, the find/replace panel's focused-field selection, mirrored from the panel's own focus rule. +2: Insert-link's `overlay_query_placeholder` (`OverlayKind::field_placeholder`), asked of the same summoned-picker owner every other per-kind question here already goes through. 1: the no-document start surface's folder-naming line's own inert default join the exhaustive projection. Exhaustive ViewState constructor mirrors the folder location beside every overlay field. +1: the exhaustive ViewState constructor retains the inert composition-cursor default beside preedit, followed by the shared projection. The exhaustive live ViewState constructor projects the PDF snapshot alongside its other owned fields."
 

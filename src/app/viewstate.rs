@@ -435,11 +435,8 @@ impl App {
         } else if follow {
             let pipeline = &self.frame.gpu().unwrap().pipeline;
             // Affinity resolves shared boundaries to the caret's visual row.
-            let cursor_row = pipeline.visual_row_of_aff(
-                cursor_line,
-                cursor_col,
-                self.document.buffer().affinity(),
-            );
+            let cursor_row =
+                scroll::cursor_follow_row(pipeline, &view, self.document.buffer().affinity());
             let scroll = match crate::view_policy::follow_scroll_strategy(
                 crate::typewriter::typewriter_on(),
                 self.input.selecting_drag(),

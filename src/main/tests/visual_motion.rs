@@ -408,3 +408,13 @@ fn goto_switch_mid_replay_reshapes_the_oracle_to_the_arriving_buffer() {
         "landing on line 0's second visual row, got col {col}"
     );
 }
+
+#[test]
+fn enter_at_short_line_end_places_the_insertion_point_at_the_new_line_start() {
+    let _g = crate::testlock::serial();
+    for text in ["letters\ntail", "café日本\ntail", "- [ ] task\ntail"] {
+        let expected_col = if text.starts_with("- [ ]") { 6 } else { 0 };
+        let result = replay_visual(text, 40, "C-e Enter");
+        assert_eq!(result, Some((1, expected_col)), "{text:?}");
+    }
+}
