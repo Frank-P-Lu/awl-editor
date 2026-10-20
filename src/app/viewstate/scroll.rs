@@ -122,3 +122,28 @@ mod fold_follow_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod follow_routing_tests {
+    #[test]
+    fn live_follow_routes_through_the_projected_coordinate_owner() {
+        let _g = crate::testlock::serial();
+        let source = include_str!("../viewstate.rs");
+        let follow = source
+            .split("} else if follow {")
+            .nth(1)
+            .expect("live cursor-follow branch")
+            .split("let max =")
+            .next()
+            .expect("follow branch extent");
+        assert_eq!(
+            follow.matches("scroll::cursor_follow_row(").count(),
+            1,
+            "live follow must use the fold-projected coordinate owner"
+        );
+        assert!(
+            !follow.contains("pipeline.visual_row_of_aff("),
+            "live follow must not bypass projection with raw document coordinates"
+        );
+    }
+}
