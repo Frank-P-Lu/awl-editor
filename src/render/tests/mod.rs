@@ -173,6 +173,7 @@ mod japanese_bold_pixels;
 mod japanese_emphasis;
 mod layout_oracle;
 mod link_baseline;
+mod list_guides;
 mod list_surfaces;
 mod magpie_bands;
 mod markdown;

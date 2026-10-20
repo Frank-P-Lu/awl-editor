@@ -5,6 +5,7 @@ pub(super) type ListOwnership = std::collections::BTreeMap<usize, usize>;
 pub(in crate::render) struct ListLayoutState {
     pub(in crate::render) metrics: ListLayoutMetrics,
     pub(in crate::render) hanging_lines: Vec<usize>,
+    pub(in crate::render) guides: Vec<crate::markdown::ListGuideLine>,
     pub(in crate::render) continuations: Vec<crate::markdown::ListContinuation>,
 }
 
@@ -19,6 +20,7 @@ impl ListLayoutState {
             ),
             hanging_lines: Vec::new(),
             continuations: Vec::new(),
+            guides: Vec::new(),
         }
     }
 
@@ -38,6 +40,25 @@ pub(super) fn parsed_list_ownership(
         .into_iter()
         .map(|item| (item.line, item.marker_col))
         .collect::<ListOwnership>();
+    // Ordered markers stay raw, but their indentation is a layout attribute.
+    // Retained lines must be restyled if a surrounding fence changes ownership.
+    let markers = md_spans
+        .iter()
+        .filter_map(|(range, kind)| {
+            (*kind == crate::markdown::MdKind::ListMarker).then_some((range.start, range.end))
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut start = 0;
+    for (line, text) in lines.iter().enumerate() {
+        if let Some(end) = markers.get(&start)
+            && let Some(item) = crate::markdown::list_item(text)
+            && item.ordered
+            && *end >= start + item.content
+        {
+            owners.insert(line, item.indent);
+        }
+        start += text.len() + 1;
+    }
     owners.extend(
         continuations
             .iter()

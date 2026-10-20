@@ -1,7 +1,6 @@
 //! GPU construction for [`super::TextPipeline`]. Per-frame preparation and render
 //! composition live in their respective pipeline modules.
-//! Script-face caches begin inert here and are resolved with document attrs.
-//! Their geometry consumer therefore reads the same ladder that shaped the run.
+//! Script-face caches resolve with document attrs; geometry reads that same ladder.
 
 use super::*;
 impl TextPipeline {
@@ -40,6 +39,8 @@ impl TextPipeline {
         let japanese_emphasis_dot_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         let fence_panel_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let mut list_guide_pipeline = overlay_quad(PLACEHOLDER_RGBA);
+        list_guide_pipeline.set_corner(0.0);
         let code_pill_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let pdf_dialog_layer = pdf_dialog::PdfDialogLayer::new(
@@ -297,6 +298,7 @@ impl TextPipeline {
             wash_highlight_pipeline,
             japanese_emphasis_dot_pipeline,
             fence_panel_pipeline,
+            list_guide_pipeline,
             code_pill_pipeline,
             selection_pipeline,
             match_pipeline,

@@ -16,6 +16,8 @@ use std::ops::Range;
 
 mod emphasis;
 mod list_continuations;
+mod list_guides;
+pub(crate) use list_guides::ListGuideLine;
 
 use emphasis::Emphasis;
 pub use emphasis::emphasis_content_spans;
@@ -40,6 +42,17 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
 pub(crate) fn spans_with_list_continuations(
     doc_text: &str,
 ) -> (Vec<(Range<usize>, MdKind)>, Vec<ListContinuation>) {
+    let (spans, continuations, _) = spans_with_list_layout(doc_text);
+    (spans, continuations)
+}
+
+type ListLayoutSpans = (
+    Vec<(Range<usize>, MdKind)>,
+    Vec<ListContinuation>,
+    Vec<ListGuideLine>,
+);
+
+pub(crate) fn spans_with_list_layout(doc_text: &str) -> ListLayoutSpans {
     use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag, TagEnd};
 
     let mut out: Vec<(Range<usize>, MdKind)> = Vec::new();
@@ -59,6 +72,7 @@ pub(crate) fn spans_with_list_continuations(
         .filter(|byte| *byte == b'\n')
         .count();
     let mut continuation_collector = ListContinuationCollector::new(text, body_offset, line_offset);
+    let mut guide_collector = list_guides::ListGuideCollector::new(text, line_offset);
     // Nesting depth / context flags. Headings don't nest, so a single level is
     // enough; the emphasis/quote/link/code contexts use counters so a nested
     // construct restores the outer context on close.
@@ -121,6 +135,7 @@ pub(crate) fn spans_with_list_continuations(
     let events = super::footnotes::events_and_spans(&mut body, text);
     for (ev, range) in events {
         continuation_collector.on_event(&ev, &range);
+        guide_collector.on_event(&ev, &range);
         match ev {
             Event::Start(tag) => match tag {
                 Tag::Heading { level, .. } => {
@@ -367,7 +382,11 @@ pub(crate) fn spans_with_list_continuations(
         body.into_iter()
             .map(|(r, k)| (r.start + body_offset..r.end + body_offset, k)),
     );
-    (out, continuation_collector.finish())
+    (
+        out,
+        continuation_collector.finish(),
+        guide_collector.finish(),
+    )
 }
 
 /// Pick the content style for a Text event from the active context, in priority

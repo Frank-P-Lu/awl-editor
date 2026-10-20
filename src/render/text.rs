@@ -6,6 +6,7 @@ type DocSpans = (
     Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
     Vec<crate::markdown::ListContinuation>,
+    Vec<crate::markdown::ListGuideLine>,
 );
 
 /// Exact CPU stages inside one document-text synchronization. Populated only
@@ -484,16 +485,16 @@ impl TextPipeline {
     /// the render stays byte-identical. Computed from the shaped text (preedit-spliced
     /// and all), so the span byte offsets line up with the buffer lines.
     fn parse_doc_spans(&self, text: &str) -> DocSpans {
-        let (md_spans, list_continuations) = if self.md_enabled {
-            crate::markdown::spans_with_list_continuations(text)
+        let (md_spans, list_continuations, list_guides) = if self.md_enabled {
+            crate::markdown::spans_with_list_layout(text)
         } else {
-            (Vec::new(), Vec::new())
+            (Vec::new(), Vec::new(), Vec::new())
         };
         let syn_spans = match self.syn_lang {
             Some(lang) => crate::syntax::spans(lang, text),
             None => Vec::new(),
         };
-        (md_spans, syn_spans, list_continuations)
+        (md_spans, syn_spans, list_continuations, list_guides)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -921,7 +922,7 @@ impl TextPipeline {
             self.owner_scan.evidence_scan_lines.set(evidence_scanned);
         }
         let spans_at = self.text_sync_profile.then(crate::clock::Instant::now);
-        let (md_spans, syn_spans, list_continuations) = self.parse_doc_spans(text);
+        let (md_spans, syn_spans, list_continuations, list_guides) = self.parse_doc_spans(text);
         let new_list_ownership = parsed_list_ownership(new_lines, &md_spans, &list_continuations);
         let spans_ms = profile_elapsed_ms(spans_at);
         if self.text_sync_profile {
@@ -1026,6 +1027,7 @@ impl TextPipeline {
         };
         self.last_outline_current = self.outline_current();
         self.md_spans = md_spans;
+        self.list_layout.guides = list_guides;
         self.list_layout.continuations = list_continuations;
         self.syn_spans = syn_spans;
         self.image_heights = image_heights;

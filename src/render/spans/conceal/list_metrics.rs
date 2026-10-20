@@ -72,7 +72,11 @@ impl ListLayoutMetrics {
         }
     }
 
+    pub(in crate::render) fn indent_advance(self, column: f32, scale: f32) -> f32 {
+        column * self.indent_space * scale
+    }
+
     pub(in crate::render) fn hanging_inset(self, indent: usize, indent_scale: f32) -> f32 {
-        self.marker_slot + indent as f32 * self.indent_space * indent_scale
+        self.marker_slot + self.indent_advance(indent as f32, indent_scale)
     }
 }

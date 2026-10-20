@@ -389,13 +389,11 @@ pub const TASK_MARKER_SCALE: f32 = 0.55;
 // and the mechanism is what is committed to.
 
 /// PLAIN list-indent scale — the geometric/technical worlds' nested list items
-/// render at exactly their literal typed indent.
-pub const LIST_INDENT_SCALE_PLAIN: f32 = 1.0;
+/// render with a modest 25% expansion of their typed indent.
+pub const LIST_INDENT_SCALE_PLAIN: f32 = 1.25;
 
 /// WIDE list-indent scale — the antique/literary-serif worlds' nested list
 /// items get a touch more breathing room per level: each leading-space run
-/// renders 50% wider than its literal typed width, so a depth-1 item (2 typed
-/// spaces) gains one extra space-width of rail, a depth-2 item (4 typed
-/// spaces) gains two, and so on — linear in depth for free, since the typed
-/// indent itself already is.
-pub const LIST_INDENT_SCALE_WIDE: f32 = 1.5;
+/// renders 87.5% wider than its literal typed width, preserving the wider
+/// literary tier while increasing both tiers by the same modest 25%.
+pub const LIST_INDENT_SCALE_WIDE: f32 = 1.875;

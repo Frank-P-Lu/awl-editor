@@ -26,5 +26,7 @@ pub use list::{ListContinuation, RichListItem, rich_unordered_list_item};
 pub use markers::equals_runs;
 #[cfg(test)]
 pub(super) use markers::push_highlight_spans;
+#[cfg(test)]
 pub(crate) use parse::spans_with_list_continuations;
+pub(crate) use parse::{ListGuideLine, spans_with_list_layout};
 pub use parse::{emphasis_content_spans, spans};

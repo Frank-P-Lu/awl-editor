@@ -33,6 +33,7 @@ impl TextPipeline {
         self.row_geom.seal_frame(&self.buffer, &self.metrics);
         // Prepare the floated table source before caret and selection geometry:
         // their column lookup redirects here from the zero-width concealed row.
+        self.prepare_list_guides(device, queue, width, height);
         self.prepare_table_xray();
         self.prepare_caret_layer(device, queue, width, height);
         self.prepare_selection_layer(device, queue, width, height);

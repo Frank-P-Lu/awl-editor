@@ -210,6 +210,7 @@ impl TextPipeline {
         }
         self.fence_panel_pipeline.draw(pass);
         self.code_pill_pipeline.draw(pass);
+        self.list_guide_pipeline.draw(pass);
         self.table_rule_pipeline.draw(pass);
         self.table_empty_pipeline.draw(pass);
         self.wash_comment_pipeline.draw(pass);

@@ -137,6 +137,7 @@ pub use viewstate_def::{DocSource, FoldTail, ViewState};
 mod field_input;
 pub use field_input::FieldInput;
 
+mod list_guides;
 mod pdf_dialog;
 mod pipeline_activity;
 mod pipeline_band_epoch;
@@ -1683,6 +1684,7 @@ pub struct TextPipeline {
     /// Restrained dots over Japanese emphasis, using the shared quad renderer.
     pub japanese_emphasis_dot_pipeline: SelectionPipeline,
     pub fence_panel_pipeline: SelectionPipeline,
+    list_guide_pipeline: SelectionPipeline,
     pub code_pill_pipeline: SelectionPipeline,
     /// The GPU quad pipeline that draws translucent selection highlights.
     pub selection_pipeline: SelectionPipeline,

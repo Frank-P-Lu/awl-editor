@@ -181,6 +181,7 @@ pub use refs::{
     image_width_hint_edit, label_destination_range, link_at, link_at_full, link_paste_is_safe,
     parse_image_source, split_alt_hint,
 };
+#[cfg(test)]
 pub(crate) use spans::spans_with_list_continuations;
 #[allow(unused_imports)] // ListItem/READING_WPM: public API surface, no in-crate caller today
 pub use spans::{
@@ -189,6 +190,7 @@ pub use spans::{
     fence_line_lang, frontmatter_end, is_fence_line, is_thematic_break, list_item,
     reading_time_min, rich_unordered_list_item, spans, strike_engaged, word_count,
 };
+pub(crate) use spans::{ListGuideLine, spans_with_list_layout};
 pub(crate) use table_caret::{locate_table_caret, table_caret_col};
 pub(crate) use table_edit::{TableRefusal, TableVerb, table_splice};
 pub(crate) use tables::ColAlign;

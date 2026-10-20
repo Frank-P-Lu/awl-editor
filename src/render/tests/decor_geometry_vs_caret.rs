@@ -1416,7 +1416,7 @@ fn a_table_grid_cell_keeps_every_substitute_family_visible() {
 /// every other member of this class the widened cell IS what the reader sees,
 /// so the block caret sitting in it should be exactly that wide, and it is.
 /// Enrolment is derived from the roster's own two tiers, never named: the WIDE
-/// worlds must show the scaled cell and the PLAIN worlds the natural one, and
+/// worlds and the PLAIN worlds must each show their own scaled cell, and
 /// both tiers must be non-empty.
 #[test]
 fn the_block_caret_in_a_widened_list_indent_is_exactly_that_cell_wide() {
@@ -1458,7 +1458,7 @@ fn the_block_caret_in_a_widened_list_indent_is_exactly_that_cell_wide() {
             t.name,
             natural
         );
-        if (scale - 1.0).abs() > 1e-3 {
+        if (scale - theme::LIST_INDENT_SCALE_WIDE).abs() < 1e-3 {
             wide += 1;
         } else {
             plain += 1;

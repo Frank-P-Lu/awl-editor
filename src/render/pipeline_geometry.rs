@@ -57,6 +57,8 @@ impl TextPipeline {
         // is theme-independent, so a theme switch re-tints without rebuilding).
         self.fence_panel_pipeline
             .set_color(theme::base_200().rgba_bytes());
+        self.list_guide_pipeline
+            .set_color(theme::faint().rgba_bytes());
         self.code_pill_pipeline
             .set_color(theme::base_200().rgba_bytes());
         // INLINE IMAGES: the calm missing-file placeholder quad re-tints from

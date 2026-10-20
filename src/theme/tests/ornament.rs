@@ -404,8 +404,8 @@ fn reserve_ornament_shelf_is_complete_named_and_reasoned() {
 #[test]
 fn every_world_has_a_list_indent_scale() {
     assert_eq!(
-        LIST_INDENT_SCALE_PLAIN, 1.0,
-        "the plain tier is byte-identical"
+        LIST_INDENT_SCALE_PLAIN, 1.25,
+        "the plain tier adds a modest quarter to the nesting step"
     );
     assert!(
         std::hint::black_box(LIST_INDENT_SCALE_WIDE) > LIST_INDENT_SCALE_PLAIN,

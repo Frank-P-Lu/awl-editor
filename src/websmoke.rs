@@ -426,3 +426,18 @@ fn download_file_action_signals_the_effect_through_apply_transition_on_real_wasm
         "no edit must have been recorded"
     );
 }
+
+/// Shared parser ancestry runs identically in the browser core.
+#[wasm_bindgen_test]
+fn structural_list_guides_follow_mixed_ancestry() {
+    let (_, _, guides) =
+        markdown::spans_with_list_layout("10. Parent\n    - Child\n      - [ ] Task\n");
+    assert_eq!(guides.len(), 2);
+    assert_eq!(guides[0].columns, vec![2.0]);
+    assert_eq!(guides[1].columns, vec![2.0, 5.0]);
+    assert!(
+        markdown::spans_with_list_layout("```\n- Parent\n  - Fake\n```\n")
+            .2
+            .is_empty()
+    );
+}
