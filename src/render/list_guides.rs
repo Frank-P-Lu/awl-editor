@@ -94,6 +94,7 @@ impl TextPipeline {
                 let mut bottom = row.bottom;
                 if row.first
                     && parent + 1 == row.line
+                    && anchor.continuous_gutter
                     && !self.line_is_revealed(parent, touch.as_ref())
                     && anchor.bottom().is_finite()
                 {

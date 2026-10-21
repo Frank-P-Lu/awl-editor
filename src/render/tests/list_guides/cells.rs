@@ -135,3 +135,50 @@ fn ordered_parent_guides_use_rendered_number_ink_in_every_world() {
         }
     }
 }
+
+#[test]
+fn guide_bridges_require_a_clear_gutter_through_parent_wraps() {
+    let _serial = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    let body =
+        "A parent paragraph with enough prose to wrap through several visual rows. ".repeat(4);
+    for world in theme::THEMES.iter() {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0, 2.0] {
+            p.set_dpi(dpi);
+            p.set_size(660.0 * dpi, 1800.0 * dpi);
+            for (prefix, indent, hanging) in [("1.", 3, false), ("10.", 4, false), ("-", 2, true)] {
+                let text = format!(
+                    "{prefix} {body}\n{}- Child\n\nOutside\n",
+                    " ".repeat(indent)
+                );
+                p.set_view(&view_md(&text, 3, 0));
+                let rows = p.visual_rows(0);
+                assert!(rows.len() > 1, "{} dpi {dpi} {prefix}", world.name);
+                let last = rows.last().unwrap();
+                let parent_bottom = p.doc_top() + last.line_top + last.line_height;
+                let rects = rails(&mut p);
+                let first_top = rects.iter().map(|r| r[1]).reduce(f32::min).unwrap();
+                if hanging {
+                    assert!(
+                        first_top < parent_bottom - p.metrics.line_height,
+                        "{} dpi {dpi}: concealed rich parent keeps its clear hanging gutter",
+                        world.name
+                    );
+                } else {
+                    assert!(
+                        first_top >= parent_bottom - 0.1,
+                        "{} dpi {dpi} {prefix}: guide starts at {first_top}, crossing raw wrapped prose \
+                         above {parent_bottom}",
+                        world.name
+                    );
+                }
+            }
+        }
+    }
+}

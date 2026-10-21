@@ -5,6 +5,7 @@ use super::*;
 pub(super) struct GuideAnchor {
     pub bounds: [f32; 4],
     pub indent: usize,
+    pub continuous_gutter: bool,
 }
 
 impl GuideAnchor {
@@ -34,11 +35,13 @@ impl TextPipeline {
                     height,
                 ],
                 indent: item.marker_col,
+                continuous_gutter: true,
             });
         }
         self.list_layout.ordered.binary_search(&line).ok()?;
         let item = crate::markdown::list_item(self.buffer.lines.get(line)?.text())?;
-        let layout = self.buffer.lines[line].layout_opt()?.first()?;
+        let layouts = self.buffer.lines[line].layout_opt()?;
+        let layout = layouts.first()?;
         let origin = (self.text_left(), self.line_ornament_baseline(line));
         if !origin.1.is_finite() {
             return None;
@@ -58,6 +61,9 @@ impl TextPipeline {
         Some(GuideAnchor {
             bounds,
             indent: item.indent,
+            // Rich paragraphs reserve a hanging gutter. Raw ordered wraps
+            // return to the text origin, so the bridge would cross their prose.
+            continuous_gutter: layouts.len() == 1,
         })
     }
 }
