@@ -113,6 +113,19 @@ impl TextPipeline {
             .map(|index| lines[index])
     }
 
+    pub(in crate::render) fn list_marker_baseline(&self, line: usize, body_col: usize) -> f32 {
+        if self.buffer.lines[line]
+            .text()
+            .chars()
+            .skip(body_col)
+            .all(char::is_whitespace)
+        {
+            self.line_ornament_top(line) + self.list_layout.metrics.body_baseline
+        } else {
+            self.line_ornament_baseline(line)
+        }
+    }
+
     /// Map the normalized preview rail back to its collapsed source prefix.
     ///
     /// The hanging inset creates real pointer space before the prose while the
@@ -244,16 +257,7 @@ impl TextPipeline {
                     // A fully concealed empty prefix has near-zero ascent. Seat
                     // its ornament on the measured body baseline, just as a row
                     // with visible prose would, without inventing source text.
-                    baseline: if self.buffer.lines[item.line]
-                        .text()
-                        .chars()
-                        .skip(body_col)
-                        .all(char::is_whitespace)
-                    {
-                        top + self.list_layout.metrics.body_baseline
-                    } else {
-                        self.line_ornament_baseline(item.line)
-                    },
+                    baseline: self.list_marker_baseline(item.line, body_col),
                     left: text_left + body_x - slot_width,
                     kind: item.kind,
                     glyph,

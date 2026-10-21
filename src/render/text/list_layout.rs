@@ -1,8 +1,12 @@
 use super::*;
 
-pub(super) type ListOwnership = std::collections::BTreeMap<usize, usize>;
+pub(super) struct ListOwnership {
+    lines: std::collections::BTreeMap<usize, usize>,
+    pub(super) ordered: Vec<usize>,
+}
 
 pub(in crate::render) struct ListLayoutState {
+    pub(in crate::render) ordered: Vec<usize>,
     pub(in crate::render) metrics: ListLayoutMetrics,
     pub(in crate::render) hanging_lines: Vec<usize>,
     pub(in crate::render) guides: Vec<crate::markdown::ListGuideLine>,
@@ -12,6 +16,7 @@ pub(in crate::render) struct ListLayoutState {
 impl ListLayoutState {
     pub(in crate::render) fn new(font_system: &mut FontSystem, metrics: Metrics) -> Self {
         Self {
+            ordered: Vec::new(),
             metrics: ListLayoutMetrics::shape(
                 font_system,
                 metrics,
@@ -39,7 +44,7 @@ pub(super) fn parsed_list_ownership(
     let mut owners = super::super::rects::parsed_list_lines(lines, md_spans)
         .into_iter()
         .map(|item| (item.line, item.marker_col))
-        .collect::<ListOwnership>();
+        .collect::<std::collections::BTreeMap<_, _>>();
     // Ordered markers stay raw, but their indentation is a layout attribute.
     // Retained lines must be restyled if a surrounding fence changes ownership.
     let markers = md_spans
@@ -48,6 +53,7 @@ pub(super) fn parsed_list_ownership(
             (*kind == crate::markdown::MdKind::ListMarker).then_some((range.start, range.end))
         })
         .collect::<std::collections::BTreeMap<_, _>>();
+    let mut ordered = Vec::new();
     let mut start = 0;
     for (line, text) in lines.iter().enumerate() {
         if let Some(end) = markers.get(&start)
@@ -56,6 +62,7 @@ pub(super) fn parsed_list_ownership(
             && *end >= start + item.content
         {
             owners.insert(line, item.indent);
+            ordered.push(line);
         }
         start += text.len() + 1;
     }
@@ -64,7 +71,10 @@ pub(super) fn parsed_list_ownership(
             .iter()
             .map(|item| (item.line, item.marker_col)),
     );
-    owners
+    ListOwnership {
+        lines: owners,
+        ordered,
+    }
 }
 
 fn retained_ownership_changed(
@@ -72,7 +82,7 @@ fn retained_ownership_changed(
     new: &ListOwnership,
     change: change::TextChange,
 ) -> bool {
-    let translated_old = old.iter().filter_map(|(&line, &marker_col)| {
+    let translated_old = old.lines.iter().filter_map(|(&line, &marker_col)| {
         if line < change.prefix {
             Some((line, marker_col))
         } else if line >= change.old_end {
@@ -81,7 +91,7 @@ fn retained_ownership_changed(
             None
         }
     });
-    let retained_new = new.iter().filter_map(|(&line, &marker_col)| {
+    let retained_new = new.lines.iter().filter_map(|(&line, &marker_col)| {
         (line < change.prefix || line >= change.new_end).then_some((line, marker_col))
     });
     translated_old.ne(retained_new)

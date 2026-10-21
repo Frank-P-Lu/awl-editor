@@ -1,41 +1,46 @@
-//! Structural list rails, painted independently of caret/selection concealment.
+//! Structural rails attach to marker cells, with one ink-clearance rule at endpoints.
 use super::*;
+mod anchors;
+
+struct GuideRow {
+    line: usize,
+    first: bool,
+    last: bool,
+    top: f32,
+    bottom: f32,
+    first_ink: f32,
+    parents: Vec<usize>,
+}
 
 impl TextPipeline {
-    pub(super) fn list_guide_geometry(&self) -> (Vec<[f32; 4]>, usize) {
-        if !self.md_enabled || !crate::markdown::wysiwyg_on() || !self.document_active {
-            return (Vec::new(), 0);
-        }
-        let guides = &self.list_layout.guides;
-        let (x0, clip_top, x1, clip_bottom) = self.content_clip();
-        let y0 = clip_top.max(0.0);
-        let y1 = clip_bottom.min(self.window_h);
+    fn visible_guide_rows(&self, y0: f32, y1: f32) -> (Vec<GuideRow>, usize) {
         let doc_top = self.doc_top();
-        let stroke = self.dpi.max(1.0);
         self.row_geom
             .with_report_rows(|rows| {
                 let first = rows.partition_point(|entry| {
                     doc_top + entry.row.line_top + entry.row.line_height <= y0
                 });
                 let past = rows.partition_point(|entry| doc_top + entry.row.line_top < y1);
-                let visible = &rows[first..past.max(first)];
-                let mut rects = Vec::new();
-                for entry in visible {
-                    let Ok(index) = guides.binary_search_by_key(&entry.logical_line, |g| g.line)
+                let mut out = Vec::new();
+                for index in first..past.max(first) {
+                    let entry = &rows[index];
+                    let line = entry.logical_line;
+                    let Ok(guide_index) = self
+                        .list_layout
+                        .guides
+                        .binary_search_by_key(&line, |g| g.line)
                     else {
                         continue;
                     };
-                    let guide = &guides[index];
+                    let guide = &self.list_layout.guides[guide_index];
+                    debug_assert_eq!(guide.parents.len(), guide.columns.len());
                     let row = &entry.row;
-                    let scale = theme::active().list_indent_scale;
                     let body_start = if guide.marker {
-                        self.parsed_list_line(entry.logical_line)
+                        self.parsed_list_line(line)
                             .map(|item| item.body_col())
                             .or_else(|| {
-                                crate::markdown::list_item(
-                                    self.buffer.lines[entry.logical_line].text(),
-                                )
-                                .map(|item| item.content)
+                                crate::markdown::list_item(self.buffer.lines[line].text())
+                                    .map(|item| item.content)
                             })
                             .unwrap_or(guide.source_indent)
                     } else {
@@ -43,32 +48,76 @@ impl TextPipeline {
                     };
                     let first_ink = (row.start_col.max(body_start)..row.end_col)
                         .find(|&col| row.xs[col + 1] - row.xs[col] > 0.01)
-                        .map_or(f32::INFINITY, |col| row.xs[col]);
-                    let top = (doc_top + row.line_top).max(y0);
-                    let bottom = (doc_top + row.line_top + row.line_height).min(y1);
-                    for (&column, &parent) in guide.columns.iter().zip(&guide.parents) {
-                        let metrics = self.list_layout.metrics;
-                        let advance = self.parsed_list_line(parent).map_or_else(
-                            || metrics.indent_advance(column, scale),
-                            |item| {
-                                metrics.indent_advance(item.marker_col as f32, scale)
-                                    + metrics.marker_center(item.depth, item.task())
-                            },
-                        );
-                        // Lazy/revealed continuation rows may start at column zero.
-                        // Raw marker punctuation stays above the rail; prose must stay clear.
-                        if advance + stroke >= first_ink {
-                            continue;
-                        }
-                        let left = (self.text_left() + advance - stroke * 0.5).round();
-                        if left >= x0 && left + stroke <= x1 && bottom > top {
-                            rects.push([left, top, stroke, bottom - top]);
-                        }
-                    }
+                        .map_or(f32::INFINITY, |col| self.text_left() + row.xs[col]);
+                    out.push(GuideRow {
+                        line,
+                        first: row.start_col == 0,
+                        last: rows
+                            .get(index + 1)
+                            .is_none_or(|next| next.logical_line != line),
+                        top: doc_top + row.line_top,
+                        bottom: doc_top + row.line_top + row.line_height,
+                        first_ink,
+                        parents: guide.parents.clone(),
+                    });
                 }
-                (rects, visible.len())
+                (out, past.max(first) - first)
             })
             .unwrap_or_default()
+    }
+
+    pub(super) fn list_guide_geometry(&mut self) -> (Vec<[f32; 4]>, usize) {
+        if !self.md_enabled || !crate::markdown::wysiwyg_on() || !self.document_active {
+            return (Vec::new(), 0);
+        }
+        let (x0, clip_top, x1, clip_bottom) = self.content_clip();
+        let (y0, y1) = (clip_top.max(0.0), clip_bottom.min(self.window_h));
+        let (rows, visited) = self.visible_guide_rows(y0, y1);
+        let stroke = self.dpi.max(1.0);
+        let clearance = self.metrics.font_size * 0.125;
+        let touch = self.selection_touch();
+        let mut cache = std::collections::BTreeMap::new();
+        let mut rects = Vec::new();
+        for row in rows {
+            for parent in row.parents {
+                let Some(anchor) = *cache
+                    .entry(parent)
+                    .or_insert_with(|| self.list_guide_anchor(parent))
+                else {
+                    continue;
+                };
+                let center = anchor.center_x();
+                if center + stroke >= row.first_ink {
+                    continue;
+                }
+                let mut top = row.top;
+                let mut bottom = row.bottom;
+                if row.first
+                    && parent + 1 == row.line
+                    && !self.line_is_revealed(parent, touch.as_ref())
+                    && anchor.bottom().is_finite()
+                {
+                    top = top.min(anchor.bottom() + clearance);
+                }
+                if row.last && !self.line_is_revealed(row.line + 1, touch.as_ref()) {
+                    let next = *cache
+                        .entry(row.line + 1)
+                        .or_insert_with(|| self.list_guide_anchor(row.line + 1));
+                    if let Some(next) = next
+                        && next.indent == anchor.indent
+                        && (next.center_x() - center).abs() < 0.51
+                    {
+                        bottom = bottom.max(next.bounds[1] - clearance);
+                    }
+                }
+                let left = (center - stroke * 0.5).round();
+                let (top, bottom) = (top.max(y0), bottom.min(y1));
+                if left >= x0 && left + stroke <= x1 && bottom > top {
+                    rects.push([left, top, stroke, bottom - top]);
+                }
+            }
+        }
+        (rects, visited)
     }
 
     pub(super) fn prepare_list_guides(

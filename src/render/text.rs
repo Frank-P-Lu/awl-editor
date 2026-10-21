@@ -1028,6 +1028,7 @@ impl TextPipeline {
         self.last_outline_current = self.outline_current();
         self.md_spans = md_spans;
         self.list_layout.guides = list_guides;
+        self.list_layout.ordered = new_list_ownership.ordered;
         self.list_layout.continuations = list_continuations;
         self.syn_spans = syn_spans;
         self.image_heights = image_heights;

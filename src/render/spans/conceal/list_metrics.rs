@@ -11,7 +11,8 @@ pub(in crate::render) struct ListLayoutMetrics {
     pub(in crate::render) marker_slot: f32,
     indent_space: f32,
     pub(in crate::render) body_baseline: f32,
-    marker_centers: [f32; 5],
+    marker_centers: marker_centers::MarkerMetrics,
+    body_ink_height: f32,
 }
 
 impl ListLayoutMetrics {
@@ -68,18 +69,30 @@ impl ListLayoutMetrics {
             super::list::LIST_MARKER_GAP_TRACKING,
         )
         .max(1.0);
+        let marker_centers = marker_centers::shape(font_system, metrics, marker_slot);
         Self {
-            marker_slot,
-            marker_centers: marker_centers::shape(font_system, metrics, marker_slot),
+            marker_slot: marker_centers.slot,
+            marker_centers,
             indent_space,
             body_baseline,
+            body_ink_height: metrics.font_size
+                * crate::render::facepitch::vertical_em_metrics(body_family).0
+                * crate::render::facepitch::typical_letter_ratio(body_family),
         }
     }
 
     pub(in crate::render) const PROSE_GAP_EM: f32 = 0.4;
 
-    pub(in crate::render) fn marker_center(self, depth: usize, task: Option<bool>) -> f32 {
-        self.marker_centers[task.map_or(depth % 3, |checked| 3 + usize::from(checked))]
+    pub(in crate::render) fn marker_center(self) -> f32 {
+        self.marker_centers.center
+    }
+
+    pub(in crate::render) fn marker_size(self, depth: usize, task: Option<bool>) -> [f32; 2] {
+        self.marker_centers.sizes[task.map_or(depth % 3, |checked| 3 + usize::from(checked))]
+    }
+
+    pub(in crate::render) fn marker_center_y(self, baseline: f32) -> f32 {
+        baseline - self.body_ink_height * 0.5
     }
 
     pub(in crate::render) fn indent_advance(self, column: f32, scale: f32) -> f32 {

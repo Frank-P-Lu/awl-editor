@@ -155,14 +155,12 @@ impl ListMarkers {
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
                 let glyphs = crate::rotated_label::ink::buffer_key(&buffer);
-                let body_ascent_em =
-                    crate::render::facepitch::vertical_em_metrics(pipeline.shaped_font).0;
-                let body_typical_height = metrics.font_size
-                    * body_ascent_em
-                    * crate::render::facepitch::typical_letter_ratio(pipeline.shaped_font);
                 let baseline_offset = f32::from_bits(baseline_offset_bits);
-                let target_ink_right = width - metrics.font_size * ListLayoutMetrics::PROSE_GAP_EM;
-                let target_ink_center_y = baseline_offset - body_typical_height * 0.5;
+                let target_ink_center_x = pipeline.list_layout.metrics.marker_center();
+                let target_ink_center_y = pipeline
+                    .list_layout
+                    .metrics
+                    .marker_center_y(baseline_offset);
                 let offset = pipeline
                     .glyph_ink_cache
                     .bounds(
@@ -172,7 +170,7 @@ impl ListMarkers {
                     )
                     .map_or([0.0, 0.0], |ink| {
                         [
-                            target_ink_right - (ink[0] + ink[2]),
+                            target_ink_center_x - (ink[0] + ink[2] * 0.5),
                             target_ink_center_y - (ink[1] + ink[3] * 0.5),
                         ]
                     });

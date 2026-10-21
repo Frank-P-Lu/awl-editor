@@ -1,10 +1,17 @@
 //! Optical marker anchors measured with the same face, size and ink scanner as paint.
 use super::*;
 
-pub(super) fn shape(fonts: &mut FontSystem, metrics: Metrics, slot: f32) -> [f32; 5] {
+#[derive(Clone, Copy, Debug)]
+pub(super) struct MarkerMetrics {
+    pub center: f32,
+    pub slot: f32,
+    pub sizes: [[f32; 2]; 5],
+}
+
+pub(super) fn shape(fonts: &mut FontSystem, metrics: Metrics, slot: f32) -> MarkerMetrics {
     let world = theme::active();
     let mut swash = glyphon::SwashCache::new();
-    std::array::from_fn(|index| {
+    let sizes = std::array::from_fn(|index| {
         let (glyph, scale) = if index < 3 {
             let glyph = world.bullet_for_depth(index);
             (glyph, world.bullet_scale_for(glyph))
@@ -25,8 +32,15 @@ pub(super) fn shape(fonts: &mut FontSystem, metrics: Metrics, slot: f32) -> [f32
         );
         buffer.shape_until_scroll(fonts, false);
         let keys = crate::rotated_label::ink::buffer_key(&buffer);
-        let width =
-            crate::rotated_label::ink::bounds(fonts, &mut swash, &keys).map_or(0.0, |ink| ink[2]);
-        slot - metrics.font_size * ListLayoutMetrics::PROSE_GAP_EM - width * 0.5
-    })
+        crate::rotated_label::ink::bounds(fonts, &mut swash, &keys)
+            .map_or([0.0, 0.0], |ink| [ink[2], ink[3]])
+    });
+    let widest = sizes.iter().map(|size| size[0]).fold(0.0_f32, f32::max);
+    let gap = metrics.font_size * ListLayoutMetrics::PROSE_GAP_EM;
+    let slot = slot.max(widest + gap);
+    MarkerMetrics {
+        slot,
+        center: slot - gap - widest * 0.5,
+        sizes,
+    }
 }

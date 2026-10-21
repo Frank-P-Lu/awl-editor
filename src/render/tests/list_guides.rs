@@ -1,6 +1,7 @@
 //! Outcome laws for structural rails, source reveal and measured nesting space.
 use super::super::*;
 use super::{headless_pipeline, view_md};
+mod cells;
 
 const DOC: &str = concat!(
     "- Parent\n",
@@ -9,7 +10,7 @@ const DOC: &str = concat!(
     "    - [ ] Task\n    - [ ] \n  1. Ordered\n     - Detail\n\nOutside\n",
 );
 
-fn rails(p: &TextPipeline) -> Vec<[f32; 4]> {
+fn rails(p: &mut TextPipeline) -> Vec<[f32; 4]> {
     p.row_geom.seal_frame(&p.buffer, &p.metrics);
     p.list_guide_geometry().0
 }
@@ -32,11 +33,11 @@ fn list_guides_persist_on_active_and_selected_source_in_every_world() {
                 let mut v = view_md(DOC, 2, 10);
                 v.selection = selection;
                 p.set_view(&v);
-                let rects = rails(&p);
+                let rects = rails(&mut p);
                 let top = p.doc_top() + p.visual_rows(2)[0].line_top;
                 let task_rails = rects
                     .iter()
-                    .filter(|r| (r[1] - top).abs() < 0.1)
+                    .filter(|r| r[1] <= top + 0.1 && r[1] + r[3] > top + 0.1)
                     .collect::<Vec<_>>();
                 assert_eq!(
                     task_rails.len(),
@@ -74,7 +75,7 @@ fn list_guides_cover_wrapped_preview_and_stop_before_unrelated_text() {
     crate::markdown::set_wysiwyg_on(true);
     p.set_size(520.0, 1500.0);
     p.set_view(&view_md(DOC, 7, 0));
-    let rects = rails(&p);
+    let rects = rails(&mut p);
     let rows = p.visual_rows(1);
     assert!(rows.len() > 1);
     for row in rows {
@@ -82,19 +83,19 @@ fn list_guides_cover_wrapped_preview_and_stop_before_unrelated_text() {
         assert!(
             rects
                 .iter()
-                .any(|r| (r[1] - top).abs() < 0.1 && (r[3] - row.line_height).abs() < 0.1)
+                .any(|r| r[1] <= top + 0.1 && r[1] + r[3] >= top + row.line_height - 0.1)
         );
     }
     let outside_top = p.doc_top() + p.visual_rows(7)[0].line_top;
     assert!(rects.iter().all(|r| r[1] + r[3] <= outside_top));
     p.set_view(&view_md("- Parent\n  - Child\nlazy prose\n", 2, 4));
-    let rects = rails(&p);
+    let rects = rails(&mut p);
     let lazy_top = p.doc_top() + p.visual_rows(2)[0].line_top;
     assert!(rects.iter().all(|r| r[1] < lazy_top));
     let mut plain = view_md(DOC, 7, 0);
     plain.is_markdown = false;
     p.set_view(&plain);
-    assert!(rails(&p).is_empty());
+    assert!(rails(&mut p).is_empty());
     assert!(
         p.list_layout.guides.is_empty(),
         "buffer swaps clear structural ownership"
@@ -120,7 +121,7 @@ fn list_guide_work_is_bounded_by_visible_rows_and_clipped_to_viewport() {
     assert!(!rects.is_empty());
     assert!(rects.iter().all(|r| r[1] >= 0.0 && r[1] + r[3] <= 600.0));
     crate::markdown::set_wysiwyg_on(false);
-    assert!(rails(&p).is_empty());
+    assert!(rails(&mut p).is_empty());
     crate::markdown::set_wysiwyg_on(true);
 }
 
@@ -135,10 +136,13 @@ fn ordered_guide_rails_do_not_jog_on_authored_continuations() {
     let text = "- Parent\n  1. Ordered\n     continuation\n\nOutside\n";
     for cursor in [1, 2, 4] {
         p.set_view(&view_md(text, cursor, 0));
-        let rects = rails(&p);
+        let rects = rails(&mut p);
         let at = |line| {
             let top = p.doc_top() + p.visual_rows(line)[0].line_top;
-            rects.iter().find(|r| (r[1] - top).abs() < 0.1).unwrap()[0]
+            rects
+                .iter()
+                .find(|r| r[1] <= top + 0.1 && r[1] + r[3] > top + 0.1)
+                .unwrap()[0]
         };
         assert_eq!(at(1), at(2));
     }
@@ -157,7 +161,7 @@ fn retained_ordered_indent_matches_fresh_layout_through_fence_edits() {
     let normal = p.visual_rows(1)[0].xs.clone();
     p.set_view(&view_md(fenced, 4, 0));
     let fenced_xs = p.visual_rows(2)[0].xs.clone();
-    assert!(rails(&p).is_empty());
+    assert!(rails(&mut p).is_empty());
     p.set_view(&view_md(before, 3, 0));
     assert_eq!(p.visual_rows(1)[0].xs, normal);
     // A fresh buffer identity exercises the full-shape oracle.
@@ -194,23 +198,36 @@ fn guides_align_with_parent_bullet_and_checkbox_ink_in_every_world() {
             let (masks, _) = super::task_markers::isolated_marker_masks(
                 &mut p, &device, &queue, width, height, &marks,
             );
-            let rects = rails(&p);
+            let rects = rails(&mut p);
+            let mut centers = Vec::new();
             for parent in 0..4 {
                 let mask = &masks[parent];
                 assert!(!mask.is_empty());
                 let left = mask.iter().map(|(x, _)| *x).min().unwrap();
                 let right = mask.iter().map(|(x, _)| *x).max().unwrap();
                 let center = marks[parent].left.floor() + (left + right + 1) as f32 * 0.5;
+                centers.push(center);
                 let child_top = p.doc_top() + p.visual_rows(parent + 1)[0].line_top;
                 let row = rects
                     .iter()
-                    .filter(|r| (r[1] - child_top).abs() < 0.1)
+                    .filter(|r| r[1] <= child_top + 0.1 && r[1] + r[3] > child_top + 0.1)
                     .collect::<Vec<_>>();
                 assert_eq!(row.len(), parent + 1, "{} dpi {dpi}", world.name);
                 let rail_center = row[parent][0] + row[parent][2] * 0.5;
                 assert!(
                     (rail_center - center).abs() <= 1.01,
                     "{} dpi {dpi} parent {parent}: rail {rail_center}, marker {center}",
+                    world.name
+                );
+            }
+            let step = p
+                .list_layout
+                .metrics
+                .indent_advance(2.0, world.list_indent_scale);
+            for pair in centers.windows(2) {
+                assert!(
+                    (pair[1] - pair[0] - step).abs() <= 1.51,
+                    "{} dpi {dpi}: marker centres {centers:?}, expected step {step}",
                     world.name
                 );
             }
