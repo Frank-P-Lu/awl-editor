@@ -173,8 +173,8 @@ fn guide_bridges_require_a_clear_gutter_through_parent_wraps() {
                 } else {
                     assert!(
                         first_top >= parent_bottom - 0.1,
-                        "{} dpi {dpi} {prefix}: guide starts at {first_top}, crossing raw wrapped prose \
-                         above {parent_bottom}",
+                        "{} dpi {dpi} {prefix}: guide starts at {first_top}, crossing \
+                         raw wrapped prose above {parent_bottom}",
                         world.name
                     );
                 }
