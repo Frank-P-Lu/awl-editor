@@ -2,7 +2,27 @@
 use super::*;
 use crate::render::tests::pixeldiff;
 
-const DOC: &str = include_str!("ordered_fixture.md");
+const DOC: &str = concat!(
+    "- Root\n",
+    "  - Branch\n",
+    "    1. Parent one\n",
+    "       - Detail\n",
+    "    2. Sibling two\n",
+    "    10. Parent ten\n",
+    "        - Detail\n",
+    "    11. Sibling eleven\n",
+    "    99. Parent ninety-nine\n",
+    "        - Detail\n",
+    "    100. Parent hundred\n",
+    "         - Detail\n",
+    "    101. Sibling hundred\n",
+    "  - [ ] Open branch\n",
+    "    1. Mixed one\n",
+    "       - [x] Done detail\n",
+    "    2. Mixed two\n",
+    "\n",
+    "Outside\n",
+);
 type Frame = Vec<[u8; 4]>;
 
 struct Layers {
