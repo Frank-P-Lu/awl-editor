@@ -42,7 +42,8 @@ fn guide_endpoints_clear_mixed_empty_markers_without_changing_row_pitch() {
                 let ink_top =
                     marks[3].top.floor() + masks[3].iter().map(|(_, y)| *y).min().unwrap() as f32;
                 let gap = ink_top - (stem[1] + stem[3]);
-                let expected = p.metrics.font_size * 0.125;
+                // Geometry reserves the shader's additional 1px antialias fringe.
+                let expected = p.metrics.font_size * 0.125 + 1.0;
                 assert!(
                     (gap - expected).abs() <= 1.51,
                     "{} dpi {dpi} {parent}/{empty}: empty marker gap {gap}, expected {expected}",

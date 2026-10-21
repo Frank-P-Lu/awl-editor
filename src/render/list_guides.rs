@@ -1,6 +1,7 @@
 //! Structural rails attach to marker cells, with one ink-clearance rule at endpoints.
 use super::*;
 mod anchors;
+mod clipping;
 
 struct GuideRow {
     line: usize,
@@ -77,6 +78,7 @@ impl TextPipeline {
         let clearance = self.metrics.font_size * 0.125;
         let touch = self.selection_touch();
         let mut cache = std::collections::BTreeMap::new();
+        let mut markers = std::collections::BTreeMap::new();
         let mut rects = Vec::new();
         for row in rows {
             for parent in row.parents {
@@ -106,7 +108,8 @@ impl TextPipeline {
                         .or_insert_with(|| self.list_guide_anchor(row.line + 1));
                     if let Some(next) = next
                         && next.indent == anchor.indent
-                        && (next.center_x() - center).abs() < 0.51
+                        && center + stroke > next.bounds[0] - clearance
+                        && center - stroke < next.bounds[0] + next.bounds[2] + clearance
                     {
                         bottom = bottom.max(next.bounds[1] - clearance);
                     }
@@ -114,7 +117,28 @@ impl TextPipeline {
                 let left = (center - stroke * 0.5).round();
                 let (top, bottom) = (top.max(y0), bottom.min(y1));
                 if left >= x0 && left + stroke <= x1 && bottom > top {
-                    rects.push([left, top, stroke, bottom - top]);
+                    // A neighbouring marker may extend beyond its row box. Protect
+                    // all of its painted ink, including the guide shader's 1px fringe.
+                    let mut segments = vec![(top, bottom)];
+                    for line in row.line.saturating_sub(1)..=row.line.saturating_add(1) {
+                        if let Some(bounds) = *markers
+                            .entry(line)
+                            .or_insert_with(|| self.painted_list_marker_bounds(line))
+                        {
+                            clipping::exclude_marker(
+                                &mut segments,
+                                left,
+                                stroke,
+                                bounds,
+                                clearance + 1.0,
+                            );
+                        }
+                    }
+                    rects.extend(
+                        segments
+                            .into_iter()
+                            .map(|(top, bottom)| [left, top, stroke, bottom - top]),
+                    );
                 }
             }
         }

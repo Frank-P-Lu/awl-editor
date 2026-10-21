@@ -40,30 +40,53 @@ impl TextPipeline {
         }
         self.list_layout.ordered.binary_search(&line).ok()?;
         let item = crate::markdown::list_item(self.buffer.lines.get(line)?.text())?;
-        let layouts = self.buffer.lines[line].layout_opt()?;
-        let layout = layouts.first()?;
-        let origin = (self.text_left(), self.line_ornament_baseline(line));
-        if !origin.1.is_finite() {
-            return None;
-        }
-        let keys = layout
-            .glyphs
-            .iter()
-            .filter(|glyph| glyph.start >= item.indent && glyph.start < item.content - 1)
-            .map(|glyph| {
-                let physical = glyph.physical(origin, 1.0);
-                (physical.cache_key, physical.x, physical.y)
-            })
-            .collect::<Vec<_>>();
-        let bounds =
-            self.glyph_ink_cache
-                .bounds(&mut self.font_system, &mut self.swash_cache, &keys)?;
+        let bounds = self.raw_list_prefix_bounds(line, item.indent, item.content - 1)?;
         Some(GuideAnchor {
             bounds,
             indent: item.indent,
             // Rich paragraphs reserve a hanging gutter. Raw ordered wraps
             // return to the text origin, so the bridge would cross their prose.
-            continuous_gutter: layouts.len() == 1,
+            continuous_gutter: self.buffer.lines[line].layout_opt()?.len() == 1,
         })
+    }
+
+    fn raw_list_prefix_bounds(
+        &mut self,
+        line: usize,
+        start: usize,
+        end: usize,
+    ) -> Option<[f32; 4]> {
+        let layout = self.buffer.lines.get(line)?.layout_opt()?.first()?;
+        let origin = (self.text_left(), self.doc_top());
+        let baseline = self.line_ornament_baseline(line) - origin.1;
+        if !baseline.is_finite() {
+            return None;
+        }
+        // Glyphon rounds the shaped baseline separately from the TextArea origin.
+        // Folding it into physical() changes the subpixel mask and its ink bounds.
+        let keys = layout
+            .glyphs
+            .iter()
+            .filter(|glyph| glyph.start >= start && glyph.start < end)
+            .map(|glyph| {
+                let physical = glyph.physical(origin, 1.0);
+                (
+                    physical.cache_key,
+                    physical.x,
+                    physical.y + baseline.round() as i32,
+                )
+            })
+            .collect::<Vec<_>>();
+        self.glyph_ink_cache
+            .bounds(&mut self.font_system, &mut self.swash_cache, &keys)
+    }
+
+    pub(super) fn painted_list_marker_bounds(&mut self, line: usize) -> Option<[f32; 4]> {
+        if let Some(item) = self.parsed_list_line(line)
+            && self.line_is_revealed(line, self.selection_touch().as_ref())
+        {
+            return self.raw_list_prefix_bounds(line, item.marker_col, item.body_col());
+        }
+        self.list_guide_anchor(line).map(|anchor| anchor.bounds)
     }
 }

@@ -2,6 +2,7 @@
 use super::super::*;
 use super::{headless_pipeline, view_md};
 mod cells;
+mod ordered_clearance;
 
 const DOC: &str = concat!(
     "- Parent\n",
