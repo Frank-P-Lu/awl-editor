@@ -3,6 +3,9 @@
 use super::super::cx::FramePhases;
 use super::*;
 
+mod scale;
+pub(in crate::render::benchsuite) use scale::scale;
+
 const KEYS: usize = 30;
 
 struct LiveRun {
@@ -15,14 +18,19 @@ struct LiveRun {
 }
 
 impl LiveRun {
-    fn prime(cx: &mut Cx) -> Result<Self> {
+    fn prime(cx: &mut Cx, near_end: bool) -> Result<Self> {
         let spell = crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs)
             .map_err(|e| anyhow::anyhow!("spell checker failed to load: {e}"))?;
         let mut spell_projection = crate::spell::SpellProjection::default();
         let mut buffer = crate::buffer::Buffer::from_str(&cx.text);
         buffer.set_path(std::path::PathBuf::from(cx.view.gutter_name.clone()));
         cx.view.scroll = crate::render::ScrollPos::default();
-        cx.view.cursor_line = 0;
+        if near_end {
+            let line = buffer.line_count() - 2;
+            buffer.set_cursor(buffer.line_col_to_char(line, 0));
+            let row = cx.p.total_visual_rows().saturating_sub(12);
+            cx.view.scroll = crate::render::ScrollPos::at_row(row);
+        }
         cx.view.is_edit_move = true;
 
         // Prime the same complete operation untimed so samples measure steady
@@ -32,7 +40,7 @@ impl LiveRun {
         let text = buffer.text();
         let sync_text_cache = text.clone();
         std::hint::black_box(&sync_text_cache);
-        cx.view.cursor_col = 1;
+        (cx.view.cursor_line, cx.view.cursor_col) = buffer.cursor_line_col();
         cx.view.text = text;
         cx.view.misspelled = crate::spell::visible(&spell_cache, &cx.view.text);
         cx.sync_frame()?;
@@ -387,7 +395,7 @@ impl LiveTimings {
 /// baseline witness because timings naturally vary between runs.
 pub(super) fn live(cx: &mut Cx) -> Result<CellOut> {
     let pristine_misspelled = cx.view.misspelled.clone();
-    let mut run = LiveRun::prime(cx)?;
+    let mut run = LiveRun::prime(cx, false)?;
     let first = cx.snapshot()?;
     let before = cx.p.reshape_count;
     for k in 0..KEYS {

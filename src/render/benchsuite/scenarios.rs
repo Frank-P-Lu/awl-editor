@@ -14,7 +14,7 @@ use super::corpus::{self, Tier};
 use super::cx::{Cx, FramePasses, differing_pixels, ms};
 use super::{HEIGHT, WIDTH};
 
-mod typing;
+pub(super) mod typing;
 
 enum_with_all! {
     /// The scenario axis. `ALL` is the per-tier run order; `name` is a no-wildcard

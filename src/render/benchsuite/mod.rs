@@ -94,6 +94,21 @@ async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
     let (device, queue) = crate::capture::gpu::headless_device().await?;
     let cache = Cache::new(&device);
 
+    if std::env::var_os("AWL_BENCH_TYPING_SCALE").is_some() {
+        ensure!(
+            baseline.is_none(),
+            "typing scale does not use the matrix baseline"
+        );
+        ensure!(
+            !cfg!(debug_assertions),
+            "typing scale requires a release build"
+        );
+        pin_posture(false)?;
+        let config = Config::load(PathBuf::new());
+        crate::page::set_measure(config.measure_for(Tier::M.class()));
+        return scenarios::typing::scale(&device, &queue, &cache, &config);
+    }
+
     let posture_world = pin_posture(baseline.is_some())?;
     let config = Config::load(PathBuf::new()); // pure defaults, no file
 
