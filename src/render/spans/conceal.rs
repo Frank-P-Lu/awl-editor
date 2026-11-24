@@ -370,15 +370,17 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
             MdKind::ConcealMarkup(ck) => ck,
             _ => continue,
         };
+        // Reject unrelated spans before the fence's code-body lookup, which
+        // itself scans the span list.
+        let lo = r.start.max(line_doc_start);
+        let hi = r.end.min(line_end);
+        if lo >= hi {
+            continue;
+        }
         if wysiwyg_reveals(ck, conceal_off_cursor, cursor_byte, r, selection_touch) {
             continue;
         }
         if ck == ConcealKind::Fence && line_has_code_span(md_spans, line_doc_start, line_end) {
-            continue;
-        }
-        let lo = r.start.max(line_doc_start);
-        let hi = r.end.min(line_end);
-        if lo >= hi {
             continue;
         }
         if ck == ConcealKind::Image

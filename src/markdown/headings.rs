@@ -207,13 +207,26 @@ pub fn headings(text: &str) -> Vec<Heading> {
 /// re-derives a rule that has an owner.
 pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
+    let mut counted_to = 0;
+    let mut line = 0;
     for (range, kind) in spans {
         let range = range.clone();
         let kind = *kind;
         let MdKind::Heading(level) = kind else {
             continue;
         };
-        let line = text[..range.start].bytes().filter(|&b| b == b'\n').count();
+        // Heading spans normally arrive in source order. Count only the
+        // bytes between them; restarting from byte zero for every heading
+        // makes the outline cost grow quadratically with heading density.
+        if range.start < counted_to {
+            counted_to = 0;
+            line = 0;
+        }
+        line += text[counted_to..range.start]
+            .bytes()
+            .filter(|&b| b == b'\n')
+            .count();
+        counted_to = range.start;
         // One row per heading line: later spans on the SAME line are extra runs of
         // the same title (the spans arrive in document order), so skip them.
         if out.last().map(|h| h.line) == Some(line) {
@@ -230,4 +243,44 @@ pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<
         });
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn heading_offsets_match_independent_prefix_counts_in_paint_order() {
+        let _g = crate::testlock::serial();
+        let text = "# 最初\n\n## Second piece\n\n### 最後";
+        let at = |part: &str| {
+            let start = text.find(part).unwrap();
+            start..start + part.len()
+        };
+        let spans = [
+            (at("最初"), MdKind::Heading(1)),
+            (at("Second"), MdKind::Heading(2)),
+            (at("piece"), MdKind::Heading(2)),
+            (at("最後"), MdKind::Heading(3)),
+            (at("最初"), MdKind::Heading(1)),
+        ];
+        let expected = [
+            ("最初", 1, 0),
+            ("Second", 2, 2),
+            ("最後", 3, 4),
+            ("最初", 1, 0),
+        ];
+        let actual = headings_from_spans(text, &spans);
+        assert_eq!(actual.len(), expected.len());
+        for (heading, (title, level, line)) in actual.iter().zip(expected) {
+            assert_eq!(
+                (heading.text.as_str(), heading.level, heading.line),
+                (title, level, line)
+            );
+            assert_eq!(
+                heading.line,
+                text[..text.find(title).unwrap()].matches('\n').count()
+            );
+        }
+    }
 }

@@ -44,6 +44,7 @@ mod change;
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
+mod line_span_sweep;
 mod list_layout;
 mod motion;
 use change::{ChangedLines, TextChange};
@@ -1261,21 +1262,21 @@ impl TextPipeline {
         };
         let mut changed = false;
         let mut start = 0usize;
+        let mut spans = line_span_sweep::LineSpanSweep::new(&md_spans);
         for li in 0..self.buffer.lines.len() {
             let tlen = self.buffer.lines[li].text().len();
-            let is_rule = md_spans.iter().any(|(r, k)| {
-                *k == crate::markdown::MdKind::Rule && r.start < start + tlen + 1 && r.end > start
-            });
+            let local_spans = spans.for_line(start, start + tlen);
+            let is_rule = local_spans
+                .iter()
+                .any(|(_, k)| *k == crate::markdown::MdKind::Rule);
             let is_bullet = crate::markdown::list_item(self.buffer.lines[li].text())
                 .is_some_and(|it| !it.ordered);
             let is_list_continuation = list_continuations
                 .binary_search_by_key(&start, |item| item.line_doc_start)
                 .is_ok();
-            let is_concealable = md_spans.iter().any(|(r, k)| {
-                matches!(k, crate::markdown::MdKind::ConcealMarkup(_))
-                    && r.start < start + tlen + 1
-                    && r.end > start
-            });
+            let is_concealable = local_spans
+                .iter()
+                .any(|(_, k)| matches!(k, crate::markdown::MdKind::ConcealMarkup(_)));
             if is_concealable {
                 self.refresh_conceal_image_force(
                     li,
@@ -1286,7 +1287,7 @@ impl TextPipeline {
                     &attrs,
                     base_font_size,
                     wrap,
-                    &md_spans,
+                    local_spans,
                     &mut image_heights,
                     &mut image_force,
                 );
@@ -1294,8 +1295,12 @@ impl TextPipeline {
             if (is_rule || is_bullet || is_list_continuation || is_concealable)
                 && let Some(line) = self.buffer.lines.get_mut(li)
             {
+                let local_ctx = LineAttrsCtx {
+                    md_spans: local_spans,
+                    ..line_attrs_ctx
+                };
                 let al = build_line_attrs(
-                    &line_attrs_ctx,
+                    &local_ctx,
                     line.text(),
                     start,
                     li != cursor_line,
